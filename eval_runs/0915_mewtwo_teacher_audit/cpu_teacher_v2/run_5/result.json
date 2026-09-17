@@ -1,0 +1,86 @@
+{
+  "run": 5,
+  "metrics": {
+    "neutral": {
+      "events": [
+        {
+          "start": 29,
+          "finish": 36,
+          "censor_reason": null,
+          "first_contact": 31,
+          "outcome": "subject_opens"
+        },
+        {
+          "start": 123,
+          "finish": 173,
+          "censor_reason": null,
+          "first_contact": 168,
+          "outcome": "subject_opens"
+        },
+        {
+          "start": 218,
+          "finish": 226,
+          "censor_reason": null,
+          "first_contact": 221,
+          "outcome": "opponent_opens"
+        },
+        {
+          "start": 372,
+          "finish": 395,
+          "censor_reason": null,
+          "first_contact": 390,
+          "outcome": "opponent_opens"
+        },
+        {
+          "start": 833,
+          "finish": 850,
+          "censor_reason": null,
+          "first_contact": 845,
+          "outcome": "subject_opens"
+        },
+        {
+          "start": 1783,
+          "finish": 1799,
+          "censor_reason": "end_of_recording",
+          "first_contact": null,
+          "outcome": "censored"
+        }
+      ],
+      "outcomes": {
+        "subject_opens": 3,
+        "opponent_opens": 2,
+        "censored": 1
+      },
+      "exchanges": 6
+    },
+    "deaths": 1,
+    "frames": 1800,
+    "aerial_attempts": 3,
+    "aerial_types": {
+      "65": 1,
+      "66": 2
+    },
+    "down_tilt_attempts": 6,
+    "grab_attempts": 0,
+    "hop_apices": [
+      12.653996603396081
+    ],
+    "max_shield_action_streak": 23,
+    "short_hops": 1,
+    "wavedashes": 1
+  },
+  "replay": "/home/blewf/git/exphil/eval_runs/0915_mewtwo_teacher_audit/cpu_teacher_v2/run_5/replays/Game_20260915T180937.slp",
+  "choices": {
+    ":down_tilt": 6,
+    ":interrupted": 907,
+    ":shield": 2,
+    ":wait": 713,
+    "{:aerial, :fair, :left}": 37,
+    "{:aerial, :fair, :right}": 12,
+    "{:aerial, :nair, :left}": 11,
+    "{:walk, :left}": 30,
+    "{:walk, :right}": 74,
+    "{:wavedash, :right}": 8
+  },
+  "opening_gate": true
+}

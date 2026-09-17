@@ -17,7 +17,7 @@ defmodule ExPhil.Training.Callbacks.PolicyExport do
       policy_path = Config.derive_policy_path(checkpoint_path)
       case Imitation.export_policy(state.trainer, policy_path) do
         :ok -> Output.puts("  Policy exported to #{policy_path}")
-        {:error, reason} -> Output.puts("  Policy export failed: #{inspect(reason)}")
+        {:error, reason} -> raise "Policy export failed for #{policy_path}: #{inspect(reason)}"
       end
 
       # Save config JSON (filter non-serializable values).
@@ -49,7 +49,7 @@ defmodule ExPhil.Training.Callbacks.PolicyExport do
         File.write!(config_path, serializable)
         Output.puts("  Config saved to #{config_path}")
       rescue
-        e -> Output.puts("  Config save failed: #{Exception.message(e)}")
+        e -> reraise e, __STACKTRACE__
       end
     end
 

@@ -1,0 +1,104 @@
+{
+  "id": "final_destination_fox_1",
+  "session": {
+    "errors": 0,
+    "expected_latency": 1,
+    "frames": 1922,
+    "game_ended": false,
+    "last_frame": 1799,
+    "measured_latency": 1,
+    "player_port": 1,
+    "policy": "eval_runs/0915_local_zero/corrected_bootstrap/candidate.bin",
+    "reaction_delay": 0,
+    "scored_fps": 104.34177728827315,
+    "scored_wall_ms": 17251,
+    "stage": "final_destination",
+    "start_frame": -123,
+    "status": "ok"
+  },
+  "run": 1,
+  "valid": true,
+  "stage": "final_destination",
+  "opponent": "fox",
+  "replay": "eval_runs/0915_local_zero/corrected_cpu_matrix/final_destination_fox_1/Game_20260915T114125.slp",
+  "metrics": {
+    "max_chain": 84,
+    "frames": 1800,
+    "deaths": 1,
+    "chains": [
+      {
+        "length": 4,
+        "ended_by": "other_action"
+      },
+      {
+        "length": 33,
+        "ended_by": "end_of_input"
+      },
+      {
+        "length": 11,
+        "ended_by": "other_action"
+      },
+      {
+        "length": 84,
+        "ended_by": "other_action"
+      }
+    ],
+    "completed_cycles": 128,
+    "endings": {
+      "end_of_input": 1,
+      "other_action": 3
+    },
+    "ground_shine_onsets": 132,
+    "ground_shines_per_minute": 264.0,
+    "recent_hit_onsets": 6,
+    "recovery": {
+      "episodes": [
+        {
+          "cause": "hitstun",
+          "start": 99,
+          "finish": 130,
+          "outcome": "reentered",
+          "ready": 117
+        },
+        {
+          "cause": "hitstun",
+          "start": 888,
+          "finish": null,
+          "last_observed": 1219,
+          "outcome": "death",
+          "ready": null
+        },
+        {
+          "cause": "loop_break",
+          "start": 1380,
+          "finish": 1467,
+          "outcome": "reentered",
+          "ready": 1455
+        },
+        {
+          "cause": "hitstun",
+          "start": 1488,
+          "finish": 1511,
+          "outcome": "reentered",
+          "ready": 1498
+        }
+      ],
+      "censored": 1,
+      "completed": 3,
+      "disruption_to_cycle_frames": [
+        31,
+        87,
+        23
+      ],
+      "ready_to_cycle_frames": [
+        13,
+        12,
+        13
+      ]
+    },
+    "self_initiated_onsets": 126,
+    "self_initiated_per_minute": 252.0
+  },
+  "replay_sha256": "71fc8d3ecc52a18ed8f8940d10c8df9e6e34dd7cd7298169efa379d5af16eae5",
+  "chain_gate": true
+}

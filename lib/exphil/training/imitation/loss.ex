@@ -254,7 +254,7 @@ defmodule ExPhil.Training.Imitation.Loss do
   Returned function signature:
 
       fn params, states, actions, frame_weights, initial_hidden ->
-        {{loss, final_hidden}, grads}
+        {{loss, {final_hidden, updated_model_state}}, grads}
 
   - `states` `{b, t, embed}`, `actions` per-timestep target maps
     (`buttons {b, t, 8}`, categoricals `{b, t}`), `frame_weights` `{b, t}`,
@@ -291,8 +291,8 @@ defmodule ExPhil.Training.Imitation.Loss do
               %{"state_sequence" => states, "initial_hidden" => initial_hidden}
           end
 
-        {{buttons, main_x, main_y, c_x, c_y, shoulder}, final_hidden} =
-          predict_fn.(Utils.ensure_model_state(p), inputs)
+        %{prediction: {{buttons, main_x, main_y, c_x, c_y, shoulder}, final_hidden},
+          state: updated_state} = predict_fn.(Utils.ensure_model_state(p), inputs)
 
         b = Nx.axis_size(buttons, 0)
         t = Nx.axis_size(buttons, 1)
@@ -322,11 +322,11 @@ defmodule ExPhil.Training.Imitation.Loss do
             loss_opts ++ [frame_weights: flat.(frame_weights)]
           )
 
-        {loss, final_hidden}
+        {loss, {final_hidden, updated_state}}
       end
 
       # transform selects the differentiable scalar; final_hidden rides
-      # alongside: {{loss, final_hidden}, grads}
+      # alongside: {{loss, {final_hidden, updated_model_state}}, grads}
       Nx.Defn.value_and_grad(params, loss_fn, &elem(&1, 0))
     end
 
@@ -335,7 +335,7 @@ defmodule ExPhil.Training.Imitation.Loss do
 
   @doc """
   Eval-side twin of `build_bptt_loss_and_grad_fn/2`: the SAME per-timestep
-  forward and loss, no gradients. Returns a jitted
+  loss with dropout disabled and no gradients. Returns a jitted
 
       fn params, states, actions, frame_weights, initial_hidden ->
         {loss, final_hidden}

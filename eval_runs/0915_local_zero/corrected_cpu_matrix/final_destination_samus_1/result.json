@@ -1,0 +1,109 @@
+{
+  "id": "final_destination_samus_1",
+  "session": {
+    "errors": 0,
+    "expected_latency": 1,
+    "frames": 1922,
+    "game_ended": false,
+    "last_frame": 1799,
+    "measured_latency": 1,
+    "player_port": 1,
+    "policy": "eval_runs/0915_local_zero/corrected_bootstrap/candidate.bin",
+    "reaction_delay": 0,
+    "scored_fps": 103.06326939593473,
+    "scored_wall_ms": 17465,
+    "stage": "final_destination",
+    "start_frame": -123,
+    "status": "ok"
+  },
+  "run": 1,
+  "valid": true,
+  "stage": "final_destination",
+  "opponent": "samus",
+  "replay": "eval_runs/0915_local_zero/corrected_cpu_matrix/final_destination_samus_1/Game_20260915T114321.slp",
+  "metrics": {
+    "max_chain": 59,
+    "frames": 1800,
+    "deaths": 0,
+    "chains": [
+      {
+        "length": 19,
+        "ended_by": "other_action"
+      },
+      {
+        "length": 30,
+        "ended_by": "other_action"
+      },
+      {
+        "length": 59,
+        "ended_by": "other_action"
+      },
+      {
+        "length": 23,
+        "ended_by": "other_action"
+      },
+      {
+        "length": 22,
+        "ended_by": "end_of_input"
+      }
+    ],
+    "completed_cycles": 148,
+    "endings": {
+      "end_of_input": 1,
+      "other_action": 4
+    },
+    "ground_shine_onsets": 153,
+    "ground_shines_per_minute": 306.0,
+    "recent_hit_onsets": 3,
+    "recovery": {
+      "episodes": [
+        {
+          "cause": "hitstun",
+          "start": 172,
+          "finish": 205,
+          "outcome": "reentered",
+          "ready": 192
+        },
+        {
+          "cause": "hitstun",
+          "start": 503,
+          "finish": 644,
+          "outcome": "reentered",
+          "ready": 633
+        },
+        {
+          "cause": "hitstun",
+          "start": 1176,
+          "finish": 1287,
+          "outcome": "reentered",
+          "ready": 1274
+        },
+        {
+          "cause": "hitstun",
+          "start": 1514,
+          "finish": 1613,
+          "outcome": "reentered",
+          "ready": 1600
+        }
+      ],
+      "censored": 0,
+      "completed": 4,
+      "disruption_to_cycle_frames": [
+        33,
+        141,
+        111,
+        99
+      ],
+      "ready_to_cycle_frames": [
+        13,
+        11,
+        13,
+        13
+      ]
+    },
+    "self_initiated_onsets": 150,
+    "self_initiated_per_minute": 300.0
+  },
+  "replay_sha256": "43aabf51acc14952204b2d7811237070a49628dd52c2231536ea72cb0e8d9eb5",
+  "chain_gate": true
+}

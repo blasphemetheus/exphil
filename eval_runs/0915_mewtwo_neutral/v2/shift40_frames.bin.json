@@ -1,0 +1,137 @@
+{
+  "scope": "Controlled neutral openings plus completion of the initiating technique; no combo labels",
+  "sources": [
+    {
+      "path": "/home/blewf/git/exphil/eval_runs/0915_mewtwo_teacher_audit/shift40_v1/neutral_down_1.states",
+      "kind": "neutral_down",
+      "replay": "/home/blewf/git/exphil/eval_runs/0915_mewtwo_teacher_audit/shift40_v1/home_neutral_down_1/replays/Game_20260915T174716.slp",
+      "sha256": "3c06b51672d16d5026ab8448d4b40ee6ffec320633bc5414c250503c3de5b6f4",
+      "replay_sha256": "13d356544abd5fa42f921580a9e627b8d7b5d25d4e17aec4e79fd4af02996383",
+      "side": 1,
+      "frames": 86
+    },
+    {
+      "path": "/home/blewf/git/exphil/eval_runs/0915_mewtwo_teacher_audit/shift40_v1/neutral_down_-1.states",
+      "kind": "neutral_down",
+      "replay": "/home/blewf/git/exphil/eval_runs/0915_mewtwo_teacher_audit/shift40_v1/home_neutral_down_-1/replays/Game_20260915T174718.slp",
+      "sha256": "9bd47cdc6c9bb2e4d5b4ca9a1d684147e07887649a0ff4c61a5bd314578311cc",
+      "replay_sha256": "755e815785c260a42985b7d19edca67bd9b420995e85ea4dbdcb7b12e9b7d34e",
+      "side": -1,
+      "frames": 86
+    },
+    {
+      "path": "/home/blewf/git/exphil/eval_runs/0915_mewtwo_teacher_audit/shift40_v1/neutral_grab_1.states",
+      "kind": "neutral_grab",
+      "replay": "/home/blewf/git/exphil/eval_runs/0915_mewtwo_teacher_audit/shift40_v1/home_neutral_grab_1/replays/Game_20260915T174721.slp",
+      "sha256": "ad1af288b13e992a2d944f7230b04f3f0346229b9f8c29a94a9602b24fb5ba29",
+      "replay_sha256": "f0f6454b5d2f4d66f98f6ead652b32bcd85c14cd34c4a55f6af5f8273ac2fded",
+      "side": 1,
+      "frames": 112
+    },
+    {
+      "path": "/home/blewf/git/exphil/eval_runs/0915_mewtwo_teacher_audit/shift40_v1/neutral_grab_-1.states",
+      "kind": "neutral_grab",
+      "replay": "/home/blewf/git/exphil/eval_runs/0915_mewtwo_teacher_audit/shift40_v1/home_neutral_grab_-1/replays/Game_20260915T174723.slp",
+      "sha256": "3d5a9c900ae589b625078bbc26beb2e0b5ff707a9d85c8410490c7ccb1580269",
+      "replay_sha256": "df2720b9d5466abe9b41127b8ea99f6ec115d994851576192a7efb6ac53fd5b0",
+      "side": -1,
+      "frames": 112
+    },
+    {
+      "path": "/home/blewf/git/exphil/eval_runs/0915_mewtwo_teacher_audit/shift40_v1/neutral_nair_-1.states",
+      "kind": "neutral_nair",
+      "replay": "/home/blewf/git/exphil/eval_runs/0915_mewtwo_teacher_audit/shift40_v1/home_neutral_nair_-1/replays/Game_20260915T174728.slp",
+      "sha256": "1da467c981fe8e3cb64b165824cd9d7c32b40a2f0a0378700c03b613c5b6a4a9",
+      "replay_sha256": "824f9d78916242ac8d5358e92e49ec2a1ae3a5e81ad7be5ac68d8cd86f34b821",
+      "side": -1,
+      "frames": 92
+    },
+    {
+      "path": "/home/blewf/git/exphil/eval_runs/0915_mewtwo_teacher_audit/shift40_v1/neutral_fair_1.states",
+      "kind": "neutral_fair",
+      "replay": "/home/blewf/git/exphil/eval_runs/0915_mewtwo_teacher_audit/shift40_v1/home_neutral_fair_1/replays/Game_20260915T174731.slp",
+      "sha256": "5595e07c8f10e2e68e68e07ca3ed1f287f747846c505227880d927435b6d2d67",
+      "replay_sha256": "828b1233cf8851ae23dd4866f2d9e9f0bd952afea9ca4f854e1a3575b438c8f7",
+      "side": 1,
+      "frames": 92
+    },
+    {
+      "path": "/home/blewf/git/exphil/eval_runs/0915_mewtwo_teacher_audit/shift40_v1/neutral_fair_-1.states",
+      "kind": "neutral_fair",
+      "replay": "/home/blewf/git/exphil/eval_runs/0915_mewtwo_teacher_audit/shift40_v1/home_neutral_fair_-1/replays/Game_20260915T174733.slp",
+      "sha256": "8011055a95b239b518ba4d4ad6c919e64cb8254bdb1f8bb11fec27dcc32ea151",
+      "replay_sha256": "1a6956c66bf79432d902fc92620a371b03999dbfae1d07173a7f7b731a29832a",
+      "side": -1,
+      "frames": 92
+    },
+    {
+      "path": "/home/blewf/git/exphil/eval_runs/0915_mewtwo_teacher_audit/shift40_v1/neutral_move_1.states",
+      "kind": "neutral_move",
+      "replay": "/home/blewf/git/exphil/eval_runs/0915_mewtwo_teacher_audit/shift40_v1/home_neutral_move_1/replays/Game_20260915T174736.slp",
+      "sha256": "06d1dabc2684e1b2c2a51396b128a80d6da3bfae28b1c6b7f0b1bde48ba28031",
+      "replay_sha256": "58fb18aa24ade776a972a68069df3568a08d29922e3c9b55fe712ec6a8852be2",
+      "side": 1,
+      "frames": 170
+    },
+    {
+      "path": "/home/blewf/git/exphil/eval_runs/0915_mewtwo_teacher_audit/shift40_v1/neutral_move_-1.states",
+      "kind": "neutral_move",
+      "replay": "/home/blewf/git/exphil/eval_runs/0915_mewtwo_teacher_audit/shift40_v1/home_neutral_move_-1/replays/Game_20260915T174739.slp",
+      "sha256": "0b6908adfca8901c79419c28307f22b4e8a7eb2c1987eb70a6feabfd600918d5",
+      "replay_sha256": "740475870c036a11d8e68a574319bf93928878260f113b9c54df0dfeb4f7a00e",
+      "side": -1,
+      "frames": 169
+    },
+    {
+      "path": "/home/blewf/git/exphil/eval_runs/0915_mewtwo_teacher_audit/shift40_v1/neutral_attack_1.states",
+      "kind": "neutral_attack",
+      "replay": "/home/blewf/git/exphil/eval_runs/0915_mewtwo_teacher_audit/shift40_v1/home_neutral_attack_1/replays/Game_20260915T174741.slp",
+      "sha256": "87068f48d5d3a6b7c48d641d403d1a5ea2b2b7306acc75fb87503fbd50938a49",
+      "replay_sha256": "0cd99153d9f4c2bb091e0436f6e5b1687ea069a492e2f24f87f0caa7b9b102c5",
+      "side": 1,
+      "frames": 112
+    },
+    {
+      "path": "/home/blewf/git/exphil/eval_runs/0915_mewtwo_teacher_audit/shift40_v1/neutral_attack_-1.states",
+      "kind": "neutral_attack",
+      "replay": "/home/blewf/git/exphil/eval_runs/0915_mewtwo_teacher_audit/shift40_v1/home_neutral_attack_-1/replays/Game_20260915T174744.slp",
+      "sha256": "fb253b8659a16a14912f6b9a44a9108bcc3f9805956f2e79402cc5daf164e530",
+      "replay_sha256": "061a054533fcc09bf2fb1e78ef9953ac8e2e2ce6844c3c7218cfa0f8e8b9f4bd",
+      "side": -1,
+      "frames": 112
+    },
+    {
+      "path": "/home/blewf/git/exphil/eval_runs/0915_mewtwo_teacher_audit/shift40_v1/neutral_wavedash_1.states",
+      "kind": "neutral_wavedash",
+      "replay": "/home/blewf/git/exphil/eval_runs/0915_mewtwo_teacher_audit/shift40_v1/home_neutral_wavedash_1/replays/Game_20260915T174747.slp",
+      "sha256": "9cb7e2c8986467cd5de3189016afc9e0e8c5170581adce8af40bd7a8451f8453",
+      "replay_sha256": "849fa1287146887a7583bf4c8471ddb99e571b04e662574a96047504ae0fe5fe",
+      "side": 1,
+      "frames": 127
+    },
+    {
+      "path": "/home/blewf/git/exphil/eval_runs/0915_mewtwo_teacher_audit/shift40_v1/neutral_wavedash_-1.states",
+      "kind": "neutral_wavedash",
+      "replay": "/home/blewf/git/exphil/eval_runs/0915_mewtwo_teacher_audit/shift40_v1/home_neutral_wavedash_-1/replays/Game_20260915T174749.slp",
+      "sha256": "3d449ea69647bd7c47e6d577f0fbd2f5e0cd2f528212747fe346b4aaab384290",
+      "replay_sha256": "7c4acce722331d92fe1822491d5e8ca41bfbcbd38759160165218153e5e3d4be",
+      "side": -1,
+      "frames": 127
+    }
+  ],
+  "teacher": "MewtwoNeutralTeacher",
+  "stage": "final_destination",
+  "opponent": "fox",
+  "excluded_failed_cases": [
+    {
+      "contacted": true,
+      "executed": false,
+      "kind": "neutral_nair",
+      "opening": "mewtwo",
+      "side": 1
+    }
+  ],
+  "label_source": "actual next-frame physical controller inputs from Peppi",
+  "audit": "/home/blewf/git/exphil/eval_runs/0915_mewtwo_teacher_audit/shift40_v1/summary.json",
+  "human_recordings": "Preserved and excluded from this scripted baseline; no whole-game split leakage"
+}

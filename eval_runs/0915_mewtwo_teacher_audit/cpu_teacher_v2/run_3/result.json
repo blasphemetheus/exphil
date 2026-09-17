@@ -1,0 +1,95 @@
+{
+  "run": 3,
+  "metrics": {
+    "neutral": {
+      "events": [
+        {
+          "start": 29,
+          "finish": 86,
+          "censor_reason": null,
+          "first_contact": 81,
+          "outcome": "opponent_opens"
+        },
+        {
+          "start": 150,
+          "finish": 159,
+          "censor_reason": null,
+          "first_contact": 159,
+          "outcome": "trade"
+        },
+        {
+          "start": 235,
+          "finish": 253,
+          "censor_reason": null,
+          "first_contact": 248,
+          "outcome": "subject_opens"
+        },
+        {
+          "start": 361,
+          "finish": 403,
+          "censor_reason": null,
+          "first_contact": 398,
+          "outcome": "subject_opens"
+        },
+        {
+          "start": 761,
+          "finish": 775,
+          "censor_reason": null,
+          "first_contact": 770,
+          "outcome": "opponent_opens"
+        },
+        {
+          "start": 876,
+          "finish": 954,
+          "censor_reason": null,
+          "first_contact": 949,
+          "outcome": "opponent_opens"
+        },
+        {
+          "start": 984,
+          "finish": 1003,
+          "censor_reason": null,
+          "first_contact": 998,
+          "outcome": "subject_opens"
+        },
+        {
+          "start": 1210,
+          "finish": 1269,
+          "censor_reason": null,
+          "first_contact": 1264,
+          "outcome": "opponent_opens"
+        }
+      ],
+      "outcomes": {
+        "subject_opens": 3,
+        "trade": 1,
+        "opponent_opens": 4
+      },
+      "exchanges": 8
+    },
+    "deaths": 0,
+    "frames": 1800,
+    "aerial_attempts": 1,
+    "aerial_types": {
+      "65": 1
+    },
+    "down_tilt_attempts": 17,
+    "grab_attempts": 0,
+    "hop_apices": [],
+    "max_shield_action_streak": 50,
+    "short_hops": 0,
+    "wavedashes": 1
+  },
+  "replay": "/home/blewf/git/exphil/eval_runs/0915_mewtwo_teacher_audit/cpu_teacher_v2/run_3/replays/Game_20260915T180928.slp",
+  "choices": {
+    ":down_tilt": 17,
+    ":interrupted": 422,
+    ":shield": 5,
+    ":wait": 1149,
+    "{:aerial, :nair, :left}": 10,
+    "{:walk, :left}": 107,
+    "{:walk, :right}": 82,
+    "{:wavedash, :right}": 8
+  },
+  "opening_gate": true
+}

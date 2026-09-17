@@ -1,0 +1,16 @@
+{
+  "status": "ok",
+  "errors": 0,
+  "stage": "pokemon_stadium",
+  "policy": "eval_runs/0915_local_zero/corrected_bootstrap/candidate.bin",
+  "reaction_delay": 0,
+  "expected_latency": 1,
+  "player_port": 1,
+  "frames": 1922,
+  "game_ended": true,
+  "start_frame": -123,
+  "last_frame": 1799,
+  "scored_wall_ms": 16023,
+  "scored_fps": 112.33851338700617,
+  "measured_latency": 1
+}

@@ -1,0 +1,53 @@
+{
+  "id": "final_destination_peach_1",
+  "session": {
+    "errors": 0,
+    "expected_latency": 1,
+    "frames": 1922,
+    "game_ended": true,
+    "last_frame": 1799,
+    "measured_latency": 1,
+    "player_port": 1,
+    "policy": "eval_runs/0915_local_zero/corrected_bootstrap/candidate.bin",
+    "reaction_delay": 0,
+    "scored_fps": 107.23860589812332,
+    "scored_wall_ms": 16785,
+    "stage": "final_destination",
+    "start_frame": -123,
+    "status": "ok"
+  },
+  "run": 1,
+  "valid": true,
+  "stage": "final_destination",
+  "opponent": "peach",
+  "replay": "eval_runs/0915_local_zero/corrected_stand_matrix/final_destination_peach_1/Game_20260915T123131.slp",
+  "metrics": {
+    "max_chain": 200,
+    "frames": 1800,
+    "deaths": 0,
+    "chains": [
+      {
+        "length": 200,
+        "ended_by": "end_of_input"
+      }
+    ],
+    "completed_cycles": 199,
+    "endings": {
+      "end_of_input": 1
+    },
+    "ground_shine_onsets": 200,
+    "ground_shines_per_minute": 400.0,
+    "recent_hit_onsets": 0,
+    "recovery": {
+      "episodes": [],
+      "censored": 0,
+      "completed": 0,
+      "disruption_to_cycle_frames": [],
+      "ready_to_cycle_frames": []
+    },
+    "self_initiated_onsets": 200,
+    "self_initiated_per_minute": 400.0
+  },
+  "replay_sha256": "6b69481d981e9cd321ec0ea56886da2a8d7e855780f39772af565ea7fee934b3",
+  "chain_gate": true
+}

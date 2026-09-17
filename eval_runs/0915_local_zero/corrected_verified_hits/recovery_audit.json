@@ -1,0 +1,428 @@
+{
+  "runs": [
+    {
+      "source": "eval_runs/local_multishine_20260913_224806/2026-09-Mainline/Game_20260913T224817.slp",
+      "replay": "eval_runs/0915_local_zero/corrected_verified_hits/runs/run00_multishine_reentry/Game_20260915T113710.slp",
+      "frame": 305,
+      "metrics": {
+        "frames": 301,
+        "deaths": 0,
+        "chains": [
+          {
+            "length": 32,
+            "ended_by": "end_of_input"
+          }
+        ],
+        "completed_cycles": 31,
+        "endings": {
+          "end_of_input": 1
+        },
+        "ground_shine_onsets": 32,
+        "ground_shines_per_minute": 382.72425249169436,
+        "max_chain": 32,
+        "recent_hit_onsets": 3,
+        "recovery": {
+          "episodes": [
+            {
+              "cause": "hitstun",
+              "start": 304,
+              "finish": 331,
+              "outcome": "reentered",
+              "ready": 318
+            }
+          ],
+          "censored": 0,
+          "completed": 1,
+          "disruption_to_cycle_frames": [
+            27
+          ],
+          "ready_to_cycle_frames": [
+            13
+          ]
+        },
+        "self_initiated_onsets": 29,
+        "self_initiated_per_minute": 346.843853820598
+      },
+      "replay_sha256": "a0204a091488d2ba2d24bcd69be40fe8b14ff9fa4cac9a5df9a1f14bb1cbeea3",
+      "original_gate_pass": true,
+      "original_details": {
+        "cycles": 31,
+        "empty_hops": 0,
+        "ended_by": {
+          "end_of_input": 1
+        },
+        "max_chain": 32,
+        "reentry_frame": 21,
+        "shine_entries": 32
+      },
+      "prefix_valid": true,
+      "timing_valid": true,
+      "truncated": "finalized"
+    },
+    {
+      "source": "eval_runs/local_multishine_20260913_224806/2026-09-Mainline/Game_20260913T224817.slp",
+      "replay": "eval_runs/0915_local_zero/corrected_verified_hits/runs/run01_multishine_reentry/Game_20260915T113721.slp",
+      "frame": 747,
+      "metrics": {
+        "frames": 301,
+        "deaths": 0,
+        "chains": [
+          {
+            "length": 31,
+            "ended_by": "end_of_input"
+          }
+        ],
+        "completed_cycles": 30,
+        "endings": {
+          "end_of_input": 1
+        },
+        "ground_shine_onsets": 31,
+        "ground_shines_per_minute": 370.7641196013289,
+        "max_chain": 31,
+        "recent_hit_onsets": 3,
+        "recovery": {
+          "episodes": [
+            {
+              "cause": "hitstun",
+              "start": 746,
+              "finish": null,
+              "last_observed": 749,
+              "outcome": "interrupted_again",
+              "ready": null
+            },
+            {
+              "cause": "hitstun",
+              "start": 750,
+              "finish": 782,
+              "outcome": "reentered",
+              "ready": 769
+            }
+          ],
+          "censored": 1,
+          "completed": 1,
+          "disruption_to_cycle_frames": [
+            32
+          ],
+          "ready_to_cycle_frames": [
+            13
+          ]
+        },
+        "self_initiated_onsets": 28,
+        "self_initiated_per_minute": 334.8837209302326
+      },
+      "replay_sha256": "2ca3c4f601db690fb29566a3c3858b1d13830087249353d38ed49a46004b4e4c",
+      "original_gate_pass": true,
+      "original_details": {
+        "cycles": 30,
+        "empty_hops": 0,
+        "ended_by": {
+          "end_of_input": 1
+        },
+        "max_chain": 31,
+        "reentry_frame": 30,
+        "shine_entries": 31
+      },
+      "prefix_valid": true,
+      "timing_valid": true,
+      "truncated": "finalized"
+    },
+    {
+      "source": "eval_runs/local_multishine_20260913_224806/2026-09-Mainline/Game_20260913T224817.slp",
+      "replay": "eval_runs/0915_local_zero/corrected_verified_hits/runs/run02_multishine_reentry/Game_20260915T113735.slp",
+      "frame": 752,
+      "metrics": {
+        "frames": 301,
+        "deaths": 0,
+        "chains": [
+          {
+            "length": 31,
+            "ended_by": "end_of_input"
+          }
+        ],
+        "completed_cycles": 30,
+        "endings": {
+          "end_of_input": 1
+        },
+        "ground_shine_onsets": 31,
+        "ground_shines_per_minute": 370.7641196013289,
+        "max_chain": 31,
+        "recent_hit_onsets": 3,
+        "recovery": {
+          "episodes": [
+            {
+              "cause": "hitstun",
+              "start": 751,
+              "finish": 783,
+              "outcome": "reentered",
+              "ready": 770
+            }
+          ],
+          "censored": 0,
+          "completed": 1,
+          "disruption_to_cycle_frames": [
+            32
+          ],
+          "ready_to_cycle_frames": [
+            13
+          ]
+        },
+        "self_initiated_onsets": 28,
+        "self_initiated_per_minute": 334.8837209302326
+      },
+      "replay_sha256": "b5cf1b931ef7d3199f9383e749392159a494ac735d87d55b994a5be7ff5b3efe",
+      "original_gate_pass": true,
+      "original_details": {
+        "cycles": 31,
+        "empty_hops": 0,
+        "ended_by": {
+          "end_of_input": 1
+        },
+        "max_chain": 31,
+        "reentry_frame": 26,
+        "shine_entries": 32
+      },
+      "prefix_valid": true,
+      "timing_valid": true,
+      "truncated": "finalized"
+    },
+    {
+      "source": "eval_runs/local_multishine_20260913_224806/2026-09-Mainline/Game_20260913T224817.slp",
+      "replay": "eval_runs/0915_local_zero/corrected_verified_hits/runs/run03_multishine_reentry/Game_20260915T113748.slp",
+      "frame": 775,
+      "metrics": {
+        "frames": 301,
+        "deaths": 0,
+        "chains": [
+          {
+            "length": 25,
+            "ended_by": "end_of_input"
+          }
+        ],
+        "completed_cycles": 24,
+        "endings": {
+          "end_of_input": 1
+        },
+        "ground_shine_onsets": 25,
+        "ground_shines_per_minute": 299.0033222591362,
+        "max_chain": 25,
+        "recent_hit_onsets": 0,
+        "recovery": {
+          "episodes": [
+            {
+              "cause": "hitstun",
+              "start": 774,
+              "finish": 867,
+              "outcome": "reentered",
+              "ready": 854
+            }
+          ],
+          "censored": 0,
+          "completed": 1,
+          "disruption_to_cycle_frames": [
+            93
+          ],
+          "ready_to_cycle_frames": [
+            13
+          ]
+        },
+        "self_initiated_onsets": 25,
+        "self_initiated_per_minute": 299.0033222591362
+      },
+      "replay_sha256": "91a2dc947b42d7b49831dc52f57d753b744b571788239e753d6609f82154da92",
+      "original_gate_pass": false,
+      "original_details": {
+        "cycles": 24,
+        "empty_hops": 0,
+        "ended_by": {
+          "end_of_input": 1
+        },
+        "max_chain": 25,
+        "reentry_frame": 87,
+        "shine_entries": 25
+      },
+      "prefix_valid": true,
+      "timing_valid": true,
+      "truncated": "finalized"
+    },
+    {
+      "source": "eval_runs/local_multishine_20260913_224806/2026-09-Mainline/Game_20260913T224817.slp",
+      "replay": "eval_runs/0915_local_zero/corrected_verified_hits/runs/run04_multishine_reentry/Game_20260915T113804.slp",
+      "frame": 2963,
+      "metrics": {
+        "frames": 301,
+        "deaths": 0,
+        "chains": [
+          {
+            "length": 20,
+            "ended_by": "end_of_input"
+          }
+        ],
+        "completed_cycles": 19,
+        "endings": {
+          "end_of_input": 1
+        },
+        "ground_shine_onsets": 20,
+        "ground_shines_per_minute": 239.20265780730898,
+        "max_chain": 20,
+        "recent_hit_onsets": 0,
+        "recovery": {
+          "episodes": [
+            {
+              "cause": "hitstun",
+              "start": 2962,
+              "finish": 3100,
+              "outcome": "reentered",
+              "ready": 3087
+            }
+          ],
+          "censored": 0,
+          "completed": 1,
+          "disruption_to_cycle_frames": [
+            138
+          ],
+          "ready_to_cycle_frames": [
+            13
+          ]
+        },
+        "self_initiated_onsets": 20,
+        "self_initiated_per_minute": 239.20265780730898
+      },
+      "replay_sha256": "ec4b2aeb1823f6e0226e9660e594579f889db42056d337504fd84bcb8c085a9e",
+      "original_gate_pass": false,
+      "original_details": {
+        "cycles": 19,
+        "empty_hops": 0,
+        "ended_by": {
+          "end_of_input": 1
+        },
+        "max_chain": 20,
+        "reentry_frame": 132,
+        "shine_entries": 20
+      },
+      "prefix_valid": true,
+      "timing_valid": true,
+      "truncated": "finalized"
+    },
+    {
+      "source": "eval_runs/local_multishine_20260913_224806/2026-09-Mainline/Game_20260913T224817.slp",
+      "replay": "eval_runs/0915_local_zero/corrected_verified_hits/runs/run05_multishine_reentry/Game_20260915T113834.slp",
+      "frame": 3081,
+      "metrics": {
+        "frames": 301,
+        "deaths": 0,
+        "chains": [
+          {
+            "length": 18,
+            "ended_by": "end_of_input"
+          }
+        ],
+        "completed_cycles": 17,
+        "endings": {
+          "end_of_input": 1
+        },
+        "ground_shine_onsets": 18,
+        "ground_shines_per_minute": 215.28239202657807,
+        "max_chain": 18,
+        "recent_hit_onsets": 0,
+        "recovery": {
+          "episodes": [
+            {
+              "cause": "hitstun",
+              "start": 3080,
+              "finish": 3230,
+              "outcome": "reentered",
+              "ready": 3222
+            }
+          ],
+          "censored": 0,
+          "completed": 1,
+          "disruption_to_cycle_frames": [
+            150
+          ],
+          "ready_to_cycle_frames": [
+            8
+          ]
+        },
+        "self_initiated_onsets": 18,
+        "self_initiated_per_minute": 215.28239202657807
+      },
+      "replay_sha256": "d72eccb19629605a31e1b344083961ba581ac4728ccea449260b6b655873e60f",
+      "original_gate_pass": false,
+      "original_details": {
+        "cycles": 17,
+        "empty_hops": 0,
+        "ended_by": {
+          "end_of_input": 1
+        },
+        "max_chain": 18,
+        "reentry_frame": 153,
+        "shine_entries": 20
+      },
+      "prefix_valid": true,
+      "timing_valid": true,
+      "truncated": "finalized"
+    },
+    {
+      "source": "eval_runs/local_multishine_20260913_224806/2026-09-Mainline/Game_20260913T224817.slp",
+      "replay": "eval_runs/0915_local_zero/corrected_verified_hits/runs/run06_multishine_reentry/Game_20260915T113905.slp",
+      "frame": 4448,
+      "metrics": {
+        "frames": 301,
+        "deaths": 0,
+        "chains": [
+          {
+            "length": 32,
+            "ended_by": "end_of_input"
+          }
+        ],
+        "completed_cycles": 31,
+        "endings": {
+          "end_of_input": 1
+        },
+        "ground_shine_onsets": 32,
+        "ground_shines_per_minute": 382.72425249169436,
+        "max_chain": 32,
+        "recent_hit_onsets": 3,
+        "recovery": {
+          "episodes": [
+            {
+              "cause": "hitstun",
+              "start": 4447,
+              "finish": 4469,
+              "outcome": "reentered",
+              "ready": 4456
+            }
+          ],
+          "censored": 0,
+          "completed": 1,
+          "disruption_to_cycle_frames": [
+            22
+          ],
+          "ready_to_cycle_frames": [
+            13
+          ]
+        },
+        "self_initiated_onsets": 29,
+        "self_initiated_per_minute": 346.843853820598
+      },
+      "replay_sha256": "1eb6318e1c7a7fb34e72fc6ecff39ee77e5bd188784a9961488b855214026d27",
+      "original_gate_pass": true,
+      "original_details": {
+        "cycles": 32,
+        "empty_hops": 0,
+        "ended_by": {
+          "end_of_input": 1
+        },
+        "max_chain": 33,
+        "reentry_frame": 16,
+        "shine_entries": 33
+      },
+      "prefix_valid": true,
+      "timing_valid": true,
+      "truncated": "finalized"
+    }
+  ],
+  "source_report": "eval_runs/0915_local_zero/corrected_verified_hits/report.json",
+  "metrics_semantics": "slippi_state_flag_hitstun_v2",
+  "readiness": "grounded locomotion or reflector, not an exact actionable-frame oracle"
+}

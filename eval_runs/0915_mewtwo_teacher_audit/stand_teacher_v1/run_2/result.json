@@ -1,0 +1,59 @@
+{
+  "run": 2,
+  "metrics": {
+    "neutral": {
+      "events": [
+        {
+          "start": 29,
+          "finish": 80,
+          "censor_reason": null,
+          "first_contact": 75,
+          "outcome": "subject_opens"
+        },
+        {
+          "start": 766,
+          "finish": 867,
+          "censor_reason": null,
+          "first_contact": 862,
+          "outcome": "subject_opens"
+        },
+        {
+          "start": 946,
+          "finish": 992,
+          "censor_reason": null,
+          "first_contact": 987,
+          "outcome": "subject_opens"
+        }
+      ],
+      "outcomes": {
+        "subject_opens": 3
+      },
+      "exchanges": 3
+    },
+    "deaths": 0,
+    "frames": 1800,
+    "aerial_attempts": 1,
+    "aerial_types": {
+      "65": 1
+    },
+    "down_tilt_attempts": 14,
+    "grab_attempts": 0,
+    "hop_apices": [
+      12.653996603396081
+    ],
+    "max_shield_action_streak": 0,
+    "short_hops": 1,
+    "wavedashes": 6
+  },
+  "replay": "/home/blewf/git/exphil/eval_runs/0915_mewtwo_teacher_audit/stand_teacher_v1/run_2/replays/Game_20260915T182425.slp",
+  "choices": {
+    ":down_tilt": 14,
+    ":wait": 1380,
+    "{:aerial, :nair, :left}": 41,
+    "{:walk, :left}": 54,
+    "{:walk, :right}": 263,
+    "{:wavedash, :left}": 24,
+    "{:wavedash, :right}": 24
+  },
+  "opening_gate": true
+}

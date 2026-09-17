@@ -1,0 +1,83 @@
+{
+  "session": {
+    "errors": 0,
+    "expected_latency": 1,
+    "frames": 1922,
+    "game_ended": true,
+    "last_frame": 1799,
+    "measured_latency": 1,
+    "player_port": 1,
+    "policy": "eval_runs/0915_mewtwo_neutral/v3/candidate.bin",
+    "reaction_delay": 0,
+    "scored_fps": 82.32334781614452,
+    "scored_wall_ms": 21865,
+    "stage": "final_destination",
+    "start_frame": -123,
+    "status": "ok"
+  },
+  "run": 1,
+  "mode": "stand",
+  "valid": true,
+  "replay": "eval_runs/0915_mewtwo_neutral/v3/qualification/stand_1/Game_20260915T180042.slp",
+  "metrics": {
+    "neutral": {
+      "events": [
+        {
+          "start": 29,
+          "finish": 473,
+          "censor_reason": null,
+          "first_contact": 468,
+          "outcome": "subject_opens"
+        },
+        {
+          "start": 514,
+          "finish": 620,
+          "censor_reason": "offstage",
+          "first_contact": null,
+          "outcome": "censored"
+        },
+        {
+          "start": 694,
+          "finish": 702,
+          "censor_reason": null,
+          "first_contact": 697,
+          "outcome": "subject_opens"
+        },
+        {
+          "start": 739,
+          "finish": 957,
+          "censor_reason": null,
+          "first_contact": 952,
+          "outcome": "subject_opens"
+        },
+        {
+          "start": 1312,
+          "finish": 1791,
+          "censor_reason": null,
+          "first_contact": 1786,
+          "outcome": "subject_opens"
+        }
+      ],
+      "outcomes": {
+        "subject_opens": 4,
+        "censored": 1
+      },
+      "exchanges": 5
+    },
+    "frames": 1800,
+    "aerial_attempts": 0,
+    "aerial_types": {},
+    "deaths": 0,
+    "down_tilt_attempts": 1,
+    "grab_attempts": 2,
+    "hop_apices": [
+      12.653996603396081,
+      12.653996603396081,
+      33.40798868408456
+    ],
+    "max_shield_action_streak": 52,
+    "short_hops": 2,
+    "wavedashes": 0
+  },
+  "replay_sha256": "5d3af834c2215aa9ccf7bee27a77aa4daee26cd04a65a0017a645bce20a4a335"
+}

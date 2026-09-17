@@ -1,0 +1,9 @@
+{
+  "augmented_frames": 36484,
+  "only_stock_counts_changed": true,
+  "physical_inputs_unchanged": true,
+  "whole_sequence_history_preserved": true,
+  "teacher_cpu_contacts_before_finalization": true,
+  "human_source": "eval_runs/0915_mewtwo_neutral/v3/human_fd_frames.bin",
+  "human_sha256": "2cd10328a65493be265b3ef79fa34e5bdff8889f72e979120175e0dae5c2d05f"
+}

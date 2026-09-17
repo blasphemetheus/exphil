@@ -1,0 +1,128 @@
+{
+  "id": "dreamland_marth_1",
+  "session": {
+    "errors": 0,
+    "expected_latency": 1,
+    "frames": 1922,
+    "game_ended": false,
+    "last_frame": 1799,
+    "measured_latency": 1,
+    "player_port": 1,
+    "policy": "eval_runs/0915_local_zero/corrected_bootstrap/candidate.bin",
+    "reaction_delay": 0,
+    "scored_fps": 98.36065573770492,
+    "scored_wall_ms": 18300,
+    "stage": "dreamland",
+    "start_frame": -123,
+    "status": "ok"
+  },
+  "run": 1,
+  "valid": true,
+  "stage": "dreamland",
+  "opponent": "marth",
+  "replay": "eval_runs/0915_local_zero/corrected_cpu_matrix/dreamland_marth_1/Game_20260915T120336.slp",
+  "metrics": {
+    "max_chain": 108,
+    "frames": 1800,
+    "deaths": 0,
+    "chains": [
+      {
+        "length": 108,
+        "ended_by": "other_action"
+      },
+      {
+        "length": 1,
+        "ended_by": "other_action"
+      },
+      {
+        "length": 3,
+        "ended_by": "other_action"
+      },
+      {
+        "length": 18,
+        "ended_by": "other_action"
+      },
+      {
+        "length": 29,
+        "ended_by": "other_action"
+      },
+      {
+        "length": 8,
+        "ended_by": "other_action"
+      }
+    ],
+    "completed_cycles": 161,
+    "endings": {
+      "other_action": 6
+    },
+    "ground_shine_onsets": 167,
+    "ground_shines_per_minute": 334.0,
+    "recent_hit_onsets": 6,
+    "recovery": {
+      "episodes": [
+        {
+          "cause": "loop_break",
+          "start": 982,
+          "finish": 1079,
+          "outcome": "reentered",
+          "ready": 1063
+        },
+        {
+          "cause": "hitstun",
+          "start": 1094,
+          "finish": 1117,
+          "outcome": "reentered",
+          "ready": 1104
+        },
+        {
+          "cause": "hitstun",
+          "start": 1266,
+          "finish": 1363,
+          "outcome": "reentered",
+          "ready": 1350
+        },
+        {
+          "cause": "hitstun",
+          "start": 1614,
+          "finish": 1635,
+          "outcome": "reentered",
+          "ready": 1622
+        },
+        {
+          "cause": "hitstun",
+          "start": 1697,
+          "finish": null,
+          "last_observed": 1719,
+          "outcome": "interrupted_again",
+          "ready": null
+        },
+        {
+          "cause": "hitstun",
+          "start": 1720,
+          "finish": null,
+          "last_observed": 1799,
+          "outcome": "end_of_replay",
+          "ready": null
+        }
+      ],
+      "censored": 2,
+      "completed": 4,
+      "disruption_to_cycle_frames": [
+        97,
+        23,
+        97,
+        21
+      ],
+      "ready_to_cycle_frames": [
+        16,
+        13,
+        13,
+        13
+      ]
+    },
+    "self_initiated_onsets": 161,
+    "self_initiated_per_minute": 322.0
+  },
+  "replay_sha256": "70551b4cc75c256819abe1caf4dccb07c99ff8d22c83961d870c4602bfe4e825",
+  "chain_gate": true
+}

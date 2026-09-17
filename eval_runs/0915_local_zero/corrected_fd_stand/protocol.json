@@ -1,0 +1,1 @@
+{"deterministic":true,"seconds":30,"mode":"stand","policy":"eval_runs/0915_local_zero/corrected_bootstrap/candidate.bin","stages":["final_destination"],"opponents":["fox"],"policy_sha256":"b224b9a6953095b107a78396e0642787022212f72f1865aa12ff5b4833835a2f","runs_per_cell":1,"cpu_level":1,"reaction_delay":0,"expected_latency":1,"frozen_stadium":true}

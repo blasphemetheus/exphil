@@ -90,7 +90,7 @@ defmodule ExPhil.Networks.Policy.Sampling do
           jitted(:fused_det, &fused_sample_deterministic/1).(logits_tuple)
 
         is_integer(mode_of_n) and mode_of_n > 1 ->
-          key = Nx.Random.key(:erlang.unique_integer([:positive]))
+          key = fresh_key()
 
           tiled =
             logits_tuple
@@ -110,7 +110,7 @@ defmodule ExPhil.Networks.Policy.Sampling do
           {row.(b), row.(mx), row.(my), row.(cx), row.(cy), row.(sh), conf}
 
         true ->
-          key = Nx.Random.key(:erlang.unique_integer([:positive]))
+          key = fresh_key()
 
           jitted(:fused_stoch, &fused_sample_stochastic/3).(
             logits_tuple,
@@ -228,7 +228,7 @@ defmodule ExPhil.Networks.Policy.Sampling do
           # eager glue between JIT boundaries, not the math (bench
           # 0902: fused ar_full_stoch at n=1 is ~12 ms trunk-included).
           features_n = Nx.tile(features, [n, 1])
-          key = Nx.Random.key(:erlang.unique_integer([:positive]))
+          key = fresh_key()
 
           {buttons, rest, b_l} =
             jitted(:ar_tiled_stoch, &ar_tiled_stochastic/4).(head, features_n, key, temps)
@@ -250,7 +250,7 @@ defmodule ExPhil.Networks.Policy.Sampling do
           {b, rest, b_l}
 
         argmax_buttons? ->
-          key = Nx.Random.key(:erlang.unique_integer([:positive]))
+          key = fresh_key()
 
           jitted(:ar_full_mixed, &ar_full_mixed/7).(
             head,
@@ -263,7 +263,7 @@ defmodule ExPhil.Networks.Policy.Sampling do
           )
 
         true ->
-          key = Nx.Random.key(:erlang.unique_integer([:positive]))
+          key = fresh_key()
           jitted(:ar_full_stoch, &ar_full_stochastic/4).(head, features, key, temps)
       end
 
@@ -332,7 +332,7 @@ defmodule ExPhil.Networks.Policy.Sampling do
   def sample_autoregressive_n(params, features, n, opts \\ [])
       when is_integer(n) and n > 0 do
     temps = temperature_tuple(Keyword.get(opts, :temperature, 1.0))
-    key = Keyword.get(opts, :key) || Nx.Random.key(:erlang.unique_integer([:positive]))
+    key = Keyword.get(opts, :key) || fresh_key()
     head = ar_head_params(params)
 
     {r0, b_l} = jitted(:ar_stage1, &ar_stage1/2).(head, features)
@@ -393,7 +393,7 @@ defmodule ExPhil.Networks.Policy.Sampling do
   def sample_autoregressive_kn(params, features, k, opts \\ [])
       when is_integer(k) and k > 0 do
     temps = temperature_tuple(Keyword.get(opts, :temperature, 1.0))
-    key = Keyword.get(opts, :key) || Nx.Random.key(:erlang.unique_integer([:positive]))
+    key = Keyword.get(opts, :key) || fresh_key()
     head = ar_head_params(params)
     n = Nx.axis_size(features, 0)
 
@@ -670,6 +670,13 @@ defmodule ExPhil.Networks.Policy.Sampling do
   # Nx's default defn options are EMPTY, so a bare defn call runs on the
   # pure-Elixir evaluator (~120ms here). Jit explicitly with EXLA and cache
   # the compiled closure. (Same gotcha as scripts/test_fused_kernels.exs.)
+  # VM-local unique integers restart with each play process and can repeat
+  # entire sampled trajectories. Seed each draw from OS randomness instead.
+  defp fresh_key do
+    <<seed::unsigned-32>> = :crypto.strong_rand_bytes(4)
+    Nx.Random.key(seed)
+  end
+
   defp jitted(name, fun) do
     pt_key = {__MODULE__, name}
 

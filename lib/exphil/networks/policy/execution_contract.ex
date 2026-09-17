@@ -1,5 +1,26 @@
 defmodule ExPhil.Networks.Policy.ExecutionContract do
-  @moduledoc "Versioned windowed recurrent-state and arithmetic contracts. Unstamped checkpoints remain legacy."
+  @moduledoc "Versioned recurrent-state and arithmetic contracts. Unstamped checkpoints remain legacy."
+
+  def training(%{bptt: true} = config) do
+    unless config[:temporal] == true,
+      do: raise(ArgumentError, "BPTT requires temporal training")
+
+    unless config[:backbone] == :gru,
+      do: raise(ArgumentError, "BPTT supports gru only")
+
+    unless config[:temporal] == true and config[:backbone] == :gru and
+             config[:precision] == :f32 and config[:mixed_precision] in [nil, false] and
+             config[:recurrent_state] in [nil, :carried_zero],
+           do:
+             raise(ArgumentError, "BPTT v1 requires F32 GRU with explicit zero-initialized carry")
+
+    %{
+      execution_contract: :bptt_gru_f32_v1,
+      recurrent_state: :carried_zero,
+      training_precision: :f32,
+      inference_precision: :f32
+    }
+  end
 
   def training(config) do
     state = Map.get(config, :recurrent_state, :legacy_random)
@@ -38,6 +59,22 @@ defmodule ExPhil.Networks.Policy.ExecutionContract do
 
   def load(config) do
     case config[:execution_contract] do
+      version when version in [:bptt_gru_f32_v1, "bptt_gru_f32_v1"] ->
+        unless config[:recurrent_state] in [:carried_zero, "carried_zero"] and
+                 config[:training_precision] in [:f32, "f32"] and
+                 config[:inference_precision] in [:f32, "f32"] and
+                 config[:precision] in [:f32, "f32"] and
+                 config[:backbone] in [:gru, "gru"] and config[:temporal] == true and
+                 config[:bptt] == true and config[:mixed_precision] in [nil, false],
+               do: raise(ArgumentError, "inconsistent BPTT GRU execution contract")
+
+        %{
+          execution_contract: :bptt_gru_f32_v1,
+          recurrent_state: :carried_zero,
+          training_precision: :f32,
+          inference_precision: :f32
+        }
+
       version when version in [:windowed_gru_f32_v1, "windowed_gru_f32_v1"] ->
         unless config[:recurrent_state] in [:zeros, "zeros"] and
                  config[:training_precision] in [:f32, "f32"] and
@@ -69,6 +106,18 @@ defmodule ExPhil.Networks.Policy.ExecutionContract do
       other ->
         raise ArgumentError, "unsupported execution contract: #{inspect(other)}"
     end
+  end
+
+  def validate_inference!(config, stateful_step) do
+    execution = load(config)
+
+    if execution.execution_contract == :windowed_gru_f32_v1 and stateful_step,
+      do: raise(ArgumentError, "windowed GRU v1 cannot use stateful-step inference")
+
+    if execution.execution_contract == :bptt_gru_f32_v1 and not stateful_step,
+      do: raise(ArgumentError, "BPTT GRU v1 requires stateful-step inference")
+
+    execution
   end
 
   def verify_report!(config, report) do

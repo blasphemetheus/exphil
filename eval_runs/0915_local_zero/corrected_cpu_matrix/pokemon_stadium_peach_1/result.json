@@ -1,0 +1,53 @@
+{
+  "id": "pokemon_stadium_peach_1",
+  "session": {
+    "errors": 0,
+    "expected_latency": 1,
+    "frames": 1922,
+    "game_ended": true,
+    "last_frame": 1799,
+    "measured_latency": 1,
+    "player_port": 1,
+    "policy": "eval_runs/0915_local_zero/corrected_bootstrap/candidate.bin",
+    "reaction_delay": 0,
+    "scored_fps": 101.82147301730966,
+    "scored_wall_ms": 17678,
+    "stage": "pokemon_stadium",
+    "start_frame": -123,
+    "status": "ok"
+  },
+  "run": 1,
+  "valid": true,
+  "stage": "pokemon_stadium",
+  "opponent": "peach",
+  "replay": "eval_runs/0915_local_zero/corrected_cpu_matrix/pokemon_stadium_peach_1/Game_20260915T122756.slp",
+  "metrics": {
+    "max_chain": 198,
+    "frames": 1800,
+    "deaths": 0,
+    "chains": [
+      {
+        "length": 198,
+        "ended_by": "end_of_input"
+      }
+    ],
+    "completed_cycles": 197,
+    "endings": {
+      "end_of_input": 1
+    },
+    "ground_shine_onsets": 198,
+    "ground_shines_per_minute": 396.0,
+    "recent_hit_onsets": 0,
+    "recovery": {
+      "episodes": [],
+      "censored": 0,
+      "completed": 0,
+      "disruption_to_cycle_frames": [],
+      "ready_to_cycle_frames": []
+    },
+    "self_initiated_onsets": 198,
+    "self_initiated_per_minute": 396.0
+  },
+  "replay_sha256": "2eb649a1d88f7392be6998acbec3925f777f776382ed338e6a55a35be7543a2f",
+  "chain_gate": true
+}

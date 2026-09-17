@@ -179,7 +179,10 @@ defmodule ExPhil.Eval.MultishineBenchmark do
         frame: frame.frame_number,
         action: trunc(player.action),
         stock: player.stock,
-        hitstun: player.hitstun_frames_left || 0,
+        # Slippi's misc-AS counter is only hitstun when the state flag is set.
+        # Attacker hitlag must never manufacture a defender recovery episode.
+        hitstun: if(Map.get(player, :in_hitstun) == true,
+          do: max(player.hitstun_frames_left || 0, 1), else: 0),
         grounded: player.on_ground,
         player: player
       }

@@ -2,6 +2,27 @@ defmodule ExPhil.Eval.MultishineBenchmarkTest do
   use ExUnit.Case, async: true
   alias ExPhil.Eval.MultishineBenchmark, as: Benchmark
 
+  test "replay rows distinguish hitstun from attacker hitlag and unrelated counters" do
+    player = %ExPhil.Data.Peppi.PlayerFrame{
+      character: 1,
+      action: 365,
+      stock: 4,
+      on_ground: false,
+      hitstun_frames_left: 17.0,
+      hitlag_left: 4.0,
+      in_hitstun: false
+    }
+
+    replay = %{frames: [%{frame_number: 0, players: %{1 => player}}]}
+    assert [%{hitstun: 0}] = Benchmark.rows(replay, 1)
+    assert Benchmark.score(Benchmark.rows(replay, 1)).recovery.episodes == []
+
+    defender = %{player | action: 75, in_hitstun: true}
+    replay = %{frames: [%{frame_number: 0, players: %{1 => defender}}]}
+    assert [%{hitstun: 17.0}] = Benchmark.rows(replay, 1)
+    assert [%{cause: :hitstun}] = Benchmark.score(Benchmark.rows(replay, 1)).recovery.episodes
+  end
+
   defp rows(actions) do
     Enum.with_index(actions, fn action, index ->
       %{

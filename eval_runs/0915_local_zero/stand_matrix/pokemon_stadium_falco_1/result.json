@@ -1,0 +1,51 @@
+{
+  "id": "pokemon_stadium_falco_1",
+  "session": {
+    "errors": 0,
+    "expected_latency": 1,
+    "frames": 1922,
+    "game_ended": false,
+    "last_frame": 1799,
+    "measured_latency": 1,
+    "player_port": 1,
+    "policy": "eval_runs/0915_local_zero/bootstrap/candidate.bin",
+    "reaction_delay": 0,
+    "stage": "pokemon_stadium",
+    "start_frame": -123,
+    "status": "ok"
+  },
+  "run": 1,
+  "valid": true,
+  "stage": "pokemon_stadium",
+  "opponent": "falco",
+  "replay": "eval_runs/0915_local_zero/stand_matrix/pokemon_stadium_falco_1/Game_20260915T112627.slp",
+  "metrics": {
+    "max_chain": 200,
+    "frames": 1800,
+    "deaths": 0,
+    "chains": [
+      {
+        "length": 200,
+        "ended_by": "end_of_input"
+      }
+    ],
+    "completed_cycles": 199,
+    "endings": {
+      "end_of_input": 1
+    },
+    "ground_shine_onsets": 200,
+    "ground_shines_per_minute": 400.0,
+    "recent_hit_onsets": 0,
+    "recovery": {
+      "episodes": [],
+      "censored": 0,
+      "completed": 0,
+      "disruption_to_cycle_frames": [],
+      "ready_to_cycle_frames": []
+    },
+    "self_initiated_onsets": 200,
+    "self_initiated_per_minute": 400.0
+  },
+  "replay_sha256": "4d4ea9f86e6519e534324be5d9ebd88baf62907430f90ec132e8a4c059361ac0",
+  "chain_gate": true
+}

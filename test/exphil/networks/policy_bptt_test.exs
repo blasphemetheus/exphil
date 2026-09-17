@@ -111,4 +111,48 @@ defmodule ExPhil.Networks.PolicyBpttTest do
       Policy.build_temporal_bptt(embed_size: @embed, backbone: :mamba)
     end
   end
+
+  test "future observations and future teacher actions cannot affect earlier logits" do
+    model =
+      Policy.build_temporal_bptt(
+        embed_size: @embed,
+        backbone: :gru,
+        hidden_size: @hidden,
+        num_layers: @layers,
+        window_size: @time,
+        head: :autoregressive
+      )
+
+    {init, predict} = Axon.build(model, mode: :inference)
+    params = init.(templates(:autoregressive), Axon.ModelState.empty())
+    original = inputs(:autoregressive)
+
+    changed =
+      Map.new(original, fn
+        {"initial_hidden", value} ->
+          {"initial_hidden", value}
+
+        {name, value} ->
+          shape =
+            Tuple.to_list(Nx.shape(value)) |> List.replace_at(1, @time - 2) |> List.to_tuple()
+
+          start = List.duplicate(0, Nx.rank(value)) |> List.replace_at(1, 2)
+
+          {name,
+           Nx.put_slice(value, start, Nx.broadcast(Nx.tensor(1, type: Nx.type(value)), shape))}
+      end)
+
+    {before, _} = predict.(params, original)
+    {after_change, _} = predict.(params, changed)
+
+    for {a, b} <- Enum.zip(Tuple.to_list(before), Tuple.to_list(after_change)) do
+      assert Nx.to_number(
+               Nx.all_close(
+                 Nx.slice_along_axis(a, 0, 2, axis: 1),
+                 Nx.slice_along_axis(b, 0, 2, axis: 1),
+                 atol: 1.0e-6
+               )
+             ) == 1
+    end
+  end
 end

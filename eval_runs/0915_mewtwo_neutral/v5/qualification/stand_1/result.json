@@ -1,0 +1,99 @@
+{
+  "session": {
+    "errors": 0,
+    "expected_latency": 1,
+    "frames": 1922,
+    "game_ended": true,
+    "last_frame": 1799,
+    "measured_latency": 1,
+    "player_port": 1,
+    "policy": "eval_runs/0915_mewtwo_neutral/v5/candidate.bin",
+    "reaction_delay": 0,
+    "scored_fps": 84.7457627118644,
+    "scored_wall_ms": 21240,
+    "stage": "final_destination",
+    "start_frame": -123,
+    "status": "ok"
+  },
+  "run": 1,
+  "mode": "stand",
+  "valid": true,
+  "replay": "eval_runs/0915_mewtwo_neutral/v5/qualification/stand_1/Game_20260915T183249.slp",
+  "metrics": {
+    "neutral": {
+      "events": [
+        {
+          "start": 29,
+          "finish": 178,
+          "censor_reason": null,
+          "first_contact": 173,
+          "outcome": "subject_opens"
+        },
+        {
+          "start": 219,
+          "finish": 232,
+          "censor_reason": null,
+          "first_contact": 227,
+          "outcome": "subject_opens"
+        },
+        {
+          "start": 274,
+          "finish": 301,
+          "censor_reason": null,
+          "first_contact": 296,
+          "outcome": "subject_opens"
+        },
+        {
+          "start": 756,
+          "finish": 858,
+          "censor_reason": null,
+          "first_contact": 853,
+          "outcome": "subject_opens"
+        },
+        {
+          "start": 937,
+          "finish": 1059,
+          "censor_reason": "offstage",
+          "first_contact": null,
+          "outcome": "censored"
+        },
+        {
+          "start": 1562,
+          "finish": 1739,
+          "censor_reason": null,
+          "first_contact": 1734,
+          "outcome": "subject_opens"
+        },
+        {
+          "start": 1776,
+          "finish": 1799,
+          "censor_reason": "end_of_recording",
+          "first_contact": null,
+          "outcome": "censored"
+        }
+      ],
+      "outcomes": {
+        "subject_opens": 5,
+        "censored": 2
+      },
+      "exchanges": 7
+    },
+    "frames": 1800,
+    "aerial_attempts": 3,
+    "aerial_types": {
+      "65": 2,
+      "66": 1
+    },
+    "deaths": 1,
+    "down_tilt_attempts": 3,
+    "grab_attempts": 0,
+    "hop_apices": [
+      12.653996603396081,
+      12.653996603396081
+    ],
+    "max_shield_action_streak": 0,
+    "short_hops": 2,
+    "wavedashes": 6
+  },
+  "replay_sha256": "3c8da7fc43bae30aa25c10e04694851e87f2cecb0c8905adbc3071e3990b276a"
+}

@@ -1,0 +1,51 @@
+{
+  "id": "dreamland_fox_1",
+  "session": {
+    "errors": 0,
+    "expected_latency": 1,
+    "frames": 1922,
+    "game_ended": false,
+    "last_frame": 1799,
+    "measured_latency": 1,
+    "player_port": 1,
+    "policy": "eval_runs/0915_local_zero/bootstrap/candidate.bin",
+    "reaction_delay": 0,
+    "stage": "dreamland",
+    "start_frame": -123,
+    "status": "ok"
+  },
+  "run": 1,
+  "valid": true,
+  "stage": "dreamland",
+  "opponent": "fox",
+  "replay": "eval_runs/0915_local_zero/stand_matrix/dreamland_fox_1/Game_20260915T111829.slp",
+  "metrics": {
+    "max_chain": 200,
+    "frames": 1800,
+    "deaths": 0,
+    "chains": [
+      {
+        "length": 200,
+        "ended_by": "end_of_input"
+      }
+    ],
+    "completed_cycles": 199,
+    "endings": {
+      "end_of_input": 1
+    },
+    "ground_shine_onsets": 200,
+    "ground_shines_per_minute": 400.0,
+    "recent_hit_onsets": 0,
+    "recovery": {
+      "episodes": [],
+      "censored": 0,
+      "completed": 0,
+      "disruption_to_cycle_frames": [],
+      "ready_to_cycle_frames": []
+    },
+    "self_initiated_onsets": 200,
+    "self_initiated_per_minute": 400.0
+  },
+  "replay_sha256": "3c07e518426598e5a8e833d8dbb038b53762765bb9a05572fec645e884c7ab47",
+  "chain_gate": true
+}

@@ -1,0 +1,12 @@
+{
+  "deterministic": false,
+  "seconds": 30,
+  "policy": "/home/blewf/git/exphil/eval_runs/0915_mewtwo_neutral/v4/candidate.bin",
+  "sha256": "389aee5468344ec26c001e3d17b409e240e6e4f63086f1abb2c15dc42e92300a",
+  "temperature": 1.0,
+  "stage": "final_destination",
+  "opponent": "fox",
+  "runs_per_mode": 3,
+  "cpu_level": 6,
+  "criteria": "docs/planning/MEWTWO_NEUTRAL_BASELINE_V1.md"
+}

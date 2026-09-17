@@ -1,0 +1,5 @@
+{
+  "reason": "{:error, :console_hung}",
+  "status": "error",
+  "policy": "eval_runs/0915_local_zero/corrected_bootstrap/candidate.bin"
+}

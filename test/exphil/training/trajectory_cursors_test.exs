@@ -14,7 +14,16 @@ defmodule ExPhil.Training.TrajectoryCursorsTest do
 
   defp action(id) do
     %{
-      buttons: %{a: rem(id, 2) == 1, b: false, x: false, y: false, z: false, l: false, r: false, d_up: false},
+      buttons: %{
+        a: rem(id, 2) == 1,
+        b: false,
+        x: false,
+        y: false,
+        z: false,
+        l: false,
+        r: false,
+        d_up: false
+      },
       main_x: rem(id, 17),
       main_y: 8,
       c_x: 8,
@@ -58,127 +67,153 @@ defmodule ExPhil.Training.TrajectoryCursorsTest do
   end
 
   describe "batch_stream/2" do
-    test "raises when too few segments for batch_size" do
-      ds = dataset([100, 100])
+    test "coverage and reset laws hold across boundary lengths, batch widths and seeds" do
+      for unroll <- [1, 3, 10], batch_size <- [1, 2, 7], seed <- [1, 905, 906] do
+        lengths = [1, unroll, unroll + 1, max(1, unroll - 1), 2 * unroll + 1]
+        ds = dataset(lengths)
+        segments = TrajectoryCursors.segments(ds.frames)
 
-      assert_raise ArgumentError, ~r/segments/, fn ->
-        TrajectoryCursors.batch_stream(ds, batch_size: 3, unroll: 20, gpu: false)
-        |> Enum.take(1)
-      end
-    end
-
-    test "skips segments shorter than unroll" do
-      # 5-frame game can't fit unroll 20; only 2 usable segments remain
-      ds = dataset([100, 5, 100])
-
-      assert_raise ArgumentError, ~r/only 2 segments/, fn ->
-        TrajectoryCursors.batch_stream(ds, batch_size: 3, unroll: 20, gpu: false)
-        |> Enum.take(1)
-      end
-    end
-
-    test "rows are contiguous across batches with overlap" do
-      ds = dataset([100, 100])
-      unroll = 20
-      overlap = 1
-
-      batches =
-        TrajectoryCursors.batch_stream(ds,
-          batch_size: 2,
+        opts = [
           unroll: unroll,
-          overlap: overlap,
-          gpu: false
-        )
-        |> Enum.to_list()
+          batch_size: batch_size,
+          seed: seed,
+          gpu: false,
+          neutral_weight: 1.0
+        ]
 
-      assert length(batches) >= 2
-      [b1, b2 | _] = batches
+        batches = Enum.to_list(TrajectoryCursors.batch_stream(ds, opts))
 
-      # Batch shapes
-      assert Nx.shape(b1.states) == {2, unroll, 2}
-      assert Nx.shape(b1.frame_weights) == {2, unroll}
-      assert Nx.shape(b1.actions.buttons) == {2, unroll, 8}
-      assert Nx.shape(b1.actions.main_x) == {2, unroll}
+        {seen, _} =
+          Enum.reduce(batches, {[], %{}}, fn b, {seen, previous} ->
+            Enum.reduce(0..(batch_size - 1), {seen, previous}, fn row, {ids, prev} ->
+              count = Nx.to_number(Nx.sum(b.valid_mask[row])) |> round()
 
-      # First batch: both rows fresh
-      assert Nx.to_flat_list(b1.is_resetting) == [1, 1]
-      # Second batch: both rows continue the same segments
-      assert Nx.to_flat_list(b2.is_resetting) == [0, 0]
+              if count == 0 do
+                assert Nx.to_number(b.is_resetting[row]) == 1
+                {ids, prev}
+              else
+                row_ids =
+                  Nx.slice_along_axis(b.states[row], 0, count, axis: 0)
+                  |> Nx.slice_along_axis(0, 1, axis: 1)
+                  |> Nx.to_flat_list()
+                  |> Enum.map(&round/1)
 
-      # Contiguity: row r's batch-2 start == batch-1 start + unroll - overlap
-      # (embedding value == global frame index by construction)
-      for r <- 0..1 do
-        first1 = b1.states[r][0][0] |> Nx.to_number()
-        first2 = b2.states[r][0][0] |> Nx.to_number()
-        assert first2 == first1 + unroll - overlap
+                first = hd(row_ids)
+                {start, len} = Enum.find(segments, fn {s, n} -> first >= s and first < s + n end)
+                assert List.last(row_ids) < start + len
+
+                if Nx.to_number(b.is_resetting[row]) == 1,
+                  do: assert(first == start),
+                  else: assert(first == prev[row] + 1)
+
+                {row_ids ++ ids, Map.put(prev, row, List.last(row_ids))}
+              end
+            end)
+          end)
+
+        assert Enum.sort(seen) == Enum.to_list(0..(ds.size - 1))
+        repeated = Enum.to_list(TrajectoryCursors.batch_stream(ds, opts))
+
+        assert Enum.map(batches, &Nx.serialize(&1.states)) ==
+                 Enum.map(repeated, &Nx.serialize(&1.states))
       end
     end
 
-    test "no chunk crosses a segment boundary; resets only at real boundaries" do
-      # 2 games of 100 with unroll 30/overlap 1: each segment yields
-      # chunks at offsets 0, 29, 58 (87+30 > 100 -> new segment).
-      ds = dataset([100, 100])
+    test "scores every frame exactly once across short, long and partial segments" do
+      for lengths <- [[80, 8000], [3, 100, 1, 81, 159], List.duplicate(160, 40)],
+          batch_size <- [2, 128] do
+        ds = dataset(lengths)
 
-      batches =
-        TrajectoryCursors.batch_stream(ds,
-          batch_size: 2,
-          unroll: 30,
-          overlap: 1,
-          gpu: false
-        )
-        |> Enum.to_list()
+        batches =
+          TrajectoryCursors.batch_stream(ds,
+            batch_size: batch_size,
+            unroll: 80,
+            overlap: 0,
+            gpu: false,
+            neutral_weight: 1.0
+          )
+          |> Enum.to_list()
 
-      # Every chunk must lie inside one segment. Embedding col 0 is the
-      # GLOBAL frame index by construction and segments are [0,100) and
-      # [100,200), so a chunk's first and last frame must land in the
-      # same 100-block and be exactly unroll-1 apart (contiguous slice).
-      for b <- batches, r <- 0..1 do
-        first = b.states[r][0][0] |> Nx.to_number() |> round()
-        last = b.states[r][29][0] |> Nx.to_number() |> round()
-        assert last - first == 29
-        assert div(first, 100) == div(last, 100)
+        seen =
+          Enum.flat_map(batches, fn b ->
+            assert Nx.shape(b.states) == {batch_size, 80, 2}
+            ids = Nx.slice_along_axis(b.states, 0, 1, axis: 2) |> Nx.to_flat_list()
+
+            Enum.zip(ids, Nx.to_flat_list(b.valid_mask))
+            |> Enum.filter(fn {_, valid} -> valid == 1 end)
+            |> Enum.map(fn {id, _} -> round(id) end)
+          end)
+
+        assert Enum.sort(seen) == Enum.to_list(0..(ds.size - 1))
+        assert Enum.sum(Enum.map(batches, &Nx.to_number(Nx.sum(&1.frame_weights)))) == ds.size
       end
-
-      # Total resets == segments consumed (2), all in the first batch
-      total_resets =
-        batches |> Enum.map(&Nx.to_number(Nx.sum(&1.is_resetting))) |> Enum.sum()
-
-      assert total_resets == 2
     end
 
-    test "halts when queue is exhausted" do
-      ds = dataset([50, 50])
+    test "rows advance without overlap and reset before a different segment" do
+      ds = dataset([90, 11, 210, 5])
+      segments = TrajectoryCursors.segments(ds.frames)
 
       batches =
-        TrajectoryCursors.batch_stream(ds,
+        TrajectoryCursors.batch_stream(ds, batch_size: 2, unroll: 80, gpu: false)
+        |> Enum.to_list()
+
+      Enum.reduce(batches, %{}, fn b, previous ->
+        Enum.reduce(0..1, previous, fn row, prev ->
+          valid = Nx.to_number(Nx.sum(b.valid_mask[row])) |> round()
+
+          if valid > 0 do
+            first = Nx.to_number(b.states[row][0][0]) |> round()
+            last = Nx.to_number(b.states[row][valid - 1][0]) |> round()
+            {start, length} = Enum.find(segments, fn {s, n} -> first >= s and first < s + n end)
+            assert last == first + valid - 1
+            assert last < start + length
+
+            if Nx.to_number(b.is_resetting[row]) == 0,
+              do: assert(first == prev[row] + 1),
+              else: assert(first == start)
+
+            Map.put(prev, row, last)
+          else
+            assert Nx.to_number(b.is_resetting[row]) == 1
+            prev
+          end
+        end)
+      end)
+    end
+
+    test "positive overlap is rejected rather than replaying input into advanced carry" do
+      assert_raise ArgumentError, ~r/overlap must be 0/, fn ->
+        TrajectoryCursors.batch_stream(dataset([100]), batch_size: 1, overlap: 1)
+      end
+    end
+
+    test "empty datasets emit no batches" do
+      assert Enum.to_list(
+               TrajectoryCursors.batch_stream(%Data{frames: [], size: 0},
+                 batch_size: 128,
+                 gpu: false
+               )
+             ) == []
+    end
+
+    test "padding contributes zero weight and valid targets remain aligned" do
+      [b] =
+        TrajectoryCursors.batch_stream(dataset([5]),
           batch_size: 2,
-          unroll: 40,
-          overlap: 1,
-          gpu: false
+          unroll: 80,
+          gpu: false,
+          neutral_weight: 1.0
         )
         |> Enum.to_list()
 
-      # Each 50-frame segment fits exactly one 40-frame chunk (offset 39
-      # + 40 > 50), and there are exactly 2 segments for 2 rows.
-      assert length(batches) == 1
-    end
+      assert Nx.to_number(Nx.sum(b.valid_mask)) == 5
 
-    test "per-timestep targets match the frames" do
-      ds = dataset([100, 100])
-
-      [b1 | _] =
-        TrajectoryCursors.batch_stream(ds,
-          batch_size: 2,
-          unroll: 10,
-          overlap: 1,
-          gpu: false
-        )
-        |> Enum.take(1)
-
-      # main_x of frame i is rem(i_within_game, 17); both rows start at
-      # offset 0 of their (shuffled) segments, so t-th target is rem(t, 17).
-      for r <- 0..1, t <- 0..9 do
-        assert Nx.to_number(b1.actions.main_x[r][t]) == rem(t, 17)
+      for row <- 0..1, t <- 0..79 do
+        if Nx.to_number(b.valid_mask[row][t]) == 1 do
+          assert Nx.to_number(b.actions.main_x[row][t]) == rem(t, 17)
+        else
+          assert Nx.to_number(b.frame_weights[row][t]) == 0
+        end
       end
     end
   end

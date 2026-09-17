@@ -1,0 +1,76 @@
+{
+  "run": 9,
+  "metrics": {
+    "neutral": {
+      "events": [
+        {
+          "start": 29,
+          "finish": 36,
+          "censor_reason": null,
+          "first_contact": 31,
+          "outcome": "subject_opens"
+        },
+        {
+          "start": 182,
+          "finish": 223,
+          "censor_reason": null,
+          "first_contact": 218,
+          "outcome": "subject_opens"
+        },
+        {
+          "start": 704,
+          "finish": 739,
+          "censor_reason": null,
+          "first_contact": 734,
+          "outcome": "subject_opens"
+        },
+        {
+          "start": 1434,
+          "finish": 1527,
+          "censor_reason": null,
+          "first_contact": 1522,
+          "outcome": "subject_opens"
+        },
+        {
+          "start": 1785,
+          "finish": 1793,
+          "censor_reason": null,
+          "first_contact": 1788,
+          "outcome": "opponent_opens"
+        }
+      ],
+      "outcomes": {
+        "subject_opens": 4,
+        "opponent_opens": 1
+      },
+      "exchanges": 5
+    },
+    "deaths": 1,
+    "frames": 1800,
+    "aerial_attempts": 1,
+    "aerial_types": {
+      "66": 1
+    },
+    "down_tilt_attempts": 8,
+    "grab_attempts": 0,
+    "hop_apices": [],
+    "max_shield_action_streak": 23,
+    "short_hops": 0,
+    "wavedashes": 1
+  },
+  "replay": "/home/blewf/git/exphil/eval_runs/0915_mewtwo_teacher_audit/cpu_teacher_v2/run_9/replays/Game_20260915T180954.slp",
+  "choices": {
+    ":brake": 7,
+    ":down_tilt": 8,
+    ":interrupted": 952,
+    ":shield": 3,
+    ":wait": 700,
+    "{:aerial, :fair, :left}": 22,
+    "{:aerial, :fair, :right}": 5,
+    "{:run, :right}": 1,
+    "{:walk, :left}": 42,
+    "{:walk, :right}": 52,
+    "{:wavedash, :right}": 8
+  },
+  "opening_gate": true
+}

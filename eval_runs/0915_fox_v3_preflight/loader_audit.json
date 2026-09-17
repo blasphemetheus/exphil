@@ -1,0 +1,33 @@
+{
+  "verdict": "NO_GO",
+  "repeated_input": {
+    "last_frame_of_first_chunk": 79.0,
+    "first_frame_of_second_chunk": 79.0,
+    "second_chunk_reset": 0,
+    "duplicate_with_carried_memory": true
+  },
+  "exhausted_row_coverage": [
+    {
+      "dropped": 7920,
+      "available": 8080,
+      "overlap": 0,
+      "unique_scored": 160,
+      "dropped_fraction": 0.9801980198019802,
+      "documented_max_tail": 160
+    },
+    {
+      "dropped": 7920,
+      "available": 8080,
+      "overlap": 1,
+      "unique_scored": 160,
+      "dropped_fraction": 0.9801980198019802,
+      "documented_max_tail": 160
+    }
+  ],
+  "preflight_file_chunk_sizes": [
+    200,
+    40
+  ],
+  "final_chunk_with_one_segment_per_game": "only 40 segments >= 80 frames for batch_size 128 — use larger stream chunks or a smaller batch (see BPTT_LOADER_DESIGN.md)",
+  "note": "Synthetic counterexamples establish loader contract failures; they do not estimate real-corpus loss."
+}

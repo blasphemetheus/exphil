@@ -1,0 +1,1724 @@
+{
+  "runs": [
+    {
+      "action_onsets": {
+        "aerials": {
+          "bair": 6,
+          "dair": 13,
+          "fair": 21,
+          "nair": 3,
+          "uair": 6
+        },
+        "airdodge": 18,
+        "dash_grab": 3,
+        "down_tilt": 16,
+        "jumpsquat": 86,
+        "special_landing": 33,
+        "standing_grab": 8
+      },
+      "approximate_seconds": 185.1,
+      "neutral_exchanges": {
+        "events": [
+          {
+            "start": 29,
+            "finish": 211,
+            "outcome": "subject_opens",
+            "first_contact": 206,
+            "censor_reason": null
+          },
+          {
+            "start": 431,
+            "finish": 487,
+            "outcome": "opponent_opens",
+            "first_contact": 482,
+            "censor_reason": null
+          },
+          {
+            "start": 523,
+            "finish": 584,
+            "outcome": "opponent_opens",
+            "first_contact": 579,
+            "censor_reason": null
+          },
+          {
+            "start": 626,
+            "finish": 704,
+            "outcome": "opponent_opens",
+            "first_contact": 699,
+            "censor_reason": null
+          },
+          {
+            "start": 789,
+            "finish": 803,
+            "outcome": "subject_opens",
+            "first_contact": 798,
+            "censor_reason": null
+          },
+          {
+            "start": 952,
+            "finish": 1065,
+            "outcome": "subject_opens",
+            "first_contact": 1060,
+            "censor_reason": null
+          },
+          {
+            "start": 1128,
+            "finish": 1137,
+            "outcome": "opponent_opens",
+            "first_contact": 1132,
+            "censor_reason": null
+          },
+          {
+            "start": 1167,
+            "finish": 1195,
+            "outcome": "subject_opens",
+            "first_contact": 1190,
+            "censor_reason": null
+          },
+          {
+            "start": 1501,
+            "finish": 1562,
+            "outcome": "subject_opens",
+            "first_contact": 1557,
+            "censor_reason": null
+          },
+          {
+            "start": 1922,
+            "finish": 1986,
+            "outcome": "opponent_opens",
+            "first_contact": 1981,
+            "censor_reason": null
+          },
+          {
+            "start": 2110,
+            "finish": 2153,
+            "outcome": "opponent_opens",
+            "first_contact": 2148,
+            "censor_reason": null
+          },
+          {
+            "start": 2217,
+            "finish": 2343,
+            "outcome": "subject_opens",
+            "first_contact": 2338,
+            "censor_reason": null
+          },
+          {
+            "start": 2378,
+            "finish": 2385,
+            "outcome": "subject_opens",
+            "first_contact": 2380,
+            "censor_reason": null
+          },
+          {
+            "start": 2563,
+            "finish": 2569,
+            "outcome": "subject_opens",
+            "first_contact": 2564,
+            "censor_reason": null
+          },
+          {
+            "start": 2687,
+            "finish": 2735,
+            "outcome": "opponent_opens",
+            "first_contact": 2730,
+            "censor_reason": null
+          },
+          {
+            "start": 2807,
+            "finish": 2823,
+            "outcome": "subject_opens",
+            "first_contact": 2818,
+            "censor_reason": null
+          },
+          {
+            "start": 3300,
+            "finish": 3327,
+            "outcome": "opponent_opens",
+            "first_contact": 3322,
+            "censor_reason": null
+          },
+          {
+            "start": 3357,
+            "finish": 3400,
+            "outcome": "opponent_opens",
+            "first_contact": 3395,
+            "censor_reason": null
+          },
+          {
+            "start": 3430,
+            "finish": 3488,
+            "outcome": "opponent_opens",
+            "first_contact": 3483,
+            "censor_reason": null
+          },
+          {
+            "start": 3518,
+            "finish": 3524,
+            "outcome": "subject_opens",
+            "first_contact": 3519,
+            "censor_reason": null
+          },
+          {
+            "start": 3686,
+            "finish": 3693,
+            "outcome": "subject_opens",
+            "first_contact": 3688,
+            "censor_reason": null
+          },
+          {
+            "start": 3769,
+            "finish": 3812,
+            "outcome": "opponent_opens",
+            "first_contact": 3807,
+            "censor_reason": null
+          },
+          {
+            "start": 4095,
+            "finish": 4157,
+            "outcome": "subject_opens",
+            "first_contact": 4152,
+            "censor_reason": null
+          },
+          {
+            "start": 4227,
+            "finish": 4259,
+            "outcome": "opponent_opens",
+            "first_contact": 4254,
+            "censor_reason": null
+          },
+          {
+            "start": 4814,
+            "finish": 4848,
+            "outcome": "subject_opens",
+            "first_contact": 4843,
+            "censor_reason": null
+          },
+          {
+            "start": 5199,
+            "finish": 5243,
+            "outcome": "subject_opens",
+            "first_contact": 5238,
+            "censor_reason": null
+          },
+          {
+            "start": 5358,
+            "finish": 5429,
+            "outcome": "subject_opens",
+            "first_contact": 5424,
+            "censor_reason": null
+          },
+          {
+            "start": 5665,
+            "finish": 5755,
+            "outcome": "subject_opens",
+            "first_contact": 5750,
+            "censor_reason": null
+          },
+          {
+            "start": 5914,
+            "finish": 6018,
+            "outcome": "opponent_opens",
+            "first_contact": 6013,
+            "censor_reason": null
+          },
+          {
+            "start": 6247,
+            "finish": 6272,
+            "outcome": "subject_opens",
+            "first_contact": 6267,
+            "censor_reason": null
+          },
+          {
+            "start": 6413,
+            "finish": 6534,
+            "outcome": "opponent_opens",
+            "first_contact": 6529,
+            "censor_reason": null
+          },
+          {
+            "start": 6599,
+            "finish": 6656,
+            "outcome": "opponent_opens",
+            "first_contact": 6651,
+            "censor_reason": null
+          },
+          {
+            "start": 6698,
+            "finish": 6735,
+            "outcome": "subject_opens",
+            "first_contact": 6730,
+            "censor_reason": null
+          },
+          {
+            "start": 7045,
+            "finish": 7142,
+            "outcome": "opponent_opens",
+            "first_contact": 7137,
+            "censor_reason": null
+          },
+          {
+            "start": 7240,
+            "finish": 7324,
+            "outcome": "subject_opens",
+            "first_contact": 7319,
+            "censor_reason": null
+          },
+          {
+            "start": 7358,
+            "finish": 7365,
+            "outcome": "subject_opens",
+            "first_contact": 7360,
+            "censor_reason": null
+          },
+          {
+            "start": 7487,
+            "finish": 7514,
+            "outcome": "opponent_opens",
+            "first_contact": 7509,
+            "censor_reason": null
+          },
+          {
+            "start": 7587,
+            "finish": 7616,
+            "outcome": "opponent_opens",
+            "first_contact": 7611,
+            "censor_reason": null
+          },
+          {
+            "start": 7759,
+            "finish": 7808,
+            "outcome": "opponent_opens",
+            "first_contact": 7803,
+            "censor_reason": null
+          },
+          {
+            "start": 7839,
+            "finish": 7901,
+            "outcome": "opponent_opens",
+            "first_contact": 7896,
+            "censor_reason": null
+          },
+          {
+            "start": 8222,
+            "finish": 8336,
+            "outcome": "subject_opens",
+            "first_contact": 8331,
+            "censor_reason": null
+          },
+          {
+            "start": 8772,
+            "finish": 8802,
+            "outcome": "opponent_opens",
+            "first_contact": 8797,
+            "censor_reason": null
+          },
+          {
+            "start": 8832,
+            "finish": 8867,
+            "outcome": "opponent_opens",
+            "first_contact": 8862,
+            "censor_reason": null
+          },
+          {
+            "start": 8980,
+            "finish": 9073,
+            "outcome": "opponent_opens",
+            "first_contact": 9068,
+            "censor_reason": null
+          },
+          {
+            "start": 9110,
+            "finish": 9170,
+            "outcome": "subject_opens",
+            "first_contact": 9165,
+            "censor_reason": null
+          },
+          {
+            "start": 9532,
+            "finish": 9573,
+            "outcome": "opponent_opens",
+            "first_contact": 9568,
+            "censor_reason": null
+          },
+          {
+            "start": 10008,
+            "finish": 10063,
+            "outcome": "opponent_opens",
+            "first_contact": 10058,
+            "censor_reason": null
+          },
+          {
+            "start": 10499,
+            "finish": 10576,
+            "outcome": "subject_opens",
+            "first_contact": 10571,
+            "censor_reason": null
+          },
+          {
+            "start": 10843,
+            "finish": 10849,
+            "outcome": "subject_opens",
+            "first_contact": 10844,
+            "censor_reason": null
+          }
+        ],
+        "exchanges": 49,
+        "outcomes": {
+          "subject_opens": 24,
+          "opponent_opens": 25
+        }
+      },
+      "opponent_controller": "cpu",
+      "opponent_cpu_level": null,
+      "opponent_cpu_level_note": "User reports CPU level 6 and mostly level 9; per-game levels not identified.",
+      "opponent_port": 1,
+      "playable_frames": 11106,
+      "preserved_replay": "/home/blewf/git/exphil/eval_runs/0915_mewtwo_demonstrations/replays/Game_20260915T165636.slp",
+      "sha256": "32598bf9d69ae9d70889247b542103dddb09d06bac76625997a4476580769075",
+      "shield_action_frames": 391,
+      "source": "/home/blewf/Slippi/2026-09-Mainline/Game_20260915T165636.slp",
+      "split": "unassigned",
+      "stage": "final_destination",
+      "subject_port": 2
+    },
+    {
+      "action_onsets": {
+        "aerials": {
+          "bair": 10,
+          "dair": 5,
+          "fair": 29,
+          "nair": 12,
+          "uair": 12
+        },
+        "airdodge": 6,
+        "dash_grab": 7,
+        "down_tilt": 18,
+        "jumpsquat": 65,
+        "special_landing": 13,
+        "standing_grab": 2
+      },
+      "approximate_seconds": 175.56666666666666,
+      "neutral_exchanges": {
+        "events": [
+          {
+            "start": 29,
+            "finish": 347,
+            "outcome": "subject_opens",
+            "first_contact": 342,
+            "censor_reason": null
+          },
+          {
+            "start": 578,
+            "finish": 611,
+            "outcome": "opponent_opens",
+            "first_contact": 606,
+            "censor_reason": null
+          },
+          {
+            "start": 679,
+            "finish": 697,
+            "outcome": "subject_opens",
+            "first_contact": 692,
+            "censor_reason": null
+          },
+          {
+            "start": 1030,
+            "finish": 1076,
+            "outcome": "subject_opens",
+            "first_contact": 1071,
+            "censor_reason": null
+          },
+          {
+            "start": 1268,
+            "finish": 1286,
+            "outcome": "opponent_opens",
+            "first_contact": 1281,
+            "censor_reason": null
+          },
+          {
+            "start": 1431,
+            "finish": 1443,
+            "outcome": "censored",
+            "first_contact": null,
+            "censor_reason": "offstage"
+          },
+          {
+            "start": 1476,
+            "finish": 1504,
+            "outcome": "opponent_opens",
+            "first_contact": 1499,
+            "censor_reason": null
+          },
+          {
+            "start": 2004,
+            "finish": 2048,
+            "outcome": "opponent_opens",
+            "first_contact": 2043,
+            "censor_reason": null
+          },
+          {
+            "start": 2176,
+            "finish": 2209,
+            "outcome": "opponent_opens",
+            "first_contact": 2204,
+            "censor_reason": null
+          },
+          {
+            "start": 2320,
+            "finish": 2345,
+            "outcome": "subject_opens",
+            "first_contact": 2340,
+            "censor_reason": null
+          },
+          {
+            "start": 2728,
+            "finish": 2989,
+            "outcome": "subject_opens",
+            "first_contact": 2984,
+            "censor_reason": null
+          },
+          {
+            "start": 3079,
+            "finish": 3221,
+            "outcome": "subject_opens",
+            "first_contact": 3216,
+            "censor_reason": null
+          },
+          {
+            "start": 3312,
+            "finish": 3373,
+            "outcome": "opponent_opens",
+            "first_contact": 3368,
+            "censor_reason": null
+          },
+          {
+            "start": 3423,
+            "finish": 3426,
+            "outcome": "censored",
+            "first_contact": null,
+            "censor_reason": "offstage"
+          },
+          {
+            "start": 3556,
+            "finish": 3665,
+            "outcome": "opponent_opens",
+            "first_contact": 3660,
+            "censor_reason": null
+          },
+          {
+            "start": 3819,
+            "finish": 3843,
+            "outcome": "censored",
+            "first_contact": null,
+            "censor_reason": "offstage"
+          },
+          {
+            "start": 3874,
+            "finish": 3882,
+            "outcome": "censored",
+            "first_contact": null,
+            "censor_reason": "offstage"
+          },
+          {
+            "start": 4582,
+            "finish": 4637,
+            "outcome": "subject_opens",
+            "first_contact": 4632,
+            "censor_reason": null
+          },
+          {
+            "start": 4831,
+            "finish": 4917,
+            "outcome": "subject_opens",
+            "first_contact": 4912,
+            "censor_reason": null
+          },
+          {
+            "start": 5303,
+            "finish": 5392,
+            "outcome": "subject_opens",
+            "first_contact": 5387,
+            "censor_reason": null
+          },
+          {
+            "start": 5548,
+            "finish": 5617,
+            "outcome": "opponent_opens",
+            "first_contact": 5612,
+            "censor_reason": null
+          },
+          {
+            "start": 5867,
+            "finish": 5904,
+            "outcome": "trade",
+            "first_contact": 5904,
+            "censor_reason": null
+          },
+          {
+            "start": 6223,
+            "finish": 6309,
+            "outcome": "censored",
+            "first_contact": null,
+            "censor_reason": "offstage"
+          },
+          {
+            "start": 6370,
+            "finish": 6585,
+            "outcome": "opponent_opens",
+            "first_contact": 6580,
+            "censor_reason": null
+          },
+          {
+            "start": 6790,
+            "finish": 6911,
+            "outcome": "subject_opens",
+            "first_contact": 6906,
+            "censor_reason": null
+          },
+          {
+            "start": 6993,
+            "finish": 7031,
+            "outcome": "opponent_opens",
+            "first_contact": 7026,
+            "censor_reason": null
+          },
+          {
+            "start": 7075,
+            "finish": 7093,
+            "outcome": "opponent_opens",
+            "first_contact": 7088,
+            "censor_reason": null
+          },
+          {
+            "start": 7191,
+            "finish": 7343,
+            "outcome": "opponent_opens",
+            "first_contact": 7338,
+            "censor_reason": null
+          },
+          {
+            "start": 7373,
+            "finish": 7385,
+            "outcome": "censored",
+            "first_contact": null,
+            "censor_reason": "offstage"
+          },
+          {
+            "start": 7608,
+            "finish": 7615,
+            "outcome": "subject_opens",
+            "first_contact": 7610,
+            "censor_reason": null
+          },
+          {
+            "start": 8027,
+            "finish": 8058,
+            "outcome": "subject_opens",
+            "first_contact": 8053,
+            "censor_reason": null
+          },
+          {
+            "start": 8313,
+            "finish": 8475,
+            "outcome": "subject_opens",
+            "first_contact": 8470,
+            "censor_reason": null
+          },
+          {
+            "start": 8703,
+            "finish": 8757,
+            "outcome": "opponent_opens",
+            "first_contact": 8752,
+            "censor_reason": null
+          },
+          {
+            "start": 9258,
+            "finish": 9329,
+            "outcome": "subject_opens",
+            "first_contact": 9324,
+            "censor_reason": null
+          },
+          {
+            "start": 9847,
+            "finish": 9875,
+            "outcome": "censored",
+            "first_contact": null,
+            "censor_reason": "offstage"
+          },
+          {
+            "start": 9984,
+            "finish": 10073,
+            "outcome": "subject_opens",
+            "first_contact": 10068,
+            "censor_reason": null
+          },
+          {
+            "start": 10159,
+            "finish": 10169,
+            "outcome": "opponent_opens",
+            "first_contact": 10164,
+            "censor_reason": null
+          }
+        ],
+        "exchanges": 37,
+        "outcomes": {
+          "censored": 7,
+          "trade": 1,
+          "subject_opens": 15,
+          "opponent_opens": 14
+        }
+      },
+      "opponent_controller": "cpu",
+      "opponent_cpu_level": null,
+      "opponent_cpu_level_note": "User reports CPU level 6 and mostly level 9; per-game levels not identified.",
+      "opponent_port": 1,
+      "playable_frames": 10534,
+      "preserved_replay": "/home/blewf/git/exphil/eval_runs/0915_mewtwo_demonstrations/replays/Game_20260915T165949.slp",
+      "sha256": "333c831e6e9f44070f3ebd1d4e7d0720d6b999a35cdc9f5affb0a383a35acf16",
+      "shield_action_frames": 206,
+      "source": "/home/blewf/Slippi/2026-09-Mainline/Game_20260915T165949.slp",
+      "split": "unassigned",
+      "stage": "yoshis_story",
+      "subject_port": 2
+    },
+    {
+      "action_onsets": {
+        "aerials": {
+          "bair": 8,
+          "dair": 11,
+          "fair": 23,
+          "nair": 6,
+          "uair": 11
+        },
+        "airdodge": 4,
+        "dash_grab": 5,
+        "down_tilt": 15,
+        "jumpsquat": 57,
+        "special_landing": 13,
+        "standing_grab": 0
+      },
+      "approximate_seconds": 190.33333333333334,
+      "neutral_exchanges": {
+        "events": [
+          {
+            "start": 29,
+            "finish": 53,
+            "outcome": "subject_opens",
+            "first_contact": 48,
+            "censor_reason": null
+          },
+          {
+            "start": 159,
+            "finish": 168,
+            "outcome": "subject_opens",
+            "first_contact": 163,
+            "censor_reason": null
+          },
+          {
+            "start": 240,
+            "finish": 255,
+            "outcome": "opponent_opens",
+            "first_contact": 250,
+            "censor_reason": null
+          },
+          {
+            "start": 288,
+            "finish": 302,
+            "outcome": "subject_opens",
+            "first_contact": 297,
+            "censor_reason": null
+          },
+          {
+            "start": 505,
+            "finish": 651,
+            "outcome": "opponent_opens",
+            "first_contact": 646,
+            "censor_reason": null
+          },
+          {
+            "start": 706,
+            "finish": 778,
+            "outcome": "opponent_opens",
+            "first_contact": 773,
+            "censor_reason": null
+          },
+          {
+            "start": 890,
+            "finish": 902,
+            "outcome": "opponent_opens",
+            "first_contact": 897,
+            "censor_reason": null
+          },
+          {
+            "start": 999,
+            "finish": 1017,
+            "outcome": "opponent_opens",
+            "first_contact": 1012,
+            "censor_reason": null
+          },
+          {
+            "start": 1141,
+            "finish": 1161,
+            "outcome": "opponent_opens",
+            "first_contact": 1156,
+            "censor_reason": null
+          },
+          {
+            "start": 1239,
+            "finish": 1354,
+            "outcome": "trade",
+            "first_contact": 1354,
+            "censor_reason": null
+          },
+          {
+            "start": 1417,
+            "finish": 1446,
+            "outcome": "opponent_opens",
+            "first_contact": 1441,
+            "censor_reason": null
+          },
+          {
+            "start": 1493,
+            "finish": 1528,
+            "outcome": "opponent_opens",
+            "first_contact": 1523,
+            "censor_reason": null
+          },
+          {
+            "start": 1862,
+            "finish": 1887,
+            "outcome": "opponent_opens",
+            "first_contact": 1882,
+            "censor_reason": null
+          },
+          {
+            "start": 2647,
+            "finish": 2700,
+            "outcome": "censored",
+            "first_contact": null,
+            "censor_reason": "offstage"
+          },
+          {
+            "start": 3185,
+            "finish": 3229,
+            "outcome": "opponent_opens",
+            "first_contact": 3224,
+            "censor_reason": null
+          },
+          {
+            "start": 3323,
+            "finish": 3375,
+            "outcome": "opponent_opens",
+            "first_contact": 3370,
+            "censor_reason": null
+          },
+          {
+            "start": 3442,
+            "finish": 3515,
+            "outcome": "opponent_opens",
+            "first_contact": 3510,
+            "censor_reason": null
+          },
+          {
+            "start": 3885,
+            "finish": 3958,
+            "outcome": "subject_opens",
+            "first_contact": 3953,
+            "censor_reason": null
+          },
+          {
+            "start": 4397,
+            "finish": 4410,
+            "outcome": "opponent_opens",
+            "first_contact": 4405,
+            "censor_reason": null
+          },
+          {
+            "start": 4508,
+            "finish": 4524,
+            "outcome": "opponent_opens",
+            "first_contact": 4519,
+            "censor_reason": null
+          },
+          {
+            "start": 4729,
+            "finish": 4737,
+            "outcome": "opponent_opens",
+            "first_contact": 4732,
+            "censor_reason": null
+          },
+          {
+            "start": 4780,
+            "finish": 4793,
+            "outcome": "subject_opens",
+            "first_contact": 4788,
+            "censor_reason": null
+          },
+          {
+            "start": 4977,
+            "finish": 5000,
+            "outcome": "opponent_opens",
+            "first_contact": 4995,
+            "censor_reason": null
+          },
+          {
+            "start": 5065,
+            "finish": 5166,
+            "outcome": "subject_opens",
+            "first_contact": 5161,
+            "censor_reason": null
+          },
+          {
+            "start": 5372,
+            "finish": 5389,
+            "outcome": "trade",
+            "first_contact": 5389,
+            "censor_reason": null
+          },
+          {
+            "start": 5563,
+            "finish": 5653,
+            "outcome": "opponent_opens",
+            "first_contact": 5648,
+            "censor_reason": null
+          },
+          {
+            "start": 5807,
+            "finish": 5923,
+            "outcome": "opponent_opens",
+            "first_contact": 5918,
+            "censor_reason": null
+          },
+          {
+            "start": 6828,
+            "finish": 7053,
+            "outcome": "subject_opens",
+            "first_contact": 7048,
+            "censor_reason": null
+          },
+          {
+            "start": 7799,
+            "finish": 7907,
+            "outcome": "subject_opens",
+            "first_contact": 7902,
+            "censor_reason": null
+          },
+          {
+            "start": 8018,
+            "finish": 8031,
+            "outcome": "subject_opens",
+            "first_contact": 8026,
+            "censor_reason": null
+          },
+          {
+            "start": 8134,
+            "finish": 8140,
+            "outcome": "opponent_opens",
+            "first_contact": 8135,
+            "censor_reason": null
+          },
+          {
+            "start": 8235,
+            "finish": 8300,
+            "outcome": "opponent_opens",
+            "first_contact": 8295,
+            "censor_reason": null
+          },
+          {
+            "start": 8347,
+            "finish": 8376,
+            "outcome": "opponent_opens",
+            "first_contact": 8371,
+            "censor_reason": null
+          },
+          {
+            "start": 8454,
+            "finish": 8568,
+            "outcome": "opponent_opens",
+            "first_contact": 8563,
+            "censor_reason": null
+          },
+          {
+            "start": 8725,
+            "finish": 8765,
+            "outcome": "subject_opens",
+            "first_contact": 8760,
+            "censor_reason": null
+          },
+          {
+            "start": 9199,
+            "finish": 9297,
+            "outcome": "subject_opens",
+            "first_contact": 9292,
+            "censor_reason": null
+          },
+          {
+            "start": 9384,
+            "finish": 9404,
+            "outcome": "subject_opens",
+            "first_contact": 9399,
+            "censor_reason": null
+          },
+          {
+            "start": 9495,
+            "finish": 9515,
+            "outcome": "opponent_opens",
+            "first_contact": 9510,
+            "censor_reason": null
+          },
+          {
+            "start": 9739,
+            "finish": 9760,
+            "outcome": "subject_opens",
+            "first_contact": 9755,
+            "censor_reason": null
+          },
+          {
+            "start": 10017,
+            "finish": 10061,
+            "outcome": "opponent_opens",
+            "first_contact": 10056,
+            "censor_reason": null
+          },
+          {
+            "start": 10342,
+            "finish": 10410,
+            "outcome": "subject_opens",
+            "first_contact": 10405,
+            "censor_reason": null
+          },
+          {
+            "start": 10543,
+            "finish": 10664,
+            "outcome": "opponent_opens",
+            "first_contact": 10659,
+            "censor_reason": null
+          },
+          {
+            "start": 10853,
+            "finish": 10870,
+            "outcome": "subject_opens",
+            "first_contact": 10865,
+            "censor_reason": null
+          },
+          {
+            "start": 11094,
+            "finish": 11163,
+            "outcome": "subject_opens",
+            "first_contact": 11158,
+            "censor_reason": null
+          }
+        ],
+        "exchanges": 44,
+        "outcomes": {
+          "censored": 1,
+          "trade": 2,
+          "subject_opens": 16,
+          "opponent_opens": 25
+        }
+      },
+      "opponent_controller": "cpu",
+      "opponent_cpu_level": null,
+      "opponent_cpu_level_note": "User reports CPU level 6 and mostly level 9; per-game levels not identified.",
+      "opponent_port": 1,
+      "playable_frames": 11420,
+      "preserved_replay": "/home/blewf/git/exphil/eval_runs/0915_mewtwo_demonstrations/replays/Game_20260915T170258.slp",
+      "sha256": "9bd4c07ee8e04383eff1344ae4f9bed7e4c97b4d662398228e988a24dff9e84a",
+      "shield_action_frames": 169,
+      "source": "/home/blewf/Slippi/2026-09-Mainline/Game_20260915T170258.slp",
+      "split": "unassigned",
+      "stage": "fountain_of_dreams",
+      "subject_port": 2
+    },
+    {
+      "action_onsets": {
+        "aerials": {
+          "bair": 15,
+          "dair": 8,
+          "fair": 18,
+          "nair": 12,
+          "uair": 16
+        },
+        "airdodge": 12,
+        "dash_grab": 2,
+        "down_tilt": 28,
+        "jumpsquat": 64,
+        "special_landing": 25,
+        "standing_grab": 4
+      },
+      "approximate_seconds": 251.01666666666668,
+      "neutral_exchanges": {
+        "events": [
+          {
+            "start": 75,
+            "finish": 88,
+            "outcome": "opponent_opens",
+            "first_contact": 83,
+            "censor_reason": null
+          },
+          {
+            "start": 163,
+            "finish": 192,
+            "outcome": "subject_opens",
+            "first_contact": 187,
+            "censor_reason": null
+          },
+          {
+            "start": 439,
+            "finish": 456,
+            "outcome": "opponent_opens",
+            "first_contact": 451,
+            "censor_reason": null
+          },
+          {
+            "start": 967,
+            "finish": 1006,
+            "outcome": "opponent_opens",
+            "first_contact": 1001,
+            "censor_reason": null
+          },
+          {
+            "start": 1103,
+            "finish": 1127,
+            "outcome": "opponent_opens",
+            "first_contact": 1122,
+            "censor_reason": null
+          },
+          {
+            "start": 1572,
+            "finish": 1597,
+            "outcome": "subject_opens",
+            "first_contact": 1592,
+            "censor_reason": null
+          },
+          {
+            "start": 1733,
+            "finish": 1763,
+            "outcome": "opponent_opens",
+            "first_contact": 1758,
+            "censor_reason": null
+          },
+          {
+            "start": 2108,
+            "finish": 2255,
+            "outcome": "opponent_opens",
+            "first_contact": 2250,
+            "censor_reason": null
+          },
+          {
+            "start": 2371,
+            "finish": 2402,
+            "outcome": "subject_opens",
+            "first_contact": 2397,
+            "censor_reason": null
+          },
+          {
+            "start": 2464,
+            "finish": 2514,
+            "outcome": "opponent_opens",
+            "first_contact": 2509,
+            "censor_reason": null
+          },
+          {
+            "start": 3040,
+            "finish": 3087,
+            "outcome": "opponent_opens",
+            "first_contact": 3082,
+            "censor_reason": null
+          },
+          {
+            "start": 3140,
+            "finish": 3174,
+            "outcome": "subject_opens",
+            "first_contact": 3169,
+            "censor_reason": null
+          },
+          {
+            "start": 3401,
+            "finish": 3436,
+            "outcome": "opponent_opens",
+            "first_contact": 3431,
+            "censor_reason": null
+          },
+          {
+            "start": 3856,
+            "finish": 3915,
+            "outcome": "censored",
+            "first_contact": null,
+            "censor_reason": "offstage"
+          },
+          {
+            "start": 4063,
+            "finish": 4094,
+            "outcome": "subject_opens",
+            "first_contact": 4089,
+            "censor_reason": null
+          },
+          {
+            "start": 4195,
+            "finish": 4216,
+            "outcome": "opponent_opens",
+            "first_contact": 4211,
+            "censor_reason": null
+          },
+          {
+            "start": 4829,
+            "finish": 4843,
+            "outcome": "opponent_opens",
+            "first_contact": 4838,
+            "censor_reason": null
+          },
+          {
+            "start": 5424,
+            "finish": 5505,
+            "outcome": "opponent_opens",
+            "first_contact": 5500,
+            "censor_reason": null
+          },
+          {
+            "start": 5695,
+            "finish": 5701,
+            "outcome": "opponent_opens",
+            "first_contact": 5696,
+            "censor_reason": null
+          },
+          {
+            "start": 5927,
+            "finish": 5956,
+            "outcome": "subject_opens",
+            "first_contact": 5951,
+            "censor_reason": null
+          },
+          {
+            "start": 6291,
+            "finish": 6526,
+            "outcome": "subject_opens",
+            "first_contact": 6521,
+            "censor_reason": null
+          },
+          {
+            "start": 6650,
+            "finish": 6661,
+            "outcome": "subject_opens",
+            "first_contact": 6656,
+            "censor_reason": null
+          },
+          {
+            "start": 6710,
+            "finish": 6717,
+            "outcome": "subject_opens",
+            "first_contact": 6712,
+            "censor_reason": null
+          },
+          {
+            "start": 6772,
+            "finish": 6781,
+            "outcome": "subject_opens",
+            "first_contact": 6776,
+            "censor_reason": null
+          },
+          {
+            "start": 6838,
+            "finish": 6894,
+            "outcome": "opponent_opens",
+            "first_contact": 6889,
+            "censor_reason": null
+          },
+          {
+            "start": 6998,
+            "finish": 7034,
+            "outcome": "opponent_opens",
+            "first_contact": 7029,
+            "censor_reason": null
+          },
+          {
+            "start": 7266,
+            "finish": 7297,
+            "outcome": "trade",
+            "first_contact": 7297,
+            "censor_reason": null
+          },
+          {
+            "start": 7862,
+            "finish": 7907,
+            "outcome": "subject_opens",
+            "first_contact": 7902,
+            "censor_reason": null
+          },
+          {
+            "start": 8007,
+            "finish": 8016,
+            "outcome": "subject_opens",
+            "first_contact": 8011,
+            "censor_reason": null
+          },
+          {
+            "start": 8319,
+            "finish": 8343,
+            "outcome": "opponent_opens",
+            "first_contact": 8338,
+            "censor_reason": null
+          },
+          {
+            "start": 8470,
+            "finish": 8558,
+            "outcome": "opponent_opens",
+            "first_contact": 8553,
+            "censor_reason": null
+          },
+          {
+            "start": 8989,
+            "finish": 9034,
+            "outcome": "opponent_opens",
+            "first_contact": 9029,
+            "censor_reason": null
+          },
+          {
+            "start": 9301,
+            "finish": 9423,
+            "outcome": "subject_opens",
+            "first_contact": 9418,
+            "censor_reason": null
+          },
+          {
+            "start": 10109,
+            "finish": 10273,
+            "outcome": "subject_opens",
+            "first_contact": 10268,
+            "censor_reason": null
+          },
+          {
+            "start": 10687,
+            "finish": 10709,
+            "outcome": "opponent_opens",
+            "first_contact": 10704,
+            "censor_reason": null
+          },
+          {
+            "start": 10873,
+            "finish": 10926,
+            "outcome": "subject_opens",
+            "first_contact": 10921,
+            "censor_reason": null
+          },
+          {
+            "start": 11056,
+            "finish": 11078,
+            "outcome": "censored",
+            "first_contact": null,
+            "censor_reason": "offstage"
+          },
+          {
+            "start": 11624,
+            "finish": 11678,
+            "outcome": "subject_opens",
+            "first_contact": 11673,
+            "censor_reason": null
+          },
+          {
+            "start": 11781,
+            "finish": 11848,
+            "outcome": "subject_opens",
+            "first_contact": 11843,
+            "censor_reason": null
+          },
+          {
+            "start": 12148,
+            "finish": 12188,
+            "outcome": "opponent_opens",
+            "first_contact": 12183,
+            "censor_reason": null
+          },
+          {
+            "start": 12286,
+            "finish": 12306,
+            "outcome": "subject_opens",
+            "first_contact": 12301,
+            "censor_reason": null
+          },
+          {
+            "start": 12900,
+            "finish": 12931,
+            "outcome": "opponent_opens",
+            "first_contact": 12926,
+            "censor_reason": null
+          },
+          {
+            "start": 12999,
+            "finish": 13028,
+            "outcome": "subject_opens",
+            "first_contact": 13023,
+            "censor_reason": null
+          },
+          {
+            "start": 13116,
+            "finish": 13118,
+            "outcome": "trade",
+            "first_contact": 13117,
+            "censor_reason": null
+          },
+          {
+            "start": 13311,
+            "finish": 13343,
+            "outcome": "opponent_opens",
+            "first_contact": 13338,
+            "censor_reason": null
+          },
+          {
+            "start": 13876,
+            "finish": 13882,
+            "outcome": "subject_opens",
+            "first_contact": 13877,
+            "censor_reason": null
+          },
+          {
+            "start": 14014,
+            "finish": 14073,
+            "outcome": "opponent_opens",
+            "first_contact": 14068,
+            "censor_reason": null
+          },
+          {
+            "start": 14419,
+            "finish": 14427,
+            "outcome": "opponent_opens",
+            "first_contact": 14422,
+            "censor_reason": null
+          },
+          {
+            "start": 14457,
+            "finish": 14463,
+            "outcome": "subject_opens",
+            "first_contact": 14458,
+            "censor_reason": null
+          },
+          {
+            "start": 14688,
+            "finish": 14694,
+            "outcome": "opponent_opens",
+            "first_contact": 14689,
+            "censor_reason": null
+          }
+        ],
+        "exchanges": 50,
+        "outcomes": {
+          "censored": 2,
+          "trade": 2,
+          "subject_opens": 21,
+          "opponent_opens": 25
+        }
+      },
+      "opponent_controller": "cpu",
+      "opponent_cpu_level": null,
+      "opponent_cpu_level_note": "User reports CPU level 6 and mostly level 9; per-game levels not identified.",
+      "opponent_port": 1,
+      "playable_frames": 15061,
+      "preserved_replay": "/home/blewf/git/exphil/eval_runs/0915_mewtwo_demonstrations/replays/Game_20260915T170616.slp",
+      "sha256": "2d127598e7c6220bcbb4501cf31c8095b85c38f1fcffcc5b99134a9842832bad",
+      "shield_action_frames": 135,
+      "source": "/home/blewf/Slippi/2026-09-Mainline/Game_20260915T170616.slp",
+      "split": "unassigned",
+      "stage": "dreamland",
+      "subject_port": 2
+    },
+    {
+      "action_onsets": {
+        "aerials": {
+          "bair": 6,
+          "dair": 3,
+          "fair": 17,
+          "nair": 18,
+          "uair": 16
+        },
+        "airdodge": 9,
+        "dash_grab": 3,
+        "down_tilt": 16,
+        "jumpsquat": 46,
+        "special_landing": 14,
+        "standing_grab": 4
+      },
+      "approximate_seconds": 178.2,
+      "neutral_exchanges": {
+        "events": [
+          {
+            "start": 29,
+            "finish": 72,
+            "outcome": "opponent_opens",
+            "first_contact": 67,
+            "censor_reason": null
+          },
+          {
+            "start": 106,
+            "finish": 145,
+            "outcome": "subject_opens",
+            "first_contact": 140,
+            "censor_reason": null
+          },
+          {
+            "start": 419,
+            "finish": 486,
+            "outcome": "opponent_opens",
+            "first_contact": 481,
+            "censor_reason": null
+          },
+          {
+            "start": 933,
+            "finish": 945,
+            "outcome": "subject_opens",
+            "first_contact": 940,
+            "censor_reason": null
+          },
+          {
+            "start": 1936,
+            "finish": 2067,
+            "outcome": "subject_opens",
+            "first_contact": 2062,
+            "censor_reason": null
+          },
+          {
+            "start": 2193,
+            "finish": 2249,
+            "outcome": "subject_opens",
+            "first_contact": 2244,
+            "censor_reason": null
+          },
+          {
+            "start": 2304,
+            "finish": 2329,
+            "outcome": "opponent_opens",
+            "first_contact": 2324,
+            "censor_reason": null
+          },
+          {
+            "start": 2649,
+            "finish": 2676,
+            "outcome": "opponent_opens",
+            "first_contact": 2671,
+            "censor_reason": null
+          },
+          {
+            "start": 2812,
+            "finish": 2824,
+            "outcome": "opponent_opens",
+            "first_contact": 2819,
+            "censor_reason": null
+          },
+          {
+            "start": 3121,
+            "finish": 3227,
+            "outcome": "subject_opens",
+            "first_contact": 3222,
+            "censor_reason": null
+          },
+          {
+            "start": 3428,
+            "finish": 3508,
+            "outcome": "opponent_opens",
+            "first_contact": 3503,
+            "censor_reason": null
+          },
+          {
+            "start": 3557,
+            "finish": 3578,
+            "outcome": "opponent_opens",
+            "first_contact": 3573,
+            "censor_reason": null
+          },
+          {
+            "start": 3661,
+            "finish": 3671,
+            "outcome": "opponent_opens",
+            "first_contact": 3666,
+            "censor_reason": null
+          },
+          {
+            "start": 3833,
+            "finish": 3873,
+            "outcome": "subject_opens",
+            "first_contact": 3868,
+            "censor_reason": null
+          },
+          {
+            "start": 4019,
+            "finish": 4036,
+            "outcome": "opponent_opens",
+            "first_contact": 4031,
+            "censor_reason": null
+          },
+          {
+            "start": 4322,
+            "finish": 4384,
+            "outcome": "opponent_opens",
+            "first_contact": 4379,
+            "censor_reason": null
+          },
+          {
+            "start": 4482,
+            "finish": 4506,
+            "outcome": "subject_opens",
+            "first_contact": 4501,
+            "censor_reason": null
+          },
+          {
+            "start": 4558,
+            "finish": 4598,
+            "outcome": "subject_opens",
+            "first_contact": 4593,
+            "censor_reason": null
+          },
+          {
+            "start": 4704,
+            "finish": 4719,
+            "outcome": "opponent_opens",
+            "first_contact": 4714,
+            "censor_reason": null
+          },
+          {
+            "start": 4789,
+            "finish": 4813,
+            "outcome": "subject_opens",
+            "first_contact": 4808,
+            "censor_reason": null
+          },
+          {
+            "start": 5211,
+            "finish": 5293,
+            "outcome": "opponent_opens",
+            "first_contact": 5288,
+            "censor_reason": null
+          },
+          {
+            "start": 5437,
+            "finish": 5609,
+            "outcome": "subject_opens",
+            "first_contact": 5604,
+            "censor_reason": null
+          },
+          {
+            "start": 5881,
+            "finish": 5934,
+            "outcome": "opponent_opens",
+            "first_contact": 5929,
+            "censor_reason": null
+          },
+          {
+            "start": 6195,
+            "finish": 6261,
+            "outcome": "subject_opens",
+            "first_contact": 6256,
+            "censor_reason": null
+          },
+          {
+            "start": 6830,
+            "finish": 6965,
+            "outcome": "subject_opens",
+            "first_contact": 6960,
+            "censor_reason": null
+          },
+          {
+            "start": 7439,
+            "finish": 7468,
+            "outcome": "subject_opens",
+            "first_contact": 7463,
+            "censor_reason": null
+          },
+          {
+            "start": 8400,
+            "finish": 8464,
+            "outcome": "subject_opens",
+            "first_contact": 8459,
+            "censor_reason": null
+          },
+          {
+            "start": 8944,
+            "finish": 9044,
+            "outcome": "subject_opens",
+            "first_contact": 9039,
+            "censor_reason": null
+          },
+          {
+            "start": 9121,
+            "finish": 9127,
+            "outcome": "subject_opens",
+            "first_contact": 9122,
+            "censor_reason": null
+          },
+          {
+            "start": 9157,
+            "finish": 9164,
+            "outcome": "subject_opens",
+            "first_contact": 9159,
+            "censor_reason": null
+          },
+          {
+            "start": 9297,
+            "finish": 9361,
+            "outcome": "opponent_opens",
+            "first_contact": 9356,
+            "censor_reason": null
+          },
+          {
+            "start": 9468,
+            "finish": 9506,
+            "outcome": "opponent_opens",
+            "first_contact": 9501,
+            "censor_reason": null
+          },
+          {
+            "start": 9636,
+            "finish": 9655,
+            "outcome": "subject_opens",
+            "first_contact": 9650,
+            "censor_reason": null
+          },
+          {
+            "start": 9701,
+            "finish": 9731,
+            "outcome": "opponent_opens",
+            "first_contact": 9726,
+            "censor_reason": null
+          },
+          {
+            "start": 9761,
+            "finish": 9771,
+            "outcome": "opponent_opens",
+            "first_contact": 9766,
+            "censor_reason": null
+          },
+          {
+            "start": 10215,
+            "finish": 10264,
+            "outcome": "subject_opens",
+            "first_contact": 10259,
+            "censor_reason": null
+          },
+          {
+            "start": 10473,
+            "finish": 10487,
+            "outcome": "opponent_opens",
+            "first_contact": 10482,
+            "censor_reason": null
+          }
+        ],
+        "exchanges": 37,
+        "outcomes": {
+          "subject_opens": 19,
+          "opponent_opens": 18
+        }
+      },
+      "opponent_controller": "cpu",
+      "opponent_cpu_level": null,
+      "opponent_cpu_level_note": "User reports CPU level 6 and mostly level 9; per-game levels not identified.",
+      "opponent_port": 1,
+      "playable_frames": 10692,
+      "preserved_replay": "/home/blewf/git/exphil/eval_runs/0915_mewtwo_demonstrations/replays/Game_20260915T171036.slp",
+      "sha256": "7f2a62a916ce590a79a7dfacd587e5a920ef07eab75a22f2d05a8667c2ca6d76",
+      "shield_action_frames": 189,
+      "source": "/home/blewf/Slippi/2026-09-Mainline/Game_20260915T171036.slp",
+      "split": "unassigned",
+      "stage": "battlefield",
+      "subject_port": 2
+    }
+  ]
+}

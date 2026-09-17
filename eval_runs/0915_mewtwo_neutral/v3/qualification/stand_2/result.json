@@ -1,0 +1,83 @@
+{
+  "session": {
+    "errors": 0,
+    "expected_latency": 1,
+    "frames": 1922,
+    "game_ended": true,
+    "last_frame": 1799,
+    "measured_latency": 1,
+    "player_port": 1,
+    "policy": "eval_runs/0915_mewtwo_neutral/v3/candidate.bin",
+    "reaction_delay": 0,
+    "scored_fps": 86.10380291796221,
+    "scored_wall_ms": 20905,
+    "stage": "final_destination",
+    "start_frame": -123,
+    "status": "ok"
+  },
+  "run": 2,
+  "mode": "stand",
+  "valid": true,
+  "replay": "eval_runs/0915_mewtwo_neutral/v3/qualification/stand_2/Game_20260915T180117.slp",
+  "metrics": {
+    "neutral": {
+      "events": [
+        {
+          "start": 29,
+          "finish": 629,
+          "censor_reason": null,
+          "first_contact": null,
+          "outcome": "timeout"
+        },
+        {
+          "start": 659,
+          "finish": 937,
+          "censor_reason": null,
+          "first_contact": 932,
+          "outcome": "subject_opens"
+        },
+        {
+          "start": 1271,
+          "finish": 1531,
+          "censor_reason": null,
+          "first_contact": 1526,
+          "outcome": "subject_opens"
+        },
+        {
+          "start": 1576,
+          "finish": 1799,
+          "censor_reason": "end_of_recording",
+          "first_contact": null,
+          "outcome": "censored"
+        }
+      ],
+      "outcomes": {
+        "timeout": 1,
+        "subject_opens": 2,
+        "censored": 1
+      },
+      "exchanges": 4
+    },
+    "frames": 1800,
+    "aerial_attempts": 2,
+    "aerial_types": {
+      "66": 1,
+      "67": 1
+    },
+    "deaths": 0,
+    "down_tilt_attempts": 3,
+    "grab_attempts": 5,
+    "hop_apices": [
+      12.653996603396081,
+      12.653996603396081,
+      12.653996603396081,
+      12.653996603396081,
+      12.653996603396081,
+      33.40798868408456
+    ],
+    "max_shield_action_streak": 26,
+    "short_hops": 5,
+    "wavedashes": 1
+  },
+  "replay_sha256": "259f72fb016ade587f6b9d4b33463f03faefb413ba4246e873fbdc218305f2fc"
+}

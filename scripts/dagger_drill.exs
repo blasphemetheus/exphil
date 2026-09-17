@@ -132,6 +132,11 @@ end
 # P2 the next after an adapter re-plug)
 {expert_mod, default_fixture, default_out, expert_char} =
   case opts[:expert] || "multishine" do
+    "recorded_mewtwo" ->
+      unless opts[:recorded_frames] && !opts[:rollouts] && !opts[:fixture],
+        do: raise("recorded_mewtwo requires --recorded-frames and forbids fixtures/rollout relabeling")
+      {ExPhil.Agents.RecordedOnlyExpert, nil, "checkpoints/mewtwo_neutral_policy.bin", 16}
+
     "multishine" ->
       {ExPhil.Agents.MultishineExpert, "test/fixtures/replays/fox_multishine_closed.slp",
        "checkpoints/multishine_dagger_policy.bin", 1}
@@ -248,13 +253,13 @@ rollout_paths =
   |> Enum.flat_map(&Path.wildcard/1)
 
 if rollout_paths == [] do
-  if fixture_paths == [] do
+  if fixture_paths == [] and is_nil(opts[:recorded_frames]) do
     Output.error("Fixture-less expert with no rollouts — nothing to train on. Pass --rollouts.")
     System.halt(1)
   end
 
   Output.warning(
-    "No rollouts — bootstrap mode: training on the fixture alone " <>
+    "No rollouts — bootstrap mode: training on the supplied recordings " <>
       "(iteration 0 of a new drill). Play a game with the result and feed " <>
       "the replay back as the first rollout."
   )

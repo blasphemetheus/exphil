@@ -1,0 +1,63 @@
+{
+  "id": "fountain_of_dreams_samus_1",
+  "session": {
+    "errors": 0,
+    "expected_latency": 1,
+    "frames": 1922,
+    "game_ended": false,
+    "last_frame": 1799,
+    "measured_latency": 1,
+    "player_port": 1,
+    "policy": "eval_runs/0915_local_zero/bootstrap/candidate.bin",
+    "reaction_delay": 0,
+    "stage": "fountain_of_dreams",
+    "start_frame": -123,
+    "status": "ok"
+  },
+  "run": 1,
+  "valid": true,
+  "stage": "fountain_of_dreams",
+  "opponent": "samus",
+  "replay": "eval_runs/0915_local_zero/stand_matrix/fountain_of_dreams_samus_1/Game_20260915T112527.slp",
+  "metrics": {
+    "max_chain": 200,
+    "frames": 1800,
+    "deaths": 0,
+    "chains": [
+      {
+        "length": 200,
+        "ended_by": "end_of_input"
+      }
+    ],
+    "completed_cycles": 191,
+    "endings": {
+      "end_of_input": 1
+    },
+    "ground_shine_onsets": 200,
+    "ground_shines_per_minute": 400.0,
+    "recent_hit_onsets": 0,
+    "recovery": {
+      "episodes": [
+        {
+          "cause": "failed_cycle",
+          "start": 655,
+          "finish": 731,
+          "outcome": "reentered",
+          "ready": 655
+        }
+      ],
+      "censored": 0,
+      "completed": 1,
+      "disruption_to_cycle_frames": [
+        76
+      ],
+      "ready_to_cycle_frames": [
+        76
+      ]
+    },
+    "self_initiated_onsets": 200,
+    "self_initiated_per_minute": 400.0
+  },
+  "replay_sha256": "aaede12f69b7877b52c29e8c000992a034f202d421ea3efc5a5ec92ec55b1b85",
+  "chain_gate": true
+}

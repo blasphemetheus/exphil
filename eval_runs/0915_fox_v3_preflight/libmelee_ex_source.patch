@@ -1,0 +1,253 @@
+diff --git a/lib/melee/controller.ex b/lib/melee/controller.ex
+index ec9c3be..87d933f 100644
+--- a/lib/melee/controller.ex
++++ b/lib/melee/controller.ex
+@@ -111,6 +111,8 @@ defmodule Melee.Controller do
+     * `:pipe_path` (required) — the fifo path, e.g. from
+       `Melee.DolphinConfig.pipes_path/2`
+     * `:fix_analog_inputs` (default `true`)
++    * `:pipe_trigger_encoding` — `:bipolar` (default) for Axis + bindings,
++      or `:unipolar` for Mainline's direct raw-trigger pipe handling
+     * `:name` — optional GenServer name
+   """
+   @spec start_link(keyword()) :: GenServer.on_start()
+@@ -208,6 +210,7 @@ defmodule Melee.Controller do
+     defstruct pipe_path: nil,
+               device: nil,
+               fix_analog_inputs: true,
++              pipe_trigger_encoding: :bipolar,
+               current: %Melee.ControllerState{},
+               prev: %Melee.ControllerState{},
+               # Set when a write hit a dead pipe (Dolphin stopped
+@@ -219,10 +222,13 @@ defmodule Melee.Controller do
+   def init(opts) do
+     state = %State{
+       pipe_path: Keyword.fetch!(opts, :pipe_path),
+-      fix_analog_inputs: Keyword.get(opts, :fix_analog_inputs, true)
++      fix_analog_inputs: Keyword.get(opts, :fix_analog_inputs, true),
++      pipe_trigger_encoding: Keyword.get(opts, :pipe_trigger_encoding, :bipolar)
+     }
+ 
+-    {:ok, state}
++    if state.pipe_trigger_encoding in [:bipolar, :unipolar],
++      do: {:ok, state},
++      else: {:stop, {:invalid_pipe_trigger_encoding, state.pipe_trigger_encoding}}
+   end
+ 
+   @impl true
+@@ -268,7 +274,11 @@ defmodule Melee.Controller do
+   end
+ 
+   def handle_cast({:shoulder, button, amount}, state) do
+-    wire = if state.fix_analog_inputs, do: fix_pipe_analog_trigger(amount), else: amount
++    wire = cond do
++      not state.fix_analog_inputs -> amount
++      state.pipe_trigger_encoding == :unipolar -> fix_analog_trigger(amount)
++      true -> fix_pipe_analog_trigger(amount)
++    end
+     state = write(state, "SET #{Button.to_command_string(button)} #{fmt(wire)}\n")
+ 
+     current =
+diff --git a/lib/melee/tech.ex b/lib/melee/tech.ex
+index d573534..5430c3e 100644
+--- a/lib/melee/tech.ex
++++ b/lib/melee/tech.ex
+@@ -252,6 +252,13 @@ defmodule Melee.Tech do
+     dair: {0.5, 0.0}
+   }
+ 
++  # Fair/bair are relative to facing; c-stick coordinates are world-relative.
++  defp aerial_stick(aerial, %{facing: false}) when aerial in [:fair, :bair] do
++    {x, y} = @aerial_stick[aerial]
++    {1.0 - x, y}
++  end
++  defp aerial_stick(aerial, _player), do: @aerial_stick[aerial]
++
+   @doc """
+   Build a routine for a character (`Melee.Enums.Character` atom or
+   internal id).
+@@ -548,7 +555,7 @@ defmodule Melee.Tech do
+       # Only c-stick aerials compose with it: a drifted main turns a
+       # plain A press into fair/bair.
+       commands =
+-        case @aerial_stick[aerial] do
++        case aerial_stick(aerial, player) do
+           nil -> [{:release, :y}, {:press, :a}]
+           {cx, cy} -> [{:release, :y}, {:tilt, :main, drift_x(tech), 0.5}, {:tilt, :c, cx, cy}]
+         end
+@@ -569,7 +576,10 @@ defmodule Melee.Tech do
+          [{:release, :a}, {:tilt, :c, 0.5, 0.5}, {:tilt, :main, drift_x(tech), 0.0}]}
+ 
+       true ->
+-        {:cont, tech, [{:release, :a}, {:tilt, :c, 0.5, 0.5}]}
++        # Apply drift after the first aerial input, so nair's initial A
++        # press stays neutral instead of becoming a directional aerial.
++        {:cont, tech, [{:release, :a}, {:tilt, :c, 0.5, 0.5},
++          {:tilt, :main, drift_x(tech), 0.5}]}
+     end
+   end
+ 
+@@ -853,11 +863,11 @@ defmodule Melee.Tech do
+   defp djc_aerial(%{phase: :double_jump} = tech, _player),
+     do: {:cont, %{tech | phase: :attack, counter: 0}, [{:press, :x}]}
+ 
+-  defp djc_aerial(%{phase: :attack, counter: 0} = tech, _player) do
++  defp djc_aerial(%{phase: :attack, counter: 0} = tech, player) do
+     aerial = Keyword.get(tech.opts, :aerial, :nair)
+ 
+     commands =
+-      case @aerial_stick[aerial] do
++      case aerial_stick(aerial, player) do
+         nil -> [{:release, :x}, {:press, :a}]
+         {cx, cy} -> [{:release, :x}, {:tilt, :c, cx, cy}]
+       end
+@@ -1558,7 +1568,7 @@ defmodule Melee.Tech do
+     end
+   end
+ 
+-  defp float_cancel(%{phase: :floating, counter: c} = tech, _player) do
++  defp float_cancel(%{phase: :floating, counter: c} = tech, player) do
+     # A beat in the float, then the aerial IN the float — landing
+     # during the attack is the float cancel (a 4-frame landing; our
+     # earlier "29f heavy" was the uninterrupted Landing ANIMATION,
+@@ -1567,7 +1577,7 @@ defmodule Melee.Tech do
+       aerial = Keyword.get(tech.opts, :aerial, :nair)
+ 
+       commands =
+-        case @aerial_stick[aerial] do
++        case aerial_stick(aerial, player) do
+           nil -> [{:press, :a}]
+           {cx, cy} -> [{:tilt, :c, cx, cy}]
+         end
+diff --git a/test/melee/controller_test.exs b/test/melee/controller_test.exs
+index 77ed035..08337ba 100644
+--- a/test/melee/controller_test.exs
++++ b/test/melee/controller_test.exs
+@@ -108,6 +108,14 @@ defmodule Melee.ControllerTest do
+       end
+     end
+ 
++    test "unipolar pipes deliver released and pressed triggers without a half-axis offset", ctx do
++      {pid, path} = file_controller(ctx, pipe_trigger_encoding: :unipolar)
++      Controller.press_shoulder(pid, :l, 0.0)
++      Controller.press_shoulder(pid, :l, 1.0)
++      assert written(pid, path) ==
++        "SET L 3.921568627450981e-4\nSET L 0.5494117647058824\nFLUSH\n"
++    end
++
+     test "release_all writes the full reset block", ctx do
+       {pid, path} = file_controller(ctx)
+       Controller.release_all(pid)
+diff --git a/test/melee/integration/mewtwo_tech_test.exs b/test/melee/integration/mewtwo_tech_test.exs
+index 129aa93..ad5a0a3 100644
+--- a/test/melee/integration/mewtwo_tech_test.exs
++++ b/test/melee/integration/mewtwo_tech_test.exs
+@@ -38,6 +38,61 @@ defmodule Melee.Integration.MewtwoTechTest do
+     end
+   end
+ 
++  @tag :mewtwo_neutral_execution
++  test "neutral movement: short hops and wavedashes in both directions", ctx do
++    refute ctx[:skip], "Live teacher validation requires Dolphin and an ISO"
++    probe = boot(ctx)
++
++    try do
++      probe = Probe.idle!(probe, 90)
++      {probe, short} = hop_peak(probe, :short_hop)
++      {probe, full} = hop_peak(probe, :full_hop)
++      assert short > 1.0
++      assert full > short * 1.5
++
++      {probe, trials} = Enum.reduce(1..8, {probe, []}, fn i, {p, trials} ->
++        p = settle(p) |> Probe.idle!(30)
++        direction = if rem(i, 2) == 1, do: :right, else: :left
++        x = Probe.gamestate(p).players[1].position.x
++        {p, landed} = run_tech(p, Tech.new(:wavedash, :mewtwo, direction: direction),
++          90, fn acc, player -> acc or player.action == Enums.Action.to_id(:landing_special) end, false)
++        Melee.Controller.release_all(p.controllers[1])
++        p = Probe.idle!(p, 30)
++        delta = Probe.gamestate(p).players[1].position.x - x
++        assert landed
++        assert if(direction == :right, do: delta > 5.0, else: delta < -5.0)
++        {p, trials ++ [%{direction: direction, displacement: delta}]}
++      end)
++
++      IO.puts("[mewtwo teacher] short/full apex=#{inspect({short, full})} wavedashes=#{inspect(trials)}")
++
++      Enum.reduce([:nair, :fair], probe, fn aerial, p ->
++        p = settle(p) |> Probe.idle!(30)
++        {p, actions} = run_tech(p, Tech.new(:shffl, :mewtwo, aerial: aerial),
++          180, fn actions, player -> MapSet.put(actions, player.action) end, MapSet.new())
++        assert MapSet.member?(actions, Enums.Action.to_id(aerial))
++        landing = if aerial == :nair, do: :nair_landing, else: :fair_landing
++        assert MapSet.member?(actions, Enums.Action.to_id(landing))
++        IO.puts("[mewtwo teacher] #{aerial}: aerial and landing observed; actions=#{inspect(MapSet.to_list(actions))}")
++        Melee.Controller.release_all(p.controllers[1])
++        p
++      end)
++    after
++      Probe.stop(probe)
++    end
++  end
++
++  defp hop_peak(probe, routine) do
++    probe = settle(probe) |> Probe.idle!(30)
++    {probe, apex} = run_tech(probe, Tech.new(routine, :mewtwo), 90,
++      fn apex, player -> max(apex, player.position.y) end, 0.0)
++    Melee.Controller.release_all(probe.controllers[1])
++    Enum.reduce(1..120, {probe, apex}, fn _, {p, apex} ->
++      p = Probe.step!(p)
++      {p, max(apex, Probe.gamestate(p).players[1].position.y)}
++    end)
++  end
++
+   test "DJC nair, shadow ball store + fire, teledgehog", ctx do
+     if ctx[:skip] do
+       IO.puts("\n[dolphin] skipped: #{ctx.skip}")
+@@ -176,7 +231,7 @@ defmodule Melee.Integration.MewtwoTechTest do
+ 
+     p2 = [
+       port: 2,
+-      character: Enums.Character.to_id(:falco),
++      character: Enums.Character.to_id(:fox),
+       stage: Enums.Stage.to_id(:final_destination)
+     ]
+ 
+diff --git a/test/melee/tech_test.exs b/test/melee/tech_test.exs
+index 8e7914c..282b19b 100644
+--- a/test/melee/tech_test.exs
++++ b/test/melee/tech_test.exs
+@@ -99,6 +99,17 @@ defmodule Melee.TechTest do
+   end
+ 
+   describe "jumpsquat table" do
++    test "forward and back aerials follow facing in each aerial routine" do
++      for {routine, phase, counter} <- [{:shffl, :hop, 0}, {:djc_aerial, :attack, 0},
++                                      {:float_cancel, :floating, 6}],
++          aerial <- [:fair, :bair], facing <- [true, false] do
++        tech = %{Tech.new(routine, :mewtwo, aerial: aerial) | phase: phase, counter: counter}
++        {:cont, _, commands} = Tech.step(tech, player(%{on_ground: false, facing: facing}))
++        x = if (aerial == :fair) == facing, do: 1.0, else: 0.0
++        assert {:tilt, :c, x, 0.5} in commands
++      end
++    end
++
+     test "covers every playable character" do
+       for char <- [
+             :mario,
+@@ -1061,4 +1072,15 @@ defmodule Melee.TechTest do
+       {:done, _tech, [:release_all]} = Tech.step(tech, player(%{action: 0x0E}))
+     end
+   end
++
++  test "drifted nair keeps A neutral, then drifts during the rising attack" do
++    tech = %{Tech.new(:shffl, :mewtwo, aerial: :nair, drift: :right) | phase: :hop}
++    airborne = player(%{on_ground: false, action: 0x19, speed_y_self: 1.0})
++    {:cont, tech, commands} = Tech.step(tech, airborne)
++    assert {:press, :a} in commands
++    refute Enum.any?(commands, &match?({:tilt, :main, _, _}, &1))
++    {:cont, _, commands} = Tech.step(tech, %{airborne | action: 65})
++    assert {:release, :a} in commands
++    assert {:tilt, :main, 0.85, 0.5} in commands
++  end
+ end

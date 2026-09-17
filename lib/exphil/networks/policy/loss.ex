@@ -267,6 +267,13 @@ defmodule ExPhil.Networks.Policy.Loss do
     # Encourages the model to maintain diverse predictions, preventing mode collapse
     # H(p) = -sum(p * log(p)), we SUBTRACT entropy_weight * H to maximize entropy
     if entropy_weight > 0.0 do
+      reduce_entropy = fn per_frame ->
+        if frame_weights do
+          Nx.sum(Nx.multiply(per_frame, frame_weights)) |> Nx.divide(Nx.sum(frame_weights))
+        else
+          Nx.mean(per_frame)
+        end
+      end
       # Button entropy: sigmoid → per-element binary entropy
       btn_probs = Nx.sigmoid(logits.buttons)
       btn_entropy = Nx.negate(
@@ -274,12 +281,12 @@ defmodule ExPhil.Networks.Policy.Loss do
           Nx.multiply(btn_probs, Nx.log(Nx.max(btn_probs, 1.0e-7))),
           Nx.multiply(Nx.subtract(1.0, btn_probs), Nx.log(Nx.max(Nx.subtract(1.0, btn_probs), 1.0e-7)))
         )
-      ) |> Nx.mean()
+      ) |> Nx.mean(axes: [-1]) |> reduce_entropy.()
 
       # Stick entropy: softmax → categorical entropy per head
       stick_entropy = Enum.map([logits.main_x, logits.main_y, logits.c_x, logits.c_y, logits.shoulder], fn head_logits ->
         probs = Nx.exp(log_softmax(head_logits))
-        Nx.negate(Nx.sum(Nx.multiply(probs, Nx.log(Nx.max(probs, 1.0e-7))), axes: [-1])) |> Nx.mean()
+        Nx.negate(Nx.sum(Nx.multiply(probs, Nx.log(Nx.max(probs, 1.0e-7))), axes: [-1])) |> reduce_entropy.()
       end) |> Enum.reduce(&Nx.add/2)
 
       total_entropy = Nx.add(btn_entropy, stick_entropy)

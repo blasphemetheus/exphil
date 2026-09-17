@@ -1,0 +1,83 @@
+{
+  "id": "battlefield_peach_1",
+  "session": {
+    "errors": 0,
+    "expected_latency": 1,
+    "frames": 1922,
+    "game_ended": false,
+    "last_frame": 1799,
+    "measured_latency": 1,
+    "player_port": 1,
+    "policy": "eval_runs/0915_local_zero/corrected_bootstrap/candidate.bin",
+    "reaction_delay": 0,
+    "scored_fps": 103.69260902125698,
+    "scored_wall_ms": 17359,
+    "stage": "battlefield",
+    "start_frame": -123,
+    "status": "ok"
+  },
+  "run": 1,
+  "valid": true,
+  "stage": "battlefield",
+  "opponent": "peach",
+  "replay": "eval_runs/0915_local_zero/corrected_cpu_matrix/battlefield_peach_1/Game_20260915T114517.slp",
+  "metrics": {
+    "max_chain": 123,
+    "frames": 1800,
+    "deaths": 0,
+    "chains": [
+      {
+        "length": 64,
+        "ended_by": "other_action"
+      },
+      {
+        "length": 10,
+        "ended_by": "other_action"
+      },
+      {
+        "length": 123,
+        "ended_by": "end_of_input"
+      }
+    ],
+    "completed_cycles": 194,
+    "endings": {
+      "end_of_input": 1,
+      "other_action": 2
+    },
+    "ground_shine_onsets": 197,
+    "ground_shines_per_minute": 394.0,
+    "recent_hit_onsets": 6,
+    "recovery": {
+      "episodes": [
+        {
+          "cause": "hitstun",
+          "start": 577,
+          "finish": 600,
+          "outcome": "reentered",
+          "ready": 587
+        },
+        {
+          "cause": "hitstun",
+          "start": 673,
+          "finish": 694,
+          "outcome": "reentered",
+          "ready": 681
+        }
+      ],
+      "censored": 0,
+      "completed": 2,
+      "disruption_to_cycle_frames": [
+        23,
+        21
+      ],
+      "ready_to_cycle_frames": [
+        13,
+        13
+      ]
+    },
+    "self_initiated_onsets": 191,
+    "self_initiated_per_minute": 382.0
+  },
+  "replay_sha256": "3d3f724d93e98ba12eb368e8ebb9654b8ba5f52d50c9f69fe4b4351301b4ed0b",
+  "chain_gate": true
+}

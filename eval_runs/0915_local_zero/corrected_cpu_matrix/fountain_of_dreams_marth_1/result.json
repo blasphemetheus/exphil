@@ -1,0 +1,144 @@
+{
+  "id": "fountain_of_dreams_marth_1",
+  "session": {
+    "errors": 0,
+    "expected_latency": 1,
+    "frames": 1922,
+    "game_ended": true,
+    "last_frame": 1799,
+    "measured_latency": 1,
+    "player_port": 1,
+    "policy": "eval_runs/0915_local_zero/corrected_bootstrap/candidate.bin",
+    "reaction_delay": 0,
+    "scored_fps": 102.56410256410257,
+    "scored_wall_ms": 17550,
+    "stage": "fountain_of_dreams",
+    "start_frame": -123,
+    "status": "ok"
+  },
+  "run": 1,
+  "valid": true,
+  "stage": "fountain_of_dreams",
+  "opponent": "marth",
+  "replay": "eval_runs/0915_local_zero/corrected_cpu_matrix/fountain_of_dreams_marth_1/Game_20260915T122457.slp",
+  "metrics": {
+    "max_chain": 98,
+    "frames": 1800,
+    "deaths": 0,
+    "chains": [
+      {
+        "length": 98,
+        "ended_by": "other_action"
+      },
+      {
+        "length": 2,
+        "ended_by": "other_action"
+      },
+      {
+        "length": 34,
+        "ended_by": "other_action"
+      },
+      {
+        "length": 10,
+        "ended_by": "other_action"
+      },
+      {
+        "length": 19,
+        "ended_by": "other_action"
+      },
+      {
+        "length": 2,
+        "ended_by": "other_action"
+      },
+      {
+        "length": 4,
+        "ended_by": "end_of_input"
+      }
+    ],
+    "completed_cycles": 155,
+    "endings": {
+      "end_of_input": 1,
+      "other_action": 6
+    },
+    "ground_shine_onsets": 169,
+    "ground_shines_per_minute": 338.0,
+    "recent_hit_onsets": 8,
+    "recovery": {
+      "episodes": [
+        {
+          "cause": "failed_cycle",
+          "start": 738,
+          "finish": 808,
+          "outcome": "reentered",
+          "ready": 738
+        },
+        {
+          "cause": "hitstun",
+          "start": 896,
+          "finish": 917,
+          "outcome": "reentered",
+          "ready": 904
+        },
+        {
+          "cause": "hitstun",
+          "start": 919,
+          "finish": 957,
+          "outcome": "reentered",
+          "ready": 944
+        },
+        {
+          "cause": "hitstun",
+          "start": 1248,
+          "finish": 1271,
+          "outcome": "reentered",
+          "ready": 1258
+        },
+        {
+          "cause": "hitstun",
+          "start": 1349,
+          "finish": 1475,
+          "outcome": "reentered",
+          "ready": 1466
+        },
+        {
+          "cause": "hitstun",
+          "start": 1631,
+          "finish": 1652,
+          "outcome": "reentered",
+          "ready": 1639
+        },
+        {
+          "cause": "hitstun",
+          "start": 1654,
+          "finish": 1780,
+          "outcome": "reentered",
+          "ready": 1767
+        }
+      ],
+      "censored": 0,
+      "completed": 7,
+      "disruption_to_cycle_frames": [
+        70,
+        21,
+        38,
+        23,
+        126,
+        21,
+        126
+      ],
+      "ready_to_cycle_frames": [
+        70,
+        13,
+        13,
+        13,
+        9,
+        13,
+        13
+      ]
+    },
+    "self_initiated_onsets": 161,
+    "self_initiated_per_minute": 322.0
+  },
+  "replay_sha256": "58ed2c7590618196abacb71e0fb2c88a73171763945bed58bf8b702700a9dd8c",
+  "chain_gate": true
+}

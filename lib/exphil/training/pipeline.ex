@@ -392,7 +392,7 @@ defmodule ExPhil.Training.Pipeline do
     # impossible) before chunking; they become a fixed, deterministic
     # cursor-batch list evaluated with the carry threaded (see
     # Validation.evaluate_bptt/3). Taken from the END of the (already
-    # seed-shuffled) file list so the train set is a prefix.
+    # ordered) file list so the train set is a prefix.
     {replay_files, bptt_val_files} =
       if opts[:bptt] do
         n = opts[:bptt_val_files] || 16
@@ -412,8 +412,8 @@ defmodule ExPhil.Training.Pipeline do
 
     # Name/style conditioning in STREAMING mode (v2 plank b): build the
     # tag->id registry from TRAIN files only (the bptt val holdout was
-    # already split off above — a val-only player must hash to the overflow
-    # bucket, not get its own id). The registry rides in
+    # already split off above — a val-only player uses the anonymous bucket,
+    # not its own id). The registry rides in
     # streaming_dataset_opts -> Data.from_frames stamps per-frame :name_id
     # -> precompute fills the 112-dim name one-hot the embedding has always
     # reserved (id 0 = unconditioned). Saved beside checkpoints for
@@ -450,7 +450,7 @@ defmodule ExPhil.Training.Pipeline do
 
           nil
         else
-          reg = ExPhil.Training.PlayerRegistry.from_tags(tags)
+          reg = ExPhil.Training.PlayerRegistry.from_tags(tags, first_id: 1)
           Output.puts("  player registry: #{ExPhil.Training.PlayerRegistry.size(reg)} filename tags")
 
           if opts[:checkpoint] do
@@ -491,7 +491,7 @@ defmodule ExPhil.Training.Pipeline do
         ExPhil.Training.TrajectoryCursors.batch_stream(val_dataset,
           batch_size: min(opts[:batch_size] || 32, 8),
           unroll: opts[:unroll] || 80,
-          overlap: opts[:bptt_overlap] || 1,
+          overlap: opts[:bptt_overlap] || 0,
           seed: 7,
           neutral_weight: Keyword.get(opts, :neutral_weight, 0.25),
           transition_weight: opts[:transition_weight],
@@ -1105,12 +1105,12 @@ defmodule ExPhil.Training.Pipeline do
         # cursors walk each replay in order and emit per-timestep batches;
         # the trainer threads the GRU carry across them (chunk boundaries
         # reset every row via is_resetting — those are real game starts).
-        # Needs >= batch_size usable segments per chunk: use stream chunks
-        # of >= batch_size files (TrajectoryCursors raises otherwise).
+        # Partial chunks and short segments use masked rows; each real frame
+        # is scored once even when the final file chunk cannot fill a batch.
         cursor_opts = [
           batch_size: ropts[:batch_size] || 32,
           unroll: ropts[:unroll] || 80,
-          overlap: ropts[:bptt_overlap] || 1,
+          overlap: ropts[:bptt_overlap] || 0,
           seed: ropts[:seed] || 42,
           neutral_weight: Keyword.get(ropts, :neutral_weight, 0.25),
           transition_weight: ropts[:transition_weight],
@@ -1305,7 +1305,7 @@ defmodule ExPhil.Training.Pipeline do
       # frames, so steps ~= total_frames / (batch * (unroll - overlap)).
       # The windowed stride formula overstates by ~12x (misleading ETAs on
       # the first v15 launch, 09-04).
-      advance = max((opts[:unroll] || 80) - (opts[:bptt_overlap] || 1), 1)
+      advance = max((opts[:unroll] || 80) - (opts[:bptt_overlap] || 0), 1)
 
       case Streaming.estimate_total_examples(files, opts) do
         {:ok, total} -> div(total, advance * batch_size)

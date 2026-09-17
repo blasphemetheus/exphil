@@ -1493,7 +1493,7 @@ defmodule ExPhil.Training.Config do
       # replays in order, GRU carry flows across chunks, per-timestep loss
       bptt: false,
       unroll: 80,
-      bptt_overlap: 1,
+      bptt_overlap: 0,
       bptt_val_files: 16,
       # FP32 is default - benchmarks show BF16 is 2x SLOWER on RTX 4090 due to
       # XLA issues: dimension misalignment (287 dims not divisible by 16),
@@ -2085,6 +2085,7 @@ defmodule ExPhil.Training.Config do
     with {:ok, opts} <- Validator.validate(opts, validation_context()) do
       try do
         ExPhil.Training.LabelDelay.resolve!(opts)
+        validate_bptt_overlap!(opts)
         {:ok, opts}
       rescue
         error in ArgumentError -> {:error, [Exception.message(error)]}
@@ -2113,7 +2114,13 @@ defmodule ExPhil.Training.Config do
   def validate!(opts) do
     opts = Validator.validate!(opts, validation_context())
     ExPhil.Training.LabelDelay.resolve!(opts)
+    validate_bptt_overlap!(opts)
     opts
+  end
+
+  defp validate_bptt_overlap!(opts) do
+    if opts[:bptt] and (opts[:bptt_overlap] || 0) != 0,
+      do: raise(ArgumentError, "BPTT overlap must be 0; each input is consumed once with carried state")
   end
 
   # Build the validation context with allowlists

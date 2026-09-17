@@ -1,0 +1,111 @@
+{
+  "sources": [
+    {
+      "path": "/home/blewf/git/exphil/eval_runs/0915_mewtwo_teacher_audit/cpu_teacher_v2/run_1/replays/Game_20260915T180919.slp",
+      "sha256": "cb2bb55bb7a6caffe4ab998f14472b92d751b0b3773a03c49b97b1174dc5667c",
+      "state_sha256": "c065a6890ab0abadb14f8ff4850884fe58b5ea867846c17bc11b3696f94087ba",
+      "first_target": 0,
+      "last_target": 1799,
+      "outcomes": {
+        "opponent_opens": 2,
+        "subject_opens": 4
+      }
+    },
+    {
+      "path": "/home/blewf/git/exphil/eval_runs/0915_mewtwo_teacher_audit/cpu_teacher_v2/run_2/replays/Game_20260915T180923.slp",
+      "sha256": "03484638c095641d1cfb19605aeda8e59eb5685fe2f7091dcb3228423d85f18c",
+      "state_sha256": "1be8dd15cdbef81d2d933f6c94fa15e7fa43ddf27ea2a0b9eff864ec739ae226",
+      "first_target": 0,
+      "last_target": 1799,
+      "outcomes": {
+        "opponent_opens": 1,
+        "subject_opens": 1
+      }
+    },
+    {
+      "path": "/home/blewf/git/exphil/eval_runs/0915_mewtwo_teacher_audit/cpu_teacher_v2/run_3/replays/Game_20260915T180928.slp",
+      "sha256": "307b3090d52d37aadaa3c091d1a65be806aa63581522f50da4d53d8e5e2ac0fe",
+      "state_sha256": "5272e8ce03b13d482aa360770af792b71a618d8fa4edc0b97b2e3273b2bd9a29",
+      "first_target": 0,
+      "last_target": 1799,
+      "outcomes": {
+        "opponent_opens": 4,
+        "subject_opens": 3,
+        "trade": 1
+      }
+    },
+    {
+      "path": "/home/blewf/git/exphil/eval_runs/0915_mewtwo_teacher_audit/cpu_teacher_v2/run_4/replays/Game_20260915T180932.slp",
+      "sha256": "7ab8a149aea339fd6d73d558bd4aeba89216827ef85208a45a63e6c6797e1793",
+      "state_sha256": "540531f02f6e583d64fd10aef92b4b703a839333eedb45b5701e4ffd56c638b8",
+      "first_target": 0,
+      "last_target": 1799,
+      "outcomes": {
+        "opponent_opens": 1,
+        "subject_opens": 1
+      }
+    },
+    {
+      "path": "/home/blewf/git/exphil/eval_runs/0915_mewtwo_teacher_audit/cpu_teacher_v2/run_5/replays/Game_20260915T180937.slp",
+      "sha256": "03db81b96a19bc13127e547cbfc79e92d20d14eef1f1c10a07baa08803402d78",
+      "state_sha256": "01b57c8eacc5f381ea424160b1a48035782a832fe311a6fc622427ed3ae3376b",
+      "first_target": 0,
+      "last_target": 1799,
+      "outcomes": {
+        "censored": 1,
+        "opponent_opens": 2,
+        "subject_opens": 3
+      }
+    },
+    {
+      "path": "/home/blewf/git/exphil/eval_runs/0915_mewtwo_teacher_audit/cpu_teacher_v2/run_6/replays/Game_20260915T180941.slp",
+      "sha256": "d892dd27189348d969c0800409642cc10270d5aae46f8642d1acc2f6c7469f30",
+      "state_sha256": "d33c9f76bbfc4e918572e5c6f55994084f31e3ac5e4221d7288a0c7f233b17b5",
+      "first_target": 0,
+      "last_target": 1799,
+      "outcomes": {
+        "censored": 1,
+        "opponent_opens": 2,
+        "subject_opens": 3
+      }
+    },
+    {
+      "path": "/home/blewf/git/exphil/eval_runs/0915_mewtwo_teacher_audit/cpu_teacher_v2/run_7/replays/Game_20260915T180945.slp",
+      "sha256": "3040e55e9bbc5c62c998e96f821d38e95db7362b45af40d5d151d309c60f575f",
+      "state_sha256": "d89ddd1bc9da954a2262cc9588868a96ff1386a93d5805ea762fbce86596f892",
+      "first_target": 0,
+      "last_target": 1799,
+      "outcomes": {
+        "opponent_opens": 5,
+        "subject_opens": 1
+      }
+    },
+    {
+      "path": "/home/blewf/git/exphil/eval_runs/0915_mewtwo_teacher_audit/cpu_teacher_v2/run_8/replays/Game_20260915T180950.slp",
+      "sha256": "f9e8d4b0da389987fcf1e59cf9a3dce178769232621f6ee8a087b49c4e5e57b9",
+      "state_sha256": "1229d11503a9d9740f87efec01bc2be2d326832e73e7f071788f72bef9e888b5",
+      "first_target": 0,
+      "last_target": 1799,
+      "outcomes": {
+        "opponent_opens": 2,
+        "subject_opens": 6
+      }
+    },
+    {
+      "path": "/home/blewf/git/exphil/eval_runs/0915_mewtwo_teacher_audit/cpu_teacher_v2/run_9/replays/Game_20260915T180954.slp",
+      "sha256": "f63e97831ea8438902ba4e97a63c89d4c6b0d1f10248f6c5356470cb51977de2",
+      "state_sha256": "3885498771ad82248b8dfc4144e0108217fa022990a33305eeb1c3ddccdf4a56",
+      "first_target": 0,
+      "last_target": 1799,
+      "outcomes": {
+        "opponent_opens": 1,
+        "subject_opens": 4
+      }
+    }
+  ],
+  "frames": 16380,
+  "source_type": "scripted_teacher",
+  "targets": 16200,
+  "selection": "Complete scored teacher games, including losses and interruptions; no success-only selection",
+  "limitation": "Teacher passed an opening gate, not an optimality claim; no offstage recovery or combo routing"
+}

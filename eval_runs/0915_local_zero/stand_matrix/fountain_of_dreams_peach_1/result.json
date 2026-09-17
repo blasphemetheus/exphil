@@ -1,0 +1,86 @@
+{
+  "id": "fountain_of_dreams_peach_1",
+  "session": {
+    "errors": 0,
+    "expected_latency": 1,
+    "frames": 1922,
+    "game_ended": false,
+    "last_frame": 1799,
+    "measured_latency": 1,
+    "player_port": 1,
+    "policy": "eval_runs/0915_local_zero/bootstrap/candidate.bin",
+    "reaction_delay": 0,
+    "stage": "fountain_of_dreams",
+    "start_frame": -123,
+    "status": "ok"
+  },
+  "run": 1,
+  "valid": true,
+  "stage": "fountain_of_dreams",
+  "opponent": "peach",
+  "replay": "eval_runs/0915_local_zero/stand_matrix/fountain_of_dreams_peach_1/Game_20260915T112457.slp",
+  "metrics": {
+    "max_chain": 183,
+    "frames": 1800,
+    "deaths": 0,
+    "chains": [
+      {
+        "length": 183,
+        "ended_by": "other_action"
+      },
+      {
+        "length": 1,
+        "ended_by": "other_action"
+      },
+      {
+        "length": 1,
+        "ended_by": "air_shine"
+      },
+      {
+        "length": 8,
+        "ended_by": "end_of_input"
+      }
+    ],
+    "completed_cycles": 182,
+    "endings": {
+      "end_of_input": 1,
+      "other_action": 2,
+      "air_shine": 1
+    },
+    "ground_shine_onsets": 193,
+    "ground_shines_per_minute": 386.0,
+    "recent_hit_onsets": 0,
+    "recovery": {
+      "episodes": [
+        {
+          "cause": "failed_cycle",
+          "start": 655,
+          "finish": 722,
+          "outcome": "reentered",
+          "ready": 655
+        },
+        {
+          "cause": "loop_break",
+          "start": 1651,
+          "finish": 1739,
+          "outcome": "reentered",
+          "ready": 1689
+        }
+      ],
+      "censored": 0,
+      "completed": 2,
+      "disruption_to_cycle_frames": [
+        67,
+        88
+      ],
+      "ready_to_cycle_frames": [
+        67,
+        50
+      ]
+    },
+    "self_initiated_onsets": 193,
+    "self_initiated_per_minute": 386.0
+  },
+  "replay_sha256": "4eb1ce5f3aa3c9f5c73ab13c3cab4d63cfdf2889086cd86eb1cd77b7e8964863",
+  "chain_gate": true
+}

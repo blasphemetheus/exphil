@@ -202,7 +202,7 @@ mix run scripts/train_from_replays.exs --dual-port
 | `--truncate-bptt N` | nil | Truncated backprop (faster training) |
 | `--bptt` | false | Contiguous-BPTT training: cursors walk replays in order, GRU carry flows across chunks, per-timestep loss (GRU only; see BPTT_LOADER_DESIGN.md) |
 | `--unroll N` | 80 | BPTT chunk length in frames (gradient truncation horizon) |
-| `--bptt-overlap N` | 1 | Frames shared between consecutive BPTT chunks (set to frame_delay + 1) |
+| `--bptt-overlap N` | 0 | Must be 0: carried state already consumed every frame of the previous chunk |
 | `--bptt-val-files N` | 16 | Whole replays held out for the carry-threaded val pass (game-level split; val batch is capped at 8 rows) |
 
 **Available backbones (15 total):**
@@ -1546,7 +1546,7 @@ Regenerate: `mix run -e 'ExPhil.Training.Config.FlagDocs.write!()'`.
 | `--truncate-bptt` | optional int | `nil` | Truncated backprop (faster training) |
 | `--bptt` | flag | `false` | Contiguous-BPTT training: cursors walk replays in order, GRU carry flows across chunks, per-timestep loss (GRU only; see BPTT_LOADER_DESIGN.md) |
 | `--unroll` | int | `80` | BPTT chunk length in frames (gradient truncation horizon) |
-| `--bptt-overlap` | int | `1` | Frames shared between consecutive BPTT chunks (set to frame_delay + 1) |
+| `--bptt-overlap` | int | `0` | Must be 0; input batches are contiguous and nonoverlapping |
 | `--bptt-val-files` | int | `16` | Whole replays held out for the carry-threaded val pass (game-level split; val batch is capped at 8 rows) |
 | `--mixed-precision` | flag | `false` | FP32 master weights + BF16 compute (not recommended) |
 | `--frame-delay` | int | `nil` | Training alias for --label-delay on every loader. Live Dolphin --frame-delay N remains reaction delay N-1. |

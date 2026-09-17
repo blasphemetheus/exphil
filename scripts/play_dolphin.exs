@@ -112,9 +112,11 @@ Output.step(1, 5, "Loading agent")
   Agent.start_link(
     policy_path: opts[:policy],
     deterministic: opts[:deterministic],
+    temperature: opts[:temperature],
+    af_convention: if(opts[:live_af], do: :libmelee, else: :parsed),
     frame_delay: opts[:frame_delay],
     # INVARIANTS item 12: the physical rung, resolved above (the sync
-    # runner's own pipeline is +2, pinned 09-12 — the same as async).
+    # synchronous pipeline applies the decision on the next frame).
     harness: :sync_runner,
     reaction_delay: rung.reaction_delay,
     # nil -> the Agent derives the id from the checkpoint label convention
@@ -162,6 +164,17 @@ bridge_config = %{
   iso_path: opts[:iso],
   controller_port: opts[:port],
   opponent_port: opts[:opponent_port],
+  human_port: opts[:human_port],
+  postgame_delay: opts[:postgame_delay],
+  frozen_stadium: opts[:frozen_stadium],
+  gfx_backend: System.get_env("EXPHIL_GFX"),
+  # Match the graphical play recipe: Mainline beta can hang before video
+  # when the bridge disables EXI memory-card slots with device value 255.
+  # Preserve the existing headless evaluation configuration.
+  memory_card: not (opts[:headless] || false),
+  # The local Mainline build consumes raw unipolar trigger values; ExiAI's
+  # headless controller backend uses the bipolar Axis + binding.
+  pipe_trigger_encoding: if(opts[:headless], do: :bipolar, else: :unipolar),
   character: opts[:character],
   stage: opts[:stage],
   online_delay: opts[:frame_delay],
@@ -279,7 +292,12 @@ defmodule GameLoop do
 
         IO.puts("   Total agent frames: #{stats.frames}, Errors: #{stats.errors}")
         new_stats = %{stats | in_game: false, game_ended: true}
-        run(agent, bridge, player_port, Keyword.put(opts, :stats, new_stats))
+        if opts[:cli_opts][:seconds] do
+          Process.sleep(3_000)
+          {:ok, new_stats}
+        else
+          run(agent, bridge, player_port, Keyword.put(opts, :stats, new_stats))
+        end
 
       {:menu, game_state} ->
         if stats.in_game do
@@ -312,11 +330,17 @@ defmodule GameLoop do
     # Log game start
     stats =
       if not stats.in_game do
+        Agent.reset_buffer(agent)
         IO.puts(
           "\n[#{timestamp()}] 🎮 IN GAME! Starting agent control at frame #{game_state.frame}"
         )
 
         stats
+        |> Map.put(:frames, 0)
+        |> Map.put(:errors, 0)
+        |> Map.put(:last_stocks, nil)
+        |> Map.put(:game_ended, false)
+        |> Map.put(:play_started_at, nil)
         |> Map.put(:in_game, true)
         |> Map.put(:start_time, System.monotonic_time(:millisecond))
         |> Map.put(:start_frame, game_state.frame)
@@ -333,8 +357,10 @@ defmodule GameLoop do
     # --seconds N: play N in-game seconds, then SD until the game ends so
     # Slippi finalizes the .slp (same contract as play_dolphin_async.exs).
     seconds = opts[:cli_opts][:seconds]
+    stats = if game_state.frame >= 0 and stats[:play_started_at] == nil,
+      do: Map.put(stats, :play_started_at, System.monotonic_time(:millisecond)), else: stats
 
-    if seconds && stats.frames >= seconds * 60 do
+    if seconds && game_state.frame >= seconds * 60 do
       span = game_state.frame - (stats[:start_frame] || game_state.frame)
       skipped = max(span - stats.frames, 0)
 
@@ -345,10 +371,12 @@ defmodule GameLoop do
           "#{span} game frames elapsed, skipped #{skipped} (#{Float.round(skipped * 100 / max(span, 1), 1)}%)"
       )
 
-      sd_until_game_end(bridge)
+      elapsed_ms = System.monotonic_time(:millisecond) - stats.play_started_at
+      {:ok, :game_ended} = sd_until_game_end(bridge)
       Process.sleep(3_000)
       IO.puts("[#{timestamp()}]   Game end: replay finalized")
-      {:ok, stats}
+      {:ok, Map.merge(stats, %{last_frame: game_state.frame - 1, game_ended: true,
+        scored_wall_ms: elapsed_ms, scored_fps: seconds * 60_000 / max(elapsed_ms, 1)})}
     else
       handle_in_game_play(agent, bridge, player_port, game_state, stats, opts)
     end
@@ -441,7 +469,9 @@ defmodule GameLoop do
         "\n[#{timestamp()}] 🏆 GAME OVER! Detected via stocks at frame #{game_state.frame} (#{elapsed})"
       )
 
-      stats = %{stats | game_ended: true, in_game: false}
+      # Wait for the postgame transition without treating the remaining
+      # game-over frames as a fresh game and resetting the policy repeatedly.
+      stats = %{stats | game_ended: true}
       run(agent, bridge, player_port, Keyword.put(opts, :stats, stats))
     else
       {probe_action, stats} = step_latency_probe(stats, game_state, player_port, opts)
@@ -516,7 +546,8 @@ defmodule GameLoop do
                   stats
                 end
 
-              stats = %{stats | frames: stats.frames + 1}
+              stats = stats |> Map.put(:frames, stats.frames + 1)
+                |> Map.put(:last_frame, game_state.frame)
               run(agent, bridge, player_port, Keyword.put(opts, :stats, stats))
 
             {:game_ended, reason} ->
@@ -617,7 +648,7 @@ defmodule GameLoop do
 end
 
 # Run the game loop
-try do
+result = try do
   GameLoop.run(agent, bridge, opts[:port],
     no_auto_menu: opts[:no_auto_menu],
     cli_opts: opts,
@@ -627,9 +658,24 @@ try do
 rescue
   e in RuntimeError ->
     IO.puts("\nError: #{Exception.message(e)}")
+    {:error, Exception.message(e)}
 catch
-  :exit, _ ->
+  :exit, reason ->
     IO.puts("\nExiting...")
+    {:error, inspect(reason)}
+end
+
+if path = opts[:session_report] do
+  report = case result do
+    {:ok, stats} ->
+      Map.take(stats, [:frames, :errors, :start_frame, :last_frame, :game_ended, :scored_wall_ms, :scored_fps])
+      |> Map.merge(%{status: "ok", measured_latency: ExPhil.Bridge.LatencyProbe.latency(stats[:latency_probe]),
+        expected_latency: rung.expected_latency, policy: opts[:policy], stage: opts[:stage],
+        reaction_delay: rung.reaction_delay, player_port: opts[:port]})
+    other -> %{status: "error", reason: inspect(other), policy: opts[:policy]}
+  end
+  File.mkdir_p!(Path.dirname(path))
+  File.write!(path, Jason.encode!(report, pretty: true), [:exclusive])
 end
 
 # Cleanup
@@ -649,3 +695,5 @@ IO.puts("""
 ║                        Session Complete!                       ║
 ╚════════════════════════════════════════════════════════════════╝
 """)
+
+if match?({:error, _}, result), do: System.halt(1)

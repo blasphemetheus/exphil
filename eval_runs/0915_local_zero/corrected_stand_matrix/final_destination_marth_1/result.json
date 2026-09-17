@@ -1,0 +1,53 @@
+{
+  "id": "final_destination_marth_1",
+  "session": {
+    "errors": 0,
+    "expected_latency": 1,
+    "frames": 1922,
+    "game_ended": true,
+    "last_frame": 1799,
+    "measured_latency": 1,
+    "player_port": 1,
+    "policy": "eval_runs/0915_local_zero/corrected_bootstrap/candidate.bin",
+    "reaction_delay": 0,
+    "scored_fps": 105.50378055213645,
+    "scored_wall_ms": 17061,
+    "stage": "final_destination",
+    "start_frame": -123,
+    "status": "ok"
+  },
+  "run": 1,
+  "valid": true,
+  "stage": "final_destination",
+  "opponent": "marth",
+  "replay": "eval_runs/0915_local_zero/corrected_stand_matrix/final_destination_marth_1/Game_20260915T123102.slp",
+  "metrics": {
+    "max_chain": 200,
+    "frames": 1800,
+    "deaths": 0,
+    "chains": [
+      {
+        "length": 200,
+        "ended_by": "end_of_input"
+      }
+    ],
+    "completed_cycles": 199,
+    "endings": {
+      "end_of_input": 1
+    },
+    "ground_shine_onsets": 200,
+    "ground_shines_per_minute": 400.0,
+    "recent_hit_onsets": 0,
+    "recovery": {
+      "episodes": [],
+      "censored": 0,
+      "completed": 0,
+      "disruption_to_cycle_frames": [],
+      "ready_to_cycle_frames": []
+    },
+    "self_initiated_onsets": 200,
+    "self_initiated_per_minute": 400.0
+  },
+  "replay_sha256": "64389bd8d4d8427935b1e46d90a425d34bc6b868f94b762f2fc74878fe49e919",
+  "chain_gate": true
+}

@@ -41,7 +41,7 @@ defmodule ExPhil.Training.Callbacks.Checkpoint do
       batch_path = String.replace(cb.checkpoint_path, ".axon", "_batch#{state.step}.axon")
       case Imitation.save_checkpoint(state.trainer, batch_path) do
         :ok -> Output.puts("\n  Batch #{state.step} checkpoint saved")
-        {:error, _} -> :ok
+        {:error, reason} -> raise "Failed to save batch checkpoint #{batch_path}: #{inspect(reason)}"
       end
     end
     {:cont, state, cb}
@@ -71,14 +71,13 @@ defmodule ExPhil.Training.Callbacks.Checkpoint do
 
               case Imitation.export_policy(state.trainer, best_policy_path) do
                 :ok -> Output.puts("      Best policy exported to #{best_policy_path}")
-                {:error, reason} -> Output.warning("Failed to export best policy: #{inspect(reason)}")
+                {:error, reason} -> raise "Failed to export best policy #{best_policy_path}: #{inspect(reason)}"
               end
 
               %{cb | best_val_loss: val_loss}
 
             {:error, reason} ->
-              Output.warning("Failed to save best model: #{inspect(reason)}")
-              cb
+              raise "Failed to save best model #{best_path}: #{inspect(reason)}"
           end
         else
           cb
@@ -95,7 +94,7 @@ defmodule ExPhil.Training.Callbacks.Checkpoint do
       epoch_path = String.replace(checkpoint_path, ".axon", "_epoch#{state.epoch}.axon")
       case Imitation.save_checkpoint(state.trainer, epoch_path) do
         :ok -> Output.puts("    Epoch #{state.epoch} checkpoint saved")
-        {:error, reason} -> Output.warning("Failed to save epoch checkpoint: #{inspect(reason)}")
+        {:error, reason} -> raise "Failed to save epoch checkpoint #{epoch_path}: #{inspect(reason)}"
       end
     end
 
@@ -109,7 +108,7 @@ defmodule ExPhil.Training.Callbacks.Checkpoint do
     if checkpoint_path do
       case Imitation.save_checkpoint(state.trainer, checkpoint_path) do
         :ok -> Output.puts("  Final checkpoint saved to #{checkpoint_path}")
-        {:error, reason} -> Output.warning("Failed to save final checkpoint: #{inspect(reason)}")
+        {:error, reason} -> raise "Failed to save final checkpoint #{checkpoint_path}: #{inspect(reason)}"
       end
     end
 

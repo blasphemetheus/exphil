@@ -1,0 +1,25 @@
+{
+  "head": "autoregressive",
+  "seed": 905,
+  "precision": "f32",
+  "backbone": "gru",
+  "temporal": true,
+  "bptt": true,
+  "unroll": 80,
+  "bptt_overlap": 1,
+  "bptt_val_files": 16,
+  "hidden_sizes": [
+    512,
+    512,
+    256
+  ],
+  "num_layers": 2,
+  "dropout": 0.1,
+  "batch_size": 128,
+  "label_delay": 0,
+  "checkpoint": "/home/blewf/git/exphil/eval_runs/0915_fox_v3_preflight/seed_905/model.axon",
+  "replays": "/home/blewf/git/exphil/eval_runs/0915_fox_v3_preflight/replays",
+  "epochs": 2,
+  "stage_internals": true,
+  "learn_player_styles": true
+}

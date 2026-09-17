@@ -16,6 +16,7 @@ defmodule ExPhil.Training.Callbacks.GracefulShutdown do
     %{
       checkpoint_path: Keyword.get(opts, :checkpoint_path),
       agent_pid: nil,
+      signal_id: nil,
       interrupted: false
     }
   end
@@ -26,25 +27,45 @@ defmodule ExPhil.Training.Callbacks.GracefulShutdown do
 
     if checkpoint_path do
       # Agent stores ONLY metadata — never GPU tensors
-      {:ok, agent} = Agent.start_link(fn ->
-        %{epoch: 0, step: 0, checkpoint_path: checkpoint_path, interrupted: false}
-      end, name: :trainer_state)
+      {:ok, agent} =
+        Agent.start_link(
+          fn ->
+            %{
+              epoch: 0,
+              step: 0,
+              checkpoint_path: checkpoint_path,
+              interrupted: false,
+              signal_waiter: nil
+            }
+          end,
+          name: :trainer_state
+        )
 
       # Trap SIGTERM — set interrupted flag instead of saving directly
-      for signal <- [:sigterm] do
-        try do
-          System.trap_signal(signal, fn ->
-            Agent.update(:trainer_state, fn state ->
-              %{state | interrupted: true}
-            end)
-            Output.puts("\n  Interrupt received — will save checkpoint after current batch")
-          end)
-        rescue
-          _ -> :ok
-        end
-      end
+      owner = self()
 
-      {:cont, state, %{cb | agent_pid: agent, checkpoint_path: checkpoint_path}}
+      signal_id =
+        case System.trap_signal(:sigterm, fn ->
+               waiter = self()
+               monitor = Process.monitor(owner)
+               Agent.update(agent, &%{&1 | interrupted: true, signal_waiter: waiter})
+               Output.puts("\n  Interrupt received — will save checkpoint after current batch")
+               # Erlang's default SIGTERM handler runs after this callback.
+               # Hold it until checkpoint/export cleanup finishes in the owner.
+               receive do
+                 {:training_shutdown_complete, ^owner} -> :ok
+                 {:DOWN, ^monitor, :process, ^owner, _} -> :ok
+               end
+
+               Process.demonitor(monitor, [:flush])
+               :ok
+             end) do
+          {:ok, id} -> id
+          {:error, :not_sup} -> nil
+        end
+
+      {:cont, state,
+       %{cb | agent_pid: agent, checkpoint_path: checkpoint_path, signal_id: signal_id}}
     else
       {:cont, state, cb}
     end
@@ -81,8 +102,23 @@ defmodule ExPhil.Training.Callbacks.GracefulShutdown do
     end
   end
 
+  def finish_shutdown do
+    if waiter = Process.delete({__MODULE__, :signal_waiter}),
+      do: send(waiter, {:training_shutdown_complete, self()})
+
+    :ok
+  end
+
   @impl true
   def on_train_end(state, cb) do
+    waiter = if cb.agent_pid, do: Agent.get(cb.agent_pid, & &1.signal_waiter)
+
+    if waiter do
+      Process.put({__MODULE__, :signal_waiter}, waiter)
+    else
+      if cb.signal_id, do: System.untrap_signal(:sigterm, cb.signal_id)
+    end
+
     if cb.agent_pid do
       try do
         Agent.stop(:trainer_state)
@@ -91,6 +127,6 @@ defmodule ExPhil.Training.Callbacks.GracefulShutdown do
       end
     end
 
-    {:cont, state, %{cb | agent_pid: nil}}
+    {:cont, state, %{cb | agent_pid: nil, signal_id: nil}}
   end
 end

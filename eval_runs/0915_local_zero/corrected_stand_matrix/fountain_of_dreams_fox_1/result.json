@@ -1,0 +1,88 @@
+{
+  "id": "fountain_of_dreams_fox_1",
+  "session": {
+    "errors": 0,
+    "expected_latency": 1,
+    "frames": 1922,
+    "game_ended": true,
+    "last_frame": 1799,
+    "measured_latency": 1,
+    "player_port": 1,
+    "policy": "eval_runs/0915_local_zero/corrected_bootstrap/candidate.bin",
+    "reaction_delay": 0,
+    "scored_fps": 108.51871947911015,
+    "scored_wall_ms": 16587,
+    "stage": "fountain_of_dreams",
+    "start_frame": -123,
+    "status": "ok"
+  },
+  "run": 1,
+  "valid": true,
+  "stage": "fountain_of_dreams",
+  "opponent": "fox",
+  "replay": "eval_runs/0915_local_zero/corrected_stand_matrix/fountain_of_dreams_fox_1/Game_20260915T123951.slp",
+  "metrics": {
+    "max_chain": 118,
+    "frames": 1800,
+    "deaths": 0,
+    "chains": [
+      {
+        "length": 74,
+        "ended_by": "air_shine"
+      },
+      {
+        "length": 1,
+        "ended_by": "other_action"
+      },
+      {
+        "length": 1,
+        "ended_by": "air_shine"
+      },
+      {
+        "length": 118,
+        "ended_by": "end_of_input"
+      }
+    ],
+    "completed_cycles": 185,
+    "endings": {
+      "end_of_input": 1,
+      "other_action": 1,
+      "air_shine": 2
+    },
+    "ground_shine_onsets": 194,
+    "ground_shines_per_minute": 388.0,
+    "recent_hit_onsets": 0,
+    "recovery": {
+      "episodes": [
+        {
+          "cause": "failed_cycle",
+          "start": 688,
+          "finish": 755,
+          "outcome": "reentered",
+          "ready": 688
+        },
+        {
+          "cause": "failed_cycle",
+          "start": 1678,
+          "finish": 1727,
+          "outcome": "reentered",
+          "ready": 1678
+        }
+      ],
+      "censored": 0,
+      "completed": 2,
+      "disruption_to_cycle_frames": [
+        67,
+        49
+      ],
+      "ready_to_cycle_frames": [
+        67,
+        49
+      ]
+    },
+    "self_initiated_onsets": 194,
+    "self_initiated_per_minute": 388.0
+  },
+  "replay_sha256": "e8d856c4147c47d55a6a20afe9e8b2005835d06a521a51959c9c4e41918a6d63",
+  "chain_gate": true
+}

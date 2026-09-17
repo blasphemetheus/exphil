@@ -1,0 +1,133 @@
+{
+  "session": {
+    "errors": 0,
+    "expected_latency": 1,
+    "frames": 1922,
+    "game_ended": true,
+    "last_frame": 1799,
+    "measured_latency": 1,
+    "player_port": 1,
+    "policy": "eval_runs/0915_mewtwo_neutral/v1/candidate.bin",
+    "reaction_delay": 0,
+    "scored_fps": 87.86488333496047,
+    "scored_wall_ms": 20486,
+    "stage": "final_destination",
+    "start_frame": -123,
+    "status": "ok"
+  },
+  "run": 3,
+  "mode": "cpu",
+  "valid": true,
+  "replay": "eval_runs/0915_mewtwo_neutral/v1/qualification/cpu_3/Game_20260915T174513.slp",
+  "metrics": {
+    "neutral": {
+      "events": [
+        {
+          "start": 29,
+          "finish": 65,
+          "outcome": "opponent_opens",
+          "first_contact": 60,
+          "censor_reason": null
+        },
+        {
+          "start": 99,
+          "finish": 157,
+          "outcome": "opponent_opens",
+          "first_contact": 152,
+          "censor_reason": null
+        },
+        {
+          "start": 339,
+          "finish": 400,
+          "outcome": "subject_opens",
+          "first_contact": 395,
+          "censor_reason": null
+        },
+        {
+          "start": 536,
+          "finish": 562,
+          "outcome": "opponent_opens",
+          "first_contact": 557,
+          "censor_reason": null
+        },
+        {
+          "start": 627,
+          "finish": 663,
+          "outcome": "opponent_opens",
+          "first_contact": 658,
+          "censor_reason": null
+        },
+        {
+          "start": 733,
+          "finish": 753,
+          "outcome": "opponent_opens",
+          "first_contact": 748,
+          "censor_reason": null
+        },
+        {
+          "start": 897,
+          "finish": 909,
+          "outcome": "subject_opens",
+          "first_contact": 904,
+          "censor_reason": null
+        },
+        {
+          "start": 1040,
+          "finish": 1081,
+          "outcome": "opponent_opens",
+          "first_contact": 1076,
+          "censor_reason": null
+        },
+        {
+          "start": 1165,
+          "finish": 1188,
+          "outcome": "opponent_opens",
+          "first_contact": 1183,
+          "censor_reason": null
+        },
+        {
+          "start": 1376,
+          "finish": 1393,
+          "outcome": "censored",
+          "first_contact": null,
+          "censor_reason": "offstage"
+        },
+        {
+          "start": 1532,
+          "finish": 1534,
+          "outcome": "censored",
+          "first_contact": null,
+          "censor_reason": "offstage"
+        },
+        {
+          "start": 1684,
+          "finish": 1699,
+          "outcome": "opponent_opens",
+          "first_contact": 1694,
+          "censor_reason": null
+        }
+      ],
+      "exchanges": 12,
+      "outcomes": {
+        "censored": 2,
+        "subject_opens": 2,
+        "opponent_opens": 8
+      }
+    },
+    "frames": 1800,
+    "down_tilt_attempts": 0,
+    "grab_attempts": 1,
+    "aerial_attempts": 1,
+    "short_hops": 1,
+    "wavedashes": 0,
+    "max_shield_action_streak": 24,
+    "deaths": 0,
+    "aerial_types": {
+      "66": 1
+    },
+    "hop_apices": [
+      12.653996603396081
+    ]
+  },
+  "replay_sha256": "a9f434009f197973f5695b62096714b22d9b4cf81e472b6e4d2061229fa5d9d9"
+}

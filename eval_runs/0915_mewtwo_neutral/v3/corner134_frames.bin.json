@@ -1,0 +1,30 @@
+{
+  "scope": "Controlled neutral openings plus completion of the initiating technique; no combo labels",
+  "sources": [
+    {
+      "path": "/home/blewf/git/exphil/eval_runs/0915_mewtwo_teacher_audit/corner134_v1/neutral_recenter_1.states",
+      "kind": "neutral_recenter",
+      "replay": "/home/blewf/git/exphil/eval_runs/0915_mewtwo_teacher_audit/corner134_v1/home_neutral_recenter_1/replays/Game_20260915T175722.slp",
+      "sha256": "b60304fb21cefcd362277b09d5fafee4d25241dcdbaa7afa87f7d652b67f2382",
+      "replay_sha256": "e2c0934dea8d87f54fb9fa1bf3979a112197081efb6eaa3f845f7495a28e2743",
+      "side": 1,
+      "frames": 213
+    },
+    {
+      "path": "/home/blewf/git/exphil/eval_runs/0915_mewtwo_teacher_audit/corner134_v1/neutral_recenter_-1.states",
+      "kind": "neutral_recenter",
+      "replay": "/home/blewf/git/exphil/eval_runs/0915_mewtwo_teacher_audit/corner134_v1/home_neutral_recenter_-1/replays/Game_20260915T175724.slp",
+      "sha256": "c4f492f89a57138b6619ea5bde4484b4a222758e2136829341fa808fc4d21017",
+      "replay_sha256": "1ce9460097468e2824b46f78920ddbdbdf3d516dd9aa9330dd74b187ac21b1e5",
+      "side": -1,
+      "frames": 213
+    }
+  ],
+  "teacher": "MewtwoNeutralTeacher",
+  "stage": "final_destination",
+  "opponent": "fox",
+  "excluded_failed_cases": [],
+  "label_source": "actual next-frame physical controller inputs from Peppi",
+  "audit": "/home/blewf/git/exphil/eval_runs/0915_mewtwo_teacher_audit/corner134_v1/summary.json",
+  "human_recordings": "Preserved and excluded from this scripted baseline; no whole-game split leakage"
+}

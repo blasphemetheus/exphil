@@ -46,9 +46,11 @@ defmodule ExPhil.Training.Trainer do
   end
 
   defp count_params(%Nx.Tensor{} = t), do: Nx.size(t)
+
   defp count_params(map) when is_map(map) and not is_struct(map) do
     map |> Map.values() |> Enum.map(&count_params/1) |> Enum.sum()
   end
+
   defp count_params(_), do: 0
 
   @doc """
@@ -152,11 +154,13 @@ defmodule ExPhil.Training.Trainer do
 
     if sample_batch do
       try do
-        optimal = BatchTuner.find_optimal(trainer, sample_batch.states, sample_batch.actions,
-          min_batch: opts[:auto_batch_min] || 8,
-          max_batch: opts[:auto_batch_max] || 256,
-          backoff: opts[:auto_batch_backoff] || 0.8
-        )
+        optimal =
+          BatchTuner.find_optimal(trainer, sample_batch.states, sample_batch.actions,
+            min_batch: opts[:auto_batch_min] || 8,
+            max_batch: opts[:auto_batch_max] || 256,
+            backoff: opts[:auto_batch_backoff] || 0.8
+          )
+
         Logger.info("Auto batch size: #{optimal}")
         Keyword.put(opts, :batch_size, optimal)
       rescue
@@ -199,7 +203,8 @@ defmodule ExPhil.Training.Trainer do
     # Seed for reproducibility
     seed = opts[:seed] || :rand.uniform(1_000_000)
     :rand.seed(:exsss, {seed, seed, seed})
-    Nx.Random.key(seed)
+    # Nx keys are explicit values, not global RNG state. Model initialization
+    # receives this seed separately in Imitation.new/1.
     Logger.info("Training seed: #{seed}")
 
     # Initialize callbacks
@@ -208,6 +213,7 @@ defmodule ExPhil.Training.Trainer do
     # Build initial state
     state = %TrainingState{
       trainer: trainer,
+      step: trainer.step,
       pipeline: pipeline,
       epochs: epochs,
       opts: opts,
@@ -221,11 +227,19 @@ defmodule ExPhil.Training.Trainer do
     # Epoch loop
     {final_state, final_callbacks} =
       Enum.reduce_while(1..epochs, {state, callbacks}, fn epoch, {st, cbs} ->
-        st = %{st | epoch: epoch, epoch_losses: [], batch_idx: 0}
+        st = %{
+          st
+          | epoch: epoch,
+            epoch_losses: [],
+            batch_idx: 0,
+            meta: Map.drop(st.meta, [:bptt_loss_sum, :bptt_loss_weight])
+        }
+
         epoch_start = System.monotonic_time(:second)
 
         # on_epoch_begin
         {result, st, cbs} = Callback.run(cbs, :on_epoch_begin, st)
+
         if result == :halt do
           {:halt, {st, cbs}}
         else
@@ -235,41 +249,53 @@ defmodule ExPhil.Training.Trainer do
           # Train one epoch
           {st, cbs} = train_epoch(st, batch_stream, cbs)
 
-          # Compute epoch stats
-          epoch_time = System.monotonic_time(:second) - epoch_start
-          avg_loss =
-            if st.epoch_losses == [] do
-              0.0
-            else
-              Enum.sum(st.epoch_losses) / length(st.epoch_losses)
+          if st.meta[:halt_requested] do
+            {:halt, {st, cbs}}
+          else
+            # Compute epoch stats
+            epoch_time = System.monotonic_time(:second) - epoch_start
+
+            if st.epoch_losses == [],
+              do: raise("Training epoch #{epoch} produced no optimizer batches; check replay filtering and parsing")
+
+            avg_loss =
+              cond do
+                (st.meta[:bptt_loss_weight] || 0) > 0 ->
+                  st.meta.bptt_loss_sum / st.meta.bptt_loss_weight
+
+                st.epoch_losses == [] ->
+                  0.0
+
+                true ->
+                  Enum.sum(st.epoch_losses) / length(st.epoch_losses)
+              end
+
+            st = %{st | train_loss: avg_loss, epoch_time: epoch_time}
+
+            # on_epoch_end (validation, diagnostics, checkpointing, early stopping)
+            {result, st, cbs} = Callback.run(cbs, :on_epoch_end, st)
+
+            # Update history
+            epoch_entry = %{
+              epoch: epoch,
+              train_loss: avg_loss,
+              val_loss: st.val_loss,
+              time_seconds: epoch_time
+            }
+
+            st = %{st | history: st.history ++ [epoch_entry]}
+
+            case result do
+              :halt -> {:halt, {st, cbs}}
+              :cont -> {:cont, {st, cbs}}
             end
-
-          st = %{st |
-            train_loss: avg_loss,
-            epoch_time: epoch_time
-          }
-
-          # on_epoch_end (validation, diagnostics, checkpointing, early stopping)
-          {result, st, cbs} = Callback.run(cbs, :on_epoch_end, st)
-
-          # Update history
-          epoch_entry = %{
-            epoch: epoch,
-            train_loss: avg_loss,
-            val_loss: st.val_loss,
-            time_seconds: epoch_time
-          }
-          st = %{st | history: st.history ++ [epoch_entry]}
-
-          case result do
-            :halt -> {:halt, {st, cbs}}
-            :cont -> {:cont, {st, cbs}}
           end
         end
       end)
 
     # on_train_end
     {_, final_state, _} = Callback.run(final_callbacks, :on_train_end, final_state)
+    ExPhil.Training.Callbacks.GracefulShutdown.finish_shutdown()
 
     {:ok, final_state}
   end
@@ -286,8 +312,11 @@ defmodule ExPhil.Training.Trainer do
       # which doubles GPU memory for cached programs. On memory-constrained GPUs,
       # this can cause OOM. Log a warning.
       if state.epoch == 1 do
-        Logger.info("Gradient accumulation: #{accumulation_steps} steps (effective batch #{(state.opts[:batch_size] || 16) * accumulation_steps})")
+        Logger.info(
+          "Gradient accumulation: #{accumulation_steps} steps (effective batch #{(state.opts[:batch_size] || 16) * accumulation_steps})"
+        )
       end
+
       train_epoch_accumulated(state, batch_stream, callbacks, accumulation_steps)
     else
       if state.trainer.config[:bptt] do
@@ -316,7 +345,10 @@ defmodule ExPhil.Training.Trainer do
     |> Enum.reduce_while({state, callbacks, zero_carry}, fn batch, {st, cbs, carry} ->
       {new_trainer, metrics, new_carry} =
         if BpttProf.enabled?(),
-          do: BpttProf.time(:train_step, fn -> TrainLoop.train_step_bptt(st.trainer, batch, carry) end),
+          do:
+            BpttProf.time(:train_step, fn ->
+              TrainLoop.train_step_bptt(st.trainer, batch, carry)
+            end),
           else: TrainLoop.train_step_bptt(st.trainer, batch, carry)
 
       loss =
@@ -331,12 +363,23 @@ defmodule ExPhil.Training.Trainer do
 
       check_nan!(loss, batch_idx, st)
 
-      st = %{st |
-        trainer: new_trainer,
-        step: st.step + 1,
-        batch_idx: batch_idx + 1,
-        batch_metrics: %{loss: loss},
-        epoch_losses: [loss | st.epoch_losses]
+      weight = Nx.sum(batch.frame_weights) |> Nx.to_number()
+
+      st = %{
+        st
+        | meta:
+            st.meta
+            |> Map.update(:bptt_loss_sum, loss * weight, &(&1 + loss * weight))
+            |> Map.update(:bptt_loss_weight, weight, &(&1 + weight))
+      }
+
+      st = %{
+        st
+        | trainer: new_trainer,
+          step: st.step + 1,
+          batch_idx: batch_idx + 1,
+          batch_metrics: %{loss: loss},
+          epoch_losses: [loss | st.epoch_losses]
       }
 
       st = Callback.increment_event_count(st, :on_batch_end)
@@ -345,7 +388,7 @@ defmodule ExPhil.Training.Trainer do
 
       case result do
         :halt_epoch -> {:halt, {st, cbs, new_carry}}
-        :halt -> {:halt, {st, cbs, new_carry}}
+        :halt -> {:halt, {%{st | meta: Map.put(st.meta, :halt_requested, true)}, cbs, new_carry}}
         :cont -> {:cont, {st, cbs, new_carry}}
       end
     end)
@@ -366,12 +409,13 @@ defmodule ExPhil.Training.Trainer do
 
       check_nan!(loss, batch_idx, st)
 
-      st = %{st |
-        trainer: new_trainer,
-        step: st.step + 1,
-        batch_idx: batch_idx + 1,
-        batch_metrics: %{loss: loss},
-        epoch_losses: [loss | st.epoch_losses]
+      st = %{
+        st
+        | trainer: new_trainer,
+          step: st.step + 1,
+          batch_idx: batch_idx + 1,
+          batch_metrics: %{loss: loss},
+          epoch_losses: [loss | st.epoch_losses]
       }
 
       st = Callback.increment_event_count(st, :on_batch_end)
@@ -380,7 +424,7 @@ defmodule ExPhil.Training.Trainer do
 
       case result do
         :halt_epoch -> {:halt, {st, cbs}}
-        :halt -> {:halt, {st, cbs}}
+        :halt -> {:halt, {%{st | meta: Map.put(st.meta, :halt_requested, true)}, cbs}}
         :cont -> {:cont, {st, cbs}}
       end
     end)
@@ -408,12 +452,13 @@ defmodule ExPhil.Training.Trainer do
         check_nan!(avg_loss, batch_idx, st)
         new_trainer = TrainLoop.apply_gradients(st.trainer, avg_grads)
 
-        st = %{st |
-          trainer: new_trainer,
-          step: st.step + 1,
-          batch_idx: batch_idx,
-          batch_metrics: %{loss: avg_loss},
-          epoch_losses: [avg_loss | st.epoch_losses]
+        st = %{
+          st
+          | trainer: new_trainer,
+            step: st.step + 1,
+            batch_idx: batch_idx,
+            batch_metrics: %{loss: avg_loss},
+            epoch_losses: [avg_loss | st.epoch_losses]
         }
 
         {_result, st, cbs} = Callback.run(cbs, :on_batch_end, st)
@@ -430,7 +475,14 @@ defmodule ExPhil.Training.Trainer do
         avg_grads = TrainLoop.scale_gradients(accum.grads, 1.0 / accum.count)
         avg_loss = Enum.sum(accum.losses) / accum.count
         new_trainer = TrainLoop.apply_gradients(st.trainer, avg_grads)
-        st = %{st | trainer: new_trainer, step: st.step + 1, epoch_losses: [avg_loss | st.epoch_losses]}
+
+        st = %{
+          st
+          | trainer: new_trainer,
+            step: st.step + 1,
+            epoch_losses: [avg_loss | st.epoch_losses]
+        }
+
         {st, cbs}
       else
         {st, cbs}

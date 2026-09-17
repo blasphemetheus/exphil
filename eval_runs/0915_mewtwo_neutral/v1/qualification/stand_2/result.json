@@ -1,0 +1,7 @@
+{
+  "error": "expected a boolean on left-side of \"and\", got: nil",
+  "exit_status": 0,
+  "run": 2,
+  "mode": "stand",
+  "valid": false
+}

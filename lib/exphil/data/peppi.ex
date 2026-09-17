@@ -121,6 +121,8 @@ defmodule ExPhil.Data.Peppi do
       :on_ground,
       :shield_strength,
       :hitstun_frames_left,
+      :hitlag_left,
+      :in_hitstun,
       :speed_air_x_self,
       :speed_ground_x_self,
       :speed_y_self,
@@ -159,7 +161,7 @@ defmodule ExPhil.Data.Peppi do
 
   defmodule ReplayMeta do
     @moduledoc "Replay metadata"
-    defstruct [:path, :stage, :duration_frames, :players]
+    defstruct [:path, :stage, :duration_frames, :players, :frozen_stadium]
     @type t :: %__MODULE__{}
   end
 

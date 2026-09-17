@@ -1,0 +1,74 @@
+{
+  "sources": [
+    {
+      "path": "/home/blewf/git/exphil/eval_runs/0915_mewtwo_neutral/v2/base_frames.bin",
+      "sha256": "0cc18580e7373335bb051a4ed01e3cb844387bc99f4bbd421473dbeb0904e5e8"
+    },
+    {
+      "path": "/home/blewf/git/exphil/eval_runs/0915_mewtwo_neutral/v2/shift20_frames.bin",
+      "sha256": "3efad42d6de6aeeac01c39041044a7671bb8aefb95ef9948396e1b41f2d9d4d4"
+    },
+    {
+      "path": "/home/blewf/git/exphil/eval_runs/0915_mewtwo_neutral/v2/shift40_frames.bin",
+      "sha256": "6bf097c822c3342b739bacbda2072daab428b601fbc49d64a93501980b4d859d"
+    },
+    {
+      "path": "/home/blewf/git/exphil/eval_runs/0915_mewtwo_neutral/v3/corner75_frames.bin",
+      "sha256": "94b441bdc5444cef94f6a2c01a8f54234d6c8098920e214d323073ccea4aef9f"
+    },
+    {
+      "path": "/home/blewf/git/exphil/eval_runs/0915_mewtwo_neutral/v3/corner84_frames.bin",
+      "sha256": "49c219e34cefba1608db5d3e0c09f7a2e8d77d93b2fe39481a5b55ef4529dbaf"
+    },
+    {
+      "path": "/home/blewf/git/exphil/eval_runs/0915_mewtwo_neutral/v3/corner125_frames.bin",
+      "sha256": "6161505a6c47c6efd3a78a2f777afdc1651f05eba5db7b9b93b1be4feedf2575"
+    },
+    {
+      "path": "/home/blewf/git/exphil/eval_runs/0915_mewtwo_neutral/v3/corner134_frames.bin",
+      "sha256": "9446430b5be95514136675a58153109e9834889561325f7be8f73bd654635134"
+    },
+    {
+      "path": "/home/blewf/git/exphil/eval_runs/0915_mewtwo_neutral/v4/cpu_1_frames.bin",
+      "sha256": "8bd7ea9101fcb765bffb0c816ef6d1130f9a179b5f4a5d5efee3b7bdbe49d6ef"
+    },
+    {
+      "path": "/home/blewf/git/exphil/eval_runs/0915_mewtwo_neutral/v4/cpu_2_frames.bin",
+      "sha256": "5424ddaf0a070415105e1ab92f41aed31ee98593a2b7019f76ce9272d7cd5d2d"
+    },
+    {
+      "path": "/home/blewf/git/exphil/eval_runs/0915_mewtwo_neutral/v4/cpu_3_frames.bin",
+      "sha256": "205a1e67a0eb6a21328654c316bcbc855f0f5b3596f46a9efc7ec1444de0fe2f"
+    },
+    {
+      "path": "/home/blewf/git/exphil/eval_runs/0915_mewtwo_neutral/v4/cpu_4_frames.bin",
+      "sha256": "b59192afa82e52c6f27ebfb8722108ca6bf71a53dbbb298d41e282c5b2d88dd3"
+    },
+    {
+      "path": "/home/blewf/git/exphil/eval_runs/0915_mewtwo_neutral/v4/cpu_5_frames.bin",
+      "sha256": "1b5e2a139fa6c42550f9adc7318f5c5140e09a11e88933b48a60ecd7774db480"
+    },
+    {
+      "path": "/home/blewf/git/exphil/eval_runs/0915_mewtwo_neutral/v4/cpu_6_frames.bin",
+      "sha256": "e0cd2eca1f09ee64861f4e011372d1083b12d6396ab2248df43164cb1a9cec98"
+    },
+    {
+      "path": "/home/blewf/git/exphil/eval_runs/0915_mewtwo_neutral/v4/cpu_7_frames.bin",
+      "sha256": "1ac68b21bdbe4632cb2a445b5cac070eb52993c0169af275a30494deeeeae5ba"
+    },
+    {
+      "path": "/home/blewf/git/exphil/eval_runs/0915_mewtwo_neutral/v4/cpu_8_frames.bin",
+      "sha256": "4e5fd27f621a6024f6996bfe452fbcd5af5ef3bdcb1701cc36ae08ca9a673e03"
+    },
+    {
+      "path": "/home/blewf/git/exphil/eval_runs/0915_mewtwo_neutral/v4/cpu_9_frames.bin",
+      "sha256": "aee4337322bb2d385592a524d32c9c08d7688314c3c8f3b1d66e389384cbfa47"
+    }
+  ],
+  "frames": 36484,
+  "operation": "Whole-sequence stock-count augmentation; physical input labels unchanged",
+  "justification": "MewtwoNeutralTeacher does not condition its choices on stock count; accepted sequences contain no stock transitions",
+  "assignments": "Own counts 1..4; opponent count rotated by sequence index to cover equal and unequal stocks",
+  "original_lists": 80,
+  "augmented_lists": 320
+}

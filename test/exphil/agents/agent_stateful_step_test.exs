@@ -95,9 +95,7 @@ defmodule ExPhil.Agents.AgentStatefulStepTest do
 
   defp start_agent(policy, opts) do
     {:ok, agent} =
-      Agent.start_link(
-        [policy: policy, deterministic: true] ++ opts
-      )
+      Agent.start_link([policy: policy, deterministic: true] ++ opts)
 
     agent
   end
@@ -123,6 +121,51 @@ defmodule ExPhil.Agents.AgentStatefulStepTest do
 
   setup_all do
     {:ok, policy: build_policy()}
+  end
+
+  test "BPTT startup consumes the first frame once, independently of legacy window size" do
+    config = %{
+      temporal: true,
+      bptt: true,
+      backbone: :gru,
+      precision: :f32,
+      hidden_size: @hidden_size,
+      num_layers: @num_layers,
+      embed_size: embed_size(),
+      window_size: @window,
+      head: :independent,
+      dropout: 0.0,
+      axis_buckets: 16,
+      shoulder_buckets: 4
+    }
+
+    model = Policy.build_temporal_bptt(Map.to_list(config))
+    {init, _} = Utils.build_compiled(model)
+
+    params =
+      init.(
+        %{
+          "state_sequence" => Nx.template({1, @window, embed_size()}, :f32),
+          "initial_hidden" => Nx.template({1, @num_layers, @hidden_size}, :f32)
+        },
+        Axon.ModelState.empty()
+      )
+
+    config = Map.merge(config, ExPhil.Networks.Policy.ExecutionContract.training(config))
+    long = start_agent(%{params: params, config: config}, stateful_step: true)
+    one = start_agent(%{params: params, config: %{config | window_size: 1}}, stateful_step: true)
+
+    for xs <- [[10.0, -2.0], [4.0, 8.0]] do
+      assert play(long, xs) == play(one, xs)
+      a = :sys.get_state(long).trunk_state.h
+      b = :sys.get_state(one).trunk_state.h
+      assert Nx.to_number(Nx.all_close(a, b, atol: 1.0e-6)) == 1
+      Agent.reset_buffer(long)
+      Agent.reset_buffer(one)
+    end
+
+    GenServer.stop(long)
+    GenServer.stop(one)
   end
 
   test "stateful_step activates for a temporal GRU policy", %{policy: policy} do

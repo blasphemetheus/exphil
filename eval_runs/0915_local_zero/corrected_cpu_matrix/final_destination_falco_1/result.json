@@ -1,0 +1,156 @@
+{
+  "id": "final_destination_falco_1",
+  "session": {
+    "errors": 0,
+    "expected_latency": 1,
+    "frames": 1922,
+    "game_ended": false,
+    "last_frame": 1799,
+    "measured_latency": 1,
+    "player_port": 1,
+    "policy": "eval_runs/0915_local_zero/corrected_bootstrap/candidate.bin",
+    "reaction_delay": 0,
+    "scored_fps": 107.48835542816195,
+    "scored_wall_ms": 16746,
+    "stage": "final_destination",
+    "start_frame": -123,
+    "status": "ok"
+  },
+  "run": 1,
+  "valid": true,
+  "stage": "final_destination",
+  "opponent": "falco",
+  "replay": "eval_runs/0915_local_zero/corrected_cpu_matrix/final_destination_falco_1/Game_20260915T114154.slp",
+  "metrics": {
+    "max_chain": 61,
+    "frames": 1800,
+    "deaths": 0,
+    "chains": [
+      {
+        "length": 14,
+        "ended_by": "other_action"
+      },
+      {
+        "length": 2,
+        "ended_by": "air_shine"
+      },
+      {
+        "length": 4,
+        "ended_by": "other_action"
+      },
+      {
+        "length": 22,
+        "ended_by": "other_action"
+      },
+      {
+        "length": 28,
+        "ended_by": "other_action"
+      },
+      {
+        "length": 7,
+        "ended_by": "other_action"
+      },
+      {
+        "length": 61,
+        "ended_by": "other_action"
+      },
+      {
+        "length": 12,
+        "ended_by": "other_action"
+      }
+    ],
+    "completed_cycles": 142,
+    "endings": {
+      "other_action": 7,
+      "air_shine": 1
+    },
+    "ground_shine_onsets": 150,
+    "ground_shines_per_minute": 300.0,
+    "recent_hit_onsets": 11,
+    "recovery": {
+      "episodes": [
+        {
+          "cause": "hitstun",
+          "start": 121,
+          "finish": 146,
+          "outcome": "reentered",
+          "ready": 133
+        },
+        {
+          "cause": "loop_break",
+          "start": 190,
+          "finish": 264,
+          "outcome": "reentered",
+          "ready": 252
+        },
+        {
+          "cause": "loop_break",
+          "start": 319,
+          "finish": 330,
+          "outcome": "reentered",
+          "ready": 320
+        },
+        {
+          "cause": "hitstun",
+          "start": 521,
+          "finish": 544,
+          "outcome": "reentered",
+          "ready": 529
+        },
+        {
+          "cause": "loop_break",
+          "start": 819,
+          "finish": 830,
+          "outcome": "reentered",
+          "ready": 820
+        },
+        {
+          "cause": "hitstun",
+          "start": 881,
+          "finish": 904,
+          "outcome": "reentered",
+          "ready": 889
+        },
+        {
+          "cause": "hitstun",
+          "start": 1450,
+          "finish": 1471,
+          "outcome": "reentered",
+          "ready": 1458
+        },
+        {
+          "cause": "hitstun",
+          "start": 1569,
+          "finish": null,
+          "last_observed": 1799,
+          "outcome": "end_of_replay",
+          "ready": null
+        }
+      ],
+      "censored": 1,
+      "completed": 7,
+      "disruption_to_cycle_frames": [
+        25,
+        74,
+        11,
+        23,
+        11,
+        23,
+        21
+      ],
+      "ready_to_cycle_frames": [
+        13,
+        12,
+        10,
+        15,
+        10,
+        15,
+        13
+      ]
+    },
+    "self_initiated_onsets": 139,
+    "self_initiated_per_minute": 278.0
+  },
+  "replay_sha256": "9354ae6010ed1d6d687c3e0e3f93070f0f60aaec52af0abd7c15f443be22c266",
+  "chain_gate": true
+}

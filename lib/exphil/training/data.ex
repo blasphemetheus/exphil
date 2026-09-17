@@ -419,6 +419,10 @@ defmodule ExPhil.Training.Data do
 
     # Create batch stream based on shuffle mode
     cond do
+      # Elixir's 0..-1 is a descending range, not an empty range.
+      valid_size <= 0 ->
+        []
+
       # Character-balanced sampling
       character_weights != nil ->
         alias ExPhil.Training.CharacterBalance

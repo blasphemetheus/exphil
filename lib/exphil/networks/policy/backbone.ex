@@ -887,6 +887,7 @@ defmodule ExPhil.Networks.Policy.Backbone do
   def build_gru_carry_backbone(processed_input, opts) do
     container =
       Recurrent.build_backbone_with_carry(processed_input,
+        seed: Keyword.get(opts, :seed),
         hidden_size: Keyword.get(opts, :hidden_size, 256),
         num_layers: Keyword.get(opts, :num_layers, 2),
         dropout: Keyword.get(opts, :dropout, @default_dropout)

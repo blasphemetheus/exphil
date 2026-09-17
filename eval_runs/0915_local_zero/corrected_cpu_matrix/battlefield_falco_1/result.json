@@ -1,0 +1,53 @@
+{
+  "id": "battlefield_falco_1",
+  "session": {
+    "errors": 0,
+    "expected_latency": 1,
+    "frames": 1922,
+    "game_ended": false,
+    "last_frame": 1799,
+    "measured_latency": 1,
+    "player_port": 1,
+    "policy": "eval_runs/0915_local_zero/corrected_bootstrap/candidate.bin",
+    "reaction_delay": 0,
+    "scored_fps": 101.67768174885613,
+    "scored_wall_ms": 17703,
+    "stage": "battlefield",
+    "start_frame": -123,
+    "status": "ok"
+  },
+  "run": 1,
+  "valid": true,
+  "stage": "battlefield",
+  "opponent": "falco",
+  "replay": "eval_runs/0915_local_zero/corrected_cpu_matrix/battlefield_falco_1/Game_20260915T114419.slp",
+  "metrics": {
+    "max_chain": 198,
+    "frames": 1800,
+    "deaths": 0,
+    "chains": [
+      {
+        "length": 198,
+        "ended_by": "end_of_input"
+      }
+    ],
+    "completed_cycles": 197,
+    "endings": {
+      "end_of_input": 1
+    },
+    "ground_shine_onsets": 198,
+    "ground_shines_per_minute": 396.0,
+    "recent_hit_onsets": 0,
+    "recovery": {
+      "episodes": [],
+      "censored": 0,
+      "completed": 0,
+      "disruption_to_cycle_frames": [],
+      "ready_to_cycle_frames": []
+    },
+    "self_initiated_onsets": 198,
+    "self_initiated_per_minute": 396.0
+  },
+  "replay_sha256": "4c1693d9541a130d33d8b77ad93e24958dafd065e1c8c5ba80d202da3f0453d7",
+  "chain_gate": true
+}

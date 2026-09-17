@@ -1,0 +1,73 @@
+{
+  "session": {
+    "errors": 0,
+    "expected_latency": 1,
+    "frames": 1922,
+    "game_ended": true,
+    "last_frame": 1799,
+    "measured_latency": 1,
+    "player_port": 1,
+    "policy": "eval_runs/0915_mewtwo_neutral/v1/candidate.bin",
+    "reaction_delay": 0,
+    "scored_fps": 89.06481939633845,
+    "scored_wall_ms": 20210,
+    "stage": "final_destination",
+    "start_frame": -123,
+    "status": "ok"
+  },
+  "run": 3,
+  "mode": "stand",
+  "valid": true,
+  "replay": "eval_runs/0915_mewtwo_neutral/v1/qualification/stand_3/Game_20260915T174333.slp",
+  "metrics": {
+    "neutral": {
+      "events": [
+        {
+          "start": 29,
+          "finish": 629,
+          "outcome": "timeout",
+          "first_contact": null,
+          "censor_reason": null
+        },
+        {
+          "start": 659,
+          "finish": 1259,
+          "outcome": "timeout",
+          "first_contact": null,
+          "censor_reason": null
+        },
+        {
+          "start": 1289,
+          "finish": 1799,
+          "outcome": "censored",
+          "first_contact": null,
+          "censor_reason": "end_of_recording"
+        }
+      ],
+      "exchanges": 3,
+      "outcomes": {
+        "timeout": 2,
+        "censored": 1
+      }
+    },
+    "frames": 1800,
+    "down_tilt_attempts": 12,
+    "grab_attempts": 1,
+    "aerial_attempts": 4,
+    "short_hops": 4,
+    "wavedashes": 0,
+    "max_shield_action_streak": 24,
+    "deaths": 0,
+    "aerial_types": {
+      "66": 1,
+      "67": 3
+    },
+    "hop_apices": [
+      12.653996603396081,
+      11.253996984865807,
+      12.653996603396081,
+      11.253996984865807
+    ]
+  },
+  "replay_sha256": "baf041fa01d838758d3da1505dc6d0484a26d24cb0b0e9878734d9837a2861d2"
+}

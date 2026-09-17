@@ -1,0 +1,39 @@
+{
+  "sources": [
+    {
+      "path": "/home/blewf/git/exphil/eval_runs/0915_mewtwo_teacher_audit/stand_teacher_v1/run_1/replays/Game_20260915T182420.slp",
+      "sha256": "cee4123aa43ff5a4ad611b3cf131ec03d11ce4a868498b7663db0bf3f19223f4",
+      "state_sha256": "d223d97a7d731601f5df4eac95adb3b13da1d99bcd846229454bf43d31d1ba99",
+      "first_target": 0,
+      "last_target": 1799,
+      "outcomes": {
+        "subject_opens": 3
+      }
+    },
+    {
+      "path": "/home/blewf/git/exphil/eval_runs/0915_mewtwo_teacher_audit/stand_teacher_v1/run_2/replays/Game_20260915T182425.slp",
+      "sha256": "da54d32db08bcf193449ab21e401511dc2f6dae79969ca3ea2321164248ed2d1",
+      "state_sha256": "ec765878baefb4dd767319dcd39e6a8b90dc24f586453329d2cf4e3dc0989358",
+      "first_target": 0,
+      "last_target": 1799,
+      "outcomes": {
+        "subject_opens": 3
+      }
+    },
+    {
+      "path": "/home/blewf/git/exphil/eval_runs/0915_mewtwo_teacher_audit/stand_teacher_v1/run_3/replays/Game_20260915T182429.slp",
+      "sha256": "8fe79d7fd1002f84234a9ecbd89a7140be6511daa805b83d85a78c8340373d9b",
+      "state_sha256": "1f4c645201bb3c3e4bebc5457b2aa0c64198d026ea12f43997e6572e9a5e3fb2",
+      "first_target": 0,
+      "last_target": 1799,
+      "outcomes": {
+        "subject_opens": 3
+      }
+    }
+  ],
+  "frames": 5460,
+  "source_type": "scripted_teacher",
+  "targets": 5400,
+  "selection": "Complete scored teacher games, including losses and interruptions; no success-only selection",
+  "limitation": "Teacher passed an opening gate, not an optimality claim; no offstage recovery or combo routing"
+}

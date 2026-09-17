@@ -1,0 +1,86 @@
+{
+  "run": 6,
+  "metrics": {
+    "neutral": {
+      "events": [
+        {
+          "start": 29,
+          "finish": 136,
+          "censor_reason": null,
+          "first_contact": 131,
+          "outcome": "subject_opens"
+        },
+        {
+          "start": 352,
+          "finish": 374,
+          "censor_reason": null,
+          "first_contact": 369,
+          "outcome": "subject_opens"
+        },
+        {
+          "start": 522,
+          "finish": 531,
+          "censor_reason": null,
+          "first_contact": 526,
+          "outcome": "opponent_opens"
+        },
+        {
+          "start": 590,
+          "finish": 692,
+          "censor_reason": null,
+          "first_contact": 687,
+          "outcome": "subject_opens"
+        },
+        {
+          "start": 922,
+          "finish": 928,
+          "censor_reason": null,
+          "first_contact": 923,
+          "outcome": "opponent_opens"
+        },
+        {
+          "start": 1656,
+          "finish": 1799,
+          "censor_reason": "end_of_recording",
+          "first_contact": 1796,
+          "outcome": "censored"
+        }
+      ],
+      "outcomes": {
+        "subject_opens": 3,
+        "opponent_opens": 2,
+        "censored": 1
+      },
+      "exchanges": 6
+    },
+    "deaths": 1,
+    "frames": 1800,
+    "aerial_attempts": 1,
+    "aerial_types": {
+      "66": 1
+    },
+    "down_tilt_attempts": 6,
+    "grab_attempts": 0,
+    "hop_apices": [
+      12.653996603396081
+    ],
+    "max_shield_action_streak": 50,
+    "short_hops": 1,
+    "wavedashes": 5
+  },
+  "replay": "/home/blewf/git/exphil/eval_runs/0915_mewtwo_teacher_audit/cpu_teacher_v2/run_6/replays/Game_20260915T180941.slp",
+  "choices": {
+    ":brake": 7,
+    ":down_tilt": 6,
+    ":interrupted": 665,
+    ":shield": 3,
+    ":wait": 838,
+    "{:aerial, :fair, :left}": 43,
+    "{:run, :right}": 1,
+    "{:walk, :left}": 114,
+    "{:walk, :right}": 83,
+    "{:wavedash, :left}": 8,
+    "{:wavedash, :right}": 32
+  },
+  "opening_gate": true
+}

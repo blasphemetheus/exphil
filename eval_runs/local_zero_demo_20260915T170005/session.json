@@ -1,0 +1,16 @@
+{
+  "status": "ok",
+  "errors": 0,
+  "stage": "final_destination",
+  "policy": "eval_runs/0915_local_zero/corrected_bootstrap/candidate.bin",
+  "reaction_delay": 0,
+  "expected_latency": 1,
+  "player_port": 1,
+  "frames": 722,
+  "game_ended": false,
+  "start_frame": -123,
+  "last_frame": 599,
+  "scored_wall_ms": 10012,
+  "scored_fps": 59.92808629644427,
+  "measured_latency": 1
+}

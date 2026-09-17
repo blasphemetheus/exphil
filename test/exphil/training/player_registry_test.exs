@@ -4,6 +4,37 @@ defmodule ExPhil.Training.PlayerRegistryTest do
 
   alias ExPhil.Training.PlayerRegistry
 
+  test "reserved anonymous ID survives serialization and never aliases a named player" do
+    registry =
+      PlayerRegistry.from_tags(["A", "B", "C", "D"],
+        first_id: 1,
+        max_players: 4,
+        unknown_strategy: :default
+      )
+
+    assert PlayerRegistry.get_id(registry, "A") == 1
+    assert PlayerRegistry.get_id(registry, "C") == 3
+    assert PlayerRegistry.get_id(registry, "D") == 0
+    assert PlayerRegistry.get_id(registry, "unseen validation player") == 0
+    assert PlayerRegistry.get_tag(registry, 0) == nil
+    assert PlayerRegistry.size(registry) == 3
+    path = Path.join(System.tmp_dir!(), "registry_v2_#{System.unique_integer([:positive])}.json")
+    on_exit(fn -> File.rm(path) end)
+    assert :ok = PlayerRegistry.to_json(registry, path)
+    assert {:ok, ^registry} = PlayerRegistry.from_json(path)
+    {unchanged, 0} = PlayerRegistry.add_tag(registry, "overflow")
+    assert unchanged == registry
+  end
+
+  test "reserved registries add tags without consuming anonymous zero" do
+    registry = PlayerRegistry.from_tags([], first_id: 1)
+    {registry, 1} = PlayerRegistry.add_tag(registry, "A")
+    {registry, 2} = PlayerRegistry.add_tag(registry, "B")
+    assert PlayerRegistry.get_tag(registry, 0) == nil
+    assert PlayerRegistry.get_id(registry, nil) == nil
+    assert PlayerRegistry.get_id(registry, "") == nil
+  end
+
   describe "new/1" do
     test "creates empty registry with defaults" do
       registry = PlayerRegistry.new()

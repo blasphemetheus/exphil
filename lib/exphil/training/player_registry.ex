@@ -40,14 +40,16 @@ defmodule ExPhil.Training.PlayerRegistry do
     :tag_to_id,
     :id_to_tag,
     :max_players,
-    :unknown_strategy
+    :unknown_strategy,
+    first_id: 0
   ]
 
   @type t :: %__MODULE__{
           tag_to_id: %{String.t() => non_neg_integer()},
           id_to_tag: %{non_neg_integer() => String.t()},
           max_players: pos_integer(),
-          unknown_strategy: nil | :default | :hash
+          unknown_strategy: nil | :default | :hash,
+          first_id: 0 | 1
         }
 
   @doc """
@@ -151,17 +153,28 @@ defmodule ExPhil.Training.PlayerRegistry do
   Build a registry from a pre-defined list of player tags.
 
   Useful for using a fixed player list across training runs.
+
+  Set `first_id: 1` to reserve ID zero for anonymous players. This leaves
+  `max_players - 1` named slots. The default and version-1 JSON retain the
+  original zero-based mapping for existing checkpoints.
   """
   @spec from_tags([String.t()], keyword()) :: t()
   def from_tags(tags, opts \\ []) do
     max_players = Keyword.get(opts, :max_players, 112)
     unknown_strategy = Keyword.get(opts, :unknown_strategy, nil)
 
-    tags = Enum.take(tags, max_players)
+    # New style-conditioned runs reserve zero for anonymous/unknown players.
+    # Keep the legacy default so loading old registries never renumbers a model.
+    first_id = Keyword.get(opts, :first_id, 0)
+
+    unless first_id in [0, 1] and max_players > first_id,
+      do: raise(ArgumentError, "registry first_id must be 0 or 1 and below max_players")
+
+    tags = Enum.take(tags, max_players - first_id)
 
     {tag_to_id, id_to_tag} =
       tags
-      |> Enum.with_index()
+      |> Enum.with_index(first_id)
       |> Enum.reduce({%{}, %{}}, fn {tag, id}, {t2i, i2t} ->
         {Map.put(t2i, tag, id), Map.put(i2t, id, tag)}
       end)
@@ -170,7 +183,8 @@ defmodule ExPhil.Training.PlayerRegistry do
       tag_to_id: tag_to_id,
       id_to_tag: id_to_tag,
       max_players: max_players,
-      unknown_strategy: unknown_strategy
+      unknown_strategy: unknown_strategy,
+      first_id: first_id
     }
   end
 
@@ -208,7 +222,7 @@ defmodule ExPhil.Training.PlayerRegistry do
   def add_tag(%__MODULE__{} = registry, tag) when is_binary(tag) do
     case Map.get(registry.tag_to_id, tag) do
       nil ->
-        next_id = map_size(registry.tag_to_id)
+        next_id = map_size(registry.tag_to_id) + registry.first_id
 
         if next_id < registry.max_players do
           new_registry = %{
@@ -261,7 +275,8 @@ defmodule ExPhil.Training.PlayerRegistry do
   @spec to_json(t(), Path.t()) :: :ok | {:error, term()}
   def to_json(%__MODULE__{} = registry, path) do
     data = %{
-      "version" => 1,
+      "version" => if(registry.first_id == 0, do: 1, else: 2),
+      "first_id" => registry.first_id,
       "max_players" => registry.max_players,
       "unknown_strategy" => Atom.to_string(registry.unknown_strategy),
       "players" => list_tags(registry)
@@ -292,7 +307,8 @@ defmodule ExPhil.Training.PlayerRegistry do
         from_tags(
           data["players"],
           max_players: data["max_players"],
-          unknown_strategy: unknown_strategy
+          unknown_strategy: unknown_strategy,
+          first_id: data["first_id"] || 0
         )
 
       {:ok, registry}

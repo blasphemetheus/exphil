@@ -310,7 +310,7 @@ defmodule ExPhil.Training.Imitation.TrainLoop do
           Nx.multiply(carry, keep)
       end
 
-    {{loss, new_carry}, grads} =
+    {{loss, {new_carry, updated_state}}, grads} =
       trainer.loss_and_grad_fn.(trainer.policy_params, states, actions, frame_weights, carry)
 
     grads_data = get_params_data(grads)
@@ -321,6 +321,7 @@ defmodule ExPhil.Training.Imitation.TrainLoop do
 
     new_params_data = trainer.apply_updates_fn.(params_data, updates)
     new_params = put_params_data(trainer.policy_params, new_params_data)
+    new_params = Axon.ModelState.update(new_params, %{}, updated_state)
 
     new_trainer = %{
       trainer

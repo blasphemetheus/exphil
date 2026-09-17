@@ -431,9 +431,9 @@ defmodule ExPhil.Bridge.MeleePort do
            {:ok, console} <-
              start_console(slippi_port, polling, console_timeout, blocking_input, dolphin, config),
            :ok <- connect_console_with_retries(console, 5),
-           {:ok, controller} <- start_controller(dolphin, controller_port, console),
+           {:ok, controller} <- start_controller(dolphin, controller_port, console, config),
            {:ok, dummy_controller} <-
-             maybe_start_dummy_controller(dolphin, dummy_mode, opponent_port, console) do
+             maybe_start_dummy_controller(dolphin, dummy_mode, opponent_port, console, config) do
         if online, do: Logger.info("[MeleePort] Netplay mode: connecting to #{connect_code}")
 
         {:ok,
@@ -754,19 +754,20 @@ defmodule ExPhil.Bridge.MeleePort do
     end)
   end
 
-  defp start_controller(dolphin, port, console) do
+  defp start_controller(dolphin, port, console, config) do
     with {:ok, pipe} <- Melee.Dolphin.setup_controller(dolphin, port),
-         {:ok, controller} <- Melee.Controller.start_link(pipe_path: pipe),
+         {:ok, controller} <- Melee.Controller.start_link(pipe_path: pipe,
+           pipe_trigger_encoding: Map.get(config, :pipe_trigger_encoding, :bipolar)),
          :ok <- Melee.Controller.connect(controller, 60_000),
          :ok <- Melee.Console.register_controller(console, controller, port) do
       {:ok, controller}
     end
   end
 
-  defp maybe_start_dummy_controller(_dolphin, "none", _port, _console), do: {:ok, nil}
+  defp maybe_start_dummy_controller(_dolphin, "none", _port, _console, _config), do: {:ok, nil}
 
-  defp maybe_start_dummy_controller(dolphin, _mode, port, console) do
-    start_controller(dolphin, port, console)
+  defp maybe_start_dummy_controller(dolphin, _mode, port, console, config) do
+    start_controller(dolphin, port, console, config)
   end
 
   # ============================================================================

@@ -2,6 +2,26 @@ defmodule ExPhil.Networks.ExecutionContractTest do
   use ExUnit.Case, async: false
   alias ExPhil.Networks.Policy.ExecutionContract, as: Contract
 
+  test "BPTT stamps carried state and requires stateful inference" do
+    config = %{temporal: true, backbone: :gru, bptt: true, precision: :f32}
+    fields = Contract.training(config)
+    assert fields.execution_contract == :bptt_gru_f32_v1
+    assert fields.recurrent_state == :carried_zero
+    stamped = Map.merge(config, fields)
+    assert Contract.load(stamped) == fields
+    assert Contract.validate_inference!(stamped, true) == fields
+
+    assert_raise ArgumentError, ~r/requires stateful/, fn ->
+      Contract.validate_inference!(stamped, false)
+    end
+
+    for override <- [%{precision: :bf16}, %{bptt: false}, %{recurrent_state: :zeros}] do
+      assert_raise ArgumentError, fn -> Contract.load(Map.merge(stamped, override)) end
+    end
+
+    assert_raise ArgumentError, fn -> Contract.training(%{config | precision: :bf16}) end
+  end
+
   test "unstamped policies retain legacy behavior and unknown precision is explicit" do
     assert Contract.load(%{}).recurrent_state == :legacy_random
     assert Contract.load(%{}).training_precision == :unknown

@@ -210,6 +210,8 @@ defmodule ExPhil.CLI do
       desc: "CPU level for --dummy cpu (1-9)", group: [:dolphin]},
     %{name: :seconds, flag: "--seconds", type: :integer, short: nil, default: nil,
       desc: "Play for N seconds, then SD until the game ends so Slippi finalizes the .slp. Without this a timeout-kill leaves a TRUNCATED replay peppi cannot parse", group: [:dolphin]},
+    %{name: :session_report, flag: "--session-report", type: :string, short: nil, default: nil,
+      desc: "Write the synchronous runner's measured latency, scored frame interval, and completion status to JSON", group: [:dolphin]},
     %{name: :live_af, flag: "--live-af", type: :boolean, short: nil, default: false,
       desc: "Normalize the bridge's action_frame into the PARSED convention every checkpoint was trained on (task #8 / GOTCHAS #81). Off = current behaviour (exact no-op). Only the 77 measured action states are converted; see ExPhil.Data.ActionFrameConvention", group: [:dolphin]},
     %{name: :no_audio, flag: "--no-audio", type: :boolean, short: nil, default: false,

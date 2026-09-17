@@ -1,5 +1,13 @@
 # Contiguous-BPTT Loader — design (v2 plank 1)
 
+> Implementation update, 2026-09-15: the V3 preflight found that this draft's
+> overlap/tail assumptions did not match the implemented carried-state graph.
+> The repaired loader requires **overlap 0**, retains short segments and all
+> tails with zero-weight padding, and permits fewer games than batch rows.
+> Training now activates dropout and carries its updated model state.
+> See [FOX_V3_PREFLIGHT.md](FOX_V3_PREFLIGHT.md) for evidence and current status.
+> The original design below is historical, not the current launch recipe.
+
 Status: 2026-09-03 evening — design complete; planks A+B CODE DRAFTED
 with tests, **UNCOMPILED/UNTESTED** (w180 beam live, no mix allowed).
 First action when GPU frees: `mix test test/edifice/recurrent/carry_backbone_test.exs`

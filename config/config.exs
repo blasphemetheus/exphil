@@ -22,3 +22,18 @@ config :telemetry, :enabled, true
 
 # Import environment specific config
 import_config "#{config_env()}.exs"
+
+# Tensor dtype does not pin GPU dot-product arithmetic. V3's strict comparison
+# uses highest precision for both sequence and per-frame execution. Opt in at
+# launch so existing policies retain their original arithmetic by default.
+case System.get_env("EXPHIL_EXLA_PRECISION") do
+  nil ->
+    :ok
+
+  value when value in ["default", "high", "highest"] ->
+    precision = %{"default" => :default, "high" => :high, "highest" => :highest}[value]
+    config :nx, :default_defn_options, compiler: EXLA, precision: precision
+
+  value ->
+    raise "Invalid EXPHIL_EXLA_PRECISION: #{inspect(value)}"
+end

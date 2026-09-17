@@ -1,0 +1,75 @@
+{
+  "protocol": {
+    "deterministic": true,
+    "seconds": 30,
+    "mode": "stand",
+    "policy": "eval_runs/0915_local_zero/corrected_bootstrap/candidate.bin",
+    "stages": [
+      "final_destination"
+    ],
+    "opponents": [
+      "fox"
+    ],
+    "policy_sha256": "b224b9a6953095b107a78396e0642787022212f72f1865aa12ff5b4833835a2f",
+    "runs_per_cell": 1,
+    "cpu_level": 1,
+    "reaction_delay": 0,
+    "expected_latency": 1,
+    "frozen_stadium": true
+  },
+  "runs": [
+    {
+      "id": "final_destination_fox_1",
+      "session": {
+        "errors": 0,
+        "expected_latency": 1,
+        "frames": 1922,
+        "game_ended": false,
+        "last_frame": 1799,
+        "measured_latency": 1,
+        "player_port": 1,
+        "policy": "eval_runs/0915_local_zero/corrected_bootstrap/candidate.bin",
+        "reaction_delay": 0,
+        "scored_fps": 98.91740396768698,
+        "scored_wall_ms": 18197,
+        "stage": "final_destination",
+        "start_frame": -123,
+        "status": "ok"
+      },
+      "run": 1,
+      "valid": true,
+      "stage": "final_destination",
+      "opponent": "fox",
+      "replay": "eval_runs/0915_local_zero/corrected_fd_stand/final_destination_fox_1/Game_20260915T113250.slp",
+      "metrics": {
+        "max_chain": 200,
+        "frames": 1800,
+        "deaths": 0,
+        "chains": [
+          {
+            "length": 200,
+            "ended_by": "end_of_input"
+          }
+        ],
+        "completed_cycles": 199,
+        "endings": {
+          "end_of_input": 1
+        },
+        "ground_shine_onsets": 200,
+        "ground_shines_per_minute": 400.0,
+        "recent_hit_onsets": 0,
+        "recovery": {
+          "episodes": [],
+          "censored": 0,
+          "completed": 0,
+          "disruption_to_cycle_frames": [],
+          "ready_to_cycle_frames": []
+        },
+        "self_initiated_onsets": 200,
+        "self_initiated_per_minute": 400.0
+      },
+      "replay_sha256": "afed533c381dc858ad338b7a691d9b69eecc12e0b395b0040c52bb2a3aeaf032",
+      "chain_gate": true
+    }
+  ]
+}

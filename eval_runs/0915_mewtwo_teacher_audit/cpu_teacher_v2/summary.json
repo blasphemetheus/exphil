@@ -1,0 +1,725 @@
+{
+  "runs": [
+    {
+      "run": 1,
+      "metrics": {
+        "neutral": {
+          "events": [
+            {
+              "start": 29,
+              "finish": 36,
+              "censor_reason": null,
+              "first_contact": 31,
+              "outcome": "subject_opens"
+            },
+            {
+              "start": 209,
+              "finish": 215,
+              "censor_reason": null,
+              "first_contact": 210,
+              "outcome": "subject_opens"
+            },
+            {
+              "start": 406,
+              "finish": 419,
+              "censor_reason": null,
+              "first_contact": 414,
+              "outcome": "opponent_opens"
+            },
+            {
+              "start": 478,
+              "finish": 497,
+              "censor_reason": null,
+              "first_contact": 492,
+              "outcome": "opponent_opens"
+            },
+            {
+              "start": 527,
+              "finish": 562,
+              "censor_reason": null,
+              "first_contact": 557,
+              "outcome": "subject_opens"
+            },
+            {
+              "start": 1569,
+              "finish": 1695,
+              "censor_reason": null,
+              "first_contact": 1690,
+              "outcome": "subject_opens"
+            }
+          ],
+          "outcomes": {
+            "subject_opens": 4,
+            "opponent_opens": 2
+          },
+          "exchanges": 6
+        },
+        "deaths": 1,
+        "frames": 1800,
+        "aerial_attempts": 2,
+        "aerial_types": {
+          "66": 2
+        },
+        "down_tilt_attempts": 4,
+        "grab_attempts": 0,
+        "hop_apices": [
+          12.653996603396081,
+          12.653996603396081
+        ],
+        "max_shield_action_streak": 1,
+        "short_hops": 2,
+        "wavedashes": 2
+      },
+      "replay": "/home/blewf/git/exphil/eval_runs/0915_mewtwo_teacher_audit/cpu_teacher_v2/run_1/replays/Game_20260915T180919.slp",
+      "choices": {
+        ":down_tilt": 4,
+        ":interrupted": 750,
+        ":shield": 1,
+        ":wait": 718,
+        "{:aerial, :fair, :left}": 39,
+        "{:aerial, :fair, :right}": 43,
+        "{:aerial, :nair, :left}": 4,
+        "{:walk, :left}": 60,
+        "{:walk, :right}": 165,
+        "{:wavedash, :left}": 8,
+        "{:wavedash, :right}": 8
+      },
+      "opening_gate": true
+    },
+    {
+      "run": 2,
+      "metrics": {
+        "neutral": {
+          "events": [
+            {
+              "start": 29,
+              "finish": 36,
+              "censor_reason": null,
+              "first_contact": 31,
+              "outcome": "subject_opens"
+            },
+            {
+              "start": 520,
+              "finish": 529,
+              "censor_reason": null,
+              "first_contact": 524,
+              "outcome": "opponent_opens"
+            }
+          ],
+          "outcomes": {
+            "subject_opens": 1,
+            "opponent_opens": 1
+          },
+          "exchanges": 2
+        },
+        "deaths": 1,
+        "frames": 1800,
+        "aerial_attempts": 2,
+        "aerial_types": {
+          "66": 2
+        },
+        "down_tilt_attempts": 2,
+        "grab_attempts": 0,
+        "hop_apices": [
+          12.653996603396081,
+          12.653996603396081
+        ],
+        "max_shield_action_streak": 23,
+        "short_hops": 2,
+        "wavedashes": 1
+      },
+      "replay": "/home/blewf/git/exphil/eval_runs/0915_mewtwo_teacher_audit/cpu_teacher_v2/run_2/replays/Game_20260915T180923.slp",
+      "choices": {
+        ":down_tilt": 2,
+        ":interrupted": 610,
+        ":shield": 1,
+        ":wait": 1090,
+        "{:aerial, :fair, :left}": 37,
+        "{:aerial, :fair, :right}": 37,
+        "{:walk, :left}": 6,
+        "{:walk, :right}": 9,
+        "{:wavedash, :right}": 8
+      },
+      "opening_gate": true
+    },
+    {
+      "run": 3,
+      "metrics": {
+        "neutral": {
+          "events": [
+            {
+              "start": 29,
+              "finish": 86,
+              "censor_reason": null,
+              "first_contact": 81,
+              "outcome": "opponent_opens"
+            },
+            {
+              "start": 150,
+              "finish": 159,
+              "censor_reason": null,
+              "first_contact": 159,
+              "outcome": "trade"
+            },
+            {
+              "start": 235,
+              "finish": 253,
+              "censor_reason": null,
+              "first_contact": 248,
+              "outcome": "subject_opens"
+            },
+            {
+              "start": 361,
+              "finish": 403,
+              "censor_reason": null,
+              "first_contact": 398,
+              "outcome": "subject_opens"
+            },
+            {
+              "start": 761,
+              "finish": 775,
+              "censor_reason": null,
+              "first_contact": 770,
+              "outcome": "opponent_opens"
+            },
+            {
+              "start": 876,
+              "finish": 954,
+              "censor_reason": null,
+              "first_contact": 949,
+              "outcome": "opponent_opens"
+            },
+            {
+              "start": 984,
+              "finish": 1003,
+              "censor_reason": null,
+              "first_contact": 998,
+              "outcome": "subject_opens"
+            },
+            {
+              "start": 1210,
+              "finish": 1269,
+              "censor_reason": null,
+              "first_contact": 1264,
+              "outcome": "opponent_opens"
+            }
+          ],
+          "outcomes": {
+            "subject_opens": 3,
+            "trade": 1,
+            "opponent_opens": 4
+          },
+          "exchanges": 8
+        },
+        "deaths": 0,
+        "frames": 1800,
+        "aerial_attempts": 1,
+        "aerial_types": {
+          "65": 1
+        },
+        "down_tilt_attempts": 17,
+        "grab_attempts": 0,
+        "hop_apices": [],
+        "max_shield_action_streak": 50,
+        "short_hops": 0,
+        "wavedashes": 1
+      },
+      "replay": "/home/blewf/git/exphil/eval_runs/0915_mewtwo_teacher_audit/cpu_teacher_v2/run_3/replays/Game_20260915T180928.slp",
+      "choices": {
+        ":down_tilt": 17,
+        ":interrupted": 422,
+        ":shield": 5,
+        ":wait": 1149,
+        "{:aerial, :nair, :left}": 10,
+        "{:walk, :left}": 107,
+        "{:walk, :right}": 82,
+        "{:wavedash, :right}": 8
+      },
+      "opening_gate": true
+    },
+    {
+      "run": 4,
+      "metrics": {
+        "neutral": {
+          "events": [
+            {
+              "start": 29,
+              "finish": 36,
+              "censor_reason": null,
+              "first_contact": 31,
+              "outcome": "subject_opens"
+            },
+            {
+              "start": 851,
+              "finish": 889,
+              "censor_reason": null,
+              "first_contact": 884,
+              "outcome": "opponent_opens"
+            }
+          ],
+          "outcomes": {
+            "subject_opens": 1,
+            "opponent_opens": 1
+          },
+          "exchanges": 2
+        },
+        "deaths": 1,
+        "frames": 1800,
+        "aerial_attempts": 1,
+        "aerial_types": {
+          "66": 1
+        },
+        "down_tilt_attempts": 4,
+        "grab_attempts": 0,
+        "hop_apices": [],
+        "max_shield_action_streak": 9,
+        "short_hops": 0,
+        "wavedashes": 1
+      },
+      "replay": "/home/blewf/git/exphil/eval_runs/0915_mewtwo_teacher_audit/cpu_teacher_v2/run_4/replays/Game_20260915T180932.slp",
+      "choices": {
+        ":down_tilt": 4,
+        ":interrupted": 1360,
+        ":shield": 1,
+        ":wait": 391,
+        "{:aerial, :fair, :right}": 24,
+        "{:walk, :right}": 12,
+        "{:wavedash, :right}": 8
+      },
+      "opening_gate": true
+    },
+    {
+      "run": 5,
+      "metrics": {
+        "neutral": {
+          "events": [
+            {
+              "start": 29,
+              "finish": 36,
+              "censor_reason": null,
+              "first_contact": 31,
+              "outcome": "subject_opens"
+            },
+            {
+              "start": 123,
+              "finish": 173,
+              "censor_reason": null,
+              "first_contact": 168,
+              "outcome": "subject_opens"
+            },
+            {
+              "start": 218,
+              "finish": 226,
+              "censor_reason": null,
+              "first_contact": 221,
+              "outcome": "opponent_opens"
+            },
+            {
+              "start": 372,
+              "finish": 395,
+              "censor_reason": null,
+              "first_contact": 390,
+              "outcome": "opponent_opens"
+            },
+            {
+              "start": 833,
+              "finish": 850,
+              "censor_reason": null,
+              "first_contact": 845,
+              "outcome": "subject_opens"
+            },
+            {
+              "start": 1783,
+              "finish": 1799,
+              "censor_reason": "end_of_recording",
+              "first_contact": null,
+              "outcome": "censored"
+            }
+          ],
+          "outcomes": {
+            "subject_opens": 3,
+            "opponent_opens": 2,
+            "censored": 1
+          },
+          "exchanges": 6
+        },
+        "deaths": 1,
+        "frames": 1800,
+        "aerial_attempts": 3,
+        "aerial_types": {
+          "65": 1,
+          "66": 2
+        },
+        "down_tilt_attempts": 6,
+        "grab_attempts": 0,
+        "hop_apices": [
+          12.653996603396081
+        ],
+        "max_shield_action_streak": 23,
+        "short_hops": 1,
+        "wavedashes": 1
+      },
+      "replay": "/home/blewf/git/exphil/eval_runs/0915_mewtwo_teacher_audit/cpu_teacher_v2/run_5/replays/Game_20260915T180937.slp",
+      "choices": {
+        ":down_tilt": 6,
+        ":interrupted": 907,
+        ":shield": 2,
+        ":wait": 713,
+        "{:aerial, :fair, :left}": 37,
+        "{:aerial, :fair, :right}": 12,
+        "{:aerial, :nair, :left}": 11,
+        "{:walk, :left}": 30,
+        "{:walk, :right}": 74,
+        "{:wavedash, :right}": 8
+      },
+      "opening_gate": true
+    },
+    {
+      "run": 6,
+      "metrics": {
+        "neutral": {
+          "events": [
+            {
+              "start": 29,
+              "finish": 136,
+              "censor_reason": null,
+              "first_contact": 131,
+              "outcome": "subject_opens"
+            },
+            {
+              "start": 352,
+              "finish": 374,
+              "censor_reason": null,
+              "first_contact": 369,
+              "outcome": "subject_opens"
+            },
+            {
+              "start": 522,
+              "finish": 531,
+              "censor_reason": null,
+              "first_contact": 526,
+              "outcome": "opponent_opens"
+            },
+            {
+              "start": 590,
+              "finish": 692,
+              "censor_reason": null,
+              "first_contact": 687,
+              "outcome": "subject_opens"
+            },
+            {
+              "start": 922,
+              "finish": 928,
+              "censor_reason": null,
+              "first_contact": 923,
+              "outcome": "opponent_opens"
+            },
+            {
+              "start": 1656,
+              "finish": 1799,
+              "censor_reason": "end_of_recording",
+              "first_contact": 1796,
+              "outcome": "censored"
+            }
+          ],
+          "outcomes": {
+            "subject_opens": 3,
+            "opponent_opens": 2,
+            "censored": 1
+          },
+          "exchanges": 6
+        },
+        "deaths": 1,
+        "frames": 1800,
+        "aerial_attempts": 1,
+        "aerial_types": {
+          "66": 1
+        },
+        "down_tilt_attempts": 6,
+        "grab_attempts": 0,
+        "hop_apices": [
+          12.653996603396081
+        ],
+        "max_shield_action_streak": 50,
+        "short_hops": 1,
+        "wavedashes": 5
+      },
+      "replay": "/home/blewf/git/exphil/eval_runs/0915_mewtwo_teacher_audit/cpu_teacher_v2/run_6/replays/Game_20260915T180941.slp",
+      "choices": {
+        ":brake": 7,
+        ":down_tilt": 6,
+        ":interrupted": 665,
+        ":shield": 3,
+        ":wait": 838,
+        "{:aerial, :fair, :left}": 43,
+        "{:run, :right}": 1,
+        "{:walk, :left}": 114,
+        "{:walk, :right}": 83,
+        "{:wavedash, :left}": 8,
+        "{:wavedash, :right}": 32
+      },
+      "opening_gate": true
+    },
+    {
+      "run": 7,
+      "metrics": {
+        "neutral": {
+          "events": [
+            {
+              "start": 29,
+              "finish": 40,
+              "censor_reason": null,
+              "first_contact": 35,
+              "outcome": "opponent_opens"
+            },
+            {
+              "start": 93,
+              "finish": 147,
+              "censor_reason": null,
+              "first_contact": 142,
+              "outcome": "opponent_opens"
+            },
+            {
+              "start": 206,
+              "finish": 228,
+              "censor_reason": null,
+              "first_contact": 223,
+              "outcome": "opponent_opens"
+            },
+            {
+              "start": 285,
+              "finish": 291,
+              "censor_reason": null,
+              "first_contact": 286,
+              "outcome": "opponent_opens"
+            },
+            {
+              "start": 353,
+              "finish": 376,
+              "censor_reason": null,
+              "first_contact": 371,
+              "outcome": "opponent_opens"
+            },
+            {
+              "start": 1528,
+              "finish": 1659,
+              "censor_reason": null,
+              "first_contact": 1654,
+              "outcome": "subject_opens"
+            }
+          ],
+          "outcomes": {
+            "subject_opens": 1,
+            "opponent_opens": 5
+          },
+          "exchanges": 6
+        },
+        "deaths": 1,
+        "frames": 1800,
+        "aerial_attempts": 2,
+        "aerial_types": {
+          "65": 1,
+          "66": 1
+        },
+        "down_tilt_attempts": 5,
+        "grab_attempts": 0,
+        "hop_apices": [
+          12.653996603396081,
+          12.653996603396081
+        ],
+        "max_shield_action_streak": 32,
+        "short_hops": 2,
+        "wavedashes": 1
+      },
+      "replay": "/home/blewf/git/exphil/eval_runs/0915_mewtwo_teacher_audit/cpu_teacher_v2/run_7/replays/Game_20260915T180945.slp",
+      "choices": {
+        ":down_tilt": 5,
+        ":interrupted": 926,
+        ":shield": 1,
+        ":wait": 679,
+        "{:aerial, :fair, :right}": 37,
+        "{:aerial, :nair, :right}": 31,
+        "{:walk, :left}": 27,
+        "{:walk, :right}": 84,
+        "{:wavedash, :left}": 2,
+        "{:wavedash, :right}": 8
+      },
+      "opening_gate": true
+    },
+    {
+      "run": 8,
+      "metrics": {
+        "neutral": {
+          "events": [
+            {
+              "start": 29,
+              "finish": 140,
+              "censor_reason": null,
+              "first_contact": 135,
+              "outcome": "subject_opens"
+            },
+            {
+              "start": 248,
+              "finish": 261,
+              "censor_reason": null,
+              "first_contact": 256,
+              "outcome": "opponent_opens"
+            },
+            {
+              "start": 316,
+              "finish": 327,
+              "censor_reason": null,
+              "first_contact": 322,
+              "outcome": "opponent_opens"
+            },
+            {
+              "start": 386,
+              "finish": 447,
+              "censor_reason": null,
+              "first_contact": 442,
+              "outcome": "subject_opens"
+            },
+            {
+              "start": 490,
+              "finish": 523,
+              "censor_reason": null,
+              "first_contact": 518,
+              "outcome": "subject_opens"
+            },
+            {
+              "start": 625,
+              "finish": 651,
+              "censor_reason": null,
+              "first_contact": 646,
+              "outcome": "subject_opens"
+            },
+            {
+              "start": 1283,
+              "finish": 1355,
+              "censor_reason": null,
+              "first_contact": 1350,
+              "outcome": "subject_opens"
+            },
+            {
+              "start": 1558,
+              "finish": 1606,
+              "censor_reason": null,
+              "first_contact": 1601,
+              "outcome": "subject_opens"
+            }
+          ],
+          "outcomes": {
+            "subject_opens": 6,
+            "opponent_opens": 2
+          },
+          "exchanges": 8
+        },
+        "deaths": 1,
+        "frames": 1800,
+        "aerial_attempts": 1,
+        "aerial_types": {
+          "65": 1
+        },
+        "down_tilt_attempts": 7,
+        "grab_attempts": 0,
+        "hop_apices": [
+          12.653996603396081
+        ],
+        "max_shield_action_streak": 50,
+        "short_hops": 1,
+        "wavedashes": 1
+      },
+      "replay": "/home/blewf/git/exphil/eval_runs/0915_mewtwo_teacher_audit/cpu_teacher_v2/run_8/replays/Game_20260915T180950.slp",
+      "choices": {
+        ":brake": 7,
+        ":down_tilt": 7,
+        ":interrupted": 727,
+        ":shield": 7,
+        ":wait": 824,
+        "{:aerial, :nair, :right}": 37,
+        "{:run, :right}": 1,
+        "{:walk, :left}": 99,
+        "{:walk, :right}": 83,
+        "{:wavedash, :right}": 8
+      },
+      "opening_gate": true
+    },
+    {
+      "run": 9,
+      "metrics": {
+        "neutral": {
+          "events": [
+            {
+              "start": 29,
+              "finish": 36,
+              "censor_reason": null,
+              "first_contact": 31,
+              "outcome": "subject_opens"
+            },
+            {
+              "start": 182,
+              "finish": 223,
+              "censor_reason": null,
+              "first_contact": 218,
+              "outcome": "subject_opens"
+            },
+            {
+              "start": 704,
+              "finish": 739,
+              "censor_reason": null,
+              "first_contact": 734,
+              "outcome": "subject_opens"
+            },
+            {
+              "start": 1434,
+              "finish": 1527,
+              "censor_reason": null,
+              "first_contact": 1522,
+              "outcome": "subject_opens"
+            },
+            {
+              "start": 1785,
+              "finish": 1793,
+              "censor_reason": null,
+              "first_contact": 1788,
+              "outcome": "opponent_opens"
+            }
+          ],
+          "outcomes": {
+            "subject_opens": 4,
+            "opponent_opens": 1
+          },
+          "exchanges": 5
+        },
+        "deaths": 1,
+        "frames": 1800,
+        "aerial_attempts": 1,
+        "aerial_types": {
+          "66": 1
+        },
+        "down_tilt_attempts": 8,
+        "grab_attempts": 0,
+        "hop_apices": [],
+        "max_shield_action_streak": 23,
+        "short_hops": 0,
+        "wavedashes": 1
+      },
+      "replay": "/home/blewf/git/exphil/eval_runs/0915_mewtwo_teacher_audit/cpu_teacher_v2/run_9/replays/Game_20260915T180954.slp",
+      "choices": {
+        ":brake": 7,
+        ":down_tilt": 8,
+        ":interrupted": 952,
+        ":shield": 3,
+        ":wait": 700,
+        "{:aerial, :fair, :left}": 22,
+        "{:aerial, :fair, :right}": 5,
+        "{:run, :right}": 1,
+        "{:walk, :left}": 42,
+        "{:walk, :right}": 52,
+        "{:wavedash, :right}": 8
+      },
+      "opening_gate": true
+    }
+  ],
+  "passed": true
+}

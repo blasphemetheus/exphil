@@ -1,0 +1,107 @@
+{
+  "id": "fountain_of_dreams_falco_1",
+  "session": {
+    "errors": 0,
+    "expected_latency": 1,
+    "frames": 1922,
+    "game_ended": true,
+    "last_frame": 1799,
+    "measured_latency": 1,
+    "player_port": 1,
+    "policy": "eval_runs/0915_local_zero/corrected_bootstrap/candidate.bin",
+    "reaction_delay": 0,
+    "scored_fps": 108.04970286331712,
+    "scored_wall_ms": 16659,
+    "stage": "fountain_of_dreams",
+    "start_frame": -123,
+    "status": "ok"
+  },
+  "run": 1,
+  "valid": true,
+  "stage": "fountain_of_dreams",
+  "opponent": "falco",
+  "replay": "eval_runs/0915_local_zero/corrected_stand_matrix/fountain_of_dreams_falco_1/Game_20260915T124020.slp",
+  "metrics": {
+    "max_chain": 168,
+    "frames": 1800,
+    "deaths": 0,
+    "chains": [
+      {
+        "length": 168,
+        "ended_by": "air_shine"
+      },
+      {
+        "length": 1,
+        "ended_by": "other_action"
+      },
+      {
+        "length": 1,
+        "ended_by": "air_shine"
+      },
+      {
+        "length": 1,
+        "ended_by": "other_action"
+      },
+      {
+        "length": 1,
+        "ended_by": "air_shine"
+      },
+      {
+        "length": 1,
+        "ended_by": "other_action"
+      },
+      {
+        "length": 1,
+        "ended_by": "air_shine"
+      },
+      {
+        "length": 1,
+        "ended_by": "other_action"
+      },
+      {
+        "length": 1,
+        "ended_by": "air_shine"
+      },
+      {
+        "length": 1,
+        "ended_by": "other_action"
+      },
+      {
+        "length": 6,
+        "ended_by": "end_of_input"
+      }
+    ],
+    "completed_cycles": 172,
+    "endings": {
+      "end_of_input": 1,
+      "other_action": 5,
+      "air_shine": 5
+    },
+    "ground_shine_onsets": 183,
+    "ground_shines_per_minute": 366.0,
+    "recent_hit_onsets": 0,
+    "recovery": {
+      "episodes": [
+        {
+          "cause": "failed_cycle",
+          "start": 1537,
+          "finish": 1755,
+          "outcome": "reentered",
+          "ready": 1537
+        }
+      ],
+      "censored": 0,
+      "completed": 1,
+      "disruption_to_cycle_frames": [
+        218
+      ],
+      "ready_to_cycle_frames": [
+        218
+      ]
+    },
+    "self_initiated_onsets": 183,
+    "self_initiated_per_minute": 366.0
+  },
+  "replay_sha256": "8c98fc65503160b12309c430702818bcc185cb8274083f180043fd656661a513",
+  "chain_gate": true
+}

@@ -1,0 +1,92 @@
+{
+  "split": "train_whole_game",
+  "source": "/home/blewf/git/exphil/eval_runs/0915_mewtwo_teacher_audit/cpu_teacher_v2/run_8/replays/Game_20260915T180950.slp",
+  "opponent": "CPU 6",
+  "opponent_port": 2,
+  "audits": [
+    {
+      "start": 0,
+      "category": "down_tilt",
+      "action": 57,
+      "action_frame": 5.0,
+      "contact": 135,
+      "accepted": true,
+      "attacker_hitlag": 5.0,
+      "defender_hitlag": 5.0,
+      "gap": 17.338834762573242,
+      "defender_action": 80
+    },
+    {
+      "start": 357,
+      "category": "down_tilt",
+      "action": 57,
+      "action_frame": 5.0,
+      "contact": 442,
+      "accepted": true,
+      "attacker_hitlag": 5.0,
+      "defender_hitlag": 5.0,
+      "gap": 18.56124210357666,
+      "defender_action": 80
+    },
+    {
+      "start": 461,
+      "category": "down_tilt",
+      "action": 57,
+      "action_frame": 5.0,
+      "contact": 518,
+      "accepted": true,
+      "attacker_hitlag": 5.0,
+      "defender_hitlag": 5.0,
+      "gap": 20.071332931518555,
+      "defender_action": 80
+    },
+    {
+      "start": 596,
+      "category": "aerial",
+      "action": 65,
+      "action_frame": 5.0,
+      "contact": 646,
+      "accepted": true,
+      "attacker_hitlag": 3.0,
+      "defender_hitlag": 4.0,
+      "gap": 6.570075988769531,
+      "defender_action": 77
+    },
+    {
+      "start": 1254,
+      "category": "down_tilt",
+      "action": 57,
+      "action_frame": 5.0,
+      "contact": 1350,
+      "accepted": true,
+      "attacker_hitlag": 5.0,
+      "defender_hitlag": 5.0,
+      "gap": 19.91094970703125,
+      "defender_action": 90
+    },
+    {
+      "start": 1529,
+      "category": "down_tilt",
+      "action": 57,
+      "action_frame": 5.0,
+      "contact": 1601,
+      "accepted": true,
+      "attacker_hitlag": 5.0,
+      "defender_hitlag": 5.0,
+      "gap": 20.034120559692383,
+      "defender_action": 90
+    }
+  ],
+  "accepted": 6,
+  "sha256": "f9e8d4b0da389987fcf1e59cf9a3dce178769232621f6ee8a087b49c4e5e57b9",
+  "subject_port": 1,
+  "source_type": "scripted_teacher",
+  "selection": "Successful exclusive neutral openings; capture or simultaneous hitlag and an active melee attack",
+  "limitation": "Attack attribution inferred from replay states; successful demonstration data is not proof of an optimal decision",
+  "targets": "Include the clean lead-in and stop before first contact state; no combo continuation",
+  "excluded": 0,
+  "categories": {
+    "down_tilt": 5,
+    "aerial": 1
+  }
+}

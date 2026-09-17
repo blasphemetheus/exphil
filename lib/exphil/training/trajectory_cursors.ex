@@ -29,16 +29,12 @@ defmodule ExPhil.Training.TrajectoryCursors do
   repeat, or forward gap starts a new segment (`cur != prev + 1`). Hidden
   state resets at these boundaries, never at ordinary chunk edges.
 
-  ## v0 limitations (deliberate)
+  ## Coverage
 
-  - Segments shorter than `unroll` are skipped.
-  - When the segment queue is exhausted, the stream halts; rows still
-    mid-segment lose their tail (< unroll frames each). With ~100-file
-    chunks this loses < batch_size * unroll frames per chunk.
-  - `batch_size` rows want >= batch_size segments per chunk; with fewer,
-    rows beyond the segment count are never filled. The stream raises
-    if fewer than `batch_size` usable segments exist (use bigger
-    stream chunks or a smaller batch — see design doc "open decisions").
+  Every frame is emitted once. Short segments and final partial rows are padded
+  by repeating their last frame with zero loss weight. Inactive rows are also
+  masked and reset. A row never crosses a segment boundary within an unroll;
+  padded carry is discarded before the next segment starts.
   """
 
   alias ExPhil.Training.Data
@@ -83,17 +79,19 @@ defmodule ExPhil.Training.TrajectoryCursors do
     - `:batch_size` (required)
     - `:unroll` - timesteps per chunk (default 80)
     - `:overlap` - frames shared between consecutive chunks of the same
-      segment (default 1; use frame_delay + 1)
+      segment (must be 0: carry already includes the entire previous chunk)
     - `:seed` - segment shuffle seed (default 42)
     - `:neutral_weight` / `:transition_weight` - per-frame weighting,
       as in the windowed batcher
     - `:gpu` - transfer states to EXLA.Backend (default true)
   """
   @spec batch_stream(Data.t(), keyword()) :: Enumerable.t()
+  def batch_stream(%Data{frames: []}, _opts), do: []
+
   def batch_stream(dataset, opts) do
     batch_size = Keyword.fetch!(opts, :batch_size)
     unroll = Keyword.get(opts, :unroll, 80)
-    overlap = Keyword.get(opts, :overlap, 1)
+    overlap = Keyword.get(opts, :overlap, 0)
     seed = Keyword.get(opts, :seed, 42)
     neutral_weight = Keyword.get(opts, :neutral_weight, 0.25)
     transition_weight = Keyword.get(opts, :transition_weight)
@@ -105,25 +103,18 @@ defmodule ExPhil.Training.TrajectoryCursors do
             "TrajectoryCursors needs dataset.embedded_frames (precomputed lazy layout)"
     end
 
-    if overlap >= unroll do
-      raise ArgumentError, "overlap (#{overlap}) must be < unroll (#{unroll})"
-    end
+    unless overlap == 0,
+      do:
+        raise(
+          ArgumentError,
+          "BPTT overlap must be 0; carried state already consumed the previous unroll"
+        )
+
+    unless is_integer(batch_size) and batch_size > 0 and is_integer(unroll) and unroll > 0,
+      do: raise(ArgumentError, "batch_size and unroll must be positive integers")
 
     frames_array = :array.from_list(dataset.frames)
-
-    segs =
-      dataset.frames
-      |> segments()
-      |> Enum.filter(fn {_start, len} -> len >= unroll end)
-
-    if length(segs) < batch_size do
-      raise ArgumentError,
-            "only #{length(segs)} segments >= #{unroll} frames for batch_size " <>
-              "#{batch_size} — use larger stream chunks or a smaller batch " <>
-              "(see BPTT_LOADER_DESIGN.md)"
-    end
-
-    queue = seeded_shuffle(segs, seed)
+    queue = seeded_shuffle(segments(dataset.frames), seed)
 
     # Cursor: %{start: seg_start, len: seg_len, off: offset_into_segment}
     # nil = needs a segment.
@@ -131,20 +122,54 @@ defmodule ExPhil.Training.TrajectoryCursors do
 
     Stream.resource(
       fn -> init end,
-      fn state -> next_batch(state, frames_array, dataset.embedded_frames, batch_size, unroll, overlap, {neutral_weight, transition_weight, offstage_weight}, gpu) end,
+      fn state ->
+        next_batch(
+          state,
+          frames_array,
+          dataset.embedded_frames,
+          batch_size,
+          unroll,
+          overlap,
+          {neutral_weight, transition_weight, offstage_weight},
+          gpu
+        )
+      end,
       fn _ -> :ok end
     )
   end
 
   # -- internals -------------------------------------------------------------
 
-  defp next_batch(state, frames_array, embedded, batch_size, unroll, overlap, {neutral_w, transition_w, offstage_w}, gpu) do
+  defp next_batch(
+         state,
+         frames_array,
+         embedded,
+         batch_size,
+         unroll,
+         _overlap,
+         {neutral_w, transition_w, offstage_w},
+         gpu
+       ) do
     case assign_cursors(state.cursors, state.queue, unroll) do
       :exhausted ->
         {:halt, state}
 
       {cursors, queue, resets} ->
-        starts = Enum.map(cursors, fn c -> c.start + c.off end)
+        rows =
+          Enum.map(cursors, fn
+            nil ->
+              {List.duplicate(0, unroll), List.duplicate(0.0, unroll)}
+
+            c ->
+              indices = for t <- 0..(unroll - 1), do: c.start + min(c.off + t, c.len - 1)
+              mask = for t <- 0..(unroll - 1), do: if(c.off + t < c.len, do: 1.0, else: 0.0)
+              {indices, mask}
+          end)
+
+        indices = Enum.flat_map(rows, &elem(&1, 0))
+
+        valid_mask =
+          Enum.flat_map(rows, &elem(&1, 1)) |> Nx.tensor() |> Nx.reshape({batch_size, unroll})
 
         # One gather instead of batch_size slices + stack: eager EXLA
         # bakes slice START offsets into the compiled executable, so
@@ -155,12 +180,7 @@ defmodule ExPhil.Training.TrajectoryCursors do
           prof(:states_gather, fn ->
             embed_dim = Nx.axis_size(embedded, 1)
 
-            idx =
-              starts
-              |> Nx.tensor(type: :s32)
-              |> Nx.reshape({batch_size, 1})
-              |> Nx.add(Nx.iota({1, unroll}, type: :s32))
-              |> Nx.reshape({batch_size * unroll})
+            idx = Nx.tensor(indices, type: :s32)
 
             embedded
             |> Nx.take(idx)
@@ -172,41 +192,21 @@ defmodule ExPhil.Training.TrajectoryCursors do
             if gpu, do: Nx.backend_transfer(states, EXLA.Backend), else: states
           end)
 
-        # Per-timestep actions, row-major [b0t0, b0t1, ..., b1t0, ...]
-        flat_actions =
-          prof(:actions_extract, fn ->
-            Enum.flat_map(starts, fn s ->
-              Enum.map(s..(s + unroll - 1), fn idx ->
-                Data.frame_action(:array.get(idx, frames_array))
-              end)
-            end)
-          end)
+        flat_actions = Enum.map(indices, &Data.frame_action(:array.get(&1, frames_array)))
 
-        # Previous action for each position: within a row, index - 1
-        # (for t=0 of a chunk mid-segment this reaches the true previous
-        # frame; at a segment start there is none -> nil).
         flat_prev =
-          prof(:prev_extract, fn ->
-            Enum.flat_map(Enum.zip(starts, cursors), fn {s, c} ->
-              Enum.map(s..(s + unroll - 1), fn idx ->
-                if idx > c.start do
-                  Data.frame_action(:array.get(idx - 1, frames_array))
-                else
-                  nil
-                end
-              end)
+          Enum.zip(rows, cursors)
+          |> Enum.flat_map(fn {{row_indices, _mask}, c} ->
+            Enum.map(row_indices, fn idx ->
+              if c != nil and idx > c.start,
+                do: Data.frame_action(:array.get(idx - 1, frames_array)),
+                else: nil
             end)
           end)
 
-        # Offstage predicate per position (only when the weight is on).
         flat_offstage =
-          if offstage_w do
-            Enum.flat_map(starts, fn s ->
-              Enum.map(s..(s + unroll - 1), fn idx ->
-                Data.frame_offstage?(:array.get(idx, frames_array))
-              end)
-            end)
-          end
+          if offstage_w,
+            do: Enum.map(indices, &Data.frame_offstage?(:array.get(&1, frames_array)))
 
         weights =
           prof(:frame_weights, fn ->
@@ -219,6 +219,7 @@ defmodule ExPhil.Training.TrajectoryCursors do
               offstage: flat_offstage
             )
             |> Nx.reshape({batch_size, unroll})
+            |> Nx.multiply(valid_mask)
           end)
 
         targets =
@@ -240,41 +241,40 @@ defmodule ExPhil.Training.TrajectoryCursors do
           states: states,
           actions: targets,
           frame_weights: weights,
+          valid_mask: valid_mask,
           is_resetting: Nx.tensor(resets, type: :u8)
         }
 
-        new_cursors = Enum.map(cursors, &%{&1 | off: &1.off + unroll - overlap})
+        new_cursors =
+          Enum.map(cursors, fn
+            nil -> nil
+            c -> %{c | off: c.off + unroll}
+          end)
+
         {[batch], %{state | cursors: new_cursors, queue: queue}}
     end
   end
 
-  # Give every row a valid cursor (drawing from the queue where needed).
-  # Returns {cursors, queue, resets} or :exhausted when any row needs a
-  # segment and none remain.
-  defp assign_cursors(cursors, queue, unroll) do
-    {rev_cursors, queue, rev_resets, exhausted?} =
-      Enum.reduce(cursors, {[], queue, [], false}, fn c, {acc, q, resets, ex} ->
+  # Refill completed rows; stop only when ALL rows and the queue are exhausted.
+  defp assign_cursors(cursors, queue, _unroll) do
+    {rows, {queue, resets}} =
+      Enum.map_reduce(cursors, {queue, []}, fn c, {q, resets} ->
         cond do
-          ex ->
-            {acc, q, resets, ex}
-
-          c != nil and c.off + unroll <= c.len ->
-            {[c | acc], q, [0 | resets], ex}
+          c != nil and c.off < c.len ->
+            {c, {q, [0 | resets]}}
 
           q == [] ->
-            {acc, q, resets, true}
+            {nil, {q, [1 | resets]}}
 
           true ->
             [{start, len} | rest] = q
-            {[%{start: start, len: len, off: 0} | acc], rest, [1 | resets], ex}
+            {%{start: start, len: len, off: 0}, {rest, [1 | resets]}}
         end
       end)
 
-    if exhausted? do
-      :exhausted
-    else
-      {Enum.reverse(rev_cursors), queue, Enum.reverse(rev_resets)}
-    end
+    if Enum.all?(rows, &is_nil/1),
+      do: :exhausted,
+      else: {rows, queue, Enum.reverse(resets)}
   end
 
   # -- lightweight stage profiling (EXPHIL_BPTT_PROFILE=1) -------------------

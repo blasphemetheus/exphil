@@ -273,6 +273,9 @@ defmodule ExPhil.Training.Imitation do
 
       if (config[:probe_reg_weight] || 0.0) > 0.0,
         do: raise(ArgumentError, "bptt does not support probe_reg_weight")
+
+      if (config[:accumulation_steps] || 1) != 1,
+        do: raise(ArgumentError, "bptt does not support gradient accumulation; use accumulation_steps: 1")
     end
 
     # Build policy model - bptt, temporal, or regular
@@ -283,6 +286,7 @@ defmodule ExPhil.Training.Imitation do
           embed_size: embed_size,
           backbone: config.backbone,
           window_size: config[:unroll] || 80,
+          seed: config[:seed],
           hidden_size: config.hidden_size,
           num_layers: config.num_layers,
           dropout: config.dropout,
@@ -355,7 +359,14 @@ defmodule ExPhil.Training.Imitation do
 
     # Initialize parameters using newer Axon API
     # Use mode: :train to ensure all parameters (including dropout state) are initialized
-    {init_fn, _predict_fn} = Utils.build_compiled(policy_model, mode: :train)
+    # Axon has its own explicit initialization seed. Seeding Erlang's RNG
+    # later in Trainer.fit does not seed initial weights or dropout state.
+    init_opts =
+      if is_integer(config[:seed]),
+        do: [mode: :train, seed: config[:seed]],
+        else: [mode: :train]
+
+    {init_fn, _predict_fn} = Utils.build_compiled(policy_model, init_opts)
 
     # Input shape depends on temporal mode
     input_shape =
@@ -515,9 +526,12 @@ defmodule ExPhil.Training.Imitation do
     # Build compiled loss+grad function (avoids deep_backend_copy every batch)
     # This function is JITted once and reused for all training steps
     loss_and_grad_fn =
-      if config[:bptt],
-        do: Loss.build_bptt_loss_and_grad_fn(predict_fn, loss_config),
-        else: Loss.build_loss_and_grad_fn(predict_fn, loss_config)
+      if config[:bptt] do
+        {_init, train_predict_fn} = Utils.build_compiled(policy_model, mode: :train)
+        Loss.build_bptt_loss_and_grad_fn(train_predict_fn, loss_config)
+      else
+        Loss.build_loss_and_grad_fn(predict_fn, loss_config)
+      end
 
     # Build compiled eval loss function (for validation - no gradients needed)
     # JITted once and reused for all validation batches. bptt uses the

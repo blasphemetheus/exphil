@@ -71,8 +71,8 @@ defmodule ExPhil.Training.Imitation.Validation do
     show_progress = Keyword.get(opts, :show_progress, false)
     cfg = trainer.config
 
-    {total, count, _carry} =
-      Enum.reduce(batches, {0.0, 0, nil}, fn batch, {total, count, carry} ->
+    {total, count, total_weight, _carry} =
+      Enum.reduce(batches, {0.0, 0, 0.0, nil}, fn batch, {total, count, total_weight, carry} ->
         batch_size = Nx.axis_size(batch.states, 0)
 
         carry =
@@ -108,12 +108,13 @@ defmodule ExPhil.Training.Imitation.Validation do
           IO.write(:stderr, "\r    Validating (bptt): #{count} batches...\e[K")
         end
 
-        {total + Nx.to_number(loss), count + 1, new_carry}
+        weight = Nx.sum(batch.frame_weights) |> Nx.to_number()
+        {total + Nx.to_number(loss) * weight, count + 1, total_weight + weight, new_carry}
       end)
 
     if show_progress, do: IO.write(:stderr, "\r\e[K")
 
-    %{loss: if(count > 0, do: total / count, else: 0.0), num_batches: count}
+    %{loss: if(total_weight > 0, do: total / total_weight, else: 0.0), num_batches: count, weight: total_weight}
   end
 
   @spec evaluate(struct(), Enumerable.t(), keyword()) :: map()

@@ -1,0 +1,2860 @@
+diff --git a/config/config.exs b/config/config.exs
+index c4fefb36..9e8e3030 100644
+--- a/config/config.exs
++++ b/config/config.exs
+@@ -22,3 +22,18 @@ config :telemetry, :enabled, true
+ 
+ # Import environment specific config
+ import_config "#{config_env()}.exs"
++
++# Tensor dtype does not pin GPU dot-product arithmetic. V3's strict comparison
++# uses highest precision for both sequence and per-frame execution. Opt in at
++# launch so existing policies retain their original arithmetic by default.
++case System.get_env("EXPHIL_EXLA_PRECISION") do
++  nil ->
++    :ok
++
++  value when value in ["default", "high", "highest"] ->
++    precision = %{"default" => :default, "high" => :high, "highest" => :highest}[value]
++    config :nx, :default_defn_options, compiler: EXLA, precision: precision
++
++  value ->
++    raise "Invalid EXPHIL_EXLA_PRECISION: #{inspect(value)}"
++end
+diff --git a/docs/guides/TRAINING.md b/docs/guides/TRAINING.md
+index ea9cd2e3..dd5d8780 100644
+--- a/docs/guides/TRAINING.md
++++ b/docs/guides/TRAINING.md
+@@ -202,7 +202,7 @@ mix run scripts/train_from_replays.exs --dual-port
+ | `--truncate-bptt N` | nil | Truncated backprop (faster training) |
+ | `--bptt` | false | Contiguous-BPTT training: cursors walk replays in order, GRU carry flows across chunks, per-timestep loss (GRU only; see BPTT_LOADER_DESIGN.md) |
+ | `--unroll N` | 80 | BPTT chunk length in frames (gradient truncation horizon) |
+-| `--bptt-overlap N` | 1 | Frames shared between consecutive BPTT chunks (set to frame_delay + 1) |
++| `--bptt-overlap N` | 0 | Must be 0: carried state already consumed every frame of the previous chunk |
+ | `--bptt-val-files N` | 16 | Whole replays held out for the carry-threaded val pass (game-level split; val batch is capped at 8 rows) |
+ 
+ **Available backbones (15 total):**
+@@ -1546,7 +1546,7 @@ Regenerate: `mix run -e 'ExPhil.Training.Config.FlagDocs.write!()'`.
+ | `--truncate-bptt` | optional int | `nil` | Truncated backprop (faster training) |
+ | `--bptt` | flag | `false` | Contiguous-BPTT training: cursors walk replays in order, GRU carry flows across chunks, per-timestep loss (GRU only; see BPTT_LOADER_DESIGN.md) |
+ | `--unroll` | int | `80` | BPTT chunk length in frames (gradient truncation horizon) |
+-| `--bptt-overlap` | int | `1` | Frames shared between consecutive BPTT chunks (set to frame_delay + 1) |
++| `--bptt-overlap` | int | `0` | Must be 0; input batches are contiguous and nonoverlapping |
+ | `--bptt-val-files` | int | `16` | Whole replays held out for the carry-threaded val pass (game-level split; val batch is capped at 8 rows) |
+ | `--mixed-precision` | flag | `false` | FP32 master weights + BF16 compute (not recommended) |
+ | `--frame-delay` | int | `nil` | Training alias for --label-delay on every loader. Live Dolphin --frame-delay N remains reaction delay N-1. |
+diff --git a/docs/planning/BPTT_LOADER_DESIGN.md b/docs/planning/BPTT_LOADER_DESIGN.md
+index e2daa853..e70d537a 100644
+--- a/docs/planning/BPTT_LOADER_DESIGN.md
++++ b/docs/planning/BPTT_LOADER_DESIGN.md
+@@ -1,5 +1,13 @@
+ # Contiguous-BPTT Loader — design (v2 plank 1)
+ 
++> Implementation update, 2026-09-15: the V3 preflight found that this draft's
++> overlap/tail assumptions did not match the implemented carried-state graph.
++> The repaired loader requires **overlap 0**, retains short segments and all
++> tails with zero-weight padding, and permits fewer games than batch rows.
++> Training now activates dropout and carries its updated model state.
++> See [FOX_V3_PREFLIGHT.md](FOX_V3_PREFLIGHT.md) for evidence and current status.
++> The original design below is historical, not the current launch recipe.
++
+ Status: 2026-09-03 evening — design complete; planks A+B CODE DRAFTED
+ with tests, **UNCOMPILED/UNTESTED** (w180 beam live, no mix allowed).
+ First action when GPU frees: `mix test test/edifice/recurrent/carry_backbone_test.exs`
+diff --git a/docs/planning/HANDOFF_2026-09-09.md b/docs/planning/HANDOFF_2026-09-09.md
+index ef88c344..90a98e91 100644
+--- a/docs/planning/HANDOFF_2026-09-09.md
++++ b/docs/planning/HANDOFF_2026-09-09.md
+@@ -10,6 +10,12 @@ items.
+ 
+ ## 1. State of the world (verified at write time)
+ 
++> V3 launch update, 2026-09-15: do not execute the historical overlap-1 recipe
++> below unchanged. The corrected BPTT loader requires overlap 0 and now retains
++> every frame; training dropout and SIGTERM recovery were also repaired.
++> [FOX_V3_PREFLIGHT.md](FOX_V3_PREFLIGHT.md) tracks the bounded trial and remaining
++> gates before a full launch.
++
+ - **NOTHING is running** (as of 22:20). v16f
+   (`checkpoints/fox_gen_v16f_causal_scratch_20260910_011135_*`, val
+   2.9019, policy RE-STAMPED to 264) and v16g
+diff --git a/lib/exphil/agents/agent.ex b/lib/exphil/agents/agent.ex
+index 1d014e4a..ffd9a222 100644
+--- a/lib/exphil/agents/agent.ex
++++ b/lib/exphil/agents/agent.ex
+@@ -51,6 +51,7 @@ defmodule ExPhil.Agents.Agent do
+     :policy_params,
+     :predict_fn,
+     :embed_config,
++    :bptt,
+     # :parsed (default, no-op) | :live — see GOTCHAS #81
+     :af_convention,
+     :frame_delay,
+@@ -1342,7 +1343,7 @@ defmodule ExPhil.Agents.Agent do
+     frame = Nx.reshape(embedded, {1, Nx.size(embedded)})
+ 
+     trunk_state =
+-      if state.trunk_cold do
++      if state.trunk_cold and not (state.bptt == true) do
+         Enum.reduce(1..max(state.window_size - 1, 0)//1, state.trunk_state, fn _, st ->
+           {_out, st} = trunk_step_fn().(state.trunk_step_params, st, frame)
+           st
+@@ -1645,8 +1646,9 @@ defmodule ExPhil.Agents.Agent do
+     # (stock lost at frame ~120 in every cold-start game). Replicate the
+     # pad semantics: step the first frame window_size-1 extra times, once
+     # per game (~13 ms total on the 5090 for window 60).
++    # BPTT instead starts from zero carry and consumes each input once.
+     trunk_state =
+-      if state.trunk_cold do
++      if state.trunk_cold and not (state.bptt == true) do
+         Enum.reduce(1..max(state.window_size - 1, 0)//1, state.trunk_state, fn _, st ->
+           {_out, st} = trunk_step_fn().(state.trunk_step_params, st, frame)
+           st
+@@ -2298,9 +2300,12 @@ defmodule ExPhil.Agents.Agent do
+   end
+ 
+   defp load_policy_internal(state, %{params: params, config: config} = _policy) do
+-    execution = ExPhil.Networks.Policy.ExecutionContract.load(config)
+-    if execution.execution_contract == :windowed_gru_f32_v1 and state.stateful_step,
+-      do: raise(ArgumentError, "windowed GRU v1 cannot use stateful-step inference")
++    execution =
++      ExPhil.Networks.Policy.ExecutionContract.validate_inference!(config, state.stateful_step)
++
++    if config[:bptt] == true and (state.stateful_resync != nil or is_binary(state.leace_eraser)),
++      do: raise(ArgumentError, "BPTT stateful inference cannot use window resync or a LEACE eraser")
++
+     # Extract config
+     embed_config = Map.get(config, :embed_config, %{})
+     # The canary's length IS the true input width (it's the embedded
+@@ -2354,7 +2359,13 @@ defmodule ExPhil.Agents.Agent do
+     # (exports carry them since the backbone_defaults integration; GRU
+     # ignores them harmlessly)
+     trunk_opts = [
+-      recurrent_state: execution.recurrent_state,
++      # BPTT actually executes through Edifice.Stateful below. The companion
++      # window graph must not introduce a random initial-state parameter.
++      recurrent_state:
++        if(execution.recurrent_state == :carried_zero,
++          do: :zeros,
++          else: execution.recurrent_state
++        ),
+       embed_size: embed_size,
+       backbone: backbone,
+       window_size: window_size,
+@@ -2723,6 +2734,7 @@ defmodule ExPhil.Agents.Agent do
+         head: head,
+         # Set temporal config
+         temporal: temporal,
++        bptt: config[:bptt] == true,
+         backbone: backbone,
+         window_size: window_size,
+         use_prev_action: use_prev_action,
+diff --git a/lib/exphil/cli.ex b/lib/exphil/cli.ex
+index 78a8e7c2..8dfed1fd 100644
+--- a/lib/exphil/cli.ex
++++ b/lib/exphil/cli.ex
+@@ -210,6 +210,8 @@ defmodule ExPhil.CLI do
+       desc: "CPU level for --dummy cpu (1-9)", group: [:dolphin]},
+     %{name: :seconds, flag: "--seconds", type: :integer, short: nil, default: nil,
+       desc: "Play for N seconds, then SD until the game ends so Slippi finalizes the .slp. Without this a timeout-kill leaves a TRUNCATED replay peppi cannot parse", group: [:dolphin]},
++    %{name: :session_report, flag: "--session-report", type: :string, short: nil, default: nil,
++      desc: "Write the synchronous runner's measured latency, scored frame interval, and completion status to JSON", group: [:dolphin]},
+     %{name: :live_af, flag: "--live-af", type: :boolean, short: nil, default: false,
+       desc: "Normalize the bridge's action_frame into the PARSED convention every checkpoint was trained on (task #8 / GOTCHAS #81). Off = current behaviour (exact no-op). Only the 77 measured action states are converted; see ExPhil.Data.ActionFrameConvention", group: [:dolphin]},
+     %{name: :no_audio, flag: "--no-audio", type: :boolean, short: nil, default: false,
+diff --git a/lib/exphil/data/peppi.ex b/lib/exphil/data/peppi.ex
+index ad3f0fa3..edfbced1 100644
+--- a/lib/exphil/data/peppi.ex
++++ b/lib/exphil/data/peppi.ex
+@@ -121,6 +121,8 @@ defmodule ExPhil.Data.Peppi do
+       :on_ground,
+       :shield_strength,
+       :hitstun_frames_left,
++      :hitlag_left,
++      :in_hitstun,
+       :speed_air_x_self,
+       :speed_ground_x_self,
+       :speed_y_self,
+@@ -159,7 +161,7 @@ defmodule ExPhil.Data.Peppi do
+ 
+   defmodule ReplayMeta do
+     @moduledoc "Replay metadata"
+-    defstruct [:path, :stage, :duration_frames, :players]
++    defstruct [:path, :stage, :duration_frames, :players, :frozen_stadium]
+     @type t :: %__MODULE__{}
+   end
+ 
+diff --git a/lib/exphil/eval/multishine_benchmark.ex b/lib/exphil/eval/multishine_benchmark.ex
+index cf33bdb8..99de4a16 100644
+--- a/lib/exphil/eval/multishine_benchmark.ex
++++ b/lib/exphil/eval/multishine_benchmark.ex
+@@ -179,7 +179,10 @@ defmodule ExPhil.Eval.MultishineBenchmark do
+         frame: frame.frame_number,
+         action: trunc(player.action),
+         stock: player.stock,
+-        hitstun: player.hitstun_frames_left || 0,
++        # Slippi's misc-AS counter is only hitstun when the state flag is set.
++        # Attacker hitlag must never manufacture a defender recovery episode.
++        hitstun: if(Map.get(player, :in_hitstun) == true,
++          do: max(player.hitstun_frames_left || 0, 1), else: 0),
+         grounded: player.on_ground,
+         player: player
+       }
+diff --git a/lib/exphil/networks/policy/backbone.ex b/lib/exphil/networks/policy/backbone.ex
+index c98b55c0..a07322d8 100644
+--- a/lib/exphil/networks/policy/backbone.ex
++++ b/lib/exphil/networks/policy/backbone.ex
+@@ -887,6 +887,7 @@ defmodule ExPhil.Networks.Policy.Backbone do
+   def build_gru_carry_backbone(processed_input, opts) do
+     container =
+       Recurrent.build_backbone_with_carry(processed_input,
++        seed: Keyword.get(opts, :seed),
+         hidden_size: Keyword.get(opts, :hidden_size, 256),
+         num_layers: Keyword.get(opts, :num_layers, 2),
+         dropout: Keyword.get(opts, :dropout, @default_dropout)
+diff --git a/lib/exphil/networks/policy/execution_contract.ex b/lib/exphil/networks/policy/execution_contract.ex
+index b2340096..bdcfade1 100644
+--- a/lib/exphil/networks/policy/execution_contract.ex
++++ b/lib/exphil/networks/policy/execution_contract.ex
+@@ -1,5 +1,26 @@
+ defmodule ExPhil.Networks.Policy.ExecutionContract do
+-  @moduledoc "Versioned windowed recurrent-state and arithmetic contracts. Unstamped checkpoints remain legacy."
++  @moduledoc "Versioned recurrent-state and arithmetic contracts. Unstamped checkpoints remain legacy."
++
++  def training(%{bptt: true} = config) do
++    unless config[:temporal] == true,
++      do: raise(ArgumentError, "BPTT requires temporal training")
++
++    unless config[:backbone] == :gru,
++      do: raise(ArgumentError, "BPTT supports gru only")
++
++    unless config[:temporal] == true and config[:backbone] == :gru and
++             config[:precision] == :f32 and config[:mixed_precision] in [nil, false] and
++             config[:recurrent_state] in [nil, :carried_zero],
++           do:
++             raise(ArgumentError, "BPTT v1 requires F32 GRU with explicit zero-initialized carry")
++
++    %{
++      execution_contract: :bptt_gru_f32_v1,
++      recurrent_state: :carried_zero,
++      training_precision: :f32,
++      inference_precision: :f32
++    }
++  end
+ 
+   def training(config) do
+     state = Map.get(config, :recurrent_state, :legacy_random)
+@@ -38,6 +59,22 @@ defmodule ExPhil.Networks.Policy.ExecutionContract do
+ 
+   def load(config) do
+     case config[:execution_contract] do
++      version when version in [:bptt_gru_f32_v1, "bptt_gru_f32_v1"] ->
++        unless config[:recurrent_state] in [:carried_zero, "carried_zero"] and
++                 config[:training_precision] in [:f32, "f32"] and
++                 config[:inference_precision] in [:f32, "f32"] and
++                 config[:precision] in [:f32, "f32"] and
++                 config[:backbone] in [:gru, "gru"] and config[:temporal] == true and
++                 config[:bptt] == true and config[:mixed_precision] in [nil, false],
++               do: raise(ArgumentError, "inconsistent BPTT GRU execution contract")
++
++        %{
++          execution_contract: :bptt_gru_f32_v1,
++          recurrent_state: :carried_zero,
++          training_precision: :f32,
++          inference_precision: :f32
++        }
++
+       version when version in [:windowed_gru_f32_v1, "windowed_gru_f32_v1"] ->
+         unless config[:recurrent_state] in [:zeros, "zeros"] and
+                  config[:training_precision] in [:f32, "f32"] and
+@@ -71,6 +108,18 @@ defmodule ExPhil.Networks.Policy.ExecutionContract do
+     end
+   end
+ 
++  def validate_inference!(config, stateful_step) do
++    execution = load(config)
++
++    if execution.execution_contract == :windowed_gru_f32_v1 and stateful_step,
++      do: raise(ArgumentError, "windowed GRU v1 cannot use stateful-step inference")
++
++    if execution.execution_contract == :bptt_gru_f32_v1 and not stateful_step,
++      do: raise(ArgumentError, "BPTT GRU v1 requires stateful-step inference")
++
++    execution
++  end
++
+   def verify_report!(config, report) do
+     contract = load(config)
+     expected = contract |> Jason.encode!() |> Jason.decode!()
+diff --git a/lib/exphil/networks/policy/loss.ex b/lib/exphil/networks/policy/loss.ex
+index 13a33e18..4f5510e9 100644
+--- a/lib/exphil/networks/policy/loss.ex
++++ b/lib/exphil/networks/policy/loss.ex
+@@ -267,6 +267,13 @@ defmodule ExPhil.Networks.Policy.Loss do
+     # Encourages the model to maintain diverse predictions, preventing mode collapse
+     # H(p) = -sum(p * log(p)), we SUBTRACT entropy_weight * H to maximize entropy
+     if entropy_weight > 0.0 do
++      reduce_entropy = fn per_frame ->
++        if frame_weights do
++          Nx.sum(Nx.multiply(per_frame, frame_weights)) |> Nx.divide(Nx.sum(frame_weights))
++        else
++          Nx.mean(per_frame)
++        end
++      end
+       # Button entropy: sigmoid → per-element binary entropy
+       btn_probs = Nx.sigmoid(logits.buttons)
+       btn_entropy = Nx.negate(
+@@ -274,12 +281,12 @@ defmodule ExPhil.Networks.Policy.Loss do
+           Nx.multiply(btn_probs, Nx.log(Nx.max(btn_probs, 1.0e-7))),
+           Nx.multiply(Nx.subtract(1.0, btn_probs), Nx.log(Nx.max(Nx.subtract(1.0, btn_probs), 1.0e-7)))
+         )
+-      ) |> Nx.mean()
++      ) |> Nx.mean(axes: [-1]) |> reduce_entropy.()
+ 
+       # Stick entropy: softmax → categorical entropy per head
+       stick_entropy = Enum.map([logits.main_x, logits.main_y, logits.c_x, logits.c_y, logits.shoulder], fn head_logits ->
+         probs = Nx.exp(log_softmax(head_logits))
+-        Nx.negate(Nx.sum(Nx.multiply(probs, Nx.log(Nx.max(probs, 1.0e-7))), axes: [-1])) |> Nx.mean()
++        Nx.negate(Nx.sum(Nx.multiply(probs, Nx.log(Nx.max(probs, 1.0e-7))), axes: [-1])) |> reduce_entropy.()
+       end) |> Enum.reduce(&Nx.add/2)
+ 
+       total_entropy = Nx.add(btn_entropy, stick_entropy)
+diff --git a/lib/exphil/networks/policy/sampling.ex b/lib/exphil/networks/policy/sampling.ex
+index ed947b8b..fb4ce634 100644
+--- a/lib/exphil/networks/policy/sampling.ex
++++ b/lib/exphil/networks/policy/sampling.ex
+@@ -90,7 +90,7 @@ defmodule ExPhil.Networks.Policy.Sampling do
+           jitted(:fused_det, &fused_sample_deterministic/1).(logits_tuple)
+ 
+         is_integer(mode_of_n) and mode_of_n > 1 ->
+-          key = Nx.Random.key(:erlang.unique_integer([:positive]))
++          key = fresh_key()
+ 
+           tiled =
+             logits_tuple
+@@ -110,7 +110,7 @@ defmodule ExPhil.Networks.Policy.Sampling do
+           {row.(b), row.(mx), row.(my), row.(cx), row.(cy), row.(sh), conf}
+ 
+         true ->
+-          key = Nx.Random.key(:erlang.unique_integer([:positive]))
++          key = fresh_key()
+ 
+           jitted(:fused_stoch, &fused_sample_stochastic/3).(
+             logits_tuple,
+@@ -228,7 +228,7 @@ defmodule ExPhil.Networks.Policy.Sampling do
+           # eager glue between JIT boundaries, not the math (bench
+           # 0902: fused ar_full_stoch at n=1 is ~12 ms trunk-included).
+           features_n = Nx.tile(features, [n, 1])
+-          key = Nx.Random.key(:erlang.unique_integer([:positive]))
++          key = fresh_key()
+ 
+           {buttons, rest, b_l} =
+             jitted(:ar_tiled_stoch, &ar_tiled_stochastic/4).(head, features_n, key, temps)
+@@ -250,7 +250,7 @@ defmodule ExPhil.Networks.Policy.Sampling do
+           {b, rest, b_l}
+ 
+         argmax_buttons? ->
+-          key = Nx.Random.key(:erlang.unique_integer([:positive]))
++          key = fresh_key()
+ 
+           jitted(:ar_full_mixed, &ar_full_mixed/7).(
+             head,
+@@ -263,7 +263,7 @@ defmodule ExPhil.Networks.Policy.Sampling do
+           )
+ 
+         true ->
+-          key = Nx.Random.key(:erlang.unique_integer([:positive]))
++          key = fresh_key()
+           jitted(:ar_full_stoch, &ar_full_stochastic/4).(head, features, key, temps)
+       end
+ 
+@@ -332,7 +332,7 @@ defmodule ExPhil.Networks.Policy.Sampling do
+   def sample_autoregressive_n(params, features, n, opts \\ [])
+       when is_integer(n) and n > 0 do
+     temps = temperature_tuple(Keyword.get(opts, :temperature, 1.0))
+-    key = Keyword.get(opts, :key) || Nx.Random.key(:erlang.unique_integer([:positive]))
++    key = Keyword.get(opts, :key) || fresh_key()
+     head = ar_head_params(params)
+ 
+     {r0, b_l} = jitted(:ar_stage1, &ar_stage1/2).(head, features)
+@@ -393,7 +393,7 @@ defmodule ExPhil.Networks.Policy.Sampling do
+   def sample_autoregressive_kn(params, features, k, opts \\ [])
+       when is_integer(k) and k > 0 do
+     temps = temperature_tuple(Keyword.get(opts, :temperature, 1.0))
+-    key = Keyword.get(opts, :key) || Nx.Random.key(:erlang.unique_integer([:positive]))
++    key = Keyword.get(opts, :key) || fresh_key()
+     head = ar_head_params(params)
+     n = Nx.axis_size(features, 0)
+ 
+@@ -670,6 +670,13 @@ defmodule ExPhil.Networks.Policy.Sampling do
+   # Nx's default defn options are EMPTY, so a bare defn call runs on the
+   # pure-Elixir evaluator (~120ms here). Jit explicitly with EXLA and cache
+   # the compiled closure. (Same gotcha as scripts/test_fused_kernels.exs.)
++  # VM-local unique integers restart with each play process and can repeat
++  # entire sampled trajectories. Seed each draw from OS randomness instead.
++  defp fresh_key do
++    <<seed::unsigned-32>> = :crypto.strong_rand_bytes(4)
++    Nx.Random.key(seed)
++  end
++
+   defp jitted(name, fun) do
+     pt_key = {__MODULE__, name}
+ 
+diff --git a/lib/exphil/training/callbacks/checkpoint.ex b/lib/exphil/training/callbacks/checkpoint.ex
+index 0a280831..1fab207b 100644
+--- a/lib/exphil/training/callbacks/checkpoint.ex
++++ b/lib/exphil/training/callbacks/checkpoint.ex
+@@ -41,7 +41,7 @@ defmodule ExPhil.Training.Callbacks.Checkpoint do
+       batch_path = String.replace(cb.checkpoint_path, ".axon", "_batch#{state.step}.axon")
+       case Imitation.save_checkpoint(state.trainer, batch_path) do
+         :ok -> Output.puts("\n  Batch #{state.step} checkpoint saved")
+-        {:error, _} -> :ok
++        {:error, reason} -> raise "Failed to save batch checkpoint #{batch_path}: #{inspect(reason)}"
+       end
+     end
+     {:cont, state, cb}
+@@ -71,14 +71,13 @@ defmodule ExPhil.Training.Callbacks.Checkpoint do
+ 
+               case Imitation.export_policy(state.trainer, best_policy_path) do
+                 :ok -> Output.puts("      Best policy exported to #{best_policy_path}")
+-                {:error, reason} -> Output.warning("Failed to export best policy: #{inspect(reason)}")
++                {:error, reason} -> raise "Failed to export best policy #{best_policy_path}: #{inspect(reason)}"
+               end
+ 
+               %{cb | best_val_loss: val_loss}
+ 
+             {:error, reason} ->
+-              Output.warning("Failed to save best model: #{inspect(reason)}")
+-              cb
++              raise "Failed to save best model #{best_path}: #{inspect(reason)}"
+           end
+         else
+           cb
+@@ -95,7 +94,7 @@ defmodule ExPhil.Training.Callbacks.Checkpoint do
+       epoch_path = String.replace(checkpoint_path, ".axon", "_epoch#{state.epoch}.axon")
+       case Imitation.save_checkpoint(state.trainer, epoch_path) do
+         :ok -> Output.puts("    Epoch #{state.epoch} checkpoint saved")
+-        {:error, reason} -> Output.warning("Failed to save epoch checkpoint: #{inspect(reason)}")
++        {:error, reason} -> raise "Failed to save epoch checkpoint #{epoch_path}: #{inspect(reason)}"
+       end
+     end
+ 
+@@ -109,7 +108,7 @@ defmodule ExPhil.Training.Callbacks.Checkpoint do
+     if checkpoint_path do
+       case Imitation.save_checkpoint(state.trainer, checkpoint_path) do
+         :ok -> Output.puts("  Final checkpoint saved to #{checkpoint_path}")
+-        {:error, reason} -> Output.warning("Failed to save final checkpoint: #{inspect(reason)}")
++        {:error, reason} -> raise "Failed to save final checkpoint #{checkpoint_path}: #{inspect(reason)}"
+       end
+     end
+ 
+diff --git a/lib/exphil/training/callbacks/graceful_shutdown.ex b/lib/exphil/training/callbacks/graceful_shutdown.ex
+index 65a234bb..10b0f9d0 100644
+--- a/lib/exphil/training/callbacks/graceful_shutdown.ex
++++ b/lib/exphil/training/callbacks/graceful_shutdown.ex
+@@ -16,6 +16,7 @@ defmodule ExPhil.Training.Callbacks.GracefulShutdown do
+     %{
+       checkpoint_path: Keyword.get(opts, :checkpoint_path),
+       agent_pid: nil,
++      signal_id: nil,
+       interrupted: false
+     }
+   end
+@@ -26,25 +27,45 @@ defmodule ExPhil.Training.Callbacks.GracefulShutdown do
+ 
+     if checkpoint_path do
+       # Agent stores ONLY metadata — never GPU tensors
+-      {:ok, agent} = Agent.start_link(fn ->
+-        %{epoch: 0, step: 0, checkpoint_path: checkpoint_path, interrupted: false}
+-      end, name: :trainer_state)
++      {:ok, agent} =
++        Agent.start_link(
++          fn ->
++            %{
++              epoch: 0,
++              step: 0,
++              checkpoint_path: checkpoint_path,
++              interrupted: false,
++              signal_waiter: nil
++            }
++          end,
++          name: :trainer_state
++        )
+ 
+       # Trap SIGTERM — set interrupted flag instead of saving directly
+-      for signal <- [:sigterm] do
+-        try do
+-          System.trap_signal(signal, fn ->
+-            Agent.update(:trainer_state, fn state ->
+-              %{state | interrupted: true}
+-            end)
+-            Output.puts("\n  Interrupt received — will save checkpoint after current batch")
+-          end)
+-        rescue
+-          _ -> :ok
++      owner = self()
++
++      signal_id =
++        case System.trap_signal(:sigterm, fn ->
++               waiter = self()
++               monitor = Process.monitor(owner)
++               Agent.update(agent, &%{&1 | interrupted: true, signal_waiter: waiter})
++               Output.puts("\n  Interrupt received — will save checkpoint after current batch")
++               # Erlang's default SIGTERM handler runs after this callback.
++               # Hold it until checkpoint/export cleanup finishes in the owner.
++               receive do
++                 {:training_shutdown_complete, ^owner} -> :ok
++                 {:DOWN, ^monitor, :process, ^owner, _} -> :ok
++               end
++
++               Process.demonitor(monitor, [:flush])
++               :ok
++             end) do
++          {:ok, id} -> id
++          {:error, :not_sup} -> nil
+         end
+-      end
+ 
+-      {:cont, state, %{cb | agent_pid: agent, checkpoint_path: checkpoint_path}}
++      {:cont, state,
++       %{cb | agent_pid: agent, checkpoint_path: checkpoint_path, signal_id: signal_id}}
+     else
+       {:cont, state, cb}
+     end
+@@ -81,8 +102,23 @@ defmodule ExPhil.Training.Callbacks.GracefulShutdown do
+     end
+   end
+ 
++  def finish_shutdown do
++    if waiter = Process.delete({__MODULE__, :signal_waiter}),
++      do: send(waiter, {:training_shutdown_complete, self()})
++
++    :ok
++  end
++
+   @impl true
+   def on_train_end(state, cb) do
++    waiter = if cb.agent_pid, do: Agent.get(cb.agent_pid, & &1.signal_waiter)
++
++    if waiter do
++      Process.put({__MODULE__, :signal_waiter}, waiter)
++    else
++      if cb.signal_id, do: System.untrap_signal(:sigterm, cb.signal_id)
++    end
++
+     if cb.agent_pid do
+       try do
+         Agent.stop(:trainer_state)
+@@ -91,6 +127,6 @@ defmodule ExPhil.Training.Callbacks.GracefulShutdown do
+       end
+     end
+ 
+-    {:cont, state, %{cb | agent_pid: nil}}
++    {:cont, state, %{cb | agent_pid: nil, signal_id: nil}}
+   end
+ end
+diff --git a/lib/exphil/training/callbacks/policy_export.ex b/lib/exphil/training/callbacks/policy_export.ex
+index 61abdfa7..8bfc7300 100644
+--- a/lib/exphil/training/callbacks/policy_export.ex
++++ b/lib/exphil/training/callbacks/policy_export.ex
+@@ -17,7 +17,7 @@ defmodule ExPhil.Training.Callbacks.PolicyExport do
+       policy_path = Config.derive_policy_path(checkpoint_path)
+       case Imitation.export_policy(state.trainer, policy_path) do
+         :ok -> Output.puts("  Policy exported to #{policy_path}")
+-        {:error, reason} -> Output.puts("  Policy export failed: #{inspect(reason)}")
++        {:error, reason} -> raise "Policy export failed for #{policy_path}: #{inspect(reason)}"
+       end
+ 
+       # Save config JSON (filter non-serializable values).
+@@ -49,7 +49,7 @@ defmodule ExPhil.Training.Callbacks.PolicyExport do
+         File.write!(config_path, serializable)
+         Output.puts("  Config saved to #{config_path}")
+       rescue
+-        e -> Output.puts("  Config save failed: #{Exception.message(e)}")
++        e -> reraise e, __STACKTRACE__
+       end
+     end
+ 
+diff --git a/lib/exphil/training/config.ex b/lib/exphil/training/config.ex
+index d7cb1940..413762d0 100644
+--- a/lib/exphil/training/config.ex
++++ b/lib/exphil/training/config.ex
+@@ -1493,7 +1493,7 @@ defmodule ExPhil.Training.Config do
+       # replays in order, GRU carry flows across chunks, per-timestep loss
+       bptt: false,
+       unroll: 80,
+-      bptt_overlap: 1,
++      bptt_overlap: 0,
+       bptt_val_files: 16,
+       # FP32 is default - benchmarks show BF16 is 2x SLOWER on RTX 4090 due to
+       # XLA issues: dimension misalignment (287 dims not divisible by 16),
+@@ -2085,6 +2085,7 @@ defmodule ExPhil.Training.Config do
+     with {:ok, opts} <- Validator.validate(opts, validation_context()) do
+       try do
+         ExPhil.Training.LabelDelay.resolve!(opts)
++        validate_bptt_overlap!(opts)
+         {:ok, opts}
+       rescue
+         error in ArgumentError -> {:error, [Exception.message(error)]}
+@@ -2113,9 +2114,15 @@ defmodule ExPhil.Training.Config do
+   def validate!(opts) do
+     opts = Validator.validate!(opts, validation_context())
+     ExPhil.Training.LabelDelay.resolve!(opts)
++    validate_bptt_overlap!(opts)
+     opts
+   end
+ 
++  defp validate_bptt_overlap!(opts) do
++    if opts[:bptt] and (opts[:bptt_overlap] || 0) != 0,
++      do: raise(ArgumentError, "BPTT overlap must be 0; each input is consumed once with carried state")
++  end
++
+   # Build the validation context with allowlists
+   defp validation_context do
+     %{
+diff --git a/lib/exphil/training/data.ex b/lib/exphil/training/data.ex
+index 7c22922a..aaf722f3 100644
+--- a/lib/exphil/training/data.ex
++++ b/lib/exphil/training/data.ex
+@@ -419,6 +419,10 @@ defmodule ExPhil.Training.Data do
+ 
+     # Create batch stream based on shuffle mode
+     cond do
++      # Elixir's 0..-1 is a descending range, not an empty range.
++      valid_size <= 0 ->
++        []
++
+       # Character-balanced sampling
+       character_weights != nil ->
+         alias ExPhil.Training.CharacterBalance
+diff --git a/lib/exphil/training/imitation.ex b/lib/exphil/training/imitation.ex
+index 86d72e19..41152640 100644
+--- a/lib/exphil/training/imitation.ex
++++ b/lib/exphil/training/imitation.ex
+@@ -273,6 +273,9 @@ defmodule ExPhil.Training.Imitation do
+ 
+       if (config[:probe_reg_weight] || 0.0) > 0.0,
+         do: raise(ArgumentError, "bptt does not support probe_reg_weight")
++
++      if (config[:accumulation_steps] || 1) != 1,
++        do: raise(ArgumentError, "bptt does not support gradient accumulation; use accumulation_steps: 1")
+     end
+ 
+     # Build policy model - bptt, temporal, or regular
+@@ -283,6 +286,7 @@ defmodule ExPhil.Training.Imitation do
+           embed_size: embed_size,
+           backbone: config.backbone,
+           window_size: config[:unroll] || 80,
++          seed: config[:seed],
+           hidden_size: config.hidden_size,
+           num_layers: config.num_layers,
+           dropout: config.dropout,
+@@ -355,7 +359,14 @@ defmodule ExPhil.Training.Imitation do
+ 
+     # Initialize parameters using newer Axon API
+     # Use mode: :train to ensure all parameters (including dropout state) are initialized
+-    {init_fn, _predict_fn} = Utils.build_compiled(policy_model, mode: :train)
++    # Axon has its own explicit initialization seed. Seeding Erlang's RNG
++    # later in Trainer.fit does not seed initial weights or dropout state.
++    init_opts =
++      if is_integer(config[:seed]),
++        do: [mode: :train, seed: config[:seed]],
++        else: [mode: :train]
++
++    {init_fn, _predict_fn} = Utils.build_compiled(policy_model, init_opts)
+ 
+     # Input shape depends on temporal mode
+     input_shape =
+@@ -515,9 +526,12 @@ defmodule ExPhil.Training.Imitation do
+     # Build compiled loss+grad function (avoids deep_backend_copy every batch)
+     # This function is JITted once and reused for all training steps
+     loss_and_grad_fn =
+-      if config[:bptt],
+-        do: Loss.build_bptt_loss_and_grad_fn(predict_fn, loss_config),
+-        else: Loss.build_loss_and_grad_fn(predict_fn, loss_config)
++      if config[:bptt] do
++        {_init, train_predict_fn} = Utils.build_compiled(policy_model, mode: :train)
++        Loss.build_bptt_loss_and_grad_fn(train_predict_fn, loss_config)
++      else
++        Loss.build_loss_and_grad_fn(predict_fn, loss_config)
++      end
+ 
+     # Build compiled eval loss function (for validation - no gradients needed)
+     # JITted once and reused for all validation batches. bptt uses the
+diff --git a/lib/exphil/training/imitation/loss.ex b/lib/exphil/training/imitation/loss.ex
+index 408ee0b1..a8c08d30 100644
+--- a/lib/exphil/training/imitation/loss.ex
++++ b/lib/exphil/training/imitation/loss.ex
+@@ -254,7 +254,7 @@ defmodule ExPhil.Training.Imitation.Loss do
+   Returned function signature:
+ 
+       fn params, states, actions, frame_weights, initial_hidden ->
+-        {{loss, final_hidden}, grads}
++        {{loss, {final_hidden, updated_model_state}}, grads}
+ 
+   - `states` `{b, t, embed}`, `actions` per-timestep target maps
+     (`buttons {b, t, 8}`, categoricals `{b, t}`), `frame_weights` `{b, t}`,
+@@ -291,8 +291,8 @@ defmodule ExPhil.Training.Imitation.Loss do
+               %{"state_sequence" => states, "initial_hidden" => initial_hidden}
+           end
+ 
+-        {{buttons, main_x, main_y, c_x, c_y, shoulder}, final_hidden} =
+-          predict_fn.(Utils.ensure_model_state(p), inputs)
++        %{prediction: {{buttons, main_x, main_y, c_x, c_y, shoulder}, final_hidden},
++          state: updated_state} = predict_fn.(Utils.ensure_model_state(p), inputs)
+ 
+         b = Nx.axis_size(buttons, 0)
+         t = Nx.axis_size(buttons, 1)
+@@ -322,11 +322,11 @@ defmodule ExPhil.Training.Imitation.Loss do
+             loss_opts ++ [frame_weights: flat.(frame_weights)]
+           )
+ 
+-        {loss, final_hidden}
++        {loss, {final_hidden, updated_state}}
+       end
+ 
+       # transform selects the differentiable scalar; final_hidden rides
+-      # alongside: {{loss, final_hidden}, grads}
++      # alongside: {{loss, {final_hidden, updated_model_state}}, grads}
+       Nx.Defn.value_and_grad(params, loss_fn, &elem(&1, 0))
+     end
+ 
+@@ -335,7 +335,7 @@ defmodule ExPhil.Training.Imitation.Loss do
+ 
+   @doc """
+   Eval-side twin of `build_bptt_loss_and_grad_fn/2`: the SAME per-timestep
+-  forward and loss, no gradients. Returns a jitted
++  loss with dropout disabled and no gradients. Returns a jitted
+ 
+       fn params, states, actions, frame_weights, initial_hidden ->
+         {loss, final_hidden}
+diff --git a/lib/exphil/training/imitation/train_loop.ex b/lib/exphil/training/imitation/train_loop.ex
+index f98b4513..0b62f385 100644
+--- a/lib/exphil/training/imitation/train_loop.ex
++++ b/lib/exphil/training/imitation/train_loop.ex
+@@ -310,7 +310,7 @@ defmodule ExPhil.Training.Imitation.TrainLoop do
+           Nx.multiply(carry, keep)
+       end
+ 
+-    {{loss, new_carry}, grads} =
++    {{loss, {new_carry, updated_state}}, grads} =
+       trainer.loss_and_grad_fn.(trainer.policy_params, states, actions, frame_weights, carry)
+ 
+     grads_data = get_params_data(grads)
+@@ -321,6 +321,7 @@ defmodule ExPhil.Training.Imitation.TrainLoop do
+ 
+     new_params_data = trainer.apply_updates_fn.(params_data, updates)
+     new_params = put_params_data(trainer.policy_params, new_params_data)
++    new_params = Axon.ModelState.update(new_params, %{}, updated_state)
+ 
+     new_trainer = %{
+       trainer
+diff --git a/lib/exphil/training/imitation/validation.ex b/lib/exphil/training/imitation/validation.ex
+index 88068e9b..534bb321 100644
+--- a/lib/exphil/training/imitation/validation.ex
++++ b/lib/exphil/training/imitation/validation.ex
+@@ -71,8 +71,8 @@ defmodule ExPhil.Training.Imitation.Validation do
+     show_progress = Keyword.get(opts, :show_progress, false)
+     cfg = trainer.config
+ 
+-    {total, count, _carry} =
+-      Enum.reduce(batches, {0.0, 0, nil}, fn batch, {total, count, carry} ->
++    {total, count, total_weight, _carry} =
++      Enum.reduce(batches, {0.0, 0, 0.0, nil}, fn batch, {total, count, total_weight, carry} ->
+         batch_size = Nx.axis_size(batch.states, 0)
+ 
+         carry =
+@@ -108,12 +108,13 @@ defmodule ExPhil.Training.Imitation.Validation do
+           IO.write(:stderr, "\r    Validating (bptt): #{count} batches...\e[K")
+         end
+ 
+-        {total + Nx.to_number(loss), count + 1, new_carry}
++        weight = Nx.sum(batch.frame_weights) |> Nx.to_number()
++        {total + Nx.to_number(loss) * weight, count + 1, total_weight + weight, new_carry}
+       end)
+ 
+     if show_progress, do: IO.write(:stderr, "\r\e[K")
+ 
+-    %{loss: if(count > 0, do: total / count, else: 0.0), num_batches: count}
++    %{loss: if(total_weight > 0, do: total / total_weight, else: 0.0), num_batches: count, weight: total_weight}
+   end
+ 
+   @spec evaluate(struct(), Enumerable.t(), keyword()) :: map()
+diff --git a/lib/exphil/training/pipeline.ex b/lib/exphil/training/pipeline.ex
+index faebc024..1b558fee 100644
+--- a/lib/exphil/training/pipeline.ex
++++ b/lib/exphil/training/pipeline.ex
+@@ -392,7 +392,7 @@ defmodule ExPhil.Training.Pipeline do
+     # impossible) before chunking; they become a fixed, deterministic
+     # cursor-batch list evaluated with the carry threaded (see
+     # Validation.evaluate_bptt/3). Taken from the END of the (already
+-    # seed-shuffled) file list so the train set is a prefix.
++    # ordered) file list so the train set is a prefix.
+     {replay_files, bptt_val_files} =
+       if opts[:bptt] do
+         n = opts[:bptt_val_files] || 16
+@@ -412,8 +412,8 @@ defmodule ExPhil.Training.Pipeline do
+ 
+     # Name/style conditioning in STREAMING mode (v2 plank b): build the
+     # tag->id registry from TRAIN files only (the bptt val holdout was
+-    # already split off above — a val-only player must hash to the overflow
+-    # bucket, not get its own id). The registry rides in
++    # already split off above — a val-only player uses the anonymous bucket,
++    # not its own id). The registry rides in
+     # streaming_dataset_opts -> Data.from_frames stamps per-frame :name_id
+     # -> precompute fills the 112-dim name one-hot the embedding has always
+     # reserved (id 0 = unconditioned). Saved beside checkpoints for
+@@ -450,7 +450,7 @@ defmodule ExPhil.Training.Pipeline do
+ 
+           nil
+         else
+-          reg = ExPhil.Training.PlayerRegistry.from_tags(tags)
++          reg = ExPhil.Training.PlayerRegistry.from_tags(tags, first_id: 1)
+           Output.puts("  player registry: #{ExPhil.Training.PlayerRegistry.size(reg)} filename tags")
+ 
+           if opts[:checkpoint] do
+@@ -491,7 +491,7 @@ defmodule ExPhil.Training.Pipeline do
+         ExPhil.Training.TrajectoryCursors.batch_stream(val_dataset,
+           batch_size: min(opts[:batch_size] || 32, 8),
+           unroll: opts[:unroll] || 80,
+-          overlap: opts[:bptt_overlap] || 1,
++          overlap: opts[:bptt_overlap] || 0,
+           seed: 7,
+           neutral_weight: Keyword.get(opts, :neutral_weight, 0.25),
+           transition_weight: opts[:transition_weight],
+@@ -1105,12 +1105,12 @@ defmodule ExPhil.Training.Pipeline do
+         # cursors walk each replay in order and emit per-timestep batches;
+         # the trainer threads the GRU carry across them (chunk boundaries
+         # reset every row via is_resetting — those are real game starts).
+-        # Needs >= batch_size usable segments per chunk: use stream chunks
+-        # of >= batch_size files (TrajectoryCursors raises otherwise).
++        # Partial chunks and short segments use masked rows; each real frame
++        # is scored once even when the final file chunk cannot fill a batch.
+         cursor_opts = [
+           batch_size: ropts[:batch_size] || 32,
+           unroll: ropts[:unroll] || 80,
+-          overlap: ropts[:bptt_overlap] || 1,
++          overlap: ropts[:bptt_overlap] || 0,
+           seed: ropts[:seed] || 42,
+           neutral_weight: Keyword.get(ropts, :neutral_weight, 0.25),
+           transition_weight: ropts[:transition_weight],
+@@ -1305,7 +1305,7 @@ defmodule ExPhil.Training.Pipeline do
+       # frames, so steps ~= total_frames / (batch * (unroll - overlap)).
+       # The windowed stride formula overstates by ~12x (misleading ETAs on
+       # the first v15 launch, 09-04).
+-      advance = max((opts[:unroll] || 80) - (opts[:bptt_overlap] || 1), 1)
++      advance = max((opts[:unroll] || 80) - (opts[:bptt_overlap] || 0), 1)
+ 
+       case Streaming.estimate_total_examples(files, opts) do
+         {:ok, total} -> div(total, advance * batch_size)
+diff --git a/lib/exphil/training/player_registry.ex b/lib/exphil/training/player_registry.ex
+index 0094c4c3..9c85f5e1 100644
+--- a/lib/exphil/training/player_registry.ex
++++ b/lib/exphil/training/player_registry.ex
+@@ -40,14 +40,16 @@ defmodule ExPhil.Training.PlayerRegistry do
+     :tag_to_id,
+     :id_to_tag,
+     :max_players,
+-    :unknown_strategy
++    :unknown_strategy,
++    first_id: 0
+   ]
+ 
+   @type t :: %__MODULE__{
+           tag_to_id: %{String.t() => non_neg_integer()},
+           id_to_tag: %{non_neg_integer() => String.t()},
+           max_players: pos_integer(),
+-          unknown_strategy: nil | :default | :hash
++          unknown_strategy: nil | :default | :hash,
++          first_id: 0 | 1
+         }
+ 
+   @doc """
+@@ -151,17 +153,28 @@ defmodule ExPhil.Training.PlayerRegistry do
+   Build a registry from a pre-defined list of player tags.
+ 
+   Useful for using a fixed player list across training runs.
++
++  Set `first_id: 1` to reserve ID zero for anonymous players. This leaves
++  `max_players - 1` named slots. The default and version-1 JSON retain the
++  original zero-based mapping for existing checkpoints.
+   """
+   @spec from_tags([String.t()], keyword()) :: t()
+   def from_tags(tags, opts \\ []) do
+     max_players = Keyword.get(opts, :max_players, 112)
+     unknown_strategy = Keyword.get(opts, :unknown_strategy, nil)
+ 
+-    tags = Enum.take(tags, max_players)
++    # New style-conditioned runs reserve zero for anonymous/unknown players.
++    # Keep the legacy default so loading old registries never renumbers a model.
++    first_id = Keyword.get(opts, :first_id, 0)
++
++    unless first_id in [0, 1] and max_players > first_id,
++      do: raise(ArgumentError, "registry first_id must be 0 or 1 and below max_players")
++
++    tags = Enum.take(tags, max_players - first_id)
+ 
+     {tag_to_id, id_to_tag} =
+       tags
+-      |> Enum.with_index()
++      |> Enum.with_index(first_id)
+       |> Enum.reduce({%{}, %{}}, fn {tag, id}, {t2i, i2t} ->
+         {Map.put(t2i, tag, id), Map.put(i2t, id, tag)}
+       end)
+@@ -170,7 +183,8 @@ defmodule ExPhil.Training.PlayerRegistry do
+       tag_to_id: tag_to_id,
+       id_to_tag: id_to_tag,
+       max_players: max_players,
+-      unknown_strategy: unknown_strategy
++      unknown_strategy: unknown_strategy,
++      first_id: first_id
+     }
+   end
+ 
+@@ -208,7 +222,7 @@ defmodule ExPhil.Training.PlayerRegistry do
+   def add_tag(%__MODULE__{} = registry, tag) when is_binary(tag) do
+     case Map.get(registry.tag_to_id, tag) do
+       nil ->
+-        next_id = map_size(registry.tag_to_id)
++        next_id = map_size(registry.tag_to_id) + registry.first_id
+ 
+         if next_id < registry.max_players do
+           new_registry = %{
+@@ -261,7 +275,8 @@ defmodule ExPhil.Training.PlayerRegistry do
+   @spec to_json(t(), Path.t()) :: :ok | {:error, term()}
+   def to_json(%__MODULE__{} = registry, path) do
+     data = %{
+-      "version" => 1,
++      "version" => if(registry.first_id == 0, do: 1, else: 2),
++      "first_id" => registry.first_id,
+       "max_players" => registry.max_players,
+       "unknown_strategy" => Atom.to_string(registry.unknown_strategy),
+       "players" => list_tags(registry)
+@@ -292,7 +307,8 @@ defmodule ExPhil.Training.PlayerRegistry do
+         from_tags(
+           data["players"],
+           max_players: data["max_players"],
+-          unknown_strategy: unknown_strategy
++          unknown_strategy: unknown_strategy,
++          first_id: data["first_id"] || 0
+         )
+ 
+       {:ok, registry}
+diff --git a/lib/exphil/training/trainer.ex b/lib/exphil/training/trainer.ex
+index 0c762fdf..3a5c5618 100644
+--- a/lib/exphil/training/trainer.ex
++++ b/lib/exphil/training/trainer.ex
+@@ -46,9 +46,11 @@ defmodule ExPhil.Training.Trainer do
+   end
+ 
+   defp count_params(%Nx.Tensor{} = t), do: Nx.size(t)
++
+   defp count_params(map) when is_map(map) and not is_struct(map) do
+     map |> Map.values() |> Enum.map(&count_params/1) |> Enum.sum()
+   end
++
+   defp count_params(_), do: 0
+ 
+   @doc """
+@@ -152,11 +154,13 @@ defmodule ExPhil.Training.Trainer do
+ 
+     if sample_batch do
+       try do
+-        optimal = BatchTuner.find_optimal(trainer, sample_batch.states, sample_batch.actions,
+-          min_batch: opts[:auto_batch_min] || 8,
+-          max_batch: opts[:auto_batch_max] || 256,
+-          backoff: opts[:auto_batch_backoff] || 0.8
+-        )
++        optimal =
++          BatchTuner.find_optimal(trainer, sample_batch.states, sample_batch.actions,
++            min_batch: opts[:auto_batch_min] || 8,
++            max_batch: opts[:auto_batch_max] || 256,
++            backoff: opts[:auto_batch_backoff] || 0.8
++          )
++
+         Logger.info("Auto batch size: #{optimal}")
+         Keyword.put(opts, :batch_size, optimal)
+       rescue
+@@ -199,7 +203,8 @@ defmodule ExPhil.Training.Trainer do
+     # Seed for reproducibility
+     seed = opts[:seed] || :rand.uniform(1_000_000)
+     :rand.seed(:exsss, {seed, seed, seed})
+-    Nx.Random.key(seed)
++    # Nx keys are explicit values, not global RNG state. Model initialization
++    # receives this seed separately in Imitation.new/1.
+     Logger.info("Training seed: #{seed}")
+ 
+     # Initialize callbacks
+@@ -208,6 +213,7 @@ defmodule ExPhil.Training.Trainer do
+     # Build initial state
+     state = %TrainingState{
+       trainer: trainer,
++      step: trainer.step,
+       pipeline: pipeline,
+       epochs: epochs,
+       opts: opts,
+@@ -221,11 +227,19 @@ defmodule ExPhil.Training.Trainer do
+     # Epoch loop
+     {final_state, final_callbacks} =
+       Enum.reduce_while(1..epochs, {state, callbacks}, fn epoch, {st, cbs} ->
+-        st = %{st | epoch: epoch, epoch_losses: [], batch_idx: 0}
++        st = %{
++          st
++          | epoch: epoch,
++            epoch_losses: [],
++            batch_idx: 0,
++            meta: Map.drop(st.meta, [:bptt_loss_sum, :bptt_loss_weight])
++        }
++
+         epoch_start = System.monotonic_time(:second)
+ 
+         # on_epoch_begin
+         {result, st, cbs} = Callback.run(cbs, :on_epoch_begin, st)
++
+         if result == :halt do
+           {:halt, {st, cbs}}
+         else
+@@ -235,41 +249,53 @@ defmodule ExPhil.Training.Trainer do
+           # Train one epoch
+           {st, cbs} = train_epoch(st, batch_stream, cbs)
+ 
+-          # Compute epoch stats
+-          epoch_time = System.monotonic_time(:second) - epoch_start
+-          avg_loss =
+-            if st.epoch_losses == [] do
+-              0.0
+-            else
+-              Enum.sum(st.epoch_losses) / length(st.epoch_losses)
+-            end
++          if st.meta[:halt_requested] do
++            {:halt, {st, cbs}}
++          else
++            # Compute epoch stats
++            epoch_time = System.monotonic_time(:second) - epoch_start
++
++            if st.epoch_losses == [],
++              do: raise("Training epoch #{epoch} produced no optimizer batches; check replay filtering and parsing")
++
++            avg_loss =
++              cond do
++                (st.meta[:bptt_loss_weight] || 0) > 0 ->
++                  st.meta.bptt_loss_sum / st.meta.bptt_loss_weight
++
++                st.epoch_losses == [] ->
++                  0.0
++
++                true ->
++                  Enum.sum(st.epoch_losses) / length(st.epoch_losses)
++              end
++
++            st = %{st | train_loss: avg_loss, epoch_time: epoch_time}
++
++            # on_epoch_end (validation, diagnostics, checkpointing, early stopping)
++            {result, st, cbs} = Callback.run(cbs, :on_epoch_end, st)
+ 
+-          st = %{st |
+-            train_loss: avg_loss,
+-            epoch_time: epoch_time
+-          }
+-
+-          # on_epoch_end (validation, diagnostics, checkpointing, early stopping)
+-          {result, st, cbs} = Callback.run(cbs, :on_epoch_end, st)
+-
+-          # Update history
+-          epoch_entry = %{
+-            epoch: epoch,
+-            train_loss: avg_loss,
+-            val_loss: st.val_loss,
+-            time_seconds: epoch_time
+-          }
+-          st = %{st | history: st.history ++ [epoch_entry]}
+-
+-          case result do
+-            :halt -> {:halt, {st, cbs}}
+-            :cont -> {:cont, {st, cbs}}
++            # Update history
++            epoch_entry = %{
++              epoch: epoch,
++              train_loss: avg_loss,
++              val_loss: st.val_loss,
++              time_seconds: epoch_time
++            }
++
++            st = %{st | history: st.history ++ [epoch_entry]}
++
++            case result do
++              :halt -> {:halt, {st, cbs}}
++              :cont -> {:cont, {st, cbs}}
++            end
+           end
+         end
+       end)
+ 
+     # on_train_end
+     {_, final_state, _} = Callback.run(final_callbacks, :on_train_end, final_state)
++    ExPhil.Training.Callbacks.GracefulShutdown.finish_shutdown()
+ 
+     {:ok, final_state}
+   end
+@@ -286,8 +312,11 @@ defmodule ExPhil.Training.Trainer do
+       # which doubles GPU memory for cached programs. On memory-constrained GPUs,
+       # this can cause OOM. Log a warning.
+       if state.epoch == 1 do
+-        Logger.info("Gradient accumulation: #{accumulation_steps} steps (effective batch #{(state.opts[:batch_size] || 16) * accumulation_steps})")
++        Logger.info(
++          "Gradient accumulation: #{accumulation_steps} steps (effective batch #{(state.opts[:batch_size] || 16) * accumulation_steps})"
++        )
+       end
++
+       train_epoch_accumulated(state, batch_stream, callbacks, accumulation_steps)
+     else
+       if state.trainer.config[:bptt] do
+@@ -316,7 +345,10 @@ defmodule ExPhil.Training.Trainer do
+     |> Enum.reduce_while({state, callbacks, zero_carry}, fn batch, {st, cbs, carry} ->
+       {new_trainer, metrics, new_carry} =
+         if BpttProf.enabled?(),
+-          do: BpttProf.time(:train_step, fn -> TrainLoop.train_step_bptt(st.trainer, batch, carry) end),
++          do:
++            BpttProf.time(:train_step, fn ->
++              TrainLoop.train_step_bptt(st.trainer, batch, carry)
++            end),
+           else: TrainLoop.train_step_bptt(st.trainer, batch, carry)
+ 
+       loss =
+@@ -331,12 +363,23 @@ defmodule ExPhil.Training.Trainer do
+ 
+       check_nan!(loss, batch_idx, st)
+ 
+-      st = %{st |
+-        trainer: new_trainer,
+-        step: st.step + 1,
+-        batch_idx: batch_idx + 1,
+-        batch_metrics: %{loss: loss},
+-        epoch_losses: [loss | st.epoch_losses]
++      weight = Nx.sum(batch.frame_weights) |> Nx.to_number()
++
++      st = %{
++        st
++        | meta:
++            st.meta
++            |> Map.update(:bptt_loss_sum, loss * weight, &(&1 + loss * weight))
++            |> Map.update(:bptt_loss_weight, weight, &(&1 + weight))
++      }
++
++      st = %{
++        st
++        | trainer: new_trainer,
++          step: st.step + 1,
++          batch_idx: batch_idx + 1,
++          batch_metrics: %{loss: loss},
++          epoch_losses: [loss | st.epoch_losses]
+       }
+ 
+       st = Callback.increment_event_count(st, :on_batch_end)
+@@ -345,7 +388,7 @@ defmodule ExPhil.Training.Trainer do
+ 
+       case result do
+         :halt_epoch -> {:halt, {st, cbs, new_carry}}
+-        :halt -> {:halt, {st, cbs, new_carry}}
++        :halt -> {:halt, {%{st | meta: Map.put(st.meta, :halt_requested, true)}, cbs, new_carry}}
+         :cont -> {:cont, {st, cbs, new_carry}}
+       end
+     end)
+@@ -366,12 +409,13 @@ defmodule ExPhil.Training.Trainer do
+ 
+       check_nan!(loss, batch_idx, st)
+ 
+-      st = %{st |
+-        trainer: new_trainer,
+-        step: st.step + 1,
+-        batch_idx: batch_idx + 1,
+-        batch_metrics: %{loss: loss},
+-        epoch_losses: [loss | st.epoch_losses]
++      st = %{
++        st
++        | trainer: new_trainer,
++          step: st.step + 1,
++          batch_idx: batch_idx + 1,
++          batch_metrics: %{loss: loss},
++          epoch_losses: [loss | st.epoch_losses]
+       }
+ 
+       st = Callback.increment_event_count(st, :on_batch_end)
+@@ -380,7 +424,7 @@ defmodule ExPhil.Training.Trainer do
+ 
+       case result do
+         :halt_epoch -> {:halt, {st, cbs}}
+-        :halt -> {:halt, {st, cbs}}
++        :halt -> {:halt, {%{st | meta: Map.put(st.meta, :halt_requested, true)}, cbs}}
+         :cont -> {:cont, {st, cbs}}
+       end
+     end)
+@@ -408,12 +452,13 @@ defmodule ExPhil.Training.Trainer do
+         check_nan!(avg_loss, batch_idx, st)
+         new_trainer = TrainLoop.apply_gradients(st.trainer, avg_grads)
+ 
+-        st = %{st |
+-          trainer: new_trainer,
+-          step: st.step + 1,
+-          batch_idx: batch_idx,
+-          batch_metrics: %{loss: avg_loss},
+-          epoch_losses: [avg_loss | st.epoch_losses]
++        st = %{
++          st
++          | trainer: new_trainer,
++            step: st.step + 1,
++            batch_idx: batch_idx,
++            batch_metrics: %{loss: avg_loss},
++            epoch_losses: [avg_loss | st.epoch_losses]
+         }
+ 
+         {_result, st, cbs} = Callback.run(cbs, :on_batch_end, st)
+@@ -430,7 +475,14 @@ defmodule ExPhil.Training.Trainer do
+         avg_grads = TrainLoop.scale_gradients(accum.grads, 1.0 / accum.count)
+         avg_loss = Enum.sum(accum.losses) / accum.count
+         new_trainer = TrainLoop.apply_gradients(st.trainer, avg_grads)
+-        st = %{st | trainer: new_trainer, step: st.step + 1, epoch_losses: [avg_loss | st.epoch_losses]}
++
++        st = %{
++          st
++          | trainer: new_trainer,
++            step: st.step + 1,
++            epoch_losses: [avg_loss | st.epoch_losses]
++        }
++
+         {st, cbs}
+       else
+         {st, cbs}
+diff --git a/lib/exphil/training/trajectory_cursors.ex b/lib/exphil/training/trajectory_cursors.ex
+index cd2bd835..7ff96ff1 100644
+--- a/lib/exphil/training/trajectory_cursors.ex
++++ b/lib/exphil/training/trajectory_cursors.ex
+@@ -29,16 +29,12 @@ defmodule ExPhil.Training.TrajectoryCursors do
+   repeat, or forward gap starts a new segment (`cur != prev + 1`). Hidden
+   state resets at these boundaries, never at ordinary chunk edges.
+ 
+-  ## v0 limitations (deliberate)
+-
+-  - Segments shorter than `unroll` are skipped.
+-  - When the segment queue is exhausted, the stream halts; rows still
+-    mid-segment lose their tail (< unroll frames each). With ~100-file
+-    chunks this loses < batch_size * unroll frames per chunk.
+-  - `batch_size` rows want >= batch_size segments per chunk; with fewer,
+-    rows beyond the segment count are never filled. The stream raises
+-    if fewer than `batch_size` usable segments exist (use bigger
+-    stream chunks or a smaller batch — see design doc "open decisions").
++  ## Coverage
++
++  Every frame is emitted once. Short segments and final partial rows are padded
++  by repeating their last frame with zero loss weight. Inactive rows are also
++  masked and reset. A row never crosses a segment boundary within an unroll;
++  padded carry is discarded before the next segment starts.
+   """
+ 
+   alias ExPhil.Training.Data
+@@ -83,17 +79,19 @@ defmodule ExPhil.Training.TrajectoryCursors do
+     - `:batch_size` (required)
+     - `:unroll` - timesteps per chunk (default 80)
+     - `:overlap` - frames shared between consecutive chunks of the same
+-      segment (default 1; use frame_delay + 1)
++      segment (must be 0: carry already includes the entire previous chunk)
+     - `:seed` - segment shuffle seed (default 42)
+     - `:neutral_weight` / `:transition_weight` - per-frame weighting,
+       as in the windowed batcher
+     - `:gpu` - transfer states to EXLA.Backend (default true)
+   """
+   @spec batch_stream(Data.t(), keyword()) :: Enumerable.t()
++  def batch_stream(%Data{frames: []}, _opts), do: []
++
+   def batch_stream(dataset, opts) do
+     batch_size = Keyword.fetch!(opts, :batch_size)
+     unroll = Keyword.get(opts, :unroll, 80)
+-    overlap = Keyword.get(opts, :overlap, 1)
++    overlap = Keyword.get(opts, :overlap, 0)
+     seed = Keyword.get(opts, :seed, 42)
+     neutral_weight = Keyword.get(opts, :neutral_weight, 0.25)
+     transition_weight = Keyword.get(opts, :transition_weight)
+@@ -105,25 +103,18 @@ defmodule ExPhil.Training.TrajectoryCursors do
+             "TrajectoryCursors needs dataset.embedded_frames (precomputed lazy layout)"
+     end
+ 
+-    if overlap >= unroll do
+-      raise ArgumentError, "overlap (#{overlap}) must be < unroll (#{unroll})"
+-    end
+-
+-    frames_array = :array.from_list(dataset.frames)
++    unless overlap == 0,
++      do:
++        raise(
++          ArgumentError,
++          "BPTT overlap must be 0; carried state already consumed the previous unroll"
++        )
+ 
+-    segs =
+-      dataset.frames
+-      |> segments()
+-      |> Enum.filter(fn {_start, len} -> len >= unroll end)
++    unless is_integer(batch_size) and batch_size > 0 and is_integer(unroll) and unroll > 0,
++      do: raise(ArgumentError, "batch_size and unroll must be positive integers")
+ 
+-    if length(segs) < batch_size do
+-      raise ArgumentError,
+-            "only #{length(segs)} segments >= #{unroll} frames for batch_size " <>
+-              "#{batch_size} — use larger stream chunks or a smaller batch " <>
+-              "(see BPTT_LOADER_DESIGN.md)"
+-    end
+-
+-    queue = seeded_shuffle(segs, seed)
++    frames_array = :array.from_list(dataset.frames)
++    queue = seeded_shuffle(segments(dataset.frames), seed)
+ 
+     # Cursor: %{start: seg_start, len: seg_len, off: offset_into_segment}
+     # nil = needs a segment.
+@@ -131,20 +122,54 @@ defmodule ExPhil.Training.TrajectoryCursors do
+ 
+     Stream.resource(
+       fn -> init end,
+-      fn state -> next_batch(state, frames_array, dataset.embedded_frames, batch_size, unroll, overlap, {neutral_weight, transition_weight, offstage_weight}, gpu) end,
++      fn state ->
++        next_batch(
++          state,
++          frames_array,
++          dataset.embedded_frames,
++          batch_size,
++          unroll,
++          overlap,
++          {neutral_weight, transition_weight, offstage_weight},
++          gpu
++        )
++      end,
+       fn _ -> :ok end
+     )
+   end
+ 
+   # -- internals -------------------------------------------------------------
+ 
+-  defp next_batch(state, frames_array, embedded, batch_size, unroll, overlap, {neutral_w, transition_w, offstage_w}, gpu) do
++  defp next_batch(
++         state,
++         frames_array,
++         embedded,
++         batch_size,
++         unroll,
++         _overlap,
++         {neutral_w, transition_w, offstage_w},
++         gpu
++       ) do
+     case assign_cursors(state.cursors, state.queue, unroll) do
+       :exhausted ->
+         {:halt, state}
+ 
+       {cursors, queue, resets} ->
+-        starts = Enum.map(cursors, fn c -> c.start + c.off end)
++        rows =
++          Enum.map(cursors, fn
++            nil ->
++              {List.duplicate(0, unroll), List.duplicate(0.0, unroll)}
++
++            c ->
++              indices = for t <- 0..(unroll - 1), do: c.start + min(c.off + t, c.len - 1)
++              mask = for t <- 0..(unroll - 1), do: if(c.off + t < c.len, do: 1.0, else: 0.0)
++              {indices, mask}
++          end)
++
++        indices = Enum.flat_map(rows, &elem(&1, 0))
++
++        valid_mask =
++          Enum.flat_map(rows, &elem(&1, 1)) |> Nx.tensor() |> Nx.reshape({batch_size, unroll})
+ 
+         # One gather instead of batch_size slices + stack: eager EXLA
+         # bakes slice START offsets into the compiled executable, so
+@@ -155,12 +180,7 @@ defmodule ExPhil.Training.TrajectoryCursors do
+           prof(:states_gather, fn ->
+             embed_dim = Nx.axis_size(embedded, 1)
+ 
+-            idx =
+-              starts
+-              |> Nx.tensor(type: :s32)
+-              |> Nx.reshape({batch_size, 1})
+-              |> Nx.add(Nx.iota({1, unroll}, type: :s32))
+-              |> Nx.reshape({batch_size * unroll})
++            idx = Nx.tensor(indices, type: :s32)
+ 
+             embedded
+             |> Nx.take(idx)
+@@ -172,41 +192,21 @@ defmodule ExPhil.Training.TrajectoryCursors do
+             if gpu, do: Nx.backend_transfer(states, EXLA.Backend), else: states
+           end)
+ 
+-        # Per-timestep actions, row-major [b0t0, b0t1, ..., b1t0, ...]
+-        flat_actions =
+-          prof(:actions_extract, fn ->
+-            Enum.flat_map(starts, fn s ->
+-              Enum.map(s..(s + unroll - 1), fn idx ->
+-                Data.frame_action(:array.get(idx, frames_array))
+-              end)
+-            end)
+-          end)
++        flat_actions = Enum.map(indices, &Data.frame_action(:array.get(&1, frames_array)))
+ 
+-        # Previous action for each position: within a row, index - 1
+-        # (for t=0 of a chunk mid-segment this reaches the true previous
+-        # frame; at a segment start there is none -> nil).
+         flat_prev =
+-          prof(:prev_extract, fn ->
+-            Enum.flat_map(Enum.zip(starts, cursors), fn {s, c} ->
+-              Enum.map(s..(s + unroll - 1), fn idx ->
+-                if idx > c.start do
+-                  Data.frame_action(:array.get(idx - 1, frames_array))
+-                else
+-                  nil
+-                end
+-              end)
++          Enum.zip(rows, cursors)
++          |> Enum.flat_map(fn {{row_indices, _mask}, c} ->
++            Enum.map(row_indices, fn idx ->
++              if c != nil and idx > c.start,
++                do: Data.frame_action(:array.get(idx - 1, frames_array)),
++                else: nil
+             end)
+           end)
+ 
+-        # Offstage predicate per position (only when the weight is on).
+         flat_offstage =
+-          if offstage_w do
+-            Enum.flat_map(starts, fn s ->
+-              Enum.map(s..(s + unroll - 1), fn idx ->
+-                Data.frame_offstage?(:array.get(idx, frames_array))
+-              end)
+-            end)
+-          end
++          if offstage_w,
++            do: Enum.map(indices, &Data.frame_offstage?(:array.get(&1, frames_array)))
+ 
+         weights =
+           prof(:frame_weights, fn ->
+@@ -219,6 +219,7 @@ defmodule ExPhil.Training.TrajectoryCursors do
+               offstage: flat_offstage
+             )
+             |> Nx.reshape({batch_size, unroll})
++            |> Nx.multiply(valid_mask)
+           end)
+ 
+         targets =
+@@ -240,41 +241,40 @@ defmodule ExPhil.Training.TrajectoryCursors do
+           states: states,
+           actions: targets,
+           frame_weights: weights,
++          valid_mask: valid_mask,
+           is_resetting: Nx.tensor(resets, type: :u8)
+         }
+ 
+-        new_cursors = Enum.map(cursors, &%{&1 | off: &1.off + unroll - overlap})
++        new_cursors =
++          Enum.map(cursors, fn
++            nil -> nil
++            c -> %{c | off: c.off + unroll}
++          end)
++
+         {[batch], %{state | cursors: new_cursors, queue: queue}}
+     end
+   end
+ 
+-  # Give every row a valid cursor (drawing from the queue where needed).
+-  # Returns {cursors, queue, resets} or :exhausted when any row needs a
+-  # segment and none remain.
+-  defp assign_cursors(cursors, queue, unroll) do
+-    {rev_cursors, queue, rev_resets, exhausted?} =
+-      Enum.reduce(cursors, {[], queue, [], false}, fn c, {acc, q, resets, ex} ->
++  # Refill completed rows; stop only when ALL rows and the queue are exhausted.
++  defp assign_cursors(cursors, queue, _unroll) do
++    {rows, {queue, resets}} =
++      Enum.map_reduce(cursors, {queue, []}, fn c, {q, resets} ->
+         cond do
+-          ex ->
+-            {acc, q, resets, ex}
+-
+-          c != nil and c.off + unroll <= c.len ->
+-            {[c | acc], q, [0 | resets], ex}
++          c != nil and c.off < c.len ->
++            {c, {q, [0 | resets]}}
+ 
+           q == [] ->
+-            {acc, q, resets, true}
++            {nil, {q, [1 | resets]}}
+ 
+           true ->
+             [{start, len} | rest] = q
+-            {[%{start: start, len: len, off: 0} | acc], rest, [1 | resets], ex}
++            {%{start: start, len: len, off: 0}, {rest, [1 | resets]}}
+         end
+       end)
+ 
+-    if exhausted? do
+-      :exhausted
+-    else
+-      {Enum.reverse(rev_cursors), queue, Enum.reverse(rev_resets)}
+-    end
++    if Enum.all?(rows, &is_nil/1),
++      do: :exhausted,
++      else: {rows, queue, Enum.reverse(resets)}
+   end
+ 
+   # -- lightweight stage profiling (EXPHIL_BPTT_PROFILE=1) -------------------
+diff --git a/lib/exphil_bridge/melee_port.ex b/lib/exphil_bridge/melee_port.ex
+index b7f4dabb..1a9573c0 100644
+--- a/lib/exphil_bridge/melee_port.ex
++++ b/lib/exphil_bridge/melee_port.ex
+@@ -431,9 +431,9 @@ defmodule ExPhil.Bridge.MeleePort do
+            {:ok, console} <-
+              start_console(slippi_port, polling, console_timeout, blocking_input, dolphin, config),
+            :ok <- connect_console_with_retries(console, 5),
+-           {:ok, controller} <- start_controller(dolphin, controller_port, console),
++           {:ok, controller} <- start_controller(dolphin, controller_port, console, config),
+            {:ok, dummy_controller} <-
+-             maybe_start_dummy_controller(dolphin, dummy_mode, opponent_port, console) do
++             maybe_start_dummy_controller(dolphin, dummy_mode, opponent_port, console, config) do
+         if online, do: Logger.info("[MeleePort] Netplay mode: connecting to #{connect_code}")
+ 
+         {:ok,
+@@ -754,19 +754,20 @@ defmodule ExPhil.Bridge.MeleePort do
+     end)
+   end
+ 
+-  defp start_controller(dolphin, port, console) do
++  defp start_controller(dolphin, port, console, config) do
+     with {:ok, pipe} <- Melee.Dolphin.setup_controller(dolphin, port),
+-         {:ok, controller} <- Melee.Controller.start_link(pipe_path: pipe),
++         {:ok, controller} <- Melee.Controller.start_link(pipe_path: pipe,
++           pipe_trigger_encoding: Map.get(config, :pipe_trigger_encoding, :bipolar)),
+          :ok <- Melee.Controller.connect(controller, 60_000),
+          :ok <- Melee.Console.register_controller(console, controller, port) do
+       {:ok, controller}
+     end
+   end
+ 
+-  defp maybe_start_dummy_controller(_dolphin, "none", _port, _console), do: {:ok, nil}
++  defp maybe_start_dummy_controller(_dolphin, "none", _port, _console, _config), do: {:ok, nil}
+ 
+-  defp maybe_start_dummy_controller(dolphin, _mode, port, console) do
+-    start_controller(dolphin, port, console)
++  defp maybe_start_dummy_controller(dolphin, _mode, port, console, config) do
++    start_controller(dolphin, port, console, config)
+   end
+ 
+   # ============================================================================
+diff --git a/native/exphil_peppi/src/lib.rs b/native/exphil_peppi/src/lib.rs
+index 057e6450..9c731590 100644
+--- a/native/exphil_peppi/src/lib.rs
++++ b/native/exphil_peppi/src/lib.rs
+@@ -85,6 +85,8 @@ pub struct PlayerFrame {
+     pub on_ground: bool,
+     pub shield_strength: f64,
+     pub hitstun_frames_left: f64,
++    pub hitlag_left: f64,
++    pub in_hitstun: Option<bool>,
+     pub speed_air_x_self: f64,
+     pub speed_ground_x_self: f64,
+     pub speed_y_self: f64,
+@@ -132,6 +134,7 @@ pub struct PlayerMeta {
+ #[derive(Debug, NifStruct)]
+ #[module = "ExPhil.Data.Peppi.ReplayMeta"]
+ pub struct ReplayMeta {
++    pub frozen_stadium: Option<bool>,
+     pub path: String,
+     pub stage: i32,
+     pub duration_frames: i32,
+@@ -363,13 +366,11 @@ fn parse_player_frame(data: &Data) -> PlayerFrame {
+             (0.0, 0.0, 0.0, 0.0, 0.0)
+         };
+ 
+-    // Check invulnerability from state flags
+-    let invulnerable = post.state_flags
+-        .map(|flags| {
+-            // StateFlags is a tuple struct with 5 u8 values
+-            // Check specific flag bits for invulnerability
+-            (flags.0 & 0x04) != 0 || (flags.0 & 0x10) != 0
+-        })
++    // Slippi post-frame 0x34: vulnerable / invulnerable / intangible.
++    // Flags byte 1 bit 0x10 describes a reflector, not invulnerability.
++    let invulnerable = post.hurtbox_state
++        .map(|state| state != 0)
++        .or_else(|| post.state_flags.map(|flags| flags.1 & 0x04 != 0))
+         .unwrap_or(false);
+ 
+     // Check if grounded
+@@ -390,7 +391,11 @@ fn parse_player_frame(data: &Data) -> PlayerFrame {
+         jumps_left: post.jumps.unwrap_or(2) as i32,
+         on_ground,
+         shield_strength: post.shield as f64,
+-        hitstun_frames_left: post.hitlag.unwrap_or(0.0) as f64,
++        // Match libmelee's live 0x2B channel. This counter has other uses
++        // outside hitstun; statistical consumers must consult in_hitstun.
++        hitstun_frames_left: post.misc_as.unwrap_or(0.0) as f64,
++        hitlag_left: post.hitlag.unwrap_or(0.0) as f64,
++        in_hitstun: post.state_flags.map(|flags| flags.3 & 0x02 != 0),
+         speed_air_x_self: speed_air_x,
+         speed_ground_x_self: speed_ground_x,
+         speed_y_self: speed_y,
+@@ -480,6 +485,7 @@ fn parse_game<G: Game>(game: &G, path: &str) -> ParsedReplay {
+     }
+ 
+     let metadata = ReplayMeta {
++        frozen_stadium: start.is_frozen_ps,
+         path: path.to_string(),
+         stage,
+         duration_frames: frames.len() as i32,
+@@ -551,6 +557,7 @@ fn get_replay_metadata(path: String) -> NifResult<(Atom, ReplayMeta)> {
+     }
+ 
+     let metadata = ReplayMeta {
++        frozen_stadium: start.is_frozen_ps,
+         path: path.to_string(),
+         stage,
+         duration_frames: game.len() as i32,
+@@ -565,6 +572,26 @@ rustler::init!("Elixir.ExPhil.Data.Peppi");
+ 
+ #[cfg(test)]
+ mod tests {
++    #[test]
++    fn combat_counters_and_reflector_flags_remain_distinct() {
++        use peppi::frame::transpose::{Data, Pre, Post, StateFlags};
++        let mut data = Data { pre: Pre::default(), post: Post::default() };
++        data.post.misc_as = Some(17.0);
++        data.post.hitlag = Some(4.0);
++        data.post.state_flags = Some(StateFlags(0x10, 0x20, 0, 0, 0));
++        data.post.hurtbox_state = Some(0);
++        let p = super::parse_player_frame(&data);
++        assert_eq!(p.hitstun_frames_left, 17.0);
++        assert_eq!(p.hitlag_left, 4.0);
++        assert_eq!(p.in_hitstun, Some(false));
++        assert!(!p.invulnerable);
++        data.post.state_flags = Some(StateFlags(0, 0, 0, 0x02, 0));
++        data.post.hurtbox_state = Some(2);
++        let p = super::parse_player_frame(&data);
++        assert_eq!(p.in_hitstun, Some(true));
++        assert!(p.invulnerable);
++    }
++
+     #[test]
+     fn processed_inputs_preserve_original_bits_and_distinct_physical_fields() {
+         let mut pre = peppi::frame::transpose::Pre::default();
+diff --git a/scripts/dagger_drill.exs b/scripts/dagger_drill.exs
+index c3b2e508..d94b14c2 100644
+--- a/scripts/dagger_drill.exs
++++ b/scripts/dagger_drill.exs
+@@ -132,6 +132,11 @@ end
+ # P2 the next after an adapter re-plug)
+ {expert_mod, default_fixture, default_out, expert_char} =
+   case opts[:expert] || "multishine" do
++    "recorded_mewtwo" ->
++      unless opts[:recorded_frames] && !opts[:rollouts] && !opts[:fixture],
++        do: raise("recorded_mewtwo requires --recorded-frames and forbids fixtures/rollout relabeling")
++      {ExPhil.Agents.RecordedOnlyExpert, nil, "checkpoints/mewtwo_neutral_policy.bin", 16}
++
+     "multishine" ->
+       {ExPhil.Agents.MultishineExpert, "test/fixtures/replays/fox_multishine_closed.slp",
+        "checkpoints/multishine_dagger_policy.bin", 1}
+@@ -248,13 +253,13 @@ rollout_paths =
+   |> Enum.flat_map(&Path.wildcard/1)
+ 
+ if rollout_paths == [] do
+-  if fixture_paths == [] do
++  if fixture_paths == [] and is_nil(opts[:recorded_frames]) do
+     Output.error("Fixture-less expert with no rollouts — nothing to train on. Pass --rollouts.")
+     System.halt(1)
+   end
+ 
+   Output.warning(
+-    "No rollouts — bootstrap mode: training on the fixture alone " <>
++    "No rollouts — bootstrap mode: training on the supplied recordings " <>
+       "(iteration 0 of a new drill). Play a game with the result and feed " <>
+       "the replay back as the first rollout."
+   )
+diff --git a/scripts/play_dolphin.exs b/scripts/play_dolphin.exs
+index 5a60ee62..84126824 100644
+--- a/scripts/play_dolphin.exs
++++ b/scripts/play_dolphin.exs
+@@ -112,9 +112,11 @@ Output.step(1, 5, "Loading agent")
+   Agent.start_link(
+     policy_path: opts[:policy],
+     deterministic: opts[:deterministic],
++    temperature: opts[:temperature],
++    af_convention: if(opts[:live_af], do: :libmelee, else: :parsed),
+     frame_delay: opts[:frame_delay],
+     # INVARIANTS item 12: the physical rung, resolved above (the sync
+-    # runner's own pipeline is +2, pinned 09-12 — the same as async).
++    # synchronous pipeline applies the decision on the next frame).
+     harness: :sync_runner,
+     reaction_delay: rung.reaction_delay,
+     # nil -> the Agent derives the id from the checkpoint label convention
+@@ -162,6 +164,17 @@ bridge_config = %{
+   iso_path: opts[:iso],
+   controller_port: opts[:port],
+   opponent_port: opts[:opponent_port],
++  human_port: opts[:human_port],
++  postgame_delay: opts[:postgame_delay],
++  frozen_stadium: opts[:frozen_stadium],
++  gfx_backend: System.get_env("EXPHIL_GFX"),
++  # Match the graphical play recipe: Mainline beta can hang before video
++  # when the bridge disables EXI memory-card slots with device value 255.
++  # Preserve the existing headless evaluation configuration.
++  memory_card: not (opts[:headless] || false),
++  # The local Mainline build consumes raw unipolar trigger values; ExiAI's
++  # headless controller backend uses the bipolar Axis + binding.
++  pipe_trigger_encoding: if(opts[:headless], do: :bipolar, else: :unipolar),
+   character: opts[:character],
+   stage: opts[:stage],
+   online_delay: opts[:frame_delay],
+@@ -279,7 +292,12 @@ defmodule GameLoop do
+ 
+         IO.puts("   Total agent frames: #{stats.frames}, Errors: #{stats.errors}")
+         new_stats = %{stats | in_game: false, game_ended: true}
+-        run(agent, bridge, player_port, Keyword.put(opts, :stats, new_stats))
++        if opts[:cli_opts][:seconds] do
++          Process.sleep(3_000)
++          {:ok, new_stats}
++        else
++          run(agent, bridge, player_port, Keyword.put(opts, :stats, new_stats))
++        end
+ 
+       {:menu, game_state} ->
+         if stats.in_game do
+@@ -312,11 +330,17 @@ defmodule GameLoop do
+     # Log game start
+     stats =
+       if not stats.in_game do
++        Agent.reset_buffer(agent)
+         IO.puts(
+           "\n[#{timestamp()}] 🎮 IN GAME! Starting agent control at frame #{game_state.frame}"
+         )
+ 
+         stats
++        |> Map.put(:frames, 0)
++        |> Map.put(:errors, 0)
++        |> Map.put(:last_stocks, nil)
++        |> Map.put(:game_ended, false)
++        |> Map.put(:play_started_at, nil)
+         |> Map.put(:in_game, true)
+         |> Map.put(:start_time, System.monotonic_time(:millisecond))
+         |> Map.put(:start_frame, game_state.frame)
+@@ -333,8 +357,10 @@ defmodule GameLoop do
+     # --seconds N: play N in-game seconds, then SD until the game ends so
+     # Slippi finalizes the .slp (same contract as play_dolphin_async.exs).
+     seconds = opts[:cli_opts][:seconds]
++    stats = if game_state.frame >= 0 and stats[:play_started_at] == nil,
++      do: Map.put(stats, :play_started_at, System.monotonic_time(:millisecond)), else: stats
+ 
+-    if seconds && stats.frames >= seconds * 60 do
++    if seconds && game_state.frame >= seconds * 60 do
+       span = game_state.frame - (stats[:start_frame] || game_state.frame)
+       skipped = max(span - stats.frames, 0)
+ 
+@@ -345,10 +371,12 @@ defmodule GameLoop do
+           "#{span} game frames elapsed, skipped #{skipped} (#{Float.round(skipped * 100 / max(span, 1), 1)}%)"
+       )
+ 
+-      sd_until_game_end(bridge)
++      elapsed_ms = System.monotonic_time(:millisecond) - stats.play_started_at
++      {:ok, :game_ended} = sd_until_game_end(bridge)
+       Process.sleep(3_000)
+       IO.puts("[#{timestamp()}]   Game end: replay finalized")
+-      {:ok, stats}
++      {:ok, Map.merge(stats, %{last_frame: game_state.frame - 1, game_ended: true,
++        scored_wall_ms: elapsed_ms, scored_fps: seconds * 60_000 / max(elapsed_ms, 1)})}
+     else
+       handle_in_game_play(agent, bridge, player_port, game_state, stats, opts)
+     end
+@@ -441,7 +469,9 @@ defmodule GameLoop do
+         "\n[#{timestamp()}] 🏆 GAME OVER! Detected via stocks at frame #{game_state.frame} (#{elapsed})"
+       )
+ 
+-      stats = %{stats | game_ended: true, in_game: false}
++      # Wait for the postgame transition without treating the remaining
++      # game-over frames as a fresh game and resetting the policy repeatedly.
++      stats = %{stats | game_ended: true}
+       run(agent, bridge, player_port, Keyword.put(opts, :stats, stats))
+     else
+       {probe_action, stats} = step_latency_probe(stats, game_state, player_port, opts)
+@@ -516,7 +546,8 @@ defmodule GameLoop do
+                   stats
+                 end
+ 
+-              stats = %{stats | frames: stats.frames + 1}
++              stats = stats |> Map.put(:frames, stats.frames + 1)
++                |> Map.put(:last_frame, game_state.frame)
+               run(agent, bridge, player_port, Keyword.put(opts, :stats, stats))
+ 
+             {:game_ended, reason} ->
+@@ -617,7 +648,7 @@ defmodule GameLoop do
+ end
+ 
+ # Run the game loop
+-try do
++result = try do
+   GameLoop.run(agent, bridge, opts[:port],
+     no_auto_menu: opts[:no_auto_menu],
+     cli_opts: opts,
+@@ -627,9 +658,24 @@ try do
+ rescue
+   e in RuntimeError ->
+     IO.puts("\nError: #{Exception.message(e)}")
++    {:error, Exception.message(e)}
+ catch
+-  :exit, _ ->
++  :exit, reason ->
+     IO.puts("\nExiting...")
++    {:error, inspect(reason)}
++end
++
++if path = opts[:session_report] do
++  report = case result do
++    {:ok, stats} ->
++      Map.take(stats, [:frames, :errors, :start_frame, :last_frame, :game_ended, :scored_wall_ms, :scored_fps])
++      |> Map.merge(%{status: "ok", measured_latency: ExPhil.Bridge.LatencyProbe.latency(stats[:latency_probe]),
++        expected_latency: rung.expected_latency, policy: opts[:policy], stage: opts[:stage],
++        reaction_delay: rung.reaction_delay, player_port: opts[:port]})
++    other -> %{status: "error", reason: inspect(other), policy: opts[:policy]}
++  end
++  File.mkdir_p!(Path.dirname(path))
++  File.write!(path, Jason.encode!(report, pretty: true), [:exclusive])
+ end
+ 
+ # Cleanup
+@@ -649,3 +695,5 @@ IO.puts("""
+ ║                        Session Complete!                       ║
+ ╚════════════════════════════════════════════════════════════════╝
+ """)
++
++if match?({:error, _}, result), do: System.halt(1)
+diff --git a/scripts/train.exs b/scripts/train.exs
+index 421823f8..7a52d206 100644
+--- a/scripts/train.exs
++++ b/scripts/train.exs
+@@ -224,10 +224,11 @@ if pipeline.player_registry && opts[:checkpoint] do
+ end
+ 
+ # Summary
+-Output.puts("\nTraining complete!")
+-Output.puts("  Epochs: #{state.epoch}/#{state.epochs}")
+-Output.puts("  Final train_loss: #{Float.round((state.train_loss || 0.0) * 1.0, 4)}")
+-if state.val_loss, do: Output.puts("  Final val_loss: #{Float.round(state.val_loss * 1.0, 4)}")
+-if state.best_val_loss, do: Output.puts("  Best val_loss: #{Float.round(state.best_val_loss * 1.0, 4)}")
++Output.puts(if state.meta[:halt_requested], do: "\nTraining stopped at a batch boundary.", else: "\nTraining complete!")
++Output.puts("  Completed epochs: #{length(state.history)}/#{state.epochs}")
++Output.puts("  Optimizer steps: #{state.trainer.step}")
++for {name, value} <- [{"Final train_loss", state.train_loss}, {"Final val_loss", state.val_loss}, {"Best val_loss", state.best_val_loss}] do
++  if is_number(value), do: Output.puts("  #{name}: #{Float.round(value * 1.0, 4)}")
++end
+ if opts[:checkpoint], do: Output.puts("  Checkpoint: #{opts[:checkpoint]}")
+ if state.meta[:seed], do: Output.puts("  Seed: #{state.meta[:seed]}")
+diff --git a/test/exphil/agents/agent_stateful_step_test.exs b/test/exphil/agents/agent_stateful_step_test.exs
+index 8ce95b70..b3fd1a92 100644
+--- a/test/exphil/agents/agent_stateful_step_test.exs
++++ b/test/exphil/agents/agent_stateful_step_test.exs
+@@ -95,9 +95,7 @@ defmodule ExPhil.Agents.AgentStatefulStepTest do
+ 
+   defp start_agent(policy, opts) do
+     {:ok, agent} =
+-      Agent.start_link(
+-        [policy: policy, deterministic: true] ++ opts
+-      )
++      Agent.start_link([policy: policy, deterministic: true] ++ opts)
+ 
+     agent
+   end
+@@ -125,6 +123,51 @@ defmodule ExPhil.Agents.AgentStatefulStepTest do
+     {:ok, policy: build_policy()}
+   end
+ 
++  test "BPTT startup consumes the first frame once, independently of legacy window size" do
++    config = %{
++      temporal: true,
++      bptt: true,
++      backbone: :gru,
++      precision: :f32,
++      hidden_size: @hidden_size,
++      num_layers: @num_layers,
++      embed_size: embed_size(),
++      window_size: @window,
++      head: :independent,
++      dropout: 0.0,
++      axis_buckets: 16,
++      shoulder_buckets: 4
++    }
++
++    model = Policy.build_temporal_bptt(Map.to_list(config))
++    {init, _} = Utils.build_compiled(model)
++
++    params =
++      init.(
++        %{
++          "state_sequence" => Nx.template({1, @window, embed_size()}, :f32),
++          "initial_hidden" => Nx.template({1, @num_layers, @hidden_size}, :f32)
++        },
++        Axon.ModelState.empty()
++      )
++
++    config = Map.merge(config, ExPhil.Networks.Policy.ExecutionContract.training(config))
++    long = start_agent(%{params: params, config: config}, stateful_step: true)
++    one = start_agent(%{params: params, config: %{config | window_size: 1}}, stateful_step: true)
++
++    for xs <- [[10.0, -2.0], [4.0, 8.0]] do
++      assert play(long, xs) == play(one, xs)
++      a = :sys.get_state(long).trunk_state.h
++      b = :sys.get_state(one).trunk_state.h
++      assert Nx.to_number(Nx.all_close(a, b, atol: 1.0e-6)) == 1
++      Agent.reset_buffer(long)
++      Agent.reset_buffer(one)
++    end
++
++    GenServer.stop(long)
++    GenServer.stop(one)
++  end
++
+   test "stateful_step activates for a temporal GRU policy", %{policy: policy} do
+     agent = start_agent(policy, stateful_step: true)
+     config = Agent.get_config(agent)
+diff --git a/test/exphil/eval/multishine_benchmark_test.exs b/test/exphil/eval/multishine_benchmark_test.exs
+index 69ea3dff..7c722ff1 100644
+--- a/test/exphil/eval/multishine_benchmark_test.exs
++++ b/test/exphil/eval/multishine_benchmark_test.exs
+@@ -2,6 +2,27 @@ defmodule ExPhil.Eval.MultishineBenchmarkTest do
+   use ExUnit.Case, async: true
+   alias ExPhil.Eval.MultishineBenchmark, as: Benchmark
+ 
++  test "replay rows distinguish hitstun from attacker hitlag and unrelated counters" do
++    player = %ExPhil.Data.Peppi.PlayerFrame{
++      character: 1,
++      action: 365,
++      stock: 4,
++      on_ground: false,
++      hitstun_frames_left: 17.0,
++      hitlag_left: 4.0,
++      in_hitstun: false
++    }
++
++    replay = %{frames: [%{frame_number: 0, players: %{1 => player}}]}
++    assert [%{hitstun: 0}] = Benchmark.rows(replay, 1)
++    assert Benchmark.score(Benchmark.rows(replay, 1)).recovery.episodes == []
++
++    defender = %{player | action: 75, in_hitstun: true}
++    replay = %{frames: [%{frame_number: 0, players: %{1 => defender}}]}
++    assert [%{hitstun: 17.0}] = Benchmark.rows(replay, 1)
++    assert [%{cause: :hitstun}] = Benchmark.score(Benchmark.rows(replay, 1)).recovery.episodes
++  end
++
+   defp rows(actions) do
+     Enum.with_index(actions, fn action, index ->
+       %{
+diff --git a/test/exphil/networks/execution_contract_test.exs b/test/exphil/networks/execution_contract_test.exs
+index ca9d56ed..c68eca9a 100644
+--- a/test/exphil/networks/execution_contract_test.exs
++++ b/test/exphil/networks/execution_contract_test.exs
+@@ -2,6 +2,26 @@ defmodule ExPhil.Networks.ExecutionContractTest do
+   use ExUnit.Case, async: false
+   alias ExPhil.Networks.Policy.ExecutionContract, as: Contract
+ 
++  test "BPTT stamps carried state and requires stateful inference" do
++    config = %{temporal: true, backbone: :gru, bptt: true, precision: :f32}
++    fields = Contract.training(config)
++    assert fields.execution_contract == :bptt_gru_f32_v1
++    assert fields.recurrent_state == :carried_zero
++    stamped = Map.merge(config, fields)
++    assert Contract.load(stamped) == fields
++    assert Contract.validate_inference!(stamped, true) == fields
++
++    assert_raise ArgumentError, ~r/requires stateful/, fn ->
++      Contract.validate_inference!(stamped, false)
++    end
++
++    for override <- [%{precision: :bf16}, %{bptt: false}, %{recurrent_state: :zeros}] do
++      assert_raise ArgumentError, fn -> Contract.load(Map.merge(stamped, override)) end
++    end
++
++    assert_raise ArgumentError, fn -> Contract.training(%{config | precision: :bf16}) end
++  end
++
+   test "unstamped policies retain legacy behavior and unknown precision is explicit" do
+     assert Contract.load(%{}).recurrent_state == :legacy_random
+     assert Contract.load(%{}).training_precision == :unknown
+diff --git a/test/exphil/networks/policy_bptt_test.exs b/test/exphil/networks/policy_bptt_test.exs
+index 7bf57e8d..08110e34 100644
+--- a/test/exphil/networks/policy_bptt_test.exs
++++ b/test/exphil/networks/policy_bptt_test.exs
+@@ -111,4 +111,48 @@ defmodule ExPhil.Networks.PolicyBpttTest do
+       Policy.build_temporal_bptt(embed_size: @embed, backbone: :mamba)
+     end
+   end
++
++  test "future observations and future teacher actions cannot affect earlier logits" do
++    model =
++      Policy.build_temporal_bptt(
++        embed_size: @embed,
++        backbone: :gru,
++        hidden_size: @hidden,
++        num_layers: @layers,
++        window_size: @time,
++        head: :autoregressive
++      )
++
++    {init, predict} = Axon.build(model, mode: :inference)
++    params = init.(templates(:autoregressive), Axon.ModelState.empty())
++    original = inputs(:autoregressive)
++
++    changed =
++      Map.new(original, fn
++        {"initial_hidden", value} ->
++          {"initial_hidden", value}
++
++        {name, value} ->
++          shape =
++            Tuple.to_list(Nx.shape(value)) |> List.replace_at(1, @time - 2) |> List.to_tuple()
++
++          start = List.duplicate(0, Nx.rank(value)) |> List.replace_at(1, 2)
++
++          {name,
++           Nx.put_slice(value, start, Nx.broadcast(Nx.tensor(1, type: Nx.type(value)), shape))}
++      end)
++
++    {before, _} = predict.(params, original)
++    {after_change, _} = predict.(params, changed)
++
++    for {a, b} <- Enum.zip(Tuple.to_list(before), Tuple.to_list(after_change)) do
++      assert Nx.to_number(
++               Nx.all_close(
++                 Nx.slice_along_axis(a, 0, 2, axis: 1),
++                 Nx.slice_along_axis(b, 0, 2, axis: 1),
++                 atol: 1.0e-6
++               )
++             ) == 1
++    end
++  end
+ end
+diff --git a/test/exphil/training/bptt_train_test.exs b/test/exphil/training/bptt_train_test.exs
+index 3fa232da..41ac6941 100644
+--- a/test/exphil/training/bptt_train_test.exs
++++ b/test/exphil/training/bptt_train_test.exs
+@@ -47,22 +47,85 @@ defmodule ExPhil.Training.BpttTrainTest do
+     %Data{frames: frames, embedded_frames: embedded, size: n}
+   end
+ 
+-  defp new_bptt_trainer(head) do
++  defp new_bptt_trainer(head, opts \\ []) do
+     Imitation.new(
+-      embed_size: @embed,
+-      temporal: true,
+-      bptt: true,
+-      backbone: :gru,
+-      head: head,
+-      unroll: @unroll,
+-      hidden_size: @hidden,
+-      num_layers: @layers,
+-      precision: :f32,
+-      batch_size: @batch
++      Keyword.merge(
++        [
++          embed_size: @embed,
++          temporal: true,
++          bptt: true,
++          backbone: :gru,
++          head: head,
++          unroll: @unroll,
++          hidden_size: @hidden,
++          num_layers: @layers,
++          precision: :f32,
++          batch_size: @batch
++        ],
++        opts
++      )
+     )
+   end
+ 
+   describe "Imitation.new bptt mode" do
++    test "dropout state advances and checkpoint resume reproduces the next update" do
++      t = new_bptt_trainer(:autoregressive, seed: 905, dropout: 0.5)
++
++      [batch | _] =
++        TrajectoryCursors.batch_stream(dataset([30, 30]),
++          batch_size: @batch,
++          unroll: @unroll,
++          gpu: false
++        )
++        |> Enum.to_list()
++
++      carry = Nx.broadcast(0.0, {@batch, @layers, @hidden})
++      {next, metrics, _} = TrainLoop.train_step_bptt(t, batch, carry)
++      key = "recurrent_dropout_1"
++      refute Nx.serialize(t.policy_params.data[key]) == Nx.serialize(next.policy_params.data[key])
++
++      {eval_loss, _} =
++        t.eval_loss_fn.(t.policy_params, batch.states, batch.actions, batch.frame_weights, carry)
++
++      refute Nx.to_number(metrics.loss) == Nx.to_number(eval_loss)
++
++      {again, _} =
++        t.eval_loss_fn.(t.policy_params, batch.states, batch.actions, batch.frame_weights, carry)
++
++      assert Nx.to_number(again) == Nx.to_number(eval_loss)
++
++      path =
++        Path.join(System.tmp_dir!(), "bptt_dropout_#{System.unique_integer([:positive])}.axon")
++
++      on_exit(fn -> File.rm(path) end)
++      :ok = Imitation.save_checkpoint(next, path)
++
++      {:ok, loaded} =
++        Imitation.load_checkpoint(
++          new_bptt_trainer(:autoregressive, seed: 906, dropout: 0.5),
++          path
++        )
++
++      {continued, cm, _} = TrainLoop.train_step_bptt(next, batch, carry)
++      {resumed, rm, _} = TrainLoop.train_step_bptt(loaded, batch, carry)
++      assert Nx.to_number(cm.loss) == Nx.to_number(rm.loss)
++
++      assert Nx.serialize(continued.policy_params.data) ==
++               Nx.serialize(resumed.policy_params.data)
++
++      assert resumed.step == 2
++    end
++
++    @tag :seed_contract
++    test "an explicit seed controls initial weights, not only data ordering" do
++      first = new_bptt_trainer(:autoregressive, seed: 905)
++      repeated = new_bptt_trainer(:autoregressive, seed: 905)
++      different = new_bptt_trainer(:autoregressive, seed: 906)
++      fingerprint = fn trainer -> Nx.serialize(trainer.policy_params.data) end
++      assert fingerprint.(first) == fingerprint.(repeated)
++      refute fingerprint.(first) == fingerprint.(different)
++    end
++
+     test "builds a trainer with the bptt loss fn and the carry-threaded eval fn" do
+       trainer = new_bptt_trainer(:autoregressive)
+       assert trainer.config[:bptt] == true
+@@ -81,9 +144,61 @@ defmodule ExPhil.Training.BpttTrainTest do
+         Imitation.new(embed_size: @embed, temporal: false, bptt: true, backbone: :gru)
+       end
+     end
++
++    test "rejects accumulation before the trainer can choose the windowed gradient path" do
++      assert_raise ArgumentError, ~r/bptt does not support gradient accumulation/, fn ->
++        new_bptt_trainer(:autoregressive, accumulation_steps: 2)
++      end
++    end
+   end
+ 
+   describe "end-to-end: cursors -> train_step_bptt" do
++    test "masked future padding and inactive rows cannot change the optimizer update" do
++      trainer = new_bptt_trainer(:autoregressive, seed: 905, dropout: 0.0)
++
++      [batch] =
++        Enum.to_list(
++          TrajectoryCursors.batch_stream(dataset([3]),
++            batch_size: @batch,
++            unroll: @unroll,
++            gpu: false,
++            neutral_weight: 1.0
++          )
++        )
++
++      # Change every padded input and teacher-forcing target, including the
++      # completely inactive row. Only the three real frames may affect loss.
++      mask = Nx.new_axis(batch.valid_mask, -1)
++
++      altered = %{
++        batch
++        | states:
++            Nx.select(
++              Nx.broadcast(mask, Nx.shape(batch.states)),
++              batch.states,
++              Nx.broadcast(7.0, Nx.shape(batch.states))
++            ),
++          actions:
++            Map.new(batch.actions, fn {head, targets} ->
++              target_mask = if Nx.rank(targets) == 3, do: mask, else: batch.valid_mask
++
++              {head,
++               Nx.select(
++                 Nx.broadcast(target_mask, Nx.shape(targets)),
++                 targets,
++                 Nx.broadcast(0, Nx.shape(targets))
++               )}
++            end)
++      }
++
++      carry = Nx.broadcast(0.0, {@batch, @layers, @hidden})
++      {original, m1, _} = TrainLoop.train_step_bptt(trainer, batch, carry)
++      {changed, m2, _} = TrainLoop.train_step_bptt(trainer, altered, carry)
++      assert_in_delta Nx.to_number(m1.loss), Nx.to_number(m2.loss), 1.0e-6
++
++      assert_params_close(original.policy_params.data, changed.policy_params.data)
++    end
++
+     for head <- [:autoregressive, :independent] do
+       test "loss finite, carry flows and updates params (#{head} head)" do
+         head = unquote(head)
+@@ -94,7 +209,7 @@ defmodule ExPhil.Training.BpttTrainTest do
+           TrajectoryCursors.batch_stream(ds,
+             batch_size: @batch,
+             unroll: @unroll,
+-            overlap: 1,
++            overlap: 0,
+             gpu: false
+           )
+           |> Enum.take(3)
+@@ -127,7 +242,7 @@ defmodule ExPhil.Training.BpttTrainTest do
+         TrajectoryCursors.batch_stream(ds,
+           batch_size: @batch,
+           unroll: @unroll,
+-          overlap: 1,
++          overlap: 0,
+           gpu: false
+         )
+         |> Enum.take(1)
+@@ -146,6 +261,15 @@ defmodule ExPhil.Training.BpttTrainTest do
+ 
+   defp carry_last([], initial), do: initial
+   defp carry_last([c | _], _), do: c
++
++  defp assert_params_close(%Nx.Tensor{} = a, %Nx.Tensor{} = b) do
++    assert Nx.to_number(Nx.all_close(a, b, atol: 1.0e-6, rtol: 1.0e-5)) == 1
++  end
++
++  defp assert_params_close(a, b) when is_map(a) and is_map(b) do
++    assert Map.keys(a) == Map.keys(b)
++    for {key, value} <- a, do: assert_params_close(value, Map.fetch!(b, key))
++  end
+ end
+ 
+ defmodule ExPhil.Training.BpttValTest do
+@@ -165,9 +289,19 @@ defmodule ExPhil.Training.BpttValTest do
+       action: %{
+         buttons: %{
+           a: rem(id, 3) == 0,
+-          b: false, x: false, y: false, z: false, l: false, r: false, d_up: false
++          b: false,
++          x: false,
++          y: false,
++          z: false,
++          l: false,
++          r: false,
++          d_up: false
+         },
+-        main_x: rem(id, 17), main_y: 8, c_x: 8, c_y: 8, shoulder: 0
++        main_x: rem(id, 17),
++        main_y: 8,
++        c_x: 8,
++        c_y: 8,
++        shoulder: 0
+       }
+     }
+   end
+@@ -182,16 +316,28 @@ defmodule ExPhil.Training.BpttValTest do
+   defp val_batches(seed) do
+     dataset([60, 60, 60])
+     |> TrajectoryCursors.batch_stream(
+-      batch_size: 2, unroll: @unroll, overlap: 1, seed: seed, gpu: false
++      batch_size: 2,
++      unroll: @unroll,
++      overlap: 0,
++      seed: seed,
++      gpu: false
+     )
+     |> Enum.to_list()
+   end
+ 
+-  defp trainer do
++  defp trainer(opts \\ []) do
+     Imitation.new(
+-      embed_size: @embed, temporal: true, bptt: true, backbone: :gru,
+-      head: :autoregressive, unroll: @unroll,
+-      hidden_size: @hidden, num_layers: @layers, precision: :f32, batch_size: 2
++      embed_size: @embed,
++      temporal: true,
++      bptt: true,
++      backbone: :gru,
++      head: :autoregressive,
++      unroll: @unroll,
++      hidden_size: @hidden,
++      num_layers: @layers,
++      precision: :f32,
++      batch_size: 2,
++      dropout: Keyword.get(opts, :dropout, 0.1)
+     )
+   end
+ 
+@@ -206,6 +352,43 @@ defmodule ExPhil.Training.BpttValTest do
+     assert l1 == l2
+   end
+ 
++  test "padded loader validation equals complete independent replay forwards" do
++    t = trainer()
++    ds = dataset([13, 60, 21])
++
++    chunks =
++      TrajectoryCursors.batch_stream(ds,
++        batch_size: 2,
++        unroll: @unroll,
++        gpu: false,
++        neutral_weight: 1.0
++      )
++
++    result = Validation.evaluate_bptt(t, chunks)
++
++    expected =
++      ExPhil.Evaluation.BPTT.batches(ds, 100)
++      |> Enum.map(fn b ->
++        n = Nx.axis_size(b.states, 1)
++
++        {loss, _} =
++          t.eval_loss_fn.(
++            t.policy_params,
++            b.states,
++            b.actions,
++            Nx.broadcast(1.0, {1, n}),
++            Nx.broadcast(0.0, {1, @layers, @hidden})
++          )
++
++        Nx.to_number(loss) * n
++      end)
++      |> Enum.sum()
++      |> Kernel./(94)
++
++    assert result.weight == 94
++    assert_in_delta result.loss, expected, 1.0e-5
++  end
++
+   test "the carry is load-bearing: correct threading differs from zeroed-every-batch" do
+     t = trainer()
+     batches = val_batches(7)
+@@ -224,8 +407,8 @@ defmodule ExPhil.Training.BpttValTest do
+     refute threaded == zeroed
+   end
+ 
+-  test "eval loss == train loss value on the same batch and carry (twin builders agree)" do
+-    t = trainer()
++  test "eval and train losses agree when dropout is disabled" do
++    t = trainer(dropout: 0.0)
+     [batch | _] = val_batches(7)
+     carry = Nx.broadcast(0.0, {2, @layers, @hidden})
+ 
+@@ -233,7 +416,13 @@ defmodule ExPhil.Training.BpttValTest do
+       t.eval_loss_fn.(t.policy_params, batch.states, batch.actions, batch.frame_weights, carry)
+ 
+     {{train_loss, _h2}, _grads} =
+-      t.loss_and_grad_fn.(t.policy_params, batch.states, batch.actions, batch.frame_weights, carry)
++      t.loss_and_grad_fn.(
++        t.policy_params,
++        batch.states,
++        batch.actions,
++        batch.frame_weights,
++        carry
++      )
+ 
+     assert_in_delta Nx.to_number(eval_loss), Nx.to_number(train_loss), 1.0e-5
+   end
+diff --git a/test/exphil/training/callbacks/checkpoint_callback_test.exs b/test/exphil/training/callbacks/checkpoint_callback_test.exs
+index 78b35ce0..d248936d 100644
+--- a/test/exphil/training/callbacks/checkpoint_callback_test.exs
++++ b/test/exphil/training/callbacks/checkpoint_callback_test.exs
+@@ -72,6 +72,27 @@ defmodule ExPhil.Training.Callbacks.CheckpointTest do
+   end
+ 
+   describe "on_batch_end/2" do
++    test "a failed write aborts rather than silently losing checkpoint protection" do
++      dir =
++        Path.join(System.tmp_dir!(), "checkpoint_failure_#{System.unique_integer([:positive])}")
++
++      File.mkdir_p!(dir)
++      on_exit(fn -> File.rm_rf!(dir) end)
++      trainer = ExPhil.Training.Imitation.new(embed_size: 16, hidden_sizes: [8], temporal: false)
++      path = Path.join(dir, "model.axon")
++      File.write!(path, "previous checkpoint remains intact")
++      # A directory at the temporary write path fails reliably even as root.
++      File.mkdir_p!(path <> ".tmp")
++      cb = Checkpoint.init(checkpoint_path: path)
++      state = %TrainingState{trainer: trainer, opts: []}
++
++      assert_raise RuntimeError, ~r/Failed to save final checkpoint/, fn ->
++        Checkpoint.on_train_end(state, cb)
++      end
++
++      assert File.read!(path) == "previous checkpoint remains intact"
++    end
++
+     test "no-op without save_every_batches" do
+       cb = Checkpoint.init([])
+       state = %TrainingState{step: 100, opts: []}
+diff --git a/test/exphil/training/player_registry_test.exs b/test/exphil/training/player_registry_test.exs
+index 90730cb6..28bfb3f5 100644
+--- a/test/exphil/training/player_registry_test.exs
++++ b/test/exphil/training/player_registry_test.exs
+@@ -4,6 +4,37 @@ defmodule ExPhil.Training.PlayerRegistryTest do
+ 
+   alias ExPhil.Training.PlayerRegistry
+ 
++  test "reserved anonymous ID survives serialization and never aliases a named player" do
++    registry =
++      PlayerRegistry.from_tags(["A", "B", "C", "D"],
++        first_id: 1,
++        max_players: 4,
++        unknown_strategy: :default
++      )
++
++    assert PlayerRegistry.get_id(registry, "A") == 1
++    assert PlayerRegistry.get_id(registry, "C") == 3
++    assert PlayerRegistry.get_id(registry, "D") == 0
++    assert PlayerRegistry.get_id(registry, "unseen validation player") == 0
++    assert PlayerRegistry.get_tag(registry, 0) == nil
++    assert PlayerRegistry.size(registry) == 3
++    path = Path.join(System.tmp_dir!(), "registry_v2_#{System.unique_integer([:positive])}.json")
++    on_exit(fn -> File.rm(path) end)
++    assert :ok = PlayerRegistry.to_json(registry, path)
++    assert {:ok, ^registry} = PlayerRegistry.from_json(path)
++    {unchanged, 0} = PlayerRegistry.add_tag(registry, "overflow")
++    assert unchanged == registry
++  end
++
++  test "reserved registries add tags without consuming anonymous zero" do
++    registry = PlayerRegistry.from_tags([], first_id: 1)
++    {registry, 1} = PlayerRegistry.add_tag(registry, "A")
++    {registry, 2} = PlayerRegistry.add_tag(registry, "B")
++    assert PlayerRegistry.get_tag(registry, 0) == nil
++    assert PlayerRegistry.get_id(registry, nil) == nil
++    assert PlayerRegistry.get_id(registry, "") == nil
++  end
++
+   describe "new/1" do
+     test "creates empty registry with defaults" do
+       registry = PlayerRegistry.new()
+diff --git a/test/exphil/training/trainer_test.exs b/test/exphil/training/trainer_test.exs
+index 273c06bf..fbdab63e 100644
+--- a/test/exphil/training/trainer_test.exs
++++ b/test/exphil/training/trainer_test.exs
+@@ -5,6 +5,51 @@ defmodule ExPhil.Training.TrainerTest do
+   alias ExPhil.Training.Trainer
+   alias ExPhil.Training.Imitation
+ 
++  defmodule StopAfterBatch do
++    use ExPhil.Training.Callback
++    def init(_), do: %{}
++    def on_batch_end(state, cb), do: {:halt, state, cb}
++    def on_epoch_end(_state, _cb), do: raise("interrupted epoch must not run validation")
++
++    def on_train_end(state, cb),
++      do: {:cont, %{state | meta: Map.put(state.meta, :cleaned_up, true)}, cb}
++  end
++
++  test "batch halt stops the whole fit and still runs cleanup" do
++    action = %{
++      buttons: Map.new([:a, :b, :x, :y, :z, :l, :r, :d_up], &{&1, false}),
++      main_x: 8,
++      main_y: 8,
++      c_x: 8,
++      c_y: 8,
++      shoulder: 0
++    }
++
++    ds = %ExPhil.Training.Data{
++      frames: for(i <- 0..7, do: %{game_state: %{frame: i}, action: action}),
++      embedded_frames: Nx.broadcast(0.5, {8, 16}),
++      size: 8
++    }
++
++    # A resumed trainer must keep absolute optimizer-step numbering in
++    # callbacks/checkpoint names, even though this fit begins a fresh epoch.
++    trainer = %{Imitation.new(embed_size: 16, hidden_sizes: [8], temporal: false) | step: 7}
++
++    pipeline = %ExPhil.Training.Pipeline{
++      streaming: false,
++      train_dataset: ds,
++      resolved_opts: [epochs: 3, batch_size: 2, temporal: false],
++      estimated_batches: 4
++    }
++
++    {:ok, state} = Trainer.fit(trainer, pipeline, callbacks: [StopAfterBatch])
++    assert state.step == 8
++    assert state.trainer.step == 8
++    assert state.epoch == 1
++    assert state.history == []
++    assert state.meta.cleaned_up
++  end
++
+   # A minimal callback that tracks what hooks were called
+   defmodule TrackingCallback do
+     use ExPhil.Training.Callback
+@@ -52,10 +97,17 @@ defmodule ExPhil.Training.TrainerTest do
+ 
+       trainer = %Imitation{
+         policy_params: params,
+-        policy_model: nil, optimizer: nil, optimizer_state: nil,
+-        embed_config: nil, config: %{}, step: 0, metrics: %{},
+-        predict_fn: nil, apply_updates_fn: nil,
+-        loss_and_grad_fn: nil, eval_loss_fn: nil,
++        policy_model: nil,
++        optimizer: nil,
++        optimizer_state: nil,
++        embed_config: nil,
++        config: %{},
++        step: 0,
++        metrics: %{},
++        predict_fn: nil,
++        apply_updates_fn: nil,
++        loss_and_grad_fn: nil,
++        eval_loss_fn: nil,
+         mixed_precision_state: nil
+       }
+ 
+@@ -70,10 +122,17 @@ defmodule ExPhil.Training.TrainerTest do
+ 
+       trainer = %Imitation{
+         policy_params: params,
+-        policy_model: nil, optimizer: nil, optimizer_state: nil,
+-        embed_config: nil, config: %{}, step: 0, metrics: %{},
+-        predict_fn: nil, apply_updates_fn: nil,
+-        loss_and_grad_fn: nil, eval_loss_fn: nil,
++        policy_model: nil,
++        optimizer: nil,
++        optimizer_state: nil,
++        embed_config: nil,
++        config: %{},
++        step: 0,
++        metrics: %{},
++        predict_fn: nil,
++        apply_updates_fn: nil,
++        loss_and_grad_fn: nil,
++        eval_loss_fn: nil,
+         mixed_precision_state: nil
+       }
+ 
+@@ -82,12 +141,48 @@ defmodule ExPhil.Training.TrainerTest do
+   end
+ 
+   describe "check_nan!" do
+-    test "raises on NaN loss" do
+-      # Access the private function via the module
+-      assert_raise RuntimeError, ~r/Training diverged/, fn ->
+-        # Simulate a NaN loss in training by calling fit with a bad model
+-        # We test the NaN detection indirectly through the error message pattern
+-        raise "Training diverged: loss is nan at batch 1 (epoch 1)\n\nCommon fixes:\n  - Lower learning rate"
++    test "empty training data cannot be reported as a successful zero-loss epoch" do
++      trainer = Imitation.new(embed_size: 16, hidden_sizes: [8], temporal: false)
++
++      pipeline = %ExPhil.Training.Pipeline{
++        streaming: false,
++        train_dataset: %ExPhil.Training.Data{frames: [], size: 0},
++        resolved_opts: [epochs: 2, batch_size: 2, temporal: false],
++        estimated_batches: 0
++      }
++
++      assert_raise RuntimeError, ~r/produced no optimizer batches/, fn ->
++        Trainer.fit(trainer, pipeline)
++      end
++    end
++
++    test "a real non-finite training batch aborts the fit" do
++      action = %{
++        buttons: Map.new([:a, :b, :x, :y, :z, :l, :r, :d_up], &{&1, false}),
++        main_x: 8,
++        main_y: 8,
++        c_x: 8,
++        c_y: 8,
++        shoulder: 0
++      }
++
++      ds = %ExPhil.Training.Data{
++        frames: for(i <- 0..3, do: %{game_state: %{frame: i}, action: action}),
++        embedded_frames: Nx.broadcast(:nan, {4, 16}),
++        size: 4
++      }
++
++      trainer = Imitation.new(embed_size: 16, hidden_sizes: [8], temporal: false)
++
++      pipeline = %ExPhil.Training.Pipeline{
++        streaming: false,
++        train_dataset: ds,
++        resolved_opts: [epochs: 2, batch_size: 2, temporal: false],
++        estimated_batches: 2
++      }
++
++      assert_raise RuntimeError, ~r/Training diverged: loss is nan/, fn ->
++        Trainer.fit(trainer, pipeline)
+       end
+     end
+   end
+diff --git a/test/exphil/training/trajectory_cursors_test.exs b/test/exphil/training/trajectory_cursors_test.exs
+index da762640..8a66da79 100644
+--- a/test/exphil/training/trajectory_cursors_test.exs
++++ b/test/exphil/training/trajectory_cursors_test.exs
+@@ -14,7 +14,16 @@ defmodule ExPhil.Training.TrajectoryCursorsTest do
+ 
+   defp action(id) do
+     %{
+-      buttons: %{a: rem(id, 2) == 1, b: false, x: false, y: false, z: false, l: false, r: false, d_up: false},
++      buttons: %{
++        a: rem(id, 2) == 1,
++        b: false,
++        x: false,
++        y: false,
++        z: false,
++        l: false,
++        r: false,
++        d_up: false
++      },
+       main_x: rem(id, 17),
+       main_y: 8,
+       c_x: 8,
+@@ -58,127 +67,153 @@ defmodule ExPhil.Training.TrajectoryCursorsTest do
+   end
+ 
+   describe "batch_stream/2" do
+-    test "raises when too few segments for batch_size" do
+-      ds = dataset([100, 100])
++    test "coverage and reset laws hold across boundary lengths, batch widths and seeds" do
++      for unroll <- [1, 3, 10], batch_size <- [1, 2, 7], seed <- [1, 905, 906] do
++        lengths = [1, unroll, unroll + 1, max(1, unroll - 1), 2 * unroll + 1]
++        ds = dataset(lengths)
++        segments = TrajectoryCursors.segments(ds.frames)
+ 
+-      assert_raise ArgumentError, ~r/segments/, fn ->
+-        TrajectoryCursors.batch_stream(ds, batch_size: 3, unroll: 20, gpu: false)
+-        |> Enum.take(1)
++        opts = [
++          unroll: unroll,
++          batch_size: batch_size,
++          seed: seed,
++          gpu: false,
++          neutral_weight: 1.0
++        ]
++
++        batches = Enum.to_list(TrajectoryCursors.batch_stream(ds, opts))
++
++        {seen, _} =
++          Enum.reduce(batches, {[], %{}}, fn b, {seen, previous} ->
++            Enum.reduce(0..(batch_size - 1), {seen, previous}, fn row, {ids, prev} ->
++              count = Nx.to_number(Nx.sum(b.valid_mask[row])) |> round()
++
++              if count == 0 do
++                assert Nx.to_number(b.is_resetting[row]) == 1
++                {ids, prev}
++              else
++                row_ids =
++                  Nx.slice_along_axis(b.states[row], 0, count, axis: 0)
++                  |> Nx.slice_along_axis(0, 1, axis: 1)
++                  |> Nx.to_flat_list()
++                  |> Enum.map(&round/1)
++
++                first = hd(row_ids)
++                {start, len} = Enum.find(segments, fn {s, n} -> first >= s and first < s + n end)
++                assert List.last(row_ids) < start + len
++
++                if Nx.to_number(b.is_resetting[row]) == 1,
++                  do: assert(first == start),
++                  else: assert(first == prev[row] + 1)
++
++                {row_ids ++ ids, Map.put(prev, row, List.last(row_ids))}
++              end
++            end)
++          end)
++
++        assert Enum.sort(seen) == Enum.to_list(0..(ds.size - 1))
++        repeated = Enum.to_list(TrajectoryCursors.batch_stream(ds, opts))
++
++        assert Enum.map(batches, &Nx.serialize(&1.states)) ==
++                 Enum.map(repeated, &Nx.serialize(&1.states))
+       end
+     end
+ 
+-    test "skips segments shorter than unroll" do
+-      # 5-frame game can't fit unroll 20; only 2 usable segments remain
+-      ds = dataset([100, 5, 100])
+-
+-      assert_raise ArgumentError, ~r/only 2 segments/, fn ->
+-        TrajectoryCursors.batch_stream(ds, batch_size: 3, unroll: 20, gpu: false)
+-        |> Enum.take(1)
++    test "scores every frame exactly once across short, long and partial segments" do
++      for lengths <- [[80, 8000], [3, 100, 1, 81, 159], List.duplicate(160, 40)],
++          batch_size <- [2, 128] do
++        ds = dataset(lengths)
++
++        batches =
++          TrajectoryCursors.batch_stream(ds,
++            batch_size: batch_size,
++            unroll: 80,
++            overlap: 0,
++            gpu: false,
++            neutral_weight: 1.0
++          )
++          |> Enum.to_list()
++
++        seen =
++          Enum.flat_map(batches, fn b ->
++            assert Nx.shape(b.states) == {batch_size, 80, 2}
++            ids = Nx.slice_along_axis(b.states, 0, 1, axis: 2) |> Nx.to_flat_list()
++
++            Enum.zip(ids, Nx.to_flat_list(b.valid_mask))
++            |> Enum.filter(fn {_, valid} -> valid == 1 end)
++            |> Enum.map(fn {id, _} -> round(id) end)
++          end)
++
++        assert Enum.sort(seen) == Enum.to_list(0..(ds.size - 1))
++        assert Enum.sum(Enum.map(batches, &Nx.to_number(Nx.sum(&1.frame_weights)))) == ds.size
+       end
+     end
+ 
+-    test "rows are contiguous across batches with overlap" do
+-      ds = dataset([100, 100])
+-      unroll = 20
+-      overlap = 1
++    test "rows advance without overlap and reset before a different segment" do
++      ds = dataset([90, 11, 210, 5])
++      segments = TrajectoryCursors.segments(ds.frames)
+ 
+       batches =
+-        TrajectoryCursors.batch_stream(ds,
+-          batch_size: 2,
+-          unroll: unroll,
+-          overlap: overlap,
+-          gpu: false
+-        )
++        TrajectoryCursors.batch_stream(ds, batch_size: 2, unroll: 80, gpu: false)
+         |> Enum.to_list()
+ 
+-      assert length(batches) >= 2
+-      [b1, b2 | _] = batches
+-
+-      # Batch shapes
+-      assert Nx.shape(b1.states) == {2, unroll, 2}
+-      assert Nx.shape(b1.frame_weights) == {2, unroll}
+-      assert Nx.shape(b1.actions.buttons) == {2, unroll, 8}
+-      assert Nx.shape(b1.actions.main_x) == {2, unroll}
+-
+-      # First batch: both rows fresh
+-      assert Nx.to_flat_list(b1.is_resetting) == [1, 1]
+-      # Second batch: both rows continue the same segments
+-      assert Nx.to_flat_list(b2.is_resetting) == [0, 0]
+-
+-      # Contiguity: row r's batch-2 start == batch-1 start + unroll - overlap
+-      # (embedding value == global frame index by construction)
+-      for r <- 0..1 do
+-        first1 = b1.states[r][0][0] |> Nx.to_number()
+-        first2 = b2.states[r][0][0] |> Nx.to_number()
+-        assert first2 == first1 + unroll - overlap
+-      end
++      Enum.reduce(batches, %{}, fn b, previous ->
++        Enum.reduce(0..1, previous, fn row, prev ->
++          valid = Nx.to_number(Nx.sum(b.valid_mask[row])) |> round()
++
++          if valid > 0 do
++            first = Nx.to_number(b.states[row][0][0]) |> round()
++            last = Nx.to_number(b.states[row][valid - 1][0]) |> round()
++            {start, length} = Enum.find(segments, fn {s, n} -> first >= s and first < s + n end)
++            assert last == first + valid - 1
++            assert last < start + length
++
++            if Nx.to_number(b.is_resetting[row]) == 0,
++              do: assert(first == prev[row] + 1),
++              else: assert(first == start)
++
++            Map.put(prev, row, last)
++          else
++            assert Nx.to_number(b.is_resetting[row]) == 1
++            prev
++          end
++        end)
++      end)
+     end
+ 
+-    test "no chunk crosses a segment boundary; resets only at real boundaries" do
+-      # 2 games of 100 with unroll 30/overlap 1: each segment yields
+-      # chunks at offsets 0, 29, 58 (87+30 > 100 -> new segment).
+-      ds = dataset([100, 100])
+-
+-      batches =
+-        TrajectoryCursors.batch_stream(ds,
+-          batch_size: 2,
+-          unroll: 30,
+-          overlap: 1,
+-          gpu: false
+-        )
+-        |> Enum.to_list()
+-
+-      # Every chunk must lie inside one segment. Embedding col 0 is the
+-      # GLOBAL frame index by construction and segments are [0,100) and
+-      # [100,200), so a chunk's first and last frame must land in the
+-      # same 100-block and be exactly unroll-1 apart (contiguous slice).
+-      for b <- batches, r <- 0..1 do
+-        first = b.states[r][0][0] |> Nx.to_number() |> round()
+-        last = b.states[r][29][0] |> Nx.to_number() |> round()
+-        assert last - first == 29
+-        assert div(first, 100) == div(last, 100)
++    test "positive overlap is rejected rather than replaying input into advanced carry" do
++      assert_raise ArgumentError, ~r/overlap must be 0/, fn ->
++        TrajectoryCursors.batch_stream(dataset([100]), batch_size: 1, overlap: 1)
+       end
+-
+-      # Total resets == segments consumed (2), all in the first batch
+-      total_resets =
+-        batches |> Enum.map(&Nx.to_number(Nx.sum(&1.is_resetting))) |> Enum.sum()
+-
+-      assert total_resets == 2
+     end
+ 
+-    test "halts when queue is exhausted" do
+-      ds = dataset([50, 50])
++    test "empty datasets emit no batches" do
++      assert Enum.to_list(
++               TrajectoryCursors.batch_stream(%Data{frames: [], size: 0},
++                 batch_size: 128,
++                 gpu: false
++               )
++             ) == []
++    end
+ 
+-      batches =
+-        TrajectoryCursors.batch_stream(ds,
++    test "padding contributes zero weight and valid targets remain aligned" do
++      [b] =
++        TrajectoryCursors.batch_stream(dataset([5]),
+           batch_size: 2,
+-          unroll: 40,
+-          overlap: 1,
+-          gpu: false
++          unroll: 80,
++          gpu: false,
++          neutral_weight: 1.0
+         )
+         |> Enum.to_list()
+ 
+-      # Each 50-frame segment fits exactly one 40-frame chunk (offset 39
+-      # + 40 > 50), and there are exactly 2 segments for 2 rows.
+-      assert length(batches) == 1
+-    end
+-
+-    test "per-timestep targets match the frames" do
+-      ds = dataset([100, 100])
+-
+-      [b1 | _] =
+-        TrajectoryCursors.batch_stream(ds,
+-          batch_size: 2,
+-          unroll: 10,
+-          overlap: 1,
+-          gpu: false
+-        )
+-        |> Enum.take(1)
++      assert Nx.to_number(Nx.sum(b.valid_mask)) == 5
+ 
+-      # main_x of frame i is rem(i_within_game, 17); both rows start at
+-      # offset 0 of their (shuffled) segments, so t-th target is rem(t, 17).
+-      for r <- 0..1, t <- 0..9 do
+-        assert Nx.to_number(b1.actions.main_x[r][t]) == rem(t, 17)
++      for row <- 0..1, t <- 0..79 do
++        if Nx.to_number(b.valid_mask[row][t]) == 1 do
++          assert Nx.to_number(b.actions.main_x[row][t]) == rem(t, 17)
++        else
++          assert Nx.to_number(b.frame_weights[row][t]) == 0
++        end
+       end
+     end
+   end

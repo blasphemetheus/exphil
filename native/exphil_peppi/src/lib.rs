@@ -85,6 +85,8 @@ pub struct PlayerFrame {
     pub on_ground: bool,
     pub shield_strength: f64,
     pub hitstun_frames_left: f64,
+    pub hitlag_left: f64,
+    pub in_hitstun: Option<bool>,
     pub speed_air_x_self: f64,
     pub speed_ground_x_self: f64,
     pub speed_y_self: f64,
@@ -132,6 +134,7 @@ pub struct PlayerMeta {
 #[derive(Debug, NifStruct)]
 #[module = "ExPhil.Data.Peppi.ReplayMeta"]
 pub struct ReplayMeta {
+    pub frozen_stadium: Option<bool>,
     pub path: String,
     pub stage: i32,
     pub duration_frames: i32,
@@ -363,13 +366,11 @@ fn parse_player_frame(data: &Data) -> PlayerFrame {
             (0.0, 0.0, 0.0, 0.0, 0.0)
         };
 
-    // Check invulnerability from state flags
-    let invulnerable = post.state_flags
-        .map(|flags| {
-            // StateFlags is a tuple struct with 5 u8 values
-            // Check specific flag bits for invulnerability
-            (flags.0 & 0x04) != 0 || (flags.0 & 0x10) != 0
-        })
+    // Slippi post-frame 0x34: vulnerable / invulnerable / intangible.
+    // Flags byte 1 bit 0x10 describes a reflector, not invulnerability.
+    let invulnerable = post.hurtbox_state
+        .map(|state| state != 0)
+        .or_else(|| post.state_flags.map(|flags| flags.1 & 0x04 != 0))
         .unwrap_or(false);
 
     // Check if grounded
@@ -390,7 +391,11 @@ fn parse_player_frame(data: &Data) -> PlayerFrame {
         jumps_left: post.jumps.unwrap_or(2) as i32,
         on_ground,
         shield_strength: post.shield as f64,
-        hitstun_frames_left: post.hitlag.unwrap_or(0.0) as f64,
+        // Match libmelee's live 0x2B channel. This counter has other uses
+        // outside hitstun; statistical consumers must consult in_hitstun.
+        hitstun_frames_left: post.misc_as.unwrap_or(0.0) as f64,
+        hitlag_left: post.hitlag.unwrap_or(0.0) as f64,
+        in_hitstun: post.state_flags.map(|flags| flags.3 & 0x02 != 0),
         speed_air_x_self: speed_air_x,
         speed_ground_x_self: speed_ground_x,
         speed_y_self: speed_y,
@@ -480,6 +485,7 @@ fn parse_game<G: Game>(game: &G, path: &str) -> ParsedReplay {
     }
 
     let metadata = ReplayMeta {
+        frozen_stadium: start.is_frozen_ps,
         path: path.to_string(),
         stage,
         duration_frames: frames.len() as i32,
@@ -551,6 +557,7 @@ fn get_replay_metadata(path: String) -> NifResult<(Atom, ReplayMeta)> {
     }
 
     let metadata = ReplayMeta {
+        frozen_stadium: start.is_frozen_ps,
         path: path.to_string(),
         stage,
         duration_frames: game.len() as i32,
@@ -565,6 +572,26 @@ rustler::init!("Elixir.ExPhil.Data.Peppi");
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn combat_counters_and_reflector_flags_remain_distinct() {
+        use peppi::frame::transpose::{Data, Pre, Post, StateFlags};
+        let mut data = Data { pre: Pre::default(), post: Post::default() };
+        data.post.misc_as = Some(17.0);
+        data.post.hitlag = Some(4.0);
+        data.post.state_flags = Some(StateFlags(0x10, 0x20, 0, 0, 0));
+        data.post.hurtbox_state = Some(0);
+        let p = super::parse_player_frame(&data);
+        assert_eq!(p.hitstun_frames_left, 17.0);
+        assert_eq!(p.hitlag_left, 4.0);
+        assert_eq!(p.in_hitstun, Some(false));
+        assert!(!p.invulnerable);
+        data.post.state_flags = Some(StateFlags(0, 0, 0, 0x02, 0));
+        data.post.hurtbox_state = Some(2);
+        let p = super::parse_player_frame(&data);
+        assert_eq!(p.in_hitstun, Some(true));
+        assert!(p.invulnerable);
+    }
+
     #[test]
     fn processed_inputs_preserve_original_bits_and_distinct_physical_fields() {
         let mut pre = peppi::frame::transpose::Pre::default();

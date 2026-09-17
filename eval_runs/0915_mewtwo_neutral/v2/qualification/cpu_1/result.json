@@ -1,0 +1,89 @@
+{
+  "session": {
+    "errors": 0,
+    "expected_latency": 1,
+    "frames": 1922,
+    "game_ended": true,
+    "last_frame": 1799,
+    "measured_latency": 1,
+    "player_port": 1,
+    "policy": "eval_runs/0915_mewtwo_neutral/v2/candidate.bin",
+    "reaction_delay": 0,
+    "scored_fps": 84.24205550615434,
+    "scored_wall_ms": 21367,
+    "stage": "final_destination",
+    "start_frame": -123,
+    "status": "ok"
+  },
+  "run": 1,
+  "mode": "cpu",
+  "valid": true,
+  "replay": "eval_runs/0915_mewtwo_neutral/v2/qualification/cpu_1/Game_20260915T175234.slp",
+  "metrics": {
+    "neutral": {
+      "events": [
+        {
+          "start": 307,
+          "finish": 354,
+          "censor_reason": null,
+          "first_contact": 349,
+          "outcome": "opponent_opens"
+        },
+        {
+          "start": 384,
+          "finish": 483,
+          "censor_reason": null,
+          "first_contact": 478,
+          "outcome": "opponent_opens"
+        },
+        {
+          "start": 686,
+          "finish": 706,
+          "censor_reason": null,
+          "first_contact": 701,
+          "outcome": "opponent_opens"
+        },
+        {
+          "start": 755,
+          "finish": 788,
+          "censor_reason": "offstage",
+          "first_contact": null,
+          "outcome": "censored"
+        },
+        {
+          "start": 1022,
+          "finish": 1122,
+          "censor_reason": null,
+          "first_contact": 1117,
+          "outcome": "opponent_opens"
+        },
+        {
+          "start": 1268,
+          "finish": 1311,
+          "censor_reason": "offstage",
+          "first_contact": null,
+          "outcome": "censored"
+        }
+      ],
+      "outcomes": {
+        "opponent_opens": 4,
+        "censored": 2
+      },
+      "exchanges": 6
+    },
+    "frames": 1800,
+    "aerial_attempts": 2,
+    "aerial_types": {
+      "65": 1,
+      "66": 1
+    },
+    "deaths": 2,
+    "down_tilt_attempts": 1,
+    "grab_attempts": 4,
+    "hop_apices": [],
+    "max_shield_action_streak": 0,
+    "short_hops": 0,
+    "wavedashes": 1
+  },
+  "replay_sha256": "2e840611dcc742df96a36b02e677e9f0fae4ea1f5210d142d0959805ded0ad76"
+}

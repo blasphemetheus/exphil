@@ -51,6 +51,7 @@ defmodule ExPhil.Agents.Agent do
     :policy_params,
     :predict_fn,
     :embed_config,
+    :bptt,
     # :parsed (default, no-op) | :live — see GOTCHAS #81
     :af_convention,
     :frame_delay,
@@ -1342,7 +1343,7 @@ defmodule ExPhil.Agents.Agent do
     frame = Nx.reshape(embedded, {1, Nx.size(embedded)})
 
     trunk_state =
-      if state.trunk_cold do
+      if state.trunk_cold and not (state.bptt == true) do
         Enum.reduce(1..max(state.window_size - 1, 0)//1, state.trunk_state, fn _, st ->
           {_out, st} = trunk_step_fn().(state.trunk_step_params, st, frame)
           st
@@ -1645,8 +1646,9 @@ defmodule ExPhil.Agents.Agent do
     # (stock lost at frame ~120 in every cold-start game). Replicate the
     # pad semantics: step the first frame window_size-1 extra times, once
     # per game (~13 ms total on the 5090 for window 60).
+    # BPTT instead starts from zero carry and consumes each input once.
     trunk_state =
-      if state.trunk_cold do
+      if state.trunk_cold and not (state.bptt == true) do
         Enum.reduce(1..max(state.window_size - 1, 0)//1, state.trunk_state, fn _, st ->
           {_out, st} = trunk_step_fn().(state.trunk_step_params, st, frame)
           st
@@ -2298,9 +2300,12 @@ defmodule ExPhil.Agents.Agent do
   end
 
   defp load_policy_internal(state, %{params: params, config: config} = _policy) do
-    execution = ExPhil.Networks.Policy.ExecutionContract.load(config)
-    if execution.execution_contract == :windowed_gru_f32_v1 and state.stateful_step,
-      do: raise(ArgumentError, "windowed GRU v1 cannot use stateful-step inference")
+    execution =
+      ExPhil.Networks.Policy.ExecutionContract.validate_inference!(config, state.stateful_step)
+
+    if config[:bptt] == true and (state.stateful_resync != nil or is_binary(state.leace_eraser)),
+      do: raise(ArgumentError, "BPTT stateful inference cannot use window resync or a LEACE eraser")
+
     # Extract config
     embed_config = Map.get(config, :embed_config, %{})
     # The canary's length IS the true input width (it's the embedded
@@ -2354,7 +2359,13 @@ defmodule ExPhil.Agents.Agent do
     # (exports carry them since the backbone_defaults integration; GRU
     # ignores them harmlessly)
     trunk_opts = [
-      recurrent_state: execution.recurrent_state,
+      # BPTT actually executes through Edifice.Stateful below. The companion
+      # window graph must not introduce a random initial-state parameter.
+      recurrent_state:
+        if(execution.recurrent_state == :carried_zero,
+          do: :zeros,
+          else: execution.recurrent_state
+        ),
       embed_size: embed_size,
       backbone: backbone,
       window_size: window_size,
@@ -2723,6 +2734,7 @@ defmodule ExPhil.Agents.Agent do
         head: head,
         # Set temporal config
         temporal: temporal,
+        bptt: config[:bptt] == true,
         backbone: backbone,
         window_size: window_size,
         use_prev_action: use_prev_action,

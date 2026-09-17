@@ -1,0 +1,85 @@
+{
+  "session": {
+    "errors": 0,
+    "expected_latency": 1,
+    "frames": 1922,
+    "game_ended": true,
+    "last_frame": 1799,
+    "measured_latency": 1,
+    "player_port": 1,
+    "policy": "eval_runs/0915_mewtwo_neutral/v5/candidate.bin",
+    "reaction_delay": 0,
+    "scored_fps": 84.83763020219635,
+    "scored_wall_ms": 21217,
+    "stage": "final_destination",
+    "start_frame": -123,
+    "status": "ok"
+  },
+  "run": 3,
+  "mode": "cpu",
+  "valid": true,
+  "replay": "eval_runs/0915_mewtwo_neutral/v5/qualification/cpu_3/Game_20260915T183632.slp",
+  "metrics": {
+    "neutral": {
+      "events": [
+        {
+          "start": 29,
+          "finish": 46,
+          "censor_reason": null,
+          "first_contact": 41,
+          "outcome": "opponent_opens"
+        },
+        {
+          "start": 254,
+          "finish": 301,
+          "censor_reason": null,
+          "first_contact": 296,
+          "outcome": "opponent_opens"
+        },
+        {
+          "start": 704,
+          "finish": 726,
+          "censor_reason": null,
+          "first_contact": 721,
+          "outcome": "subject_opens"
+        },
+        {
+          "start": 849,
+          "finish": 912,
+          "censor_reason": null,
+          "first_contact": 907,
+          "outcome": "opponent_opens"
+        },
+        {
+          "start": 1399,
+          "finish": 1746,
+          "censor_reason": null,
+          "first_contact": 1741,
+          "outcome": "opponent_opens"
+        }
+      ],
+      "outcomes": {
+        "subject_opens": 1,
+        "opponent_opens": 4
+      },
+      "exchanges": 5
+    },
+    "frames": 1800,
+    "aerial_attempts": 3,
+    "aerial_types": {
+      "65": 1,
+      "66": 2
+    },
+    "deaths": 1,
+    "down_tilt_attempts": 4,
+    "grab_attempts": 0,
+    "hop_apices": [
+      33.40798868408456,
+      12.653996603396081
+    ],
+    "max_shield_action_streak": 22,
+    "short_hops": 1,
+    "wavedashes": 0
+  },
+  "replay_sha256": "fc07dedb3485377e7560076dfb8fac8464f6fb8f2fa5e1dc89996597751a6748"
+}

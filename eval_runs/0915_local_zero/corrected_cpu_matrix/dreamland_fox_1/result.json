@@ -1,0 +1,100 @@
+{
+  "id": "dreamland_fox_1",
+  "session": {
+    "errors": 0,
+    "expected_latency": 1,
+    "frames": 1922,
+    "game_ended": false,
+    "last_frame": 1799,
+    "measured_latency": 1,
+    "player_port": 1,
+    "policy": "eval_runs/0915_local_zero/corrected_bootstrap/candidate.bin",
+    "reaction_delay": 0,
+    "scored_fps": 101.89063738254274,
+    "scored_wall_ms": 17666,
+    "stage": "dreamland",
+    "start_frame": -123,
+    "status": "ok"
+  },
+  "run": 1,
+  "valid": true,
+  "stage": "dreamland",
+  "opponent": "fox",
+  "replay": "eval_runs/0915_local_zero/corrected_cpu_matrix/dreamland_fox_1/Game_20260915T120236.slp",
+  "metrics": {
+    "max_chain": 124,
+    "frames": 1800,
+    "deaths": 0,
+    "chains": [
+      {
+        "length": 124,
+        "ended_by": "other_action"
+      },
+      {
+        "length": 1,
+        "ended_by": "other_action"
+      },
+      {
+        "length": 31,
+        "ended_by": "other_action"
+      },
+      {
+        "length": 18,
+        "ended_by": "other_action"
+      },
+      {
+        "length": 10,
+        "ended_by": "end_of_input"
+      }
+    ],
+    "completed_cycles": 179,
+    "endings": {
+      "end_of_input": 1,
+      "other_action": 4
+    },
+    "ground_shine_onsets": 184,
+    "ground_shines_per_minute": 368.0,
+    "recent_hit_onsets": 3,
+    "recovery": {
+      "episodes": [
+        {
+          "cause": "loop_break",
+          "start": 1131,
+          "finish": 1227,
+          "outcome": "reentered",
+          "ready": 1211
+        },
+        {
+          "cause": "hitstun",
+          "start": 1493,
+          "finish": 1516,
+          "outcome": "reentered",
+          "ready": 1503
+        },
+        {
+          "cause": "loop_break",
+          "start": 1709,
+          "finish": 1720,
+          "outcome": "reentered",
+          "ready": 1710
+        }
+      ],
+      "censored": 0,
+      "completed": 3,
+      "disruption_to_cycle_frames": [
+        96,
+        23,
+        11
+      ],
+      "ready_to_cycle_frames": [
+        16,
+        13,
+        10
+      ]
+    },
+    "self_initiated_onsets": 181,
+    "self_initiated_per_minute": 362.0
+  },
+  "replay_sha256": "12d594541cc38cd52c29b9e5b0bec1467265ec0beb1f82f8e9c3f797080f0ed1",
+  "chain_gate": true
+}

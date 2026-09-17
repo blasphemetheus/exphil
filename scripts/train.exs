@@ -224,10 +224,11 @@ if pipeline.player_registry && opts[:checkpoint] do
 end
 
 # Summary
-Output.puts("\nTraining complete!")
-Output.puts("  Epochs: #{state.epoch}/#{state.epochs}")
-Output.puts("  Final train_loss: #{Float.round((state.train_loss || 0.0) * 1.0, 4)}")
-if state.val_loss, do: Output.puts("  Final val_loss: #{Float.round(state.val_loss * 1.0, 4)}")
-if state.best_val_loss, do: Output.puts("  Best val_loss: #{Float.round(state.best_val_loss * 1.0, 4)}")
+Output.puts(if state.meta[:halt_requested], do: "\nTraining stopped at a batch boundary.", else: "\nTraining complete!")
+Output.puts("  Completed epochs: #{length(state.history)}/#{state.epochs}")
+Output.puts("  Optimizer steps: #{state.trainer.step}")
+for {name, value} <- [{"Final train_loss", state.train_loss}, {"Final val_loss", state.val_loss}, {"Best val_loss", state.best_val_loss}] do
+  if is_number(value), do: Output.puts("  #{name}: #{Float.round(value * 1.0, 4)}")
+end
 if opts[:checkpoint], do: Output.puts("  Checkpoint: #{opts[:checkpoint]}")
 if state.meta[:seed], do: Output.puts("  Seed: #{state.meta[:seed]}")

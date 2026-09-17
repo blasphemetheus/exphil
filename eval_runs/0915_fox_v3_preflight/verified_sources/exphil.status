@@ -1,0 +1,82 @@
+ M config/config.exs
+ M docs/guides/TRAINING.md
+ M docs/planning/BPTT_LOADER_DESIGN.md
+ M docs/planning/HANDOFF_2026-09-09.md
+ M lib/exphil/agents/agent.ex
+ M lib/exphil/cli.ex
+ M lib/exphil/data/peppi.ex
+ M lib/exphil/eval/multishine_benchmark.ex
+ M lib/exphil/networks/policy/backbone.ex
+ M lib/exphil/networks/policy/execution_contract.ex
+ M lib/exphil/networks/policy/loss.ex
+ M lib/exphil/networks/policy/sampling.ex
+ M lib/exphil/training/callbacks/checkpoint.ex
+ M lib/exphil/training/callbacks/graceful_shutdown.ex
+ M lib/exphil/training/callbacks/policy_export.ex
+ M lib/exphil/training/config.ex
+ M lib/exphil/training/data.ex
+ M lib/exphil/training/imitation.ex
+ M lib/exphil/training/imitation/loss.ex
+ M lib/exphil/training/imitation/train_loop.ex
+ M lib/exphil/training/imitation/validation.ex
+ M lib/exphil/training/pipeline.ex
+ M lib/exphil/training/player_registry.ex
+ M lib/exphil/training/trainer.ex
+ M lib/exphil/training/trajectory_cursors.ex
+ M lib/exphil_bridge/melee_port.ex
+ M native/exphil_peppi/src/lib.rs
+ M scripts/dagger_drill.exs
+ M scripts/play_dolphin.exs
+ M scripts/train.exs
+ M test/exphil/agents/agent_stateful_step_test.exs
+ M test/exphil/eval/multishine_benchmark_test.exs
+ M test/exphil/networks/execution_contract_test.exs
+ M test/exphil/networks/policy_bptt_test.exs
+ M test/exphil/training/bptt_train_test.exs
+ M test/exphil/training/callbacks/checkpoint_callback_test.exs
+ M test/exphil/training/player_registry_test.exs
+ M test/exphil/training/trainer_test.exs
+ M test/exphil/training/trajectory_cursors_test.exs
+?? docs/guides/LOCAL_MULTISHINE_DEMO.md
+?? docs/planning/FOX_V3_PREFLIGHT.md
+?? docs/planning/LOCAL_MULTISHINE_DEMO.md
+?? docs/planning/MEWTWO_NEUTRAL_BASELINE_V1.md
+?? docs/planning/MEWTWO_NEUTRAL_DRILL.md
+?? docs/planning/MEWTWO_NEUTRAL_TO_COMBO_HANDOFF.md
+?? eval_runs/0915_fox_v3_preflight/
+?? eval_runs/0915_local_zero/
+?? eval_runs/0915_mewtwo_demonstrations/
+?? eval_runs/0915_mewtwo_neutral/
+?? eval_runs/0915_mewtwo_teacher_audit/
+?? eval_runs/local_recording_20260915_120657/
+?? eval_runs/local_zero_demo_20260915T164625/
+?? eval_runs/local_zero_demo_20260915T170005/
+?? eval_runs/local_zero_demo_20260915T170040/
+?? eval_runs/local_zero_demo_20260915T171722/
+?? eval_runs/local_zero_demo_20260915T171823/
+?? lib/exphil/agents/mewtwo_neutral_teacher.ex
+?? lib/exphil/agents/recorded_only_expert.ex
+?? lib/exphil/eval/mewtwo_neutral_benchmark.ex
+?? lib/exphil/eval/neutral_exchange.ex
+?? scripts/audit_mewtwo_teacher_states.exs
+?? scripts/augment_mewtwo_stock_counts.exs
+?? scripts/build_mewtwo_human_openings.exs
+?? scripts/build_mewtwo_neutral_recordings.exs
+?? scripts/build_mewtwo_teacher_games.exs
+?? scripts/eval_mewtwo_neutral.exs
+?? scripts/inventory_mewtwo_demonstrations.exs
+?? scripts/local_multishine_eval.exs
+?? scripts/local_multishine_handoff_report.exs
+?? scripts/local_multishine_report.exs
+?? scripts/local_zero_bootstrap.exs
+?? scripts/local_zero_train.exs
+?? scripts/play_local.sh
+?? scripts/play_local_multishine.exs
+?? scripts/rescore_mewtwo_neutral.exs
+?? scripts/validate_mewtwo_contact.exs
+?? scripts/validate_mewtwo_cpu_teacher.exs
+?? test/exphil/agents/mewtwo_neutral_teacher_test.exs
+?? test/exphil/eval/mewtwo_neutral_benchmark_test.exs
+?? test/exphil/eval/neutral_exchange_test.exs
+?? test/exphil/training/bptt_style_pipeline_test.exs
+?? test/exphil/training/callbacks/policy_export_failure_test.exs

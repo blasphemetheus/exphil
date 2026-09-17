@@ -1,0 +1,31 @@
+{
+  "split": "train_whole_game",
+  "source": "/home/blewf/git/exphil/eval_runs/0915_mewtwo_teacher_audit/cpu_teacher_v2/run_2/replays/Game_20260915T180923.slp",
+  "opponent": "CPU 6",
+  "opponent_port": 2,
+  "audits": [
+    {
+      "start": 0,
+      "category": "down_tilt",
+      "action": 57,
+      "action_frame": 5.0,
+      "contact": 31,
+      "accepted": true,
+      "attacker_hitlag": 6.0,
+      "defender_hitlag": 6.0,
+      "gap": 13.696525573730469,
+      "defender_action": 86
+    }
+  ],
+  "accepted": 1,
+  "sha256": "03484638c095641d1cfb19605aeda8e59eb5685fe2f7091dcb3228423d85f18c",
+  "subject_port": 1,
+  "source_type": "scripted_teacher",
+  "selection": "Successful exclusive neutral openings; capture or simultaneous hitlag and an active melee attack",
+  "limitation": "Attack attribution inferred from replay states; successful demonstration data is not proof of an optimal decision",
+  "targets": "Include the clean lead-in and stop before first contact state; no combo continuation",
+  "excluded": 0,
+  "categories": {
+    "down_tilt": 1
+  }
+}

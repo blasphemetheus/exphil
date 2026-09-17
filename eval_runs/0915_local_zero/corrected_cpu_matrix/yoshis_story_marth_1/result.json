@@ -1,0 +1,70 @@
+{
+  "id": "yoshis_story_marth_1",
+  "session": {
+    "errors": 0,
+    "expected_latency": 1,
+    "frames": 1922,
+    "game_ended": true,
+    "last_frame": 1799,
+    "measured_latency": 1,
+    "player_port": 1,
+    "policy": "eval_runs/0915_local_zero/corrected_bootstrap/candidate.bin",
+    "reaction_delay": 0,
+    "scored_fps": 101.24303954103155,
+    "scored_wall_ms": 17779,
+    "stage": "yoshis_story",
+    "start_frame": -123,
+    "status": "ok"
+  },
+  "run": 1,
+  "valid": true,
+  "stage": "yoshis_story",
+  "opponent": "marth",
+  "replay": "eval_runs/0915_local_zero/corrected_cpu_matrix/yoshis_story_marth_1/Game_20260915T122229.slp",
+  "metrics": {
+    "max_chain": 194,
+    "frames": 1800,
+    "deaths": 0,
+    "chains": [
+      {
+        "length": 194,
+        "ended_by": "other_action"
+      },
+      {
+        "length": 2,
+        "ended_by": "end_of_input"
+      }
+    ],
+    "completed_cycles": 194,
+    "endings": {
+      "end_of_input": 1,
+      "other_action": 1
+    },
+    "ground_shine_onsets": 196,
+    "ground_shines_per_minute": 392.0,
+    "recent_hit_onsets": 2,
+    "recovery": {
+      "episodes": [
+        {
+          "cause": "hitstun",
+          "start": 1766,
+          "finish": 1791,
+          "outcome": "reentered",
+          "ready": 1778
+        }
+      ],
+      "censored": 0,
+      "completed": 1,
+      "disruption_to_cycle_frames": [
+        25
+      ],
+      "ready_to_cycle_frames": [
+        13
+      ]
+    },
+    "self_initiated_onsets": 194,
+    "self_initiated_per_minute": 388.0
+  },
+  "replay_sha256": "4377232983419a4b6cbc7d370c9679e34120511f0560fa732770e5f444e8de31",
+  "chain_gate": true
+}

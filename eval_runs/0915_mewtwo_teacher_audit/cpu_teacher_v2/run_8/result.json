@@ -1,0 +1,98 @@
+{
+  "run": 8,
+  "metrics": {
+    "neutral": {
+      "events": [
+        {
+          "start": 29,
+          "finish": 140,
+          "censor_reason": null,
+          "first_contact": 135,
+          "outcome": "subject_opens"
+        },
+        {
+          "start": 248,
+          "finish": 261,
+          "censor_reason": null,
+          "first_contact": 256,
+          "outcome": "opponent_opens"
+        },
+        {
+          "start": 316,
+          "finish": 327,
+          "censor_reason": null,
+          "first_contact": 322,
+          "outcome": "opponent_opens"
+        },
+        {
+          "start": 386,
+          "finish": 447,
+          "censor_reason": null,
+          "first_contact": 442,
+          "outcome": "subject_opens"
+        },
+        {
+          "start": 490,
+          "finish": 523,
+          "censor_reason": null,
+          "first_contact": 518,
+          "outcome": "subject_opens"
+        },
+        {
+          "start": 625,
+          "finish": 651,
+          "censor_reason": null,
+          "first_contact": 646,
+          "outcome": "subject_opens"
+        },
+        {
+          "start": 1283,
+          "finish": 1355,
+          "censor_reason": null,
+          "first_contact": 1350,
+          "outcome": "subject_opens"
+        },
+        {
+          "start": 1558,
+          "finish": 1606,
+          "censor_reason": null,
+          "first_contact": 1601,
+          "outcome": "subject_opens"
+        }
+      ],
+      "outcomes": {
+        "subject_opens": 6,
+        "opponent_opens": 2
+      },
+      "exchanges": 8
+    },
+    "deaths": 1,
+    "frames": 1800,
+    "aerial_attempts": 1,
+    "aerial_types": {
+      "65": 1
+    },
+    "down_tilt_attempts": 7,
+    "grab_attempts": 0,
+    "hop_apices": [
+      12.653996603396081
+    ],
+    "max_shield_action_streak": 50,
+    "short_hops": 1,
+    "wavedashes": 1
+  },
+  "replay": "/home/blewf/git/exphil/eval_runs/0915_mewtwo_teacher_audit/cpu_teacher_v2/run_8/replays/Game_20260915T180950.slp",
+  "choices": {
+    ":brake": 7,
+    ":down_tilt": 7,
+    ":interrupted": 727,
+    ":shield": 7,
+    ":wait": 824,
+    "{:aerial, :nair, :right}": 37,
+    "{:run, :right}": 1,
+    "{:walk, :left}": 99,
+    "{:walk, :right}": 83,
+    "{:wavedash, :right}": 8
+  },
+  "opening_gate": true
+}

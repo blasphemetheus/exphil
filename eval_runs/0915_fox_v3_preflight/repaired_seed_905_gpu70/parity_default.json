@@ -1,0 +1,27 @@
+{
+  "config": {
+    "head": "autoregressive",
+    "hidden_size": 512,
+    "num_layers": 2,
+    "bptt": true,
+    "execution_contract": "bptt_gru_f32_v1"
+  },
+  "checkpoint": "eval_runs/0915_fox_v3_preflight/repaired_seed_905_gpu70/model.axon",
+  "steps": 83,
+  "passed": false,
+  "export_matches_checkpoint": true,
+  "policy_sha256": "c93b2fc82c14d0991fd7eed314d7cdbd4096aa07471770a5ea23cf096ce410f8",
+  "policy": "eval_runs/0915_fox_v3_preflight/repaired_seed_905_gpu70/model_policy.bin",
+  "tolerance": 0.0001,
+  "maximum_absolute_deltas": {
+    "buttons": 0.002848029136657715,
+    "main_x": 0.0023431777954101562,
+    "main_y": 0.002498328685760498,
+    "c_x": 0.0024132728576660156,
+    "c_y": 0.0021164417266845703,
+    "shoulder": 0.0019133388996124268,
+    "carry": 4.917383193969727e-7,
+    "chunk_logits": 5.965232849121094e-4,
+    "chunk_carry": 3.129243850708008e-7
+  }
+}

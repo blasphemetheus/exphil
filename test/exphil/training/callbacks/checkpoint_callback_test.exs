@@ -72,6 +72,27 @@ defmodule ExPhil.Training.Callbacks.CheckpointTest do
   end
 
   describe "on_batch_end/2" do
+    test "a failed write aborts rather than silently losing checkpoint protection" do
+      dir =
+        Path.join(System.tmp_dir!(), "checkpoint_failure_#{System.unique_integer([:positive])}")
+
+      File.mkdir_p!(dir)
+      on_exit(fn -> File.rm_rf!(dir) end)
+      trainer = ExPhil.Training.Imitation.new(embed_size: 16, hidden_sizes: [8], temporal: false)
+      path = Path.join(dir, "model.axon")
+      File.write!(path, "previous checkpoint remains intact")
+      # A directory at the temporary write path fails reliably even as root.
+      File.mkdir_p!(path <> ".tmp")
+      cb = Checkpoint.init(checkpoint_path: path)
+      state = %TrainingState{trainer: trainer, opts: []}
+
+      assert_raise RuntimeError, ~r/Failed to save final checkpoint/, fn ->
+        Checkpoint.on_train_end(state, cb)
+      end
+
+      assert File.read!(path) == "previous checkpoint remains intact"
+    end
+
     test "no-op without save_every_batches" do
       cb = Checkpoint.init([])
       state = %TrainingState{step: 100, opts: []}

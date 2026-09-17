@@ -1,0 +1,55 @@
+{
+  "split": "train_whole_game",
+  "source": "/home/blewf/git/exphil/eval_runs/0915_mewtwo_teacher_audit/cpu_teacher_v2/run_5/replays/Game_20260915T180937.slp",
+  "opponent": "CPU 6",
+  "opponent_port": 2,
+  "audits": [
+    {
+      "start": 0,
+      "category": "down_tilt",
+      "action": 57,
+      "action_frame": 5.0,
+      "contact": 31,
+      "accepted": true,
+      "attacker_hitlag": 6.0,
+      "defender_hitlag": 6.0,
+      "gap": 14.09203815460205,
+      "defender_action": 80
+    },
+    {
+      "start": 94,
+      "category": "down_tilt",
+      "action": 57,
+      "action_frame": 5.0,
+      "contact": 168,
+      "accepted": true,
+      "attacker_hitlag": 5.0,
+      "defender_hitlag": 5.0,
+      "gap": 19.92677879333496,
+      "defender_action": 83
+    },
+    {
+      "start": 804,
+      "category": "down_tilt",
+      "action": 57,
+      "action_frame": 5.0,
+      "contact": 845,
+      "accepted": true,
+      "attacker_hitlag": 5.0,
+      "defender_hitlag": 5.0,
+      "gap": 21.220502853393555,
+      "defender_action": 90
+    }
+  ],
+  "accepted": 3,
+  "sha256": "03db81b96a19bc13127e547cbfc79e92d20d14eef1f1c10a07baa08803402d78",
+  "subject_port": 1,
+  "source_type": "scripted_teacher",
+  "selection": "Successful exclusive neutral openings; capture or simultaneous hitlag and an active melee attack",
+  "limitation": "Attack attribution inferred from replay states; successful demonstration data is not proof of an optimal decision",
+  "targets": "Include the clean lead-in and stop before first contact state; no combo continuation",
+  "excluded": 0,
+  "categories": {
+    "down_tilt": 3
+  }
+}

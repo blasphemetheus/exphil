@@ -1,0 +1,14 @@
+{
+  "status": "ok",
+  "errors": 0,
+  "stage": "fountain_of_dreams",
+  "policy": "eval_runs/0915_local_zero/bootstrap/candidate.bin",
+  "reaction_delay": 0,
+  "expected_latency": 1,
+  "player_port": 1,
+  "frames": 1922,
+  "game_ended": false,
+  "start_frame": -123,
+  "last_frame": 1799,
+  "measured_latency": 1
+}

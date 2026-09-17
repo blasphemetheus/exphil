@@ -1,0 +1,148 @@
+{
+  "id": "final_destination_peach_1",
+  "session": {
+    "errors": 0,
+    "expected_latency": 1,
+    "frames": 1922,
+    "game_ended": false,
+    "last_frame": 1799,
+    "measured_latency": 1,
+    "player_port": 1,
+    "policy": "eval_runs/0915_local_zero/corrected_bootstrap/candidate.bin",
+    "reaction_delay": 0,
+    "scored_fps": 108.10161551858747,
+    "scored_wall_ms": 16651,
+    "stage": "final_destination",
+    "start_frame": -123,
+    "status": "ok"
+  },
+  "run": 1,
+  "valid": true,
+  "stage": "final_destination",
+  "opponent": "peach",
+  "replay": "eval_runs/0915_local_zero/corrected_cpu_matrix/final_destination_peach_1/Game_20260915T114252.slp",
+  "metrics": {
+    "max_chain": 45,
+    "frames": 1800,
+    "deaths": 0,
+    "chains": [
+      {
+        "length": 45,
+        "ended_by": "other_action"
+      },
+      {
+        "length": 5,
+        "ended_by": "other_action"
+      },
+      {
+        "length": 6,
+        "ended_by": "other_action"
+      },
+      {
+        "length": 44,
+        "ended_by": "other_action"
+      },
+      {
+        "length": 30,
+        "ended_by": "other_action"
+      },
+      {
+        "length": 25,
+        "ended_by": "other_action"
+      },
+      {
+        "length": 9,
+        "ended_by": "other_action"
+      },
+      {
+        "length": 9,
+        "ended_by": "end_of_input"
+      }
+    ],
+    "completed_cycles": 165,
+    "endings": {
+      "end_of_input": 1,
+      "other_action": 7
+    },
+    "ground_shine_onsets": 173,
+    "ground_shines_per_minute": 346.0,
+    "recent_hit_onsets": 15,
+    "recovery": {
+      "episodes": [
+        {
+          "cause": "hitstun",
+          "start": 410,
+          "finish": 431,
+          "outcome": "reentered",
+          "ready": 418
+        },
+        {
+          "cause": "hitstun",
+          "start": 459,
+          "finish": 480,
+          "outcome": "reentered",
+          "ready": 467
+        },
+        {
+          "cause": "hitstun",
+          "start": 519,
+          "finish": 540,
+          "outcome": "reentered",
+          "ready": 527
+        },
+        {
+          "cause": "hitstun",
+          "start": 929,
+          "finish": 1028,
+          "outcome": "reentered",
+          "ready": 1015
+        },
+        {
+          "cause": "hitstun",
+          "start": 1289,
+          "finish": 1379,
+          "outcome": "reentered",
+          "ready": 1369
+        },
+        {
+          "cause": "hitstun",
+          "start": 1600,
+          "finish": 1643,
+          "outcome": "reentered",
+          "ready": 1630
+        },
+        {
+          "cause": "hitstun",
+          "start": 1712,
+          "finish": 1733,
+          "outcome": "reentered",
+          "ready": 1720
+        }
+      ],
+      "censored": 0,
+      "completed": 7,
+      "disruption_to_cycle_frames": [
+        21,
+        21,
+        21,
+        99,
+        90,
+        43,
+        21
+      ],
+      "ready_to_cycle_frames": [
+        13,
+        13,
+        13,
+        13,
+        10,
+        13,
+        13
+      ]
+    },
+    "self_initiated_onsets": 158,
+    "self_initiated_per_minute": 316.0
+  },
+  "replay_sha256": "fad4974521d5c4c781bdd77f881263f3c37eec4cdddab14d0754ba1e439a5dc4",
+  "chain_gate": true
+}

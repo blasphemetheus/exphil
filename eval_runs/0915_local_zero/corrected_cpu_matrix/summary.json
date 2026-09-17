@@ -1,0 +1,2501 @@
+{
+  "protocol": {
+    "deterministic": true,
+    "seconds": 30,
+    "mode": "cpu",
+    "policy": "eval_runs/0915_local_zero/corrected_bootstrap/candidate.bin",
+    "stages": [
+      "final_destination",
+      "battlefield",
+      "dreamland",
+      "yoshis_story",
+      "fountain_of_dreams",
+      "pokemon_stadium"
+    ],
+    "opponents": [
+      "fox",
+      "falco",
+      "marth",
+      "peach",
+      "samus"
+    ],
+    "policy_sha256": "b224b9a6953095b107a78396e0642787022212f72f1865aa12ff5b4833835a2f",
+    "runs_per_cell": 1,
+    "cpu_level": 1,
+    "reaction_delay": 0,
+    "expected_latency": 1,
+    "frozen_stadium": true,
+    "metrics_semantics": "slippi_state_flag_hitstun_v2",
+    "source_hashes": {
+      "lib/exphil/eval/multishine_benchmark.ex": "afdee30182bce162482484493a8ef6895d84e8708850a7030eb5c93e65aaad03",
+      "native/exphil_peppi/src/lib.rs": "646522f929cc81e4b70d6100e4eca38116c92d61bb6aaa4bcc560b32bcc1dce2",
+      "scripts/play_dolphin.exs": "1a68e7be5e25da34e56c13738a714ef5cb5980213a2a9fda73aa577bb29291b7"
+    }
+  },
+  "runs": [
+    {
+      "id": "final_destination_fox_1",
+      "session": {
+        "errors": 0,
+        "expected_latency": 1,
+        "frames": 1922,
+        "game_ended": false,
+        "last_frame": 1799,
+        "measured_latency": 1,
+        "player_port": 1,
+        "policy": "eval_runs/0915_local_zero/corrected_bootstrap/candidate.bin",
+        "reaction_delay": 0,
+        "scored_fps": 104.34177728827315,
+        "scored_wall_ms": 17251,
+        "stage": "final_destination",
+        "start_frame": -123,
+        "status": "ok"
+      },
+      "run": 1,
+      "valid": true,
+      "stage": "final_destination",
+      "opponent": "fox",
+      "replay": "eval_runs/0915_local_zero/corrected_cpu_matrix/final_destination_fox_1/Game_20260915T114125.slp",
+      "metrics": {
+        "max_chain": 84,
+        "frames": 1800,
+        "deaths": 1,
+        "chains": [
+          {
+            "length": 4,
+            "ended_by": "other_action"
+          },
+          {
+            "length": 33,
+            "ended_by": "end_of_input"
+          },
+          {
+            "length": 11,
+            "ended_by": "other_action"
+          },
+          {
+            "length": 84,
+            "ended_by": "other_action"
+          }
+        ],
+        "completed_cycles": 128,
+        "endings": {
+          "end_of_input": 1,
+          "other_action": 3
+        },
+        "ground_shine_onsets": 132,
+        "ground_shines_per_minute": 264.0,
+        "recent_hit_onsets": 6,
+        "recovery": {
+          "episodes": [
+            {
+              "cause": "hitstun",
+              "start": 99,
+              "finish": 130,
+              "outcome": "reentered",
+              "ready": 117
+            },
+            {
+              "cause": "hitstun",
+              "start": 888,
+              "finish": null,
+              "last_observed": 1219,
+              "outcome": "death",
+              "ready": null
+            },
+            {
+              "cause": "loop_break",
+              "start": 1380,
+              "finish": 1467,
+              "outcome": "reentered",
+              "ready": 1455
+            },
+            {
+              "cause": "hitstun",
+              "start": 1488,
+              "finish": 1511,
+              "outcome": "reentered",
+              "ready": 1498
+            }
+          ],
+          "censored": 1,
+          "completed": 3,
+          "disruption_to_cycle_frames": [
+            31,
+            87,
+            23
+          ],
+          "ready_to_cycle_frames": [
+            13,
+            12,
+            13
+          ]
+        },
+        "self_initiated_onsets": 126,
+        "self_initiated_per_minute": 252.0
+      },
+      "replay_sha256": "71fc8d3ecc52a18ed8f8940d10c8df9e6e34dd7cd7298169efa379d5af16eae5",
+      "chain_gate": true
+    },
+    {
+      "id": "final_destination_falco_1",
+      "session": {
+        "errors": 0,
+        "expected_latency": 1,
+        "frames": 1922,
+        "game_ended": false,
+        "last_frame": 1799,
+        "measured_latency": 1,
+        "player_port": 1,
+        "policy": "eval_runs/0915_local_zero/corrected_bootstrap/candidate.bin",
+        "reaction_delay": 0,
+        "scored_fps": 107.48835542816195,
+        "scored_wall_ms": 16746,
+        "stage": "final_destination",
+        "start_frame": -123,
+        "status": "ok"
+      },
+      "run": 1,
+      "valid": true,
+      "stage": "final_destination",
+      "opponent": "falco",
+      "replay": "eval_runs/0915_local_zero/corrected_cpu_matrix/final_destination_falco_1/Game_20260915T114154.slp",
+      "metrics": {
+        "max_chain": 61,
+        "frames": 1800,
+        "deaths": 0,
+        "chains": [
+          {
+            "length": 14,
+            "ended_by": "other_action"
+          },
+          {
+            "length": 2,
+            "ended_by": "air_shine"
+          },
+          {
+            "length": 4,
+            "ended_by": "other_action"
+          },
+          {
+            "length": 22,
+            "ended_by": "other_action"
+          },
+          {
+            "length": 28,
+            "ended_by": "other_action"
+          },
+          {
+            "length": 7,
+            "ended_by": "other_action"
+          },
+          {
+            "length": 61,
+            "ended_by": "other_action"
+          },
+          {
+            "length": 12,
+            "ended_by": "other_action"
+          }
+        ],
+        "completed_cycles": 142,
+        "endings": {
+          "other_action": 7,
+          "air_shine": 1
+        },
+        "ground_shine_onsets": 150,
+        "ground_shines_per_minute": 300.0,
+        "recent_hit_onsets": 11,
+        "recovery": {
+          "episodes": [
+            {
+              "cause": "hitstun",
+              "start": 121,
+              "finish": 146,
+              "outcome": "reentered",
+              "ready": 133
+            },
+            {
+              "cause": "loop_break",
+              "start": 190,
+              "finish": 264,
+              "outcome": "reentered",
+              "ready": 252
+            },
+            {
+              "cause": "loop_break",
+              "start": 319,
+              "finish": 330,
+              "outcome": "reentered",
+              "ready": 320
+            },
+            {
+              "cause": "hitstun",
+              "start": 521,
+              "finish": 544,
+              "outcome": "reentered",
+              "ready": 529
+            },
+            {
+              "cause": "loop_break",
+              "start": 819,
+              "finish": 830,
+              "outcome": "reentered",
+              "ready": 820
+            },
+            {
+              "cause": "hitstun",
+              "start": 881,
+              "finish": 904,
+              "outcome": "reentered",
+              "ready": 889
+            },
+            {
+              "cause": "hitstun",
+              "start": 1450,
+              "finish": 1471,
+              "outcome": "reentered",
+              "ready": 1458
+            },
+            {
+              "cause": "hitstun",
+              "start": 1569,
+              "finish": null,
+              "last_observed": 1799,
+              "outcome": "end_of_replay",
+              "ready": null
+            }
+          ],
+          "censored": 1,
+          "completed": 7,
+          "disruption_to_cycle_frames": [
+            25,
+            74,
+            11,
+            23,
+            11,
+            23,
+            21
+          ],
+          "ready_to_cycle_frames": [
+            13,
+            12,
+            10,
+            15,
+            10,
+            15,
+            13
+          ]
+        },
+        "self_initiated_onsets": 139,
+        "self_initiated_per_minute": 278.0
+      },
+      "replay_sha256": "9354ae6010ed1d6d687c3e0e3f93070f0f60aaec52af0abd7c15f443be22c266",
+      "chain_gate": true
+    },
+    {
+      "id": "final_destination_marth_1",
+      "session": {
+        "errors": 0,
+        "expected_latency": 1,
+        "frames": 1922,
+        "game_ended": false,
+        "last_frame": 1799,
+        "measured_latency": 1,
+        "player_port": 1,
+        "policy": "eval_runs/0915_local_zero/corrected_bootstrap/candidate.bin",
+        "reaction_delay": 0,
+        "scored_fps": 104.68768174944748,
+        "scored_wall_ms": 17194,
+        "stage": "final_destination",
+        "start_frame": -123,
+        "status": "ok"
+      },
+      "run": 1,
+      "valid": true,
+      "stage": "final_destination",
+      "opponent": "marth",
+      "replay": "eval_runs/0915_local_zero/corrected_cpu_matrix/final_destination_marth_1/Game_20260915T114223.slp",
+      "metrics": {
+        "max_chain": 31,
+        "frames": 1800,
+        "deaths": 1,
+        "chains": [
+          {
+            "length": 21,
+            "ended_by": "other_action"
+          },
+          {
+            "length": 27,
+            "ended_by": "other_action"
+          },
+          {
+            "length": 7,
+            "ended_by": "other_action"
+          },
+          {
+            "length": 31,
+            "ended_by": "other_action"
+          },
+          {
+            "length": 29,
+            "ended_by": "end_of_input"
+          },
+          {
+            "length": 15,
+            "ended_by": "other_action"
+          }
+        ],
+        "completed_cycles": 124,
+        "endings": {
+          "end_of_input": 1,
+          "other_action": 5
+        },
+        "ground_shine_onsets": 130,
+        "ground_shines_per_minute": 260.0,
+        "recent_hit_onsets": 12,
+        "recovery": {
+          "episodes": [
+            {
+              "cause": "hitstun",
+              "start": 136,
+              "finish": null,
+              "last_observed": 475,
+              "outcome": "death",
+              "ready": null
+            },
+            {
+              "cause": "loop_break",
+              "start": 636,
+              "finish": 723,
+              "outcome": "reentered",
+              "ready": 711
+            },
+            {
+              "cause": "hitstun",
+              "start": 898,
+              "finish": 928,
+              "outcome": "reentered",
+              "ready": 912
+            },
+            {
+              "cause": "hitstun",
+              "start": 1158,
+              "finish": 1186,
+              "outcome": "reentered",
+              "ready": 1173
+            },
+            {
+              "cause": "hitstun",
+              "start": 1239,
+              "finish": 1260,
+              "outcome": "reentered",
+              "ready": 1247
+            },
+            {
+              "cause": "hitstun",
+              "start": 1527,
+              "finish": 1550,
+              "outcome": "reentered",
+              "ready": 1537
+            }
+          ],
+          "censored": 1,
+          "completed": 5,
+          "disruption_to_cycle_frames": [
+            87,
+            30,
+            28,
+            21,
+            23
+          ],
+          "ready_to_cycle_frames": [
+            12,
+            16,
+            13,
+            13,
+            13
+          ]
+        },
+        "self_initiated_onsets": 118,
+        "self_initiated_per_minute": 236.0
+      },
+      "replay_sha256": "d07557e44a274021dea812b8a624d23fb2fe5321fc2853e80a2fb475638635fa",
+      "chain_gate": true
+    },
+    {
+      "id": "final_destination_peach_1",
+      "session": {
+        "errors": 0,
+        "expected_latency": 1,
+        "frames": 1922,
+        "game_ended": false,
+        "last_frame": 1799,
+        "measured_latency": 1,
+        "player_port": 1,
+        "policy": "eval_runs/0915_local_zero/corrected_bootstrap/candidate.bin",
+        "reaction_delay": 0,
+        "scored_fps": 108.10161551858747,
+        "scored_wall_ms": 16651,
+        "stage": "final_destination",
+        "start_frame": -123,
+        "status": "ok"
+      },
+      "run": 1,
+      "valid": true,
+      "stage": "final_destination",
+      "opponent": "peach",
+      "replay": "eval_runs/0915_local_zero/corrected_cpu_matrix/final_destination_peach_1/Game_20260915T114252.slp",
+      "metrics": {
+        "max_chain": 45,
+        "frames": 1800,
+        "deaths": 0,
+        "chains": [
+          {
+            "length": 45,
+            "ended_by": "other_action"
+          },
+          {
+            "length": 5,
+            "ended_by": "other_action"
+          },
+          {
+            "length": 6,
+            "ended_by": "other_action"
+          },
+          {
+            "length": 44,
+            "ended_by": "other_action"
+          },
+          {
+            "length": 30,
+            "ended_by": "other_action"
+          },
+          {
+            "length": 25,
+            "ended_by": "other_action"
+          },
+          {
+            "length": 9,
+            "ended_by": "other_action"
+          },
+          {
+            "length": 9,
+            "ended_by": "end_of_input"
+          }
+        ],
+        "completed_cycles": 165,
+        "endings": {
+          "end_of_input": 1,
+          "other_action": 7
+        },
+        "ground_shine_onsets": 173,
+        "ground_shines_per_minute": 346.0,
+        "recent_hit_onsets": 15,
+        "recovery": {
+          "episodes": [
+            {
+              "cause": "hitstun",
+              "start": 410,
+              "finish": 431,
+              "outcome": "reentered",
+              "ready": 418
+            },
+            {
+              "cause": "hitstun",
+              "start": 459,
+              "finish": 480,
+              "outcome": "reentered",
+              "ready": 467
+            },
+            {
+              "cause": "hitstun",
+              "start": 519,
+              "finish": 540,
+              "outcome": "reentered",
+              "ready": 527
+            },
+            {
+              "cause": "hitstun",
+              "start": 929,
+              "finish": 1028,
+              "outcome": "reentered",
+              "ready": 1015
+            },
+            {
+              "cause": "hitstun",
+              "start": 1289,
+              "finish": 1379,
+              "outcome": "reentered",
+              "ready": 1369
+            },
+            {
+              "cause": "hitstun",
+              "start": 1600,
+              "finish": 1643,
+              "outcome": "reentered",
+              "ready": 1630
+            },
+            {
+              "cause": "hitstun",
+              "start": 1712,
+              "finish": 1733,
+              "outcome": "reentered",
+              "ready": 1720
+            }
+          ],
+          "censored": 0,
+          "completed": 7,
+          "disruption_to_cycle_frames": [
+            21,
+            21,
+            21,
+            99,
+            90,
+            43,
+            21
+          ],
+          "ready_to_cycle_frames": [
+            13,
+            13,
+            13,
+            13,
+            10,
+            13,
+            13
+          ]
+        },
+        "self_initiated_onsets": 158,
+        "self_initiated_per_minute": 316.0
+      },
+      "replay_sha256": "fad4974521d5c4c781bdd77f881263f3c37eec4cdddab14d0754ba1e439a5dc4",
+      "chain_gate": true
+    },
+    {
+      "id": "final_destination_samus_1",
+      "session": {
+        "errors": 0,
+        "expected_latency": 1,
+        "frames": 1922,
+        "game_ended": false,
+        "last_frame": 1799,
+        "measured_latency": 1,
+        "player_port": 1,
+        "policy": "eval_runs/0915_local_zero/corrected_bootstrap/candidate.bin",
+        "reaction_delay": 0,
+        "scored_fps": 103.06326939593473,
+        "scored_wall_ms": 17465,
+        "stage": "final_destination",
+        "start_frame": -123,
+        "status": "ok"
+      },
+      "run": 1,
+      "valid": true,
+      "stage": "final_destination",
+      "opponent": "samus",
+      "replay": "eval_runs/0915_local_zero/corrected_cpu_matrix/final_destination_samus_1/Game_20260915T114321.slp",
+      "metrics": {
+        "max_chain": 59,
+        "frames": 1800,
+        "deaths": 0,
+        "chains": [
+          {
+            "length": 19,
+            "ended_by": "other_action"
+          },
+          {
+            "length": 30,
+            "ended_by": "other_action"
+          },
+          {
+            "length": 59,
+            "ended_by": "other_action"
+          },
+          {
+            "length": 23,
+            "ended_by": "other_action"
+          },
+          {
+            "length": 22,
+            "ended_by": "end_of_input"
+          }
+        ],
+        "completed_cycles": 148,
+        "endings": {
+          "end_of_input": 1,
+          "other_action": 4
+        },
+        "ground_shine_onsets": 153,
+        "ground_shines_per_minute": 306.0,
+        "recent_hit_onsets": 3,
+        "recovery": {
+          "episodes": [
+            {
+              "cause": "hitstun",
+              "start": 172,
+              "finish": 205,
+              "outcome": "reentered",
+              "ready": 192
+            },
+            {
+              "cause": "hitstun",
+              "start": 503,
+              "finish": 644,
+              "outcome": "reentered",
+              "ready": 633
+            },
+            {
+              "cause": "hitstun",
+              "start": 1176,
+              "finish": 1287,
+              "outcome": "reentered",
+              "ready": 1274
+            },
+            {
+              "cause": "hitstun",
+              "start": 1514,
+              "finish": 1613,
+              "outcome": "reentered",
+              "ready": 1600
+            }
+          ],
+          "censored": 0,
+          "completed": 4,
+          "disruption_to_cycle_frames": [
+            33,
+            141,
+            111,
+            99
+          ],
+          "ready_to_cycle_frames": [
+            13,
+            11,
+            13,
+            13
+          ]
+        },
+        "self_initiated_onsets": 150,
+        "self_initiated_per_minute": 300.0
+      },
+      "replay_sha256": "43aabf51acc14952204b2d7811237070a49628dd52c2231536ea72cb0e8d9eb5",
+      "chain_gate": true
+    },
+    {
+      "id": "battlefield_fox_1",
+      "session": {
+        "errors": 0,
+        "expected_latency": 1,
+        "frames": 1922,
+        "game_ended": false,
+        "last_frame": 1799,
+        "measured_latency": 1,
+        "player_port": 1,
+        "policy": "eval_runs/0915_local_zero/corrected_bootstrap/candidate.bin",
+        "reaction_delay": 0,
+        "scored_fps": 106.7489028584984,
+        "scored_wall_ms": 16862,
+        "stage": "battlefield",
+        "start_frame": -123,
+        "status": "ok"
+      },
+      "run": 1,
+      "valid": true,
+      "stage": "battlefield",
+      "opponent": "fox",
+      "replay": "eval_runs/0915_local_zero/corrected_cpu_matrix/battlefield_fox_1/Game_20260915T114350.slp",
+      "metrics": {
+        "max_chain": 198,
+        "frames": 1800,
+        "deaths": 0,
+        "chains": [
+          {
+            "length": 198,
+            "ended_by": "end_of_input"
+          }
+        ],
+        "completed_cycles": 197,
+        "endings": {
+          "end_of_input": 1
+        },
+        "ground_shine_onsets": 198,
+        "ground_shines_per_minute": 396.0,
+        "recent_hit_onsets": 0,
+        "recovery": {
+          "episodes": [],
+          "censored": 0,
+          "completed": 0,
+          "disruption_to_cycle_frames": [],
+          "ready_to_cycle_frames": []
+        },
+        "self_initiated_onsets": 198,
+        "self_initiated_per_minute": 396.0
+      },
+      "replay_sha256": "e09136a29b889a66fd23a266668f5237cd13b3d03a2bbba348bcf2267d1fbf89",
+      "chain_gate": true
+    },
+    {
+      "id": "battlefield_falco_1",
+      "session": {
+        "errors": 0,
+        "expected_latency": 1,
+        "frames": 1922,
+        "game_ended": false,
+        "last_frame": 1799,
+        "measured_latency": 1,
+        "player_port": 1,
+        "policy": "eval_runs/0915_local_zero/corrected_bootstrap/candidate.bin",
+        "reaction_delay": 0,
+        "scored_fps": 101.67768174885613,
+        "scored_wall_ms": 17703,
+        "stage": "battlefield",
+        "start_frame": -123,
+        "status": "ok"
+      },
+      "run": 1,
+      "valid": true,
+      "stage": "battlefield",
+      "opponent": "falco",
+      "replay": "eval_runs/0915_local_zero/corrected_cpu_matrix/battlefield_falco_1/Game_20260915T114419.slp",
+      "metrics": {
+        "max_chain": 198,
+        "frames": 1800,
+        "deaths": 0,
+        "chains": [
+          {
+            "length": 198,
+            "ended_by": "end_of_input"
+          }
+        ],
+        "completed_cycles": 197,
+        "endings": {
+          "end_of_input": 1
+        },
+        "ground_shine_onsets": 198,
+        "ground_shines_per_minute": 396.0,
+        "recent_hit_onsets": 0,
+        "recovery": {
+          "episodes": [],
+          "censored": 0,
+          "completed": 0,
+          "disruption_to_cycle_frames": [],
+          "ready_to_cycle_frames": []
+        },
+        "self_initiated_onsets": 198,
+        "self_initiated_per_minute": 396.0
+      },
+      "replay_sha256": "4c1693d9541a130d33d8b77ad93e24958dafd065e1c8c5ba80d202da3f0453d7",
+      "chain_gate": true
+    },
+    {
+      "id": "battlefield_marth_1",
+      "session": {
+        "errors": 0,
+        "expected_latency": 1,
+        "frames": 1922,
+        "game_ended": false,
+        "last_frame": 1799,
+        "measured_latency": 1,
+        "player_port": 1,
+        "policy": "eval_runs/0915_local_zero/corrected_bootstrap/candidate.bin",
+        "reaction_delay": 0,
+        "scored_fps": 106.51517841292385,
+        "scored_wall_ms": 16899,
+        "stage": "battlefield",
+        "start_frame": -123,
+        "status": "ok"
+      },
+      "run": 1,
+      "valid": true,
+      "stage": "battlefield",
+      "opponent": "marth",
+      "replay": "eval_runs/0915_local_zero/corrected_cpu_matrix/battlefield_marth_1/Game_20260915T114449.slp",
+      "metrics": {
+        "max_chain": 198,
+        "frames": 1800,
+        "deaths": 0,
+        "chains": [
+          {
+            "length": 198,
+            "ended_by": "end_of_input"
+          }
+        ],
+        "completed_cycles": 197,
+        "endings": {
+          "end_of_input": 1
+        },
+        "ground_shine_onsets": 198,
+        "ground_shines_per_minute": 396.0,
+        "recent_hit_onsets": 0,
+        "recovery": {
+          "episodes": [],
+          "censored": 0,
+          "completed": 0,
+          "disruption_to_cycle_frames": [],
+          "ready_to_cycle_frames": []
+        },
+        "self_initiated_onsets": 198,
+        "self_initiated_per_minute": 396.0
+      },
+      "replay_sha256": "b16aea0b380ecc8d2bc024eeda3955770b59403993878804361c1e1c42540f32",
+      "chain_gate": true
+    },
+    {
+      "id": "battlefield_peach_1",
+      "session": {
+        "errors": 0,
+        "expected_latency": 1,
+        "frames": 1922,
+        "game_ended": false,
+        "last_frame": 1799,
+        "measured_latency": 1,
+        "player_port": 1,
+        "policy": "eval_runs/0915_local_zero/corrected_bootstrap/candidate.bin",
+        "reaction_delay": 0,
+        "scored_fps": 103.69260902125698,
+        "scored_wall_ms": 17359,
+        "stage": "battlefield",
+        "start_frame": -123,
+        "status": "ok"
+      },
+      "run": 1,
+      "valid": true,
+      "stage": "battlefield",
+      "opponent": "peach",
+      "replay": "eval_runs/0915_local_zero/corrected_cpu_matrix/battlefield_peach_1/Game_20260915T114517.slp",
+      "metrics": {
+        "max_chain": 123,
+        "frames": 1800,
+        "deaths": 0,
+        "chains": [
+          {
+            "length": 64,
+            "ended_by": "other_action"
+          },
+          {
+            "length": 10,
+            "ended_by": "other_action"
+          },
+          {
+            "length": 123,
+            "ended_by": "end_of_input"
+          }
+        ],
+        "completed_cycles": 194,
+        "endings": {
+          "end_of_input": 1,
+          "other_action": 2
+        },
+        "ground_shine_onsets": 197,
+        "ground_shines_per_minute": 394.0,
+        "recent_hit_onsets": 6,
+        "recovery": {
+          "episodes": [
+            {
+              "cause": "hitstun",
+              "start": 577,
+              "finish": 600,
+              "outcome": "reentered",
+              "ready": 587
+            },
+            {
+              "cause": "hitstun",
+              "start": 673,
+              "finish": 694,
+              "outcome": "reentered",
+              "ready": 681
+            }
+          ],
+          "censored": 0,
+          "completed": 2,
+          "disruption_to_cycle_frames": [
+            23,
+            21
+          ],
+          "ready_to_cycle_frames": [
+            13,
+            13
+          ]
+        },
+        "self_initiated_onsets": 191,
+        "self_initiated_per_minute": 382.0
+      },
+      "replay_sha256": "3d3f724d93e98ba12eb368e8ebb9654b8ba5f52d50c9f69fe4b4351301b4ed0b",
+      "chain_gate": true
+    },
+    {
+      "id": "battlefield_samus_1",
+      "session": {
+        "errors": 0,
+        "expected_latency": 1,
+        "frames": 1922,
+        "game_ended": false,
+        "last_frame": 1799,
+        "measured_latency": 1,
+        "player_port": 1,
+        "policy": "eval_runs/0915_local_zero/corrected_bootstrap/candidate.bin",
+        "reaction_delay": 0,
+        "scored_fps": 106.06328442637441,
+        "scored_wall_ms": 16971,
+        "stage": "battlefield",
+        "start_frame": -123,
+        "status": "ok"
+      },
+      "run": 1,
+      "valid": true,
+      "stage": "battlefield",
+      "opponent": "samus",
+      "replay": "eval_runs/0915_local_zero/corrected_cpu_matrix/battlefield_samus_1/Game_20260915T114547.slp",
+      "metrics": {
+        "max_chain": 197,
+        "frames": 1800,
+        "deaths": 0,
+        "chains": [
+          {
+            "length": 197,
+            "ended_by": "end_of_input"
+          }
+        ],
+        "completed_cycles": 196,
+        "endings": {
+          "end_of_input": 1
+        },
+        "ground_shine_onsets": 197,
+        "ground_shines_per_minute": 394.0,
+        "recent_hit_onsets": 0,
+        "recovery": {
+          "episodes": [],
+          "censored": 0,
+          "completed": 0,
+          "disruption_to_cycle_frames": [],
+          "ready_to_cycle_frames": []
+        },
+        "self_initiated_onsets": 197,
+        "self_initiated_per_minute": 394.0
+      },
+      "replay_sha256": "3bdebeaec0b594e533f29970d737058cd6457bda3a333e1238f88fbaf77136f9",
+      "chain_gate": true
+    },
+    {
+      "id": "dreamland_fox_1",
+      "session": {
+        "errors": 0,
+        "expected_latency": 1,
+        "frames": 1922,
+        "game_ended": false,
+        "last_frame": 1799,
+        "measured_latency": 1,
+        "player_port": 1,
+        "policy": "eval_runs/0915_local_zero/corrected_bootstrap/candidate.bin",
+        "reaction_delay": 0,
+        "scored_fps": 101.89063738254274,
+        "scored_wall_ms": 17666,
+        "stage": "dreamland",
+        "start_frame": -123,
+        "status": "ok"
+      },
+      "run": 1,
+      "valid": true,
+      "stage": "dreamland",
+      "opponent": "fox",
+      "replay": "eval_runs/0915_local_zero/corrected_cpu_matrix/dreamland_fox_1/Game_20260915T120236.slp",
+      "metrics": {
+        "max_chain": 124,
+        "frames": 1800,
+        "deaths": 0,
+        "chains": [
+          {
+            "length": 124,
+            "ended_by": "other_action"
+          },
+          {
+            "length": 1,
+            "ended_by": "other_action"
+          },
+          {
+            "length": 31,
+            "ended_by": "other_action"
+          },
+          {
+            "length": 18,
+            "ended_by": "other_action"
+          },
+          {
+            "length": 10,
+            "ended_by": "end_of_input"
+          }
+        ],
+        "completed_cycles": 179,
+        "endings": {
+          "end_of_input": 1,
+          "other_action": 4
+        },
+        "ground_shine_onsets": 184,
+        "ground_shines_per_minute": 368.0,
+        "recent_hit_onsets": 3,
+        "recovery": {
+          "episodes": [
+            {
+              "cause": "loop_break",
+              "start": 1131,
+              "finish": 1227,
+              "outcome": "reentered",
+              "ready": 1211
+            },
+            {
+              "cause": "hitstun",
+              "start": 1493,
+              "finish": 1516,
+              "outcome": "reentered",
+              "ready": 1503
+            },
+            {
+              "cause": "loop_break",
+              "start": 1709,
+              "finish": 1720,
+              "outcome": "reentered",
+              "ready": 1710
+            }
+          ],
+          "censored": 0,
+          "completed": 3,
+          "disruption_to_cycle_frames": [
+            96,
+            23,
+            11
+          ],
+          "ready_to_cycle_frames": [
+            16,
+            13,
+            10
+          ]
+        },
+        "self_initiated_onsets": 181,
+        "self_initiated_per_minute": 362.0
+      },
+      "replay_sha256": "12d594541cc38cd52c29b9e5b0bec1467265ec0beb1f82f8e9c3f797080f0ed1",
+      "chain_gate": true
+    },
+    {
+      "id": "dreamland_falco_1",
+      "session": {
+        "errors": 0,
+        "expected_latency": 1,
+        "frames": 1922,
+        "game_ended": false,
+        "last_frame": 1799,
+        "measured_latency": 1,
+        "player_port": 1,
+        "policy": "eval_runs/0915_local_zero/corrected_bootstrap/candidate.bin",
+        "reaction_delay": 0,
+        "scored_fps": 99.12986011675295,
+        "scored_wall_ms": 18158,
+        "stage": "dreamland",
+        "start_frame": -123,
+        "status": "ok"
+      },
+      "run": 1,
+      "valid": true,
+      "stage": "dreamland",
+      "opponent": "falco",
+      "replay": "eval_runs/0915_local_zero/corrected_cpu_matrix/dreamland_falco_1/Game_20260915T120306.slp",
+      "metrics": {
+        "max_chain": 115,
+        "frames": 1800,
+        "deaths": 1,
+        "chains": [
+          {
+            "length": 115,
+            "ended_by": "air_shine"
+          },
+          {
+            "length": 1,
+            "ended_by": "other_action"
+          },
+          {
+            "length": 30,
+            "ended_by": "other_action"
+          }
+        ],
+        "completed_cycles": 143,
+        "endings": {
+          "other_action": 2,
+          "air_shine": 1
+        },
+        "ground_shine_onsets": 146,
+        "ground_shines_per_minute": 292.0,
+        "recent_hit_onsets": 0,
+        "recovery": {
+          "episodes": [
+            {
+              "cause": "loop_break",
+              "start": 1086,
+              "finish": 1140,
+              "outcome": "reentered",
+              "ready": 1124
+            },
+            {
+              "cause": "hitstun",
+              "start": 1398,
+              "finish": null,
+              "last_observed": 1687,
+              "outcome": "death",
+              "ready": null
+            }
+          ],
+          "censored": 1,
+          "completed": 1,
+          "disruption_to_cycle_frames": [
+            54
+          ],
+          "ready_to_cycle_frames": [
+            16
+          ]
+        },
+        "self_initiated_onsets": 146,
+        "self_initiated_per_minute": 292.0
+      },
+      "replay_sha256": "c067d1b541d3e32dca449edd4dc68c5558629fbfc999949a0d983e59fa59af38",
+      "chain_gate": true
+    },
+    {
+      "id": "dreamland_marth_1",
+      "session": {
+        "errors": 0,
+        "expected_latency": 1,
+        "frames": 1922,
+        "game_ended": false,
+        "last_frame": 1799,
+        "measured_latency": 1,
+        "player_port": 1,
+        "policy": "eval_runs/0915_local_zero/corrected_bootstrap/candidate.bin",
+        "reaction_delay": 0,
+        "scored_fps": 98.36065573770492,
+        "scored_wall_ms": 18300,
+        "stage": "dreamland",
+        "start_frame": -123,
+        "status": "ok"
+      },
+      "run": 1,
+      "valid": true,
+      "stage": "dreamland",
+      "opponent": "marth",
+      "replay": "eval_runs/0915_local_zero/corrected_cpu_matrix/dreamland_marth_1/Game_20260915T120336.slp",
+      "metrics": {
+        "max_chain": 108,
+        "frames": 1800,
+        "deaths": 0,
+        "chains": [
+          {
+            "length": 108,
+            "ended_by": "other_action"
+          },
+          {
+            "length": 1,
+            "ended_by": "other_action"
+          },
+          {
+            "length": 3,
+            "ended_by": "other_action"
+          },
+          {
+            "length": 18,
+            "ended_by": "other_action"
+          },
+          {
+            "length": 29,
+            "ended_by": "other_action"
+          },
+          {
+            "length": 8,
+            "ended_by": "other_action"
+          }
+        ],
+        "completed_cycles": 161,
+        "endings": {
+          "other_action": 6
+        },
+        "ground_shine_onsets": 167,
+        "ground_shines_per_minute": 334.0,
+        "recent_hit_onsets": 6,
+        "recovery": {
+          "episodes": [
+            {
+              "cause": "loop_break",
+              "start": 982,
+              "finish": 1079,
+              "outcome": "reentered",
+              "ready": 1063
+            },
+            {
+              "cause": "hitstun",
+              "start": 1094,
+              "finish": 1117,
+              "outcome": "reentered",
+              "ready": 1104
+            },
+            {
+              "cause": "hitstun",
+              "start": 1266,
+              "finish": 1363,
+              "outcome": "reentered",
+              "ready": 1350
+            },
+            {
+              "cause": "hitstun",
+              "start": 1614,
+              "finish": 1635,
+              "outcome": "reentered",
+              "ready": 1622
+            },
+            {
+              "cause": "hitstun",
+              "start": 1697,
+              "finish": null,
+              "last_observed": 1719,
+              "outcome": "interrupted_again",
+              "ready": null
+            },
+            {
+              "cause": "hitstun",
+              "start": 1720,
+              "finish": null,
+              "last_observed": 1799,
+              "outcome": "end_of_replay",
+              "ready": null
+            }
+          ],
+          "censored": 2,
+          "completed": 4,
+          "disruption_to_cycle_frames": [
+            97,
+            23,
+            97,
+            21
+          ],
+          "ready_to_cycle_frames": [
+            16,
+            13,
+            13,
+            13
+          ]
+        },
+        "self_initiated_onsets": 161,
+        "self_initiated_per_minute": 322.0
+      },
+      "replay_sha256": "70551b4cc75c256819abe1caf4dccb07c99ff8d22c83961d870c4602bfe4e825",
+      "chain_gate": true
+    },
+    {
+      "id": "dreamland_peach_1",
+      "session": {
+        "errors": 0,
+        "expected_latency": 1,
+        "frames": 1922,
+        "game_ended": false,
+        "last_frame": 1799,
+        "measured_latency": 1,
+        "player_port": 1,
+        "policy": "eval_runs/0915_local_zero/corrected_bootstrap/candidate.bin",
+        "reaction_delay": 0,
+        "scored_fps": 102.04660128125177,
+        "scored_wall_ms": 17639,
+        "stage": "dreamland",
+        "start_frame": -123,
+        "status": "ok"
+      },
+      "run": 1,
+      "valid": true,
+      "stage": "dreamland",
+      "opponent": "peach",
+      "replay": "eval_runs/0915_local_zero/corrected_cpu_matrix/dreamland_peach_1/Game_20260915T120406.slp",
+      "metrics": {
+        "max_chain": 127,
+        "frames": 1800,
+        "deaths": 1,
+        "chains": [
+          {
+            "length": 3,
+            "ended_by": "end_of_input"
+          },
+          {
+            "length": 127,
+            "ended_by": "air_shine"
+          },
+          {
+            "length": 1,
+            "ended_by": "other_action"
+          },
+          {
+            "length": 10,
+            "ended_by": "other_action"
+          }
+        ],
+        "completed_cycles": 137,
+        "endings": {
+          "end_of_input": 1,
+          "other_action": 2,
+          "air_shine": 1
+        },
+        "ground_shine_onsets": 141,
+        "ground_shines_per_minute": 282.0,
+        "recent_hit_onsets": 0,
+        "recovery": {
+          "episodes": [
+            {
+              "cause": "loop_break",
+              "start": 1198,
+              "finish": 1254,
+              "outcome": "reentered",
+              "ready": 1236
+            },
+            {
+              "cause": "hitstun",
+              "start": 1333,
+              "finish": null,
+              "last_observed": 1560,
+              "outcome": "death",
+              "ready": null
+            },
+            {
+              "cause": "loop_break",
+              "start": 1721,
+              "finish": 1786,
+              "outcome": "reentered",
+              "ready": 1775
+            }
+          ],
+          "censored": 1,
+          "completed": 2,
+          "disruption_to_cycle_frames": [
+            56,
+            65
+          ],
+          "ready_to_cycle_frames": [
+            18,
+            11
+          ]
+        },
+        "self_initiated_onsets": 141,
+        "self_initiated_per_minute": 282.0
+      },
+      "replay_sha256": "fec86130f08a0317d212e4ec9a6020e68eaece1a026b774be22f6951b9cbbaa5",
+      "chain_gate": true
+    },
+    {
+      "id": "dreamland_samus_1",
+      "session": {
+        "errors": 0,
+        "expected_latency": 1,
+        "frames": 1922,
+        "game_ended": false,
+        "last_frame": 1799,
+        "measured_latency": 1,
+        "player_port": 1,
+        "policy": "eval_runs/0915_local_zero/corrected_bootstrap/candidate.bin",
+        "reaction_delay": 0,
+        "scored_fps": 100.27296529441257,
+        "scored_wall_ms": 17951,
+        "stage": "dreamland",
+        "start_frame": -123,
+        "status": "ok"
+      },
+      "run": 1,
+      "valid": true,
+      "stage": "dreamland",
+      "opponent": "samus",
+      "replay": "eval_runs/0915_local_zero/corrected_cpu_matrix/dreamland_samus_1/Game_20260915T120436.slp",
+      "metrics": {
+        "max_chain": 94,
+        "frames": 1800,
+        "deaths": 0,
+        "chains": [
+          {
+            "length": 94,
+            "ended_by": "other_action"
+          },
+          {
+            "length": 87,
+            "ended_by": "end_of_input"
+          }
+        ],
+        "completed_cycles": 179,
+        "endings": {
+          "end_of_input": 1,
+          "other_action": 1
+        },
+        "ground_shine_onsets": 181,
+        "ground_shines_per_minute": 362.0,
+        "recent_hit_onsets": 0,
+        "recovery": {
+          "episodes": [
+            {
+              "cause": "loop_break",
+              "start": 857,
+              "finish": 987,
+              "outcome": "reentered",
+              "ready": 964
+            }
+          ],
+          "censored": 0,
+          "completed": 1,
+          "disruption_to_cycle_frames": [
+            130
+          ],
+          "ready_to_cycle_frames": [
+            23
+          ]
+        },
+        "self_initiated_onsets": 181,
+        "self_initiated_per_minute": 362.0
+      },
+      "replay_sha256": "35b681727c7278c118a2dd28da60c4a68694681b4150e3823829de15d289cbe7",
+      "chain_gate": true
+    },
+    {
+      "id": "yoshis_story_fox_1",
+      "session": {
+        "errors": 0,
+        "expected_latency": 1,
+        "frames": 1922,
+        "game_ended": false,
+        "last_frame": 1799,
+        "measured_latency": 1,
+        "player_port": 1,
+        "policy": "eval_runs/0915_local_zero/corrected_bootstrap/candidate.bin",
+        "reaction_delay": 0,
+        "scored_fps": 92.86009079653323,
+        "scored_wall_ms": 19384,
+        "stage": "yoshis_story",
+        "start_frame": -123,
+        "status": "ok"
+      },
+      "run": 1,
+      "valid": true,
+      "stage": "yoshis_story",
+      "opponent": "fox",
+      "replay": "eval_runs/0915_local_zero/corrected_cpu_matrix/yoshis_story_fox_1/Game_20260915T120506.slp",
+      "metrics": {
+        "max_chain": 197,
+        "frames": 1800,
+        "deaths": 0,
+        "chains": [
+          {
+            "length": 197,
+            "ended_by": "end_of_input"
+          }
+        ],
+        "completed_cycles": 196,
+        "endings": {
+          "end_of_input": 1
+        },
+        "ground_shine_onsets": 197,
+        "ground_shines_per_minute": 394.0,
+        "recent_hit_onsets": 0,
+        "recovery": {
+          "episodes": [],
+          "censored": 0,
+          "completed": 0,
+          "disruption_to_cycle_frames": [],
+          "ready_to_cycle_frames": []
+        },
+        "self_initiated_onsets": 197,
+        "self_initiated_per_minute": 394.0
+      },
+      "replay_sha256": "516bfc17fcd15041736d14c7a3cf623e26bfb9efbcb24b8763eb22fec76e3203",
+      "chain_gate": true
+    },
+    {
+      "id": "yoshis_story_falco_1",
+      "session": {
+        "errors": 0,
+        "expected_latency": 1,
+        "frames": 1922,
+        "game_ended": false,
+        "last_frame": 1799,
+        "measured_latency": 1,
+        "player_port": 1,
+        "policy": "eval_runs/0915_local_zero/corrected_bootstrap/candidate.bin",
+        "reaction_delay": 0,
+        "scored_fps": 100.53619302949062,
+        "scored_wall_ms": 17904,
+        "stage": "yoshis_story",
+        "start_frame": -123,
+        "status": "ok"
+      },
+      "run": 1,
+      "valid": true,
+      "stage": "yoshis_story",
+      "opponent": "falco",
+      "replay": "eval_runs/0915_local_zero/corrected_cpu_matrix/yoshis_story_falco_1/Game_20260915T120538.slp",
+      "metrics": {
+        "max_chain": 198,
+        "frames": 1800,
+        "deaths": 0,
+        "chains": [
+          {
+            "length": 198,
+            "ended_by": "end_of_input"
+          }
+        ],
+        "completed_cycles": 197,
+        "endings": {
+          "end_of_input": 1
+        },
+        "ground_shine_onsets": 198,
+        "ground_shines_per_minute": 396.0,
+        "recent_hit_onsets": 0,
+        "recovery": {
+          "episodes": [],
+          "censored": 0,
+          "completed": 0,
+          "disruption_to_cycle_frames": [],
+          "ready_to_cycle_frames": []
+        },
+        "self_initiated_onsets": 198,
+        "self_initiated_per_minute": 396.0
+      },
+      "replay_sha256": "a4c574903257543d9f860cb1bcfc8dd6d30a2954d203a0722d828c1c260f05be",
+      "chain_gate": true
+    },
+    {
+      "id": "yoshis_story_marth_1",
+      "session": {
+        "errors": 0,
+        "expected_latency": 1,
+        "frames": 1922,
+        "game_ended": true,
+        "last_frame": 1799,
+        "measured_latency": 1,
+        "player_port": 1,
+        "policy": "eval_runs/0915_local_zero/corrected_bootstrap/candidate.bin",
+        "reaction_delay": 0,
+        "scored_fps": 101.24303954103155,
+        "scored_wall_ms": 17779,
+        "stage": "yoshis_story",
+        "start_frame": -123,
+        "status": "ok"
+      },
+      "run": 1,
+      "valid": true,
+      "stage": "yoshis_story",
+      "opponent": "marth",
+      "replay": "eval_runs/0915_local_zero/corrected_cpu_matrix/yoshis_story_marth_1/Game_20260915T122229.slp",
+      "metrics": {
+        "max_chain": 194,
+        "frames": 1800,
+        "deaths": 0,
+        "chains": [
+          {
+            "length": 194,
+            "ended_by": "other_action"
+          },
+          {
+            "length": 2,
+            "ended_by": "end_of_input"
+          }
+        ],
+        "completed_cycles": 194,
+        "endings": {
+          "end_of_input": 1,
+          "other_action": 1
+        },
+        "ground_shine_onsets": 196,
+        "ground_shines_per_minute": 392.0,
+        "recent_hit_onsets": 2,
+        "recovery": {
+          "episodes": [
+            {
+              "cause": "hitstun",
+              "start": 1766,
+              "finish": 1791,
+              "outcome": "reentered",
+              "ready": 1778
+            }
+          ],
+          "censored": 0,
+          "completed": 1,
+          "disruption_to_cycle_frames": [
+            25
+          ],
+          "ready_to_cycle_frames": [
+            13
+          ]
+        },
+        "self_initiated_onsets": 194,
+        "self_initiated_per_minute": 388.0
+      },
+      "replay_sha256": "4377232983419a4b6cbc7d370c9679e34120511f0560fa732770e5f444e8de31",
+      "chain_gate": true
+    },
+    {
+      "id": "yoshis_story_peach_1",
+      "session": {
+        "errors": 0,
+        "expected_latency": 1,
+        "frames": 1922,
+        "game_ended": true,
+        "last_frame": 1799,
+        "measured_latency": 1,
+        "player_port": 1,
+        "policy": "eval_runs/0915_local_zero/corrected_bootstrap/candidate.bin",
+        "reaction_delay": 0,
+        "scored_fps": 103.1223145230593,
+        "scored_wall_ms": 17455,
+        "stage": "yoshis_story",
+        "start_frame": -123,
+        "status": "ok"
+      },
+      "run": 1,
+      "valid": true,
+      "stage": "yoshis_story",
+      "opponent": "peach",
+      "replay": "eval_runs/0915_local_zero/corrected_cpu_matrix/yoshis_story_peach_1/Game_20260915T122259.slp",
+      "metrics": {
+        "max_chain": 198,
+        "frames": 1800,
+        "deaths": 0,
+        "chains": [
+          {
+            "length": 198,
+            "ended_by": "end_of_input"
+          }
+        ],
+        "completed_cycles": 197,
+        "endings": {
+          "end_of_input": 1
+        },
+        "ground_shine_onsets": 198,
+        "ground_shines_per_minute": 396.0,
+        "recent_hit_onsets": 0,
+        "recovery": {
+          "episodes": [],
+          "censored": 0,
+          "completed": 0,
+          "disruption_to_cycle_frames": [],
+          "ready_to_cycle_frames": []
+        },
+        "self_initiated_onsets": 198,
+        "self_initiated_per_minute": 396.0
+      },
+      "replay_sha256": "700140d160c26f1bade4ddc98e532027d3bcd4ce5b564d865fc47daee9f2cccb",
+      "chain_gate": true
+    },
+    {
+      "id": "yoshis_story_samus_1",
+      "session": {
+        "errors": 0,
+        "expected_latency": 1,
+        "frames": 1922,
+        "game_ended": true,
+        "last_frame": 1799,
+        "measured_latency": 1,
+        "player_port": 1,
+        "policy": "eval_runs/0915_local_zero/corrected_bootstrap/candidate.bin",
+        "reaction_delay": 0,
+        "scored_fps": 104.13653456754412,
+        "scored_wall_ms": 17285,
+        "stage": "yoshis_story",
+        "start_frame": -123,
+        "status": "ok"
+      },
+      "run": 1,
+      "valid": true,
+      "stage": "yoshis_story",
+      "opponent": "samus",
+      "replay": "eval_runs/0915_local_zero/corrected_cpu_matrix/yoshis_story_samus_1/Game_20260915T122328.slp",
+      "metrics": {
+        "max_chain": 177,
+        "frames": 1800,
+        "deaths": 0,
+        "chains": [
+          {
+            "length": 16,
+            "ended_by": "other_action"
+          },
+          {
+            "length": 177,
+            "ended_by": "end_of_input"
+          }
+        ],
+        "completed_cycles": 191,
+        "endings": {
+          "end_of_input": 1,
+          "other_action": 1
+        },
+        "ground_shine_onsets": 193,
+        "ground_shines_per_minute": 386.0,
+        "recent_hit_onsets": 0,
+        "recovery": {
+          "episodes": [
+            {
+              "cause": "loop_break",
+              "start": 176,
+              "finish": 190,
+              "outcome": "reentered",
+              "ready": 177
+            }
+          ],
+          "censored": 0,
+          "completed": 1,
+          "disruption_to_cycle_frames": [
+            14
+          ],
+          "ready_to_cycle_frames": [
+            13
+          ]
+        },
+        "self_initiated_onsets": 193,
+        "self_initiated_per_minute": 386.0
+      },
+      "replay_sha256": "bfcb94c91b5ec1978cb700bae373bf95bad3e0176d60ebe4c058db874014962c",
+      "chain_gate": true
+    },
+    {
+      "id": "fountain_of_dreams_fox_1",
+      "session": {
+        "errors": 0,
+        "expected_latency": 1,
+        "frames": 1922,
+        "game_ended": true,
+        "last_frame": 1799,
+        "measured_latency": 1,
+        "player_port": 1,
+        "policy": "eval_runs/0915_local_zero/corrected_bootstrap/candidate.bin",
+        "reaction_delay": 0,
+        "scored_fps": 102.58748432691212,
+        "scored_wall_ms": 17546,
+        "stage": "fountain_of_dreams",
+        "start_frame": -123,
+        "status": "ok"
+      },
+      "run": 1,
+      "valid": true,
+      "stage": "fountain_of_dreams",
+      "opponent": "fox",
+      "replay": "eval_runs/0915_local_zero/corrected_cpu_matrix/fountain_of_dreams_fox_1/Game_20260915T122357.slp",
+      "metrics": {
+        "max_chain": 197,
+        "frames": 1800,
+        "deaths": 0,
+        "chains": [
+          {
+            "length": 197,
+            "ended_by": "end_of_input"
+          }
+        ],
+        "completed_cycles": 192,
+        "endings": {
+          "end_of_input": 1
+        },
+        "ground_shine_onsets": 197,
+        "ground_shines_per_minute": 394.0,
+        "recent_hit_onsets": 0,
+        "recovery": {
+          "episodes": [
+            {
+              "cause": "failed_cycle",
+              "start": 1605,
+              "finish": 1647,
+              "outcome": "reentered",
+              "ready": 1605
+            }
+          ],
+          "censored": 0,
+          "completed": 1,
+          "disruption_to_cycle_frames": [
+            42
+          ],
+          "ready_to_cycle_frames": [
+            42
+          ]
+        },
+        "self_initiated_onsets": 197,
+        "self_initiated_per_minute": 394.0
+      },
+      "replay_sha256": "35c1d974e5e3ff6cc4bdf984b0315a0098d140b685bc5ff5cfdde74e146ab02f",
+      "chain_gate": true
+    },
+    {
+      "id": "fountain_of_dreams_falco_1",
+      "session": {
+        "errors": 0,
+        "expected_latency": 1,
+        "frames": 1922,
+        "game_ended": true,
+        "last_frame": 1799,
+        "measured_latency": 1,
+        "player_port": 1,
+        "policy": "eval_runs/0915_local_zero/corrected_bootstrap/candidate.bin",
+        "reaction_delay": 0,
+        "scored_fps": 99.18994875185982,
+        "scored_wall_ms": 18147,
+        "stage": "fountain_of_dreams",
+        "start_frame": -123,
+        "status": "ok"
+      },
+      "run": 1,
+      "valid": true,
+      "stage": "fountain_of_dreams",
+      "opponent": "falco",
+      "replay": "eval_runs/0915_local_zero/corrected_cpu_matrix/fountain_of_dreams_falco_1/Game_20260915T122427.slp",
+      "metrics": {
+        "max_chain": 198,
+        "frames": 1800,
+        "deaths": 0,
+        "chains": [
+          {
+            "length": 198,
+            "ended_by": "end_of_input"
+          }
+        ],
+        "completed_cycles": 197,
+        "endings": {
+          "end_of_input": 1
+        },
+        "ground_shine_onsets": 198,
+        "ground_shines_per_minute": 396.0,
+        "recent_hit_onsets": 0,
+        "recovery": {
+          "episodes": [],
+          "censored": 0,
+          "completed": 0,
+          "disruption_to_cycle_frames": [],
+          "ready_to_cycle_frames": []
+        },
+        "self_initiated_onsets": 198,
+        "self_initiated_per_minute": 396.0
+      },
+      "replay_sha256": "db642698647df5fea4b06719e290576e6cbbd1f74d4e2c5b57ad6dc6b12550ad",
+      "chain_gate": true
+    },
+    {
+      "id": "fountain_of_dreams_marth_1",
+      "session": {
+        "errors": 0,
+        "expected_latency": 1,
+        "frames": 1922,
+        "game_ended": true,
+        "last_frame": 1799,
+        "measured_latency": 1,
+        "player_port": 1,
+        "policy": "eval_runs/0915_local_zero/corrected_bootstrap/candidate.bin",
+        "reaction_delay": 0,
+        "scored_fps": 102.56410256410257,
+        "scored_wall_ms": 17550,
+        "stage": "fountain_of_dreams",
+        "start_frame": -123,
+        "status": "ok"
+      },
+      "run": 1,
+      "valid": true,
+      "stage": "fountain_of_dreams",
+      "opponent": "marth",
+      "replay": "eval_runs/0915_local_zero/corrected_cpu_matrix/fountain_of_dreams_marth_1/Game_20260915T122457.slp",
+      "metrics": {
+        "max_chain": 98,
+        "frames": 1800,
+        "deaths": 0,
+        "chains": [
+          {
+            "length": 98,
+            "ended_by": "other_action"
+          },
+          {
+            "length": 2,
+            "ended_by": "other_action"
+          },
+          {
+            "length": 34,
+            "ended_by": "other_action"
+          },
+          {
+            "length": 10,
+            "ended_by": "other_action"
+          },
+          {
+            "length": 19,
+            "ended_by": "other_action"
+          },
+          {
+            "length": 2,
+            "ended_by": "other_action"
+          },
+          {
+            "length": 4,
+            "ended_by": "end_of_input"
+          }
+        ],
+        "completed_cycles": 155,
+        "endings": {
+          "end_of_input": 1,
+          "other_action": 6
+        },
+        "ground_shine_onsets": 169,
+        "ground_shines_per_minute": 338.0,
+        "recent_hit_onsets": 8,
+        "recovery": {
+          "episodes": [
+            {
+              "cause": "failed_cycle",
+              "start": 738,
+              "finish": 808,
+              "outcome": "reentered",
+              "ready": 738
+            },
+            {
+              "cause": "hitstun",
+              "start": 896,
+              "finish": 917,
+              "outcome": "reentered",
+              "ready": 904
+            },
+            {
+              "cause": "hitstun",
+              "start": 919,
+              "finish": 957,
+              "outcome": "reentered",
+              "ready": 944
+            },
+            {
+              "cause": "hitstun",
+              "start": 1248,
+              "finish": 1271,
+              "outcome": "reentered",
+              "ready": 1258
+            },
+            {
+              "cause": "hitstun",
+              "start": 1349,
+              "finish": 1475,
+              "outcome": "reentered",
+              "ready": 1466
+            },
+            {
+              "cause": "hitstun",
+              "start": 1631,
+              "finish": 1652,
+              "outcome": "reentered",
+              "ready": 1639
+            },
+            {
+              "cause": "hitstun",
+              "start": 1654,
+              "finish": 1780,
+              "outcome": "reentered",
+              "ready": 1767
+            }
+          ],
+          "censored": 0,
+          "completed": 7,
+          "disruption_to_cycle_frames": [
+            70,
+            21,
+            38,
+            23,
+            126,
+            21,
+            126
+          ],
+          "ready_to_cycle_frames": [
+            70,
+            13,
+            13,
+            13,
+            9,
+            13,
+            13
+          ]
+        },
+        "self_initiated_onsets": 161,
+        "self_initiated_per_minute": 322.0
+      },
+      "replay_sha256": "58ed2c7590618196abacb71e0fb2c88a73171763945bed58bf8b702700a9dd8c",
+      "chain_gate": true
+    },
+    {
+      "id": "fountain_of_dreams_peach_1",
+      "session": {
+        "errors": 0,
+        "expected_latency": 1,
+        "frames": 1922,
+        "game_ended": true,
+        "last_frame": 1799,
+        "measured_latency": 1,
+        "player_port": 1,
+        "policy": "eval_runs/0915_local_zero/corrected_bootstrap/candidate.bin",
+        "reaction_delay": 0,
+        "scored_fps": 96.23095429029671,
+        "scored_wall_ms": 18705,
+        "stage": "fountain_of_dreams",
+        "start_frame": -123,
+        "status": "ok"
+      },
+      "run": 1,
+      "valid": true,
+      "stage": "fountain_of_dreams",
+      "opponent": "peach",
+      "replay": "eval_runs/0915_local_zero/corrected_cpu_matrix/fountain_of_dreams_peach_1/Game_20260915T122527.slp",
+      "metrics": {
+        "max_chain": 140,
+        "frames": 1800,
+        "deaths": 0,
+        "chains": [
+          {
+            "length": 140,
+            "ended_by": "other_action"
+          },
+          {
+            "length": 58,
+            "ended_by": "end_of_input"
+          }
+        ],
+        "completed_cycles": 190,
+        "endings": {
+          "end_of_input": 1,
+          "other_action": 1
+        },
+        "ground_shine_onsets": 198,
+        "ground_shines_per_minute": 396.0,
+        "recent_hit_onsets": 3,
+        "recovery": {
+          "episodes": [
+            {
+              "cause": "failed_cycle",
+              "start": 1247,
+              "finish": null,
+              "last_observed": 1268,
+              "outcome": "interrupted_again",
+              "ready": 1247
+            },
+            {
+              "cause": "hitstun",
+              "start": 1269,
+              "finish": 1317,
+              "outcome": "reentered",
+              "ready": 1277
+            }
+          ],
+          "censored": 1,
+          "completed": 1,
+          "disruption_to_cycle_frames": [
+            48
+          ],
+          "ready_to_cycle_frames": [
+            40
+          ]
+        },
+        "self_initiated_onsets": 195,
+        "self_initiated_per_minute": 390.0
+      },
+      "replay_sha256": "851824e5e60ff69e7bedc2aa62835e82c355a3abe0b58fdbb9a38212de968cfe",
+      "chain_gate": true
+    },
+    {
+      "id": "fountain_of_dreams_samus_1",
+      "session": {
+        "errors": 0,
+        "expected_latency": 1,
+        "frames": 1922,
+        "game_ended": true,
+        "last_frame": 1799,
+        "measured_latency": 1,
+        "player_port": 1,
+        "policy": "eval_runs/0915_local_zero/corrected_bootstrap/candidate.bin",
+        "reaction_delay": 0,
+        "scored_fps": 103.41855788566504,
+        "scored_wall_ms": 17405,
+        "stage": "fountain_of_dreams",
+        "start_frame": -123,
+        "status": "ok"
+      },
+      "run": 1,
+      "valid": true,
+      "stage": "fountain_of_dreams",
+      "opponent": "samus",
+      "replay": "eval_runs/0915_local_zero/corrected_cpu_matrix/fountain_of_dreams_samus_1/Game_20260915T122558.slp",
+      "metrics": {
+        "max_chain": 92,
+        "frames": 1800,
+        "deaths": 0,
+        "chains": [
+          {
+            "length": 92,
+            "ended_by": "air_shine"
+          },
+          {
+            "length": 1,
+            "ended_by": "other_action"
+          },
+          {
+            "length": 1,
+            "ended_by": "air_shine"
+          },
+          {
+            "length": 1,
+            "ended_by": "other_action"
+          },
+          {
+            "length": 1,
+            "ended_by": "air_shine"
+          },
+          {
+            "length": 1,
+            "ended_by": "other_action"
+          },
+          {
+            "length": 1,
+            "ended_by": "air_shine"
+          },
+          {
+            "length": 1,
+            "ended_by": "other_action"
+          },
+          {
+            "length": 8,
+            "ended_by": "other_action"
+          },
+          {
+            "length": 15,
+            "ended_by": "other_action"
+          },
+          {
+            "length": 1,
+            "ended_by": "air_shine"
+          },
+          {
+            "length": 11,
+            "ended_by": "other_action"
+          },
+          {
+            "length": 19,
+            "ended_by": "end_of_input"
+          }
+        ],
+        "completed_cycles": 140,
+        "endings": {
+          "end_of_input": 1,
+          "other_action": 7,
+          "air_shine": 5
+        },
+        "ground_shine_onsets": 153,
+        "ground_shines_per_minute": 306.0,
+        "recent_hit_onsets": 4,
+        "recovery": {
+          "episodes": [
+            {
+              "cause": "failed_cycle",
+              "start": 865,
+              "finish": 1077,
+              "outcome": "reentered",
+              "ready": 865
+            },
+            {
+              "cause": "hitstun",
+              "start": 1135,
+              "finish": 1159,
+              "outcome": "reentered",
+              "ready": 1146
+            },
+            {
+              "cause": "hitstun",
+              "start": 1284,
+              "finish": 1423,
+              "outcome": "reentered",
+              "ready": 1304
+            },
+            {
+              "cause": "hitstun",
+              "start": 1508,
+              "finish": 1639,
+              "outcome": "reentered",
+              "ready": 1630
+            }
+          ],
+          "censored": 0,
+          "completed": 4,
+          "disruption_to_cycle_frames": [
+            212,
+            24,
+            139,
+            131
+          ],
+          "ready_to_cycle_frames": [
+            212,
+            13,
+            119,
+            9
+          ]
+        },
+        "self_initiated_onsets": 149,
+        "self_initiated_per_minute": 298.0
+      },
+      "replay_sha256": "11611afdc7572ffd08353b018d80396eb2a56e5ad07a211e783ffba6b784d7f4",
+      "chain_gate": true
+    },
+    {
+      "id": "pokemon_stadium_fox_1",
+      "session": {
+        "errors": 0,
+        "expected_latency": 1,
+        "frames": 1922,
+        "game_ended": true,
+        "last_frame": 1799,
+        "measured_latency": 1,
+        "player_port": 1,
+        "policy": "eval_runs/0915_local_zero/corrected_bootstrap/candidate.bin",
+        "reaction_delay": 0,
+        "scored_fps": 103.66275051831376,
+        "scored_wall_ms": 17364,
+        "stage": "pokemon_stadium",
+        "start_frame": -123,
+        "status": "ok"
+      },
+      "run": 1,
+      "valid": true,
+      "stage": "pokemon_stadium",
+      "opponent": "fox",
+      "replay": "eval_runs/0915_local_zero/corrected_cpu_matrix/pokemon_stadium_fox_1/Game_20260915T122627.slp",
+      "metrics": {
+        "max_chain": 198,
+        "frames": 1800,
+        "deaths": 0,
+        "chains": [
+          {
+            "length": 198,
+            "ended_by": "end_of_input"
+          }
+        ],
+        "completed_cycles": 197,
+        "endings": {
+          "end_of_input": 1
+        },
+        "ground_shine_onsets": 198,
+        "ground_shines_per_minute": 396.0,
+        "recent_hit_onsets": 0,
+        "recovery": {
+          "episodes": [],
+          "censored": 0,
+          "completed": 0,
+          "disruption_to_cycle_frames": [],
+          "ready_to_cycle_frames": []
+        },
+        "self_initiated_onsets": 198,
+        "self_initiated_per_minute": 396.0
+      },
+      "replay_sha256": "30a86ff68c2aff1f44c252e4ea3723fffa965add4c7cde89135ef6974fe8a04f",
+      "chain_gate": true
+    },
+    {
+      "id": "pokemon_stadium_falco_1",
+      "session": {
+        "errors": 0,
+        "expected_latency": 1,
+        "frames": 1922,
+        "game_ended": true,
+        "last_frame": 1799,
+        "measured_latency": 1,
+        "player_port": 1,
+        "policy": "eval_runs/0915_local_zero/corrected_bootstrap/candidate.bin",
+        "reaction_delay": 0,
+        "scored_fps": 100.8120974516942,
+        "scored_wall_ms": 17855,
+        "stage": "pokemon_stadium",
+        "start_frame": -123,
+        "status": "ok"
+      },
+      "run": 1,
+      "valid": true,
+      "stage": "pokemon_stadium",
+      "opponent": "falco",
+      "replay": "eval_runs/0915_local_zero/corrected_cpu_matrix/pokemon_stadium_falco_1/Game_20260915T122656.slp",
+      "metrics": {
+        "max_chain": 198,
+        "frames": 1800,
+        "deaths": 0,
+        "chains": [
+          {
+            "length": 198,
+            "ended_by": "end_of_input"
+          }
+        ],
+        "completed_cycles": 197,
+        "endings": {
+          "end_of_input": 1
+        },
+        "ground_shine_onsets": 198,
+        "ground_shines_per_minute": 396.0,
+        "recent_hit_onsets": 0,
+        "recovery": {
+          "episodes": [],
+          "censored": 0,
+          "completed": 0,
+          "disruption_to_cycle_frames": [],
+          "ready_to_cycle_frames": []
+        },
+        "self_initiated_onsets": 198,
+        "self_initiated_per_minute": 396.0
+      },
+      "replay_sha256": "d8cf6549d94f8b142beaca90557b9204b47facde9875f59c63d1c5ce90e23270",
+      "chain_gate": true
+    },
+    {
+      "id": "pokemon_stadium_marth_1",
+      "session": {
+        "errors": 0,
+        "expected_latency": 1,
+        "frames": 1922,
+        "game_ended": true,
+        "last_frame": 1799,
+        "measured_latency": 1,
+        "player_port": 1,
+        "policy": "eval_runs/0915_local_zero/corrected_bootstrap/candidate.bin",
+        "reaction_delay": 0,
+        "scored_fps": 103.8781163434903,
+        "scored_wall_ms": 17328,
+        "stage": "pokemon_stadium",
+        "start_frame": -123,
+        "status": "ok"
+      },
+      "run": 1,
+      "valid": true,
+      "stage": "pokemon_stadium",
+      "opponent": "marth",
+      "replay": "eval_runs/0915_local_zero/corrected_cpu_matrix/pokemon_stadium_marth_1/Game_20260915T122726.slp",
+      "metrics": {
+        "max_chain": 198,
+        "frames": 1800,
+        "deaths": 0,
+        "chains": [
+          {
+            "length": 198,
+            "ended_by": "end_of_input"
+          }
+        ],
+        "completed_cycles": 197,
+        "endings": {
+          "end_of_input": 1
+        },
+        "ground_shine_onsets": 198,
+        "ground_shines_per_minute": 396.0,
+        "recent_hit_onsets": 0,
+        "recovery": {
+          "episodes": [],
+          "censored": 0,
+          "completed": 0,
+          "disruption_to_cycle_frames": [],
+          "ready_to_cycle_frames": []
+        },
+        "self_initiated_onsets": 198,
+        "self_initiated_per_minute": 396.0
+      },
+      "replay_sha256": "272ff483d00a3221160a668f6e35f3fc01493e43417e6077e7a261d86ff9c84a",
+      "chain_gate": true
+    },
+    {
+      "id": "pokemon_stadium_peach_1",
+      "session": {
+        "errors": 0,
+        "expected_latency": 1,
+        "frames": 1922,
+        "game_ended": true,
+        "last_frame": 1799,
+        "measured_latency": 1,
+        "player_port": 1,
+        "policy": "eval_runs/0915_local_zero/corrected_bootstrap/candidate.bin",
+        "reaction_delay": 0,
+        "scored_fps": 101.82147301730966,
+        "scored_wall_ms": 17678,
+        "stage": "pokemon_stadium",
+        "start_frame": -123,
+        "status": "ok"
+      },
+      "run": 1,
+      "valid": true,
+      "stage": "pokemon_stadium",
+      "opponent": "peach",
+      "replay": "eval_runs/0915_local_zero/corrected_cpu_matrix/pokemon_stadium_peach_1/Game_20260915T122756.slp",
+      "metrics": {
+        "max_chain": 198,
+        "frames": 1800,
+        "deaths": 0,
+        "chains": [
+          {
+            "length": 198,
+            "ended_by": "end_of_input"
+          }
+        ],
+        "completed_cycles": 197,
+        "endings": {
+          "end_of_input": 1
+        },
+        "ground_shine_onsets": 198,
+        "ground_shines_per_minute": 396.0,
+        "recent_hit_onsets": 0,
+        "recovery": {
+          "episodes": [],
+          "censored": 0,
+          "completed": 0,
+          "disruption_to_cycle_frames": [],
+          "ready_to_cycle_frames": []
+        },
+        "self_initiated_onsets": 198,
+        "self_initiated_per_minute": 396.0
+      },
+      "replay_sha256": "2eb649a1d88f7392be6998acbec3925f777f776382ed338e6a55a35be7543a2f",
+      "chain_gate": true
+    },
+    {
+      "id": "pokemon_stadium_samus_1",
+      "session": {
+        "errors": 0,
+        "expected_latency": 1,
+        "frames": 1922,
+        "game_ended": true,
+        "last_frame": 1799,
+        "measured_latency": 1,
+        "player_port": 1,
+        "policy": "eval_runs/0915_local_zero/corrected_bootstrap/candidate.bin",
+        "reaction_delay": 0,
+        "scored_fps": 102.23206679161697,
+        "scored_wall_ms": 17607,
+        "stage": "pokemon_stadium",
+        "start_frame": -123,
+        "status": "ok"
+      },
+      "run": 1,
+      "valid": true,
+      "stage": "pokemon_stadium",
+      "opponent": "samus",
+      "replay": "eval_runs/0915_local_zero/corrected_cpu_matrix/pokemon_stadium_samus_1/Game_20260915T122826.slp",
+      "metrics": {
+        "max_chain": 197,
+        "frames": 1800,
+        "deaths": 0,
+        "chains": [
+          {
+            "length": 197,
+            "ended_by": "end_of_input"
+          }
+        ],
+        "completed_cycles": 196,
+        "endings": {
+          "end_of_input": 1
+        },
+        "ground_shine_onsets": 197,
+        "ground_shines_per_minute": 394.0,
+        "recent_hit_onsets": 0,
+        "recovery": {
+          "episodes": [],
+          "censored": 0,
+          "completed": 0,
+          "disruption_to_cycle_frames": [],
+          "ready_to_cycle_frames": []
+        },
+        "self_initiated_onsets": 197,
+        "self_initiated_per_minute": 394.0
+      },
+      "replay_sha256": "135a6bfd2795a44c58912fd080da06e25e3608c3925de865ed6b9baf2cbda607",
+      "chain_gate": true
+    }
+  ]
+}

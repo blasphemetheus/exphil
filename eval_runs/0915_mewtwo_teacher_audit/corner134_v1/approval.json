@@ -1,0 +1,29 @@
+{
+  "scope": "These controlled Fox/FD scenarios only; live action-state damage and percent/capture audit",
+  "approved": true,
+  "runs": [
+    {
+      "kind": "neutral_recenter",
+      "displacement": 40.95832824707031,
+      "aerial": false,
+      "l_cancel": false,
+      "apex": 1.4000999927520752,
+      "side": 1,
+      "opening_matches_exclusive_scorer": true,
+      "actual_wavedash": true,
+      "passed": true
+    },
+    {
+      "kind": "neutral_recenter",
+      "displacement": -40.6583251953125,
+      "aerial": false,
+      "l_cancel": false,
+      "apex": 1.4000999927520752,
+      "side": -1,
+      "opening_matches_exclusive_scorer": true,
+      "actual_wavedash": true,
+      "passed": true
+    }
+  ],
+  "teacher_sha256": "6445bb5cc8f4196d6fe5d0e634ae314d6861ef14f9bac7ddd3577c58cc2cccd9"
+}

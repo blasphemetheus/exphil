@@ -1,0 +1,53 @@
+{
+  "id": "pokemon_stadium_marth_1",
+  "session": {
+    "errors": 0,
+    "expected_latency": 1,
+    "frames": 1922,
+    "game_ended": true,
+    "last_frame": 1799,
+    "measured_latency": 1,
+    "player_port": 1,
+    "policy": "eval_runs/0915_local_zero/corrected_bootstrap/candidate.bin",
+    "reaction_delay": 0,
+    "scored_fps": 103.8781163434903,
+    "scored_wall_ms": 17328,
+    "stage": "pokemon_stadium",
+    "start_frame": -123,
+    "status": "ok"
+  },
+  "run": 1,
+  "valid": true,
+  "stage": "pokemon_stadium",
+  "opponent": "marth",
+  "replay": "eval_runs/0915_local_zero/corrected_cpu_matrix/pokemon_stadium_marth_1/Game_20260915T122726.slp",
+  "metrics": {
+    "max_chain": 198,
+    "frames": 1800,
+    "deaths": 0,
+    "chains": [
+      {
+        "length": 198,
+        "ended_by": "end_of_input"
+      }
+    ],
+    "completed_cycles": 197,
+    "endings": {
+      "end_of_input": 1
+    },
+    "ground_shine_onsets": 198,
+    "ground_shines_per_minute": 396.0,
+    "recent_hit_onsets": 0,
+    "recovery": {
+      "episodes": [],
+      "censored": 0,
+      "completed": 0,
+      "disruption_to_cycle_frames": [],
+      "ready_to_cycle_frames": []
+    },
+    "self_initiated_onsets": 198,
+    "self_initiated_per_minute": 396.0
+  },
+  "replay_sha256": "272ff483d00a3221160a668f6e35f3fc01493e43417e6077e7a261d86ff9c84a",
+  "chain_gate": true
+}

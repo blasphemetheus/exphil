@@ -1,0 +1,16 @@
+{
+  "status": "ok",
+  "errors": 0,
+  "stage": "final_destination",
+  "policy": "eval_runs/0915_mewtwo_neutral/v4/candidate.bin",
+  "reaction_delay": 0,
+  "expected_latency": 1,
+  "player_port": 1,
+  "frames": 1922,
+  "game_ended": true,
+  "start_frame": -123,
+  "last_frame": 1799,
+  "scored_wall_ms": 23142,
+  "scored_fps": 77.780658542909,
+  "measured_latency": 1
+}

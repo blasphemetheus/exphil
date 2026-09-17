@@ -1,0 +1,65 @@
+{
+  "id": "fountain_of_dreams_fox_1",
+  "session": {
+    "errors": 0,
+    "expected_latency": 1,
+    "frames": 1922,
+    "game_ended": true,
+    "last_frame": 1799,
+    "measured_latency": 1,
+    "player_port": 1,
+    "policy": "eval_runs/0915_local_zero/corrected_bootstrap/candidate.bin",
+    "reaction_delay": 0,
+    "scored_fps": 102.58748432691212,
+    "scored_wall_ms": 17546,
+    "stage": "fountain_of_dreams",
+    "start_frame": -123,
+    "status": "ok"
+  },
+  "run": 1,
+  "valid": true,
+  "stage": "fountain_of_dreams",
+  "opponent": "fox",
+  "replay": "eval_runs/0915_local_zero/corrected_cpu_matrix/fountain_of_dreams_fox_1/Game_20260915T122357.slp",
+  "metrics": {
+    "max_chain": 197,
+    "frames": 1800,
+    "deaths": 0,
+    "chains": [
+      {
+        "length": 197,
+        "ended_by": "end_of_input"
+      }
+    ],
+    "completed_cycles": 192,
+    "endings": {
+      "end_of_input": 1
+    },
+    "ground_shine_onsets": 197,
+    "ground_shines_per_minute": 394.0,
+    "recent_hit_onsets": 0,
+    "recovery": {
+      "episodes": [
+        {
+          "cause": "failed_cycle",
+          "start": 1605,
+          "finish": 1647,
+          "outcome": "reentered",
+          "ready": 1605
+        }
+      ],
+      "censored": 0,
+      "completed": 1,
+      "disruption_to_cycle_frames": [
+        42
+      ],
+      "ready_to_cycle_frames": [
+        42
+      ]
+    },
+    "self_initiated_onsets": 197,
+    "self_initiated_per_minute": 394.0
+  },
+  "replay_sha256": "35c1d974e5e3ff6cc4bdf984b0315a0098d140b685bc5ff5cfdde74e146ab02f",
+  "chain_gate": true
+}

@@ -1,0 +1,178 @@
+diff --git a/lib/exphil/agents/agent.ex b/lib/exphil/agents/agent.ex
+index 1d014e4a..79c1a041 100644
+--- a/lib/exphil/agents/agent.ex
++++ b/lib/exphil/agents/agent.ex
+@@ -51,6 +51,7 @@ defmodule ExPhil.Agents.Agent do
+     :policy_params,
+     :predict_fn,
+     :embed_config,
++    :bptt,
+     # :parsed (default, no-op) | :live — see GOTCHAS #81
+     :af_convention,
+     :frame_delay,
+@@ -1342,7 +1343,7 @@ defmodule ExPhil.Agents.Agent do
+     frame = Nx.reshape(embedded, {1, Nx.size(embedded)})
+ 
+     trunk_state =
+-      if state.trunk_cold do
++      if state.trunk_cold and not (state.bptt == true) do
+         Enum.reduce(1..max(state.window_size - 1, 0)//1, state.trunk_state, fn _, st ->
+           {_out, st} = trunk_step_fn().(state.trunk_step_params, st, frame)
+           st
+@@ -1646,7 +1647,7 @@ defmodule ExPhil.Agents.Agent do
+     # pad semantics: step the first frame window_size-1 extra times, once
+     # per game (~13 ms total on the 5090 for window 60).
+     trunk_state =
+-      if state.trunk_cold do
++      if state.trunk_cold and not (state.bptt == true) do
+         Enum.reduce(1..max(state.window_size - 1, 0)//1, state.trunk_state, fn _, st ->
+           {_out, st} = trunk_step_fn().(state.trunk_step_params, st, frame)
+           st
+@@ -2298,9 +2299,9 @@ defmodule ExPhil.Agents.Agent do
+   end
+ 
+   defp load_policy_internal(state, %{params: params, config: config} = _policy) do
+-    execution = ExPhil.Networks.Policy.ExecutionContract.load(config)
+-    if execution.execution_contract == :windowed_gru_f32_v1 and state.stateful_step,
+-      do: raise(ArgumentError, "windowed GRU v1 cannot use stateful-step inference")
++    execution = ExPhil.Networks.Policy.ExecutionContract.validate_inference!(config, state.stateful_step)
++    if config[:bptt] == true and (state.stateful_resync != nil or is_binary(state.leace_eraser)),
++      do: raise(ArgumentError, "BPTT stateful inference cannot use window resync or a LEACE eraser")
+     # Extract config
+     embed_config = Map.get(config, :embed_config, %{})
+     # The canary's length IS the true input width (it's the embedded
+@@ -2354,7 +2355,9 @@ defmodule ExPhil.Agents.Agent do
+     # (exports carry them since the backbone_defaults integration; GRU
+     # ignores them harmlessly)
+     trunk_opts = [
+-      recurrent_state: execution.recurrent_state,
++      # BPTT actually executes through Edifice.Stateful below. The companion
++      # window graph must not introduce a random initial-state parameter.
++      recurrent_state: if(execution.recurrent_state == :carried_zero, do: :zeros, else: execution.recurrent_state),
+       embed_size: embed_size,
+       backbone: backbone,
+       window_size: window_size,
+@@ -2723,6 +2726,7 @@ defmodule ExPhil.Agents.Agent do
+         head: head,
+         # Set temporal config
+         temporal: temporal,
++        bptt: config[:bptt] == true,
+         backbone: backbone,
+         window_size: window_size,
+         use_prev_action: use_prev_action,
+diff --git a/lib/exphil/networks/policy/backbone.ex b/lib/exphil/networks/policy/backbone.ex
+index c98b55c0..a07322d8 100644
+--- a/lib/exphil/networks/policy/backbone.ex
++++ b/lib/exphil/networks/policy/backbone.ex
+@@ -887,6 +887,7 @@ defmodule ExPhil.Networks.Policy.Backbone do
+   def build_gru_carry_backbone(processed_input, opts) do
+     container =
+       Recurrent.build_backbone_with_carry(processed_input,
++        seed: Keyword.get(opts, :seed),
+         hidden_size: Keyword.get(opts, :hidden_size, 256),
+         num_layers: Keyword.get(opts, :num_layers, 2),
+         dropout: Keyword.get(opts, :dropout, @default_dropout)
+diff --git a/lib/exphil/networks/policy/execution_contract.ex b/lib/exphil/networks/policy/execution_contract.ex
+index b2340096..160ecbc5 100644
+--- a/lib/exphil/networks/policy/execution_contract.ex
++++ b/lib/exphil/networks/policy/execution_contract.ex
+@@ -1,5 +1,21 @@
+ defmodule ExPhil.Networks.Policy.ExecutionContract do
+-  @moduledoc "Versioned windowed recurrent-state and arithmetic contracts. Unstamped checkpoints remain legacy."
++  @moduledoc "Versioned recurrent-state and arithmetic contracts. Unstamped checkpoints remain legacy."
++
++  def training(%{bptt: true} = config) do
++    unless config[:temporal] == true,
++      do: raise(ArgumentError, "BPTT requires temporal training")
++
++    unless config[:backbone] == :gru,
++      do: raise(ArgumentError, "BPTT supports gru only")
++
++    unless config[:temporal] == true and config[:backbone] == :gru and
++             config[:precision] == :f32 and config[:mixed_precision] in [nil, false] and
++             config[:recurrent_state] in [nil, :carried_zero],
++      do: raise(ArgumentError, "BPTT v1 requires F32 GRU with explicit zero-initialized carry")
++
++    %{execution_contract: :bptt_gru_f32_v1, recurrent_state: :carried_zero,
++      training_precision: :f32, inference_precision: :f32}
++  end
+ 
+   def training(config) do
+     state = Map.get(config, :recurrent_state, :legacy_random)
+@@ -38,6 +54,18 @@ defmodule ExPhil.Networks.Policy.ExecutionContract do
+ 
+   def load(config) do
+     case config[:execution_contract] do
++      version when version in [:bptt_gru_f32_v1, "bptt_gru_f32_v1"] ->
++        unless config[:recurrent_state] in [:carried_zero, "carried_zero"] and
++                 config[:training_precision] in [:f32, "f32"] and
++                 config[:inference_precision] in [:f32, "f32"] and
++                 config[:precision] in [:f32, "f32"] and
++                 config[:backbone] in [:gru, "gru"] and config[:temporal] == true and
++                 config[:bptt] == true and config[:mixed_precision] in [nil, false],
++          do: raise(ArgumentError, "inconsistent BPTT GRU execution contract")
++
++        %{execution_contract: :bptt_gru_f32_v1, recurrent_state: :carried_zero,
++          training_precision: :f32, inference_precision: :f32}
++
+       version when version in [:windowed_gru_f32_v1, "windowed_gru_f32_v1"] ->
+         unless config[:recurrent_state] in [:zeros, "zeros"] and
+                  config[:training_precision] in [:f32, "f32"] and
+@@ -71,6 +99,15 @@ defmodule ExPhil.Networks.Policy.ExecutionContract do
+     end
+   end
+ 
++  def validate_inference!(config, stateful_step) do
++    execution = load(config)
++    if execution.execution_contract == :windowed_gru_f32_v1 and stateful_step,
++      do: raise(ArgumentError, "windowed GRU v1 cannot use stateful-step inference")
++    if execution.execution_contract == :bptt_gru_f32_v1 and not stateful_step,
++      do: raise(ArgumentError, "BPTT GRU v1 requires stateful-step inference")
++    execution
++  end
++
+   def verify_report!(config, report) do
+     contract = load(config)
+     expected = contract |> Jason.encode!() |> Jason.decode!()
+diff --git a/lib/exphil/training/imitation.ex b/lib/exphil/training/imitation.ex
+index 86d72e19..86fd75d7 100644
+--- a/lib/exphil/training/imitation.ex
++++ b/lib/exphil/training/imitation.ex
+@@ -283,6 +283,7 @@ defmodule ExPhil.Training.Imitation do
+           embed_size: embed_size,
+           backbone: config.backbone,
+           window_size: config[:unroll] || 80,
++          seed: config[:seed],
+           hidden_size: config.hidden_size,
+           num_layers: config.num_layers,
+           dropout: config.dropout,
+@@ -355,7 +356,14 @@ defmodule ExPhil.Training.Imitation do
+ 
+     # Initialize parameters using newer Axon API
+     # Use mode: :train to ensure all parameters (including dropout state) are initialized
+-    {init_fn, _predict_fn} = Utils.build_compiled(policy_model, mode: :train)
++    # Axon has its own explicit initialization seed. Seeding Erlang's RNG
++    # later in Trainer.fit does not seed initial weights or dropout state.
++    init_opts =
++      if is_integer(config[:seed]),
++        do: [mode: :train, seed: config[:seed]],
++        else: [mode: :train]
++
++    {init_fn, _predict_fn} = Utils.build_compiled(policy_model, init_opts)
+ 
+     # Input shape depends on temporal mode
+     input_shape =
+diff --git a/lib/exphil/training/trainer.ex b/lib/exphil/training/trainer.ex
+index 0c762fdf..05af7889 100644
+--- a/lib/exphil/training/trainer.ex
++++ b/lib/exphil/training/trainer.ex
+@@ -199,7 +199,8 @@ defmodule ExPhil.Training.Trainer do
+     # Seed for reproducibility
+     seed = opts[:seed] || :rand.uniform(1_000_000)
+     :rand.seed(:exsss, {seed, seed, seed})
+-    Nx.Random.key(seed)
++    # Nx keys are explicit values, not global RNG state. Model initialization
++    # receives this seed separately in Imitation.new/1.
+     Logger.info("Training seed: #{seed}")
+ 
+     # Initialize callbacks
