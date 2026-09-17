@@ -156,12 +156,29 @@ defmodule ExPhil.Data.Peppi do
     # connect code). Populated for netplay replays, nil for local/console.
     # Style-conditional training keys on netplay_name — in-game `tag`
     # (cartridge name tag) is blank in netplay.
-    defstruct [:port, :character, :character_name, :tag, :netplay_name, :netplay_code]
+    # 2026-09-17: costume (CSS colour slot), player_type ("human"|"cpu"|"demo"),
+    # cpu_level, team colour — identity evidence for STYLE_IDENTITY.md /
+    # YETI_SCENE_PRIORS.md (closed-set matching on character + costume).
+    defstruct [
+      :port,
+      :character,
+      :character_name,
+      :tag,
+      :netplay_name,
+      :netplay_code,
+      :costume,
+      :player_type,
+      :cpu_level,
+      :team
+    ]
   end
 
   defmodule ReplayMeta do
     @moduledoc "Replay metadata"
-    defstruct [:path, :stage, :duration_frames, :players, :frozen_stadium]
+    # started_at: metadata-block startAt (nil for anonymized corpora);
+    # random_seed: game-start seed. Session context for identity work.
+    # nonfinite_values: NaN/Inf floats the NIF sanitized to 0.0 (0 = clean file).
+    defstruct [:path, :stage, :duration_frames, :players, :frozen_stadium, :started_at, :random_seed, :nonfinite_values]
     @type t :: %__MODULE__{}
   end
 
@@ -533,12 +550,27 @@ defmodule ExPhil.Data.Peppi do
   # Player identity for style-conditional training. Prefer the netplay
   # display name (present + distinct in online replays); fall back to the
   # in-game cartridge name tag (blank in netplay, but set on console).
+  @doc """
+  The identity tag training frames carry for `port` (normalized in-file
+  netplay name or cartridge tag, nil when absent). Public so the player
+  registry can be built from the SAME value the frames get.
+  """
+  @spec player_tag(ReplayMeta.t(), integer()) :: String.t() | nil
+  def player_tag(metadata, port), do: get_player_tag(metadata, port)
+
   defp get_player_tag(%ReplayMeta{players: players}, player_port) when is_list(players) do
-    case Enum.find(players, fn p -> p.port == player_port end) do
-      %PlayerMeta{netplay_name: name} when is_binary(name) and name != "" -> name
-      %PlayerMeta{tag: tag} when is_binary(tag) and tag != "" -> tag
-      _ -> nil
-    end
+    # Cartridge tags are FULL-WIDTH ("ＦＯＸ"); registries are built from
+    # ASCII filename tags ("[FOX]"). Unnormalized, every subject with a real
+    # in-game tag silently trained as name_id 0 (found 2026-09-17, V3
+    # held-out gate: anonymous == registry scores bit-for-bit).
+    tag =
+      case Enum.find(players, fn p -> p.port == player_port end) do
+        %PlayerMeta{netplay_name: name} when is_binary(name) and name != "" -> name
+        %PlayerMeta{tag: tag} when is_binary(tag) and tag != "" -> tag
+        _ -> nil
+      end
+
+    ExPhil.Data.FilenameTags.normalize_tag(tag)
   end
 
   defp get_player_tag(_, _), do: nil

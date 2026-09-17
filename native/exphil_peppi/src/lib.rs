@@ -10,6 +10,25 @@ use rustler::{Atom, NifResult, NifStruct};
 use std::collections::HashMap;
 use std::fs::File;
 use std::io::BufReader;
+use std::cell::Cell;
+
+thread_local! {
+    // Non-finite floats seen while building the current replay. Erlang has
+    // no NaN/Inf float, so enif_make_double rejects them and rustler
+    // surfaces that as a bare `badarg` — one corrupted frame made the whole
+    // file unparseable with no diagnosis (09-17, master-master-0a30db85…).
+    // Sanitize to 0.0 and COUNT, so the caller can see the file is damaged.
+    static NONFINITE: Cell<i32> = const { Cell::new(0) };
+}
+
+fn fin(v: f32) -> f64 {
+    if v.is_finite() {
+        v as f64
+    } else {
+        NONFINITE.with(|c| c.set(c.get() + 1));
+        0.0
+    }
+}
 
 mod atoms {
     rustler::atoms! {
@@ -128,6 +147,14 @@ pub struct PlayerMeta {
     // netplay name because in-game name_tag is blank in netplay.
     pub netplay_name: Option<String>,
     pub netplay_code: Option<String>,
+    // Identity evidence beyond names (STYLE_IDENTITY.md / YETI_SCENE_PRIORS.md):
+    // costume slot (0-based CSS colour index, character-specific), player
+    // type ("human" | "cpu" | "demo"), CPU level when a CPU, and team colour
+    // (0 red, 1 blue, 2 green) in team games.
+    pub costume: i32,
+    pub player_type: String,
+    pub cpu_level: Option<i32>,
+    pub team: Option<i32>,
 }
 
 /// Replay metadata
@@ -139,6 +166,12 @@ pub struct ReplayMeta {
     pub stage: i32,
     pub duration_frames: i32,
     pub players: Vec<PlayerMeta>,
+    // Session context: the metadata block'"'"'s startAt (ISO-8601; None when the
+    // block is empty, e.g. anonymized corpora) and the game-start random seed.
+    pub started_at: Option<String>,
+    pub random_seed: i64,
+    // Count of NaN/Inf floats sanitized to 0.0 while parsing (0 = clean).
+    pub nonfinite_values: i32,
 }
 
 /// Complete parsed replay
@@ -266,6 +299,34 @@ fn netplay_code(player: &peppi::game::Player) -> Option<String> {
     })
 }
 
+fn player_meta(player: &peppi::game::Player) -> PlayerMeta {
+    PlayerMeta {
+        port: player.port as i32 + 1,
+        character: character_id(player.character),
+        character_name: character_name(player.character),
+        tag: player.name_tag.as_ref().map(|s| s.0.clone()),
+        netplay_name: netplay_name(player),
+        netplay_code: netplay_code(player),
+        costume: player.costume as i32,
+        player_type: match player.r#type {
+            peppi::game::PlayerType::Human => "human",
+            peppi::game::PlayerType::Cpu => "cpu",
+            peppi::game::PlayerType::Demo => "demo",
+        }
+        .to_string(),
+        cpu_level: player.cpu_level.map(|l| l as i32),
+        team: player.team.map(|t| t.color as i32),
+    }
+}
+
+fn started_at<G: Game>(game: &G) -> Option<String> {
+    game.metadata()
+        .as_ref()
+        .and_then(|m| m.get("startAt"))
+        .and_then(|v| v.as_str())
+        .map(|s| s.to_string())
+}
+
 fn stage_id(stage: u16) -> i32 {
     // Standard Melee stage IDs
     match stage {
@@ -290,10 +351,10 @@ fn parse_controller(pre: &Pre) -> Controller {
     let buttons = pre.buttons_physical;
 
     // Normalize from [-1, 1] to [0, 1]
-    let main_x = (joystick.x as f64 + 1.0) / 2.0;
-    let main_y = (joystick.y as f64 + 1.0) / 2.0;
-    let c_x = (cstick.x as f64 + 1.0) / 2.0;
-    let c_y = (cstick.y as f64 + 1.0) / 2.0;
+    let main_x = (fin(joystick.x) + 1.0) / 2.0;
+    let main_y = (fin(joystick.y) + 1.0) / 2.0;
+    let c_x = (fin(cstick.x) + 1.0) / 2.0;
+    let c_y = (fin(cstick.y) + 1.0) / 2.0;
 
     // Button masks for physical buttons (16-bit)
     const A: u16 = 0x0100;
@@ -312,11 +373,11 @@ fn parse_controller(pre: &Pre) -> Controller {
     Controller {
         processed: ProcessedInput {
             rng_seed: pre.random_seed,
-            main_x: joystick.x as f64,
-            main_y: joystick.y as f64,
-            c_x: cstick.x as f64,
-            c_y: cstick.y as f64,
-            trigger: pre.triggers as f64,
+            main_x: fin(joystick.x),
+            main_y: fin(joystick.y),
+            c_x: fin(cstick.x),
+            c_y: fin(cstick.y),
+            trigger: fin(pre.triggers),
             buttons: pre.buttons,
             physical_buttons: buttons,
             raw_main_x: pre.raw_analog_x,
@@ -328,8 +389,8 @@ fn parse_controller(pre: &Pre) -> Controller {
         main_stick_y: main_y,
         c_stick_x: c_x,
         c_stick_y: c_y,
-        l_trigger: triggers.l as f64,
-        r_trigger: triggers.r as f64,
+        l_trigger: fin(triggers.l),
+        r_trigger: fin(triggers.r),
         button_a: (buttons & A) != 0,
         button_b: (buttons & B) != 0,
         button_x: (buttons & X) != 0,
@@ -356,11 +417,11 @@ fn parse_player_frame(data: &Data) -> PlayerFrame {
     let (speed_air_x, speed_ground_x, speed_y, speed_x_attack, speed_y_attack) =
         if let Some(ref velocities) = post.velocities {
             (
-                velocities.self_x_air as f64,
-                velocities.self_x_ground as f64,
-                velocities.self_y as f64,
-                velocities.knockback_x as f64,
-                velocities.knockback_y as f64,
+                fin(velocities.self_x_air),
+                fin(velocities.self_x_ground),
+                fin(velocities.self_y),
+                fin(velocities.knockback_x),
+                fin(velocities.knockback_y),
             )
         } else {
             (0.0, 0.0, 0.0, 0.0, 0.0)
@@ -380,21 +441,21 @@ fn parse_player_frame(data: &Data) -> PlayerFrame {
 
     PlayerFrame {
         character: internal_character_id(post.character),
-        x: post.position.x as f64,
-        y: post.position.y as f64,
-        percent: post.percent as f64,
+        x: fin(post.position.x),
+        y: fin(post.position.y),
+        percent: fin(post.percent),
         stock: post.stocks as i32,
         facing,
         action: post.state,
-        action_frame: post.state_age.unwrap_or(0.0) as f64,
+        action_frame: fin(post.state_age.unwrap_or(0.0)),
         invulnerable,
         jumps_left: post.jumps.unwrap_or(2) as i32,
         on_ground,
-        shield_strength: post.shield as f64,
+        shield_strength: fin(post.shield),
         // Match libmelee's live 0x2B channel. This counter has other uses
         // outside hitstun; statistical consumers must consult in_hitstun.
-        hitstun_frames_left: post.misc_as.unwrap_or(0.0) as f64,
-        hitlag_left: post.hitlag.unwrap_or(0.0) as f64,
+        hitstun_frames_left: fin(post.misc_as.unwrap_or(0.0)),
+        hitlag_left: fin(post.hitlag.unwrap_or(0.0)),
         in_hitstun: post.state_flags.map(|flags| flags.3 & 0x02 != 0),
         speed_air_x_self: speed_air_x,
         speed_ground_x_self: speed_ground_x,
@@ -426,8 +487,8 @@ fn parse_frame(frame: &Frame) -> GameFrame {
     if let Some(plats) = &frame.fod_platforms {
         for p in plats {
             match p.platform {
-                0 => fod_right = Some(p.height as f64),
-                1 => fod_left = Some(p.height as f64),
+                0 => fod_right = Some(fin(p.height)),
+                1 => fod_left = Some(fin(p.height)),
                 _ => {}
             }
         }
@@ -459,20 +520,14 @@ fn parse_frame(frame: &Frame) -> GameFrame {
 }
 
 fn parse_game<G: Game>(game: &G, path: &str) -> ParsedReplay {
+    NONFINITE.with(|c| c.set(0));
     // Extract metadata from game start
     let start = game.start();
     let stage = stage_id(start.stage);
 
     let mut player_metas = Vec::new();
     for player in &start.players {
-        player_metas.push(PlayerMeta {
-            port: player.port as i32 + 1,
-            character: character_id(player.character),
-            character_name: character_name(player.character),
-            tag: player.name_tag.as_ref().map(|s| s.0.clone()),
-            netplay_name: netplay_name(player),
-            netplay_code: netplay_code(player),
-        });
+        player_metas.push(player_meta(player));
     }
 
     // Parse all frames
@@ -490,6 +545,9 @@ fn parse_game<G: Game>(game: &G, path: &str) -> ParsedReplay {
         stage,
         duration_frames: frames.len() as i32,
         players: player_metas,
+        started_at: started_at(game),
+        random_seed: start.random_seed as i64,
+        nonfinite_values: NONFINITE.with(|c| c.get()),
     };
 
     ParsedReplay { frames, metadata }
@@ -534,6 +592,7 @@ fn parse_replay_for_port(path: String, player_port: i32) -> NifResult<(Atom, Par
 /// Get replay metadata without parsing all frames (faster for filtering)
 #[rustler::nif]
 fn get_replay_metadata(path: String) -> NifResult<(Atom, ReplayMeta)> {
+    NONFINITE.with(|c| c.set(0));
     let file = File::open(&path)
         .map_err(|e| rustler::Error::Term(Box::new(format!("Failed to open file: {}", e))))?;
 
@@ -546,14 +605,7 @@ fn get_replay_metadata(path: String) -> NifResult<(Atom, ReplayMeta)> {
 
     let mut player_metas = Vec::new();
     for player in &start.players {
-        player_metas.push(PlayerMeta {
-            port: player.port as i32 + 1,
-            character: character_id(player.character),
-            character_name: character_name(player.character),
-            tag: player.name_tag.as_ref().map(|s| s.0.clone()),
-            netplay_name: netplay_name(player),
-            netplay_code: netplay_code(player),
-        });
+        player_metas.push(player_meta(player));
     }
 
     let metadata = ReplayMeta {
@@ -562,6 +614,9 @@ fn get_replay_metadata(path: String) -> NifResult<(Atom, ReplayMeta)> {
         stage,
         duration_frames: game.len() as i32,
         players: player_metas,
+        started_at: started_at(&game),
+        random_seed: start.random_seed as i64,
+        nonfinite_values: NONFINITE.with(|c| c.get()),
     };
 
     Ok((atoms::ok(), metadata))
