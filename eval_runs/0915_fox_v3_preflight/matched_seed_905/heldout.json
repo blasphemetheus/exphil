@@ -1,0 +1,565 @@
+{
+  "protocol": "complete_heldout_teacher_forced_plain_ce_v1",
+  "files": [
+    {
+      "file": "/home/blewf/git/exphil/eval_runs/0915_fox_v3_preflight/replays/01_validation/19_55_42 [BABY] Fox + [C2] Marth (FoD).slp",
+      "sha256": "356957918cecf49caec1da5985e77f79e356c8e642b40ecce3f40437955dd120",
+      "subject_port": 2,
+      "scores": {
+        "anonymous": {
+          "protocol": "bptt_teacher_forced_plain_ce_v1",
+          "frames": 12921,
+          "loss": 3.363467927383533,
+          "accuracy": {
+            "buttons": 0.9232741373074829,
+            "c_x": 0.9839795692104847,
+            "c_y": 0.9709774801794031,
+            "main_x": 0.5080876173332614,
+            "main_y": 0.7952170974790713,
+            "shoulder": 0.8930423396787502
+          }
+        },
+        "trained_registry": {
+          "protocol": "bptt_teacher_forced_plain_ce_v1",
+          "frames": 12921,
+          "loss": 3.363467927383533,
+          "accuracy": {
+            "buttons": 0.9232741373074829,
+            "c_x": 0.9839795692104847,
+            "c_y": 0.9709774801794031,
+            "main_x": 0.5080876173332614,
+            "main_y": 0.7952170974790713,
+            "shoulder": 0.8930423396787502
+          }
+        }
+      },
+      "expected_frames": 12921
+    },
+    {
+      "file": "/home/blewf/git/exphil/eval_runs/0915_fox_v3_preflight/replays/01_validation/20_03_10 Zelda + Fox (FoD).slp",
+      "sha256": "fc68d9755af4b3a1e81eb0706c2ccc0ae421ea98909de295fb0be6a1236d0623",
+      "subject_port": 4,
+      "scores": {
+        "anonymous": {
+          "protocol": "bptt_teacher_forced_plain_ce_v1",
+          "frames": 12129,
+          "loss": 4.307151846797127,
+          "accuracy": {
+            "buttons": 0.9485221474893469,
+            "c_x": 0.9877153959265643,
+            "c_y": 0.9844175167808686,
+            "main_x": 0.4828098025721192,
+            "main_y": 0.6089537567903247,
+            "shoulder": 0.8486272636510758
+          }
+        },
+        "trained_registry": {
+          "protocol": "bptt_teacher_forced_plain_ce_v1",
+          "frames": 12129,
+          "loss": 4.307151846797127,
+          "accuracy": {
+            "buttons": 0.9485221474893469,
+            "c_x": 0.9877153959265643,
+            "c_y": 0.9844175167808686,
+            "main_x": 0.4828098025721192,
+            "main_y": 0.6089537567903247,
+            "shoulder": 0.8486272636510758
+          }
+        }
+      },
+      "expected_frames": 12129
+    },
+    {
+      "file": "/home/blewf/git/exphil/eval_runs/0915_fox_v3_preflight/replays/01_validation/20200115 - HNC 2 - PM 0952 - Marth (Black) vs Fox (Blue) - Fountain of Dreams.slp",
+      "sha256": "f09169b72669dad0f809103059b5430a75d322427687fec7668399764749a63e",
+      "subject_port": 4,
+      "scores": {
+        "anonymous": {
+          "protocol": "bptt_teacher_forced_plain_ce_v1",
+          "frames": 9873,
+          "loss": 4.223108715867605,
+          "accuracy": {
+            "buttons": 0.9210093284008243,
+            "c_x": 0.9801478813294158,
+            "c_y": 0.9798440230927495,
+            "main_x": 0.5318545585877987,
+            "main_y": 0.6901651071919401,
+            "shoulder": 0.8443229103733145
+          }
+        },
+        "trained_registry": {
+          "protocol": "bptt_teacher_forced_plain_ce_v1",
+          "frames": 9873,
+          "loss": 4.223108715867605,
+          "accuracy": {
+            "buttons": 0.9210093284008243,
+            "c_x": 0.9801478813294158,
+            "c_y": 0.9798440230927495,
+            "main_x": 0.5318545585877987,
+            "main_y": 0.6901651071919401,
+            "shoulder": 0.8443229103733145
+          }
+        }
+      },
+      "expected_frames": 9873
+    },
+    {
+      "file": "/home/blewf/git/exphil/eval_runs/0915_fox_v3_preflight/replays/01_validation/20200304 - HNC 9 - PM 0929 - Marth (White) vs SKWA Fox (Blue) - Pokemon Stadium.slp",
+      "sha256": "4b5aeb08a16732aa8d4edac7fe8638a81c42b95be0eeb96131ad23d056ce3ba3",
+      "subject_port": 4,
+      "scores": {
+        "anonymous": {
+          "protocol": "bptt_teacher_forced_plain_ce_v1",
+          "frames": 14524,
+          "loss": 5.128243355863812,
+          "accuracy": {
+            "buttons": 0.9119732981376889,
+            "c_x": 0.9808592695862883,
+            "c_y": 0.9857477296715235,
+            "main_x": 0.39624071206371175,
+            "main_y": 0.5316028722088155,
+            "shoulder": 0.7654916095326538
+          }
+        },
+        "trained_registry": {
+          "protocol": "bptt_teacher_forced_plain_ce_v1",
+          "frames": 14524,
+          "loss": 5.128243355863812,
+          "accuracy": {
+            "buttons": 0.9119732981376889,
+            "c_x": 0.9808592695862883,
+            "c_y": 0.9857477296715235,
+            "main_x": 0.39624071206371175,
+            "main_y": 0.5316028722088155,
+            "shoulder": 0.7654916095326538
+          }
+        }
+      },
+      "expected_frames": 14524
+    },
+    {
+      "file": "/home/blewf/git/exphil/eval_runs/0915_fox_v3_preflight/replays/01_validation/20200108 - HNC 15 - PM 0707 - Marth (Default) vs Fox (Default) - Pokemon Stadium.slp",
+      "sha256": "1ab9de2e17029be4ae0016f1743e3e6a640e679077e64aaf058be5ef16bbefee",
+      "subject_port": 4,
+      "scores": {
+        "anonymous": {
+          "protocol": "bptt_teacher_forced_plain_ce_v1",
+          "frames": 6554,
+          "loss": 3.725333239998001,
+          "accuracy": {
+            "buttons": 0.9506026948775174,
+            "c_x": 0.9783338444568341,
+            "c_y": 0.9417149879272515,
+            "main_x": 0.5512664109141062,
+            "main_y": 0.6946902739808878,
+            "shoulder": 0.8779371432280227
+          }
+        },
+        "trained_registry": {
+          "protocol": "bptt_teacher_forced_plain_ce_v1",
+          "frames": 6554,
+          "loss": 3.725333239998001,
+          "accuracy": {
+            "buttons": 0.9506026948775174,
+            "c_x": 0.9783338444568341,
+            "c_y": 0.9417149879272515,
+            "main_x": 0.5512664109141062,
+            "main_y": 0.6946902739808878,
+            "shoulder": 0.8779371432280227
+          }
+        }
+      },
+      "expected_frames": 6554
+    },
+    {
+      "file": "/home/blewf/git/exphil/eval_runs/0915_fox_v3_preflight/replays/01_validation/20200304 - HNC 9 - PM 0712 - Falco (Default) vs Fox (Default) - Pokemon Stadium.slp",
+      "sha256": "b767dc0b13a9ea893635b9373e49f5ea9c2c38001abf6e7bb0a6a45c9ee10702",
+      "subject_port": 3,
+      "scores": {
+        "anonymous": {
+          "protocol": "bptt_teacher_forced_plain_ce_v1",
+          "frames": 8284,
+          "loss": 4.000323871996943,
+          "accuracy": {
+            "buttons": 0.9172199547780072,
+            "c_x": 0.9907049742486383,
+            "c_y": 0.9791163715517274,
+            "main_x": 0.5434572747951254,
+            "main_y": 0.6933848481429251,
+            "shoulder": 0.7934572733237166
+          }
+        },
+        "trained_registry": {
+          "protocol": "bptt_teacher_forced_plain_ce_v1",
+          "frames": 8284,
+          "loss": 4.000323871996943,
+          "accuracy": {
+            "buttons": 0.9172199547780072,
+            "c_x": 0.9907049742486383,
+            "c_y": 0.9791163715517274,
+            "main_x": 0.5434572747951254,
+            "main_y": 0.6933848481429251,
+            "shoulder": 0.7934572733237166
+          }
+        }
+      },
+      "expected_frames": 8284
+    },
+    {
+      "file": "/home/blewf/git/exphil/eval_runs/0915_fox_v3_preflight/replays/01_validation/19_19_52 Falco + [FOX] Fox (YS).slp",
+      "sha256": "d3fc4a03b29098ae5c1fde7e8803484a264f1080a2d9032bc9bc0d755560eb2c",
+      "subject_port": 2,
+      "scores": {
+        "anonymous": {
+          "protocol": "bptt_teacher_forced_plain_ce_v1",
+          "frames": 11137,
+          "loss": 3.6363916899589124,
+          "accuracy": {
+            "buttons": 0.9185260969828026,
+            "c_x": 0.9744096285695072,
+            "c_y": 0.9718954850647515,
+            "main_x": 0.4878333559865379,
+            "main_y": 0.7822573504585375,
+            "shoulder": 0.8377480535369336
+          }
+        },
+        "trained_registry": {
+          "protocol": "bptt_teacher_forced_plain_ce_v1",
+          "frames": 11137,
+          "loss": 3.6363916899589124,
+          "accuracy": {
+            "buttons": 0.9185260969828026,
+            "c_x": 0.9744096285695072,
+            "c_y": 0.9718954850647515,
+            "main_x": 0.4878333559865379,
+            "main_y": 0.7822573504585375,
+            "shoulder": 0.8377480535369336
+          }
+        }
+      },
+      "expected_frames": 11137
+    },
+    {
+      "file": "/home/blewf/git/exphil/eval_runs/0915_fox_v3_preflight/replays/01_validation/22_03_36 Fox + Marth (YS).slp",
+      "sha256": "05b74655883ebf9bbee1ae8479dad6691095403b3937f47c61742f39bb931244",
+      "subject_port": 3,
+      "scores": {
+        "anonymous": {
+          "protocol": "bptt_teacher_forced_plain_ce_v1",
+          "frames": 6989,
+          "loss": 5.208454668274559,
+          "accuracy": {
+            "buttons": 0.9254542968613956,
+            "c_x": 0.9686650497102485,
+            "c_y": 0.9678065572485662,
+            "main_x": 0.4311060302843265,
+            "main_y": 0.5414222455669463,
+            "shoulder": 0.75776220521014
+          }
+        },
+        "trained_registry": {
+          "protocol": "bptt_teacher_forced_plain_ce_v1",
+          "frames": 6989,
+          "loss": 5.208454668274559,
+          "accuracy": {
+            "buttons": 0.9254542968613956,
+            "c_x": 0.9686650497102485,
+            "c_y": 0.9678065572485662,
+            "main_x": 0.4311060302843265,
+            "main_y": 0.5414222455669463,
+            "shoulder": 0.75776220521014
+          }
+        }
+      },
+      "expected_frames": 6989
+    },
+    {
+      "file": "/home/blewf/git/exphil/eval_runs/0915_fox_v3_preflight/replays/01_validation/Falco vs Fox [YS] Game_20200222T120552.slp",
+      "sha256": "edc02d337d0a6dfdcf6f489ec9034d0b83150c22a4351f1f689447e0d92db2a3",
+      "subject_port": 4,
+      "scores": {
+        "anonymous": {
+          "protocol": "bptt_teacher_forced_plain_ce_v1",
+          "frames": 9400,
+          "loss": 5.39734102335382,
+          "accuracy": {
+            "buttons": 0.9340292664284402,
+            "c_x": 0.957553194938822,
+            "c_y": 0.9343617071496679,
+            "main_x": 0.47106383766265625,
+            "main_y": 0.4822340508090689,
+            "shoulder": 0.7838297925889492
+          }
+        },
+        "trained_registry": {
+          "protocol": "bptt_teacher_forced_plain_ce_v1",
+          "frames": 9400,
+          "loss": 5.39734102335382,
+          "accuracy": {
+            "buttons": 0.9340292664284402,
+            "c_x": 0.957553194938822,
+            "c_y": 0.9343617071496679,
+            "main_x": 0.47106383766265625,
+            "main_y": 0.4822340508090689,
+            "shoulder": 0.7838297925889492
+          }
+        }
+      },
+      "expected_frames": 9400
+    },
+    {
+      "file": "/home/blewf/git/exphil/eval_runs/0915_fox_v3_preflight/replays/01_validation/16_56_43 Falco + Fox (DL).slp",
+      "sha256": "260dffa63f7799fb0c24a0064c564fd6cc44c40ffb44b7691c4c254f87a52352",
+      "subject_port": 3,
+      "scores": {
+        "anonymous": {
+          "protocol": "bptt_teacher_forced_plain_ce_v1",
+          "frames": 9768,
+          "loss": 3.919941223150975,
+          "accuracy": {
+            "buttons": 0.9102938276739222,
+            "c_x": 0.9855651121272306,
+            "c_y": 0.9848484870940325,
+            "main_x": 0.4888411239704863,
+            "main_y": 0.7125307180988164,
+            "shoulder": 0.883087640776193
+          }
+        },
+        "trained_registry": {
+          "protocol": "bptt_teacher_forced_plain_ce_v1",
+          "frames": 9768,
+          "loss": 3.919941223150975,
+          "accuracy": {
+            "buttons": 0.9102938276739222,
+            "c_x": 0.9855651121272306,
+            "c_y": 0.9848484870940325,
+            "main_x": 0.4888411239704863,
+            "main_y": 0.7125307180988164,
+            "shoulder": 0.883087640776193
+          }
+        }
+      },
+      "expected_frames": 9768
+    },
+    {
+      "file": "/home/blewf/git/exphil/eval_runs/0915_fox_v3_preflight/replays/01_validation/Fox vs Falco [DL] Game_20200222T104621.slp",
+      "sha256": "eca2bf971b47c7f22afafb6fe885a45ea7563390f68c07f7a0643766053e700b",
+      "subject_port": 1,
+      "scores": {
+        "anonymous": {
+          "protocol": "bptt_teacher_forced_plain_ce_v1",
+          "frames": 11458,
+          "loss": 4.8036282796222185,
+          "accuracy": {
+            "buttons": 0.9056227214154533,
+            "c_x": 0.9650026212543441,
+            "c_y": 0.9354163073894136,
+            "main_x": 0.39788794585273285,
+            "main_y": 0.6597137481460585,
+            "shoulder": 0.8186420053399698
+          }
+        },
+        "trained_registry": {
+          "protocol": "bptt_teacher_forced_plain_ce_v1",
+          "frames": 11458,
+          "loss": 4.8036282796222185,
+          "accuracy": {
+            "buttons": 0.9056227214154533,
+            "c_x": 0.9650026212543441,
+            "c_y": 0.9354163073894136,
+            "main_x": 0.39788794585273285,
+            "main_y": 0.6597137481460585,
+            "shoulder": 0.8186420053399698
+          }
+        }
+      },
+      "expected_frames": 11458
+    },
+    {
+      "file": "/home/blewf/git/exphil/eval_runs/0915_fox_v3_preflight/replays/01_validation/20200115 - HNC 5 - PM 1058 - Falco (Blue) vs Fox (Default) - Dream Land N64.slp",
+      "sha256": "21e265ad182fc9814142f328b19df66d9b17899985d993551b8d325934ddd9be",
+      "subject_port": 2,
+      "scores": {
+        "anonymous": {
+          "protocol": "bptt_teacher_forced_plain_ce_v1",
+          "frames": 10435,
+          "loss": 4.887320787414273,
+          "accuracy": {
+            "buttons": 0.9348347019395248,
+            "c_x": 0.9367513217935165,
+            "c_y": 0.951988504443605,
+            "main_x": 0.4276952626720021,
+            "main_y": 0.6559655089440046,
+            "shoulder": 0.8002875015732199
+          }
+        },
+        "trained_registry": {
+          "protocol": "bptt_teacher_forced_plain_ce_v1",
+          "frames": 10435,
+          "loss": 4.887320787414273,
+          "accuracy": {
+            "buttons": 0.9348347019395248,
+            "c_x": 0.9367513217935165,
+            "c_y": 0.951988504443605,
+            "main_x": 0.4276952626720021,
+            "main_y": 0.6559655089440046,
+            "shoulder": 0.8002875015732199
+          }
+        }
+      },
+      "expected_frames": 10435
+    },
+    {
+      "file": "/home/blewf/git/exphil/eval_runs/0915_fox_v3_preflight/replays/01_validation/Sheik vs Fox (MNTY) [BF] Game_20200222T113318.slp",
+      "sha256": "d0ad49e74645dd524c80b4e153aa479911f952981322c7908e1c617cab11a683",
+      "subject_port": 4,
+      "scores": {
+        "anonymous": {
+          "protocol": "bptt_teacher_forced_plain_ce_v1",
+          "frames": 15170,
+          "loss": 4.562841899786329,
+          "accuracy": {
+            "buttons": 0.9018540002440023,
+            "c_x": 0.9823994763838907,
+            "c_y": 0.968490446721871,
+            "main_x": 0.5154911085481932,
+            "main_y": 0.5843111489338944,
+            "shoulder": 0.9179960538779895
+          }
+        },
+        "trained_registry": {
+          "protocol": "bptt_teacher_forced_plain_ce_v1",
+          "frames": 15170,
+          "loss": 4.562841899786329,
+          "accuracy": {
+            "buttons": 0.9018540002440023,
+            "c_x": 0.9823994763838907,
+            "c_y": 0.968490446721871,
+            "main_x": 0.5154911085481932,
+            "main_y": 0.5843111489338944,
+            "shoulder": 0.9179960538779895
+          }
+        }
+      },
+      "expected_frames": 15170
+    },
+    {
+      "file": "/home/blewf/git/exphil/eval_runs/0915_fox_v3_preflight/replays/01_validation/20200122 - HNC 21 - PM 0754 - =C Fox (Red) vs Falco (Green) - Battlefield.slp",
+      "sha256": "8cf4012bdf7537d23ffed6a7af06a18ebe093a6a67de46f6dc9c2c5823684e6e",
+      "subject_port": 1,
+      "scores": {
+        "anonymous": {
+          "protocol": "bptt_teacher_forced_plain_ce_v1",
+          "frames": 8917,
+          "loss": 3.888597819307025,
+          "accuracy": {
+            "buttons": 0.9343248967754342,
+            "c_x": 0.9938320081718195,
+            "c_y": 0.984299654775876,
+            "main_x": 0.43411461842511956,
+            "main_y": 0.7112257584830871,
+            "shoulder": 0.8680049429509864
+          }
+        },
+        "trained_registry": {
+          "protocol": "bptt_teacher_forced_plain_ce_v1",
+          "frames": 8917,
+          "loss": 3.888597819307025,
+          "accuracy": {
+            "buttons": 0.9343248967754342,
+            "c_x": 0.9938320081718195,
+            "c_y": 0.984299654775876,
+            "main_x": 0.43411461842511956,
+            "main_y": 0.7112257584830871,
+            "shoulder": 0.8680049429509864
+          }
+        }
+      },
+      "expected_frames": 8917
+    },
+    {
+      "file": "/home/blewf/git/exphil/eval_runs/0915_fox_v3_preflight/replays/01_validation/21_22_56 [FOX] Fox + [C2] Marth (FD).slp",
+      "sha256": "17ba779fa1d3e862c83ab31c7fdbf138cee54de76effb5acdc2bbd8e53aa5898",
+      "subject_port": 2,
+      "scores": {
+        "anonymous": {
+          "protocol": "bptt_teacher_forced_plain_ce_v1",
+          "frames": 11537,
+          "loss": 3.2410602944979683,
+          "accuracy": {
+            "buttons": 0.9180788008914804,
+            "c_x": 0.9706162800457817,
+            "c_y": 0.9812776287889278,
+            "main_x": 0.5366213116476769,
+            "main_y": 0.8257779397759475,
+            "shoulder": 0.8503943881242912
+          }
+        },
+        "trained_registry": {
+          "protocol": "bptt_teacher_forced_plain_ce_v1",
+          "frames": 11537,
+          "loss": 3.2410602944979683,
+          "accuracy": {
+            "buttons": 0.9180788008914804,
+            "c_x": 0.9706162800457817,
+            "c_y": 0.9812776287889278,
+            "main_x": 0.5366213116476769,
+            "main_y": 0.8257779397759475,
+            "shoulder": 0.8503943881242912
+          }
+        }
+      },
+      "expected_frames": 11537
+    },
+    {
+      "file": "/home/blewf/git/exphil/eval_runs/0915_fox_v3_preflight/replays/01_validation/23_44_12 Fox + Marth (FD).slp",
+      "sha256": "86ed7b0e6ce41569149bb023db488694a9d5eefd8a52c3ff5fe780d86bd374ed",
+      "subject_port": 1,
+      "scores": {
+        "anonymous": {
+          "protocol": "bptt_teacher_forced_plain_ce_v1",
+          "frames": 8710,
+          "loss": 3.8996420703511836,
+          "accuracy": {
+            "buttons": 0.9260620074485665,
+            "c_x": 0.9869115973997061,
+            "c_y": 0.9851894395085892,
+            "main_x": 0.5544202145013689,
+            "main_y": 0.6523536254836826,
+            "shoulder": 0.8755453578640208
+          }
+        },
+        "trained_registry": {
+          "protocol": "bptt_teacher_forced_plain_ce_v1",
+          "frames": 8710,
+          "loss": 3.8996420703511836,
+          "accuracy": {
+            "buttons": 0.9260620074485665,
+            "c_x": 0.9869115973997061,
+            "c_y": 0.9851894395085892,
+            "main_x": 0.5544202145013689,
+            "main_y": 0.6523536254836826,
+            "shoulder": 0.8755453578640208
+          }
+        }
+      },
+      "expected_frames": 8710
+    }
+  ],
+  "summary": {
+    "anonymous": {
+      "frames": 167806,
+      "loss": 4.270694515016208
+    },
+    "trained_registry": {
+      "frames": 167806,
+      "loss": 4.270694515016208
+    }
+  },
+  "policy": "/home/blewf/git/exphil/eval_runs/0915_fox_v3_preflight/matched_seed_905/model_policy.bin",
+  "policy_sha256": "f2295b57995f3f1d5d7eebc565419e6ac2dd571279a829236d21203e6d8dcead",
+  "arithmetic_precision": "highest",
+  "total_files": 16,
+  "total_frames": 167806,
+  "elapsed_ms": 1267715
+}

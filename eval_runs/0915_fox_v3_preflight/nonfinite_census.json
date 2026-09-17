@@ -1,0 +1,126 @@
+{
+  "files": 28452,
+  "parse_errors": 0,
+  "files_with_nonfinite": [
+    {
+      "values": 78,
+      "path": "/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/master-master-0a30db85ddabf306910f853e.slp",
+      "frames": 11941
+    },
+    {
+      "values": 7,
+      "path": "/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/master-master-0a456469ce3f3c57db406477.slp",
+      "frames": 9874
+    },
+    {
+      "values": 64,
+      "path": "/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/master-master-10b287b425daeb317de4bce0.slp",
+      "frames": 12769
+    },
+    {
+      "values": 64,
+      "path": "/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/master-master-11f45e895b411d936ecd7e24.slp",
+      "frames": 10196
+    },
+    {
+      "values": 13,
+      "path": "/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/master-master-3021b9264a141d696b6a0f81.slp",
+      "frames": 10153
+    },
+    {
+      "values": 64,
+      "path": "/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/master-master-3a86c059baa587d24bbecc3a.slp",
+      "frames": 5530
+    },
+    {
+      "values": 96,
+      "path": "/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/master-master-4b1846dcc1a4fc2b2bb0de77.slp",
+      "frames": 9414
+    },
+    {
+      "values": 44,
+      "path": "/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/master-master-4fafa45ae573aead6988cd48.slp",
+      "frames": 5981
+    },
+    {
+      "values": 17,
+      "path": "/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/master-master-597e33786769b0730a3379d9.slp",
+      "frames": 4697
+    },
+    {
+      "values": 59,
+      "path": "/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/master-master-5a56db9d97d187d7d4c700c3.slp",
+      "frames": 10400
+    },
+    {
+      "values": 91,
+      "path": "/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/master-master-6a7f1f9fa80cfa5cafb5dbeb.slp",
+      "frames": 11032
+    },
+    {
+      "values": 78,
+      "path": "/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/master-master-7aa5f9f65a490943787bba4e.slp",
+      "frames": 9498
+    },
+    {
+      "values": 67,
+      "path": "/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/master-master-909e1bb688861a47ce4dd855.slp",
+      "frames": 12234
+    },
+    {
+      "values": 64,
+      "path": "/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/master-master-a55e6a8508b98d25f00627b8.slp",
+      "frames": 11687
+    },
+    {
+      "values": 92,
+      "path": "/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/master-master-a79240449b9bd2b04136ce01.slp",
+      "frames": 13321
+    },
+    {
+      "values": 64,
+      "path": "/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/master-master-a82ab09184ab6b3da67af3b4.slp",
+      "frames": 9798
+    },
+    {
+      "values": 66,
+      "path": "/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/master-master-ab41b41822010156f3b80fb9.slp",
+      "frames": 7341
+    },
+    {
+      "values": 59,
+      "path": "/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/master-master-ae5e653dd9429a94addd7af0.slp",
+      "frames": 10026
+    },
+    {
+      "values": 64,
+      "path": "/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/master-master-c546fb3dd0436d2418311a2a.slp",
+      "frames": 12813
+    },
+    {
+      "values": 2,
+      "path": "/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/master-master-c5ed079e9aa1f45a6fcf64f7.slp",
+      "frames": 12229
+    },
+    {
+      "values": 64,
+      "path": "/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/master-master-daf4ebc06d7396971244cffb.slp",
+      "frames": 8927
+    },
+    {
+      "values": 89,
+      "path": "/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/master-master-e6e26ae53f0a9b4d5191944b.slp",
+      "frames": 14694
+    },
+    {
+      "values": 74,
+      "path": "/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/master-master-e8db296a07008a308dfea0e2.slp",
+      "frames": 8441
+    },
+    {
+      "values": 46,
+      "path": "/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/master-master-fcaf8973162414c954a6966c.slp",
+      "frames": 13020
+    }
+  ]
+}

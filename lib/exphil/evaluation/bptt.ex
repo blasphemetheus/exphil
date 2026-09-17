@@ -42,18 +42,32 @@ defmodule ExPhil.Evaluation.BPTT do
       |> Stream.map(fn {chunk, chunk_index} ->
         {_first, start} = hd(chunk)
 
+        valid = length(chunk)
+        # Pad a partial tail chunk to chunk_size by repeating its last frame
+        # so every batch has ONE shape (each distinct tail length was a
+        # separate ~35 s XLA compile: 16 held-out files x 2 modes ≈ 20 min,
+        # 09-17). `:valid` tells evaluate/2 how much to score.
+        pad = chunk_size - valid
+        {last, _} = List.last(chunk)
+        frames_padded = Enum.map(chunk, &elem(&1, 0)) ++ List.duplicate(last, pad)
+
         actions =
-          chunk
-          |> Enum.map(fn {frame, _} -> Data.frame_action(frame) end)
+          frames_padded
+          |> Enum.map(&Data.frame_action/1)
           |> Data.actions_to_tensors()
 
+        states = Nx.slice_along_axis(dataset.embedded_frames, start, valid, axis: 0)
+
+        states =
+          if pad > 0,
+            do: Nx.concatenate([states, Nx.broadcast(states[valid - 1], {pad, Nx.axis_size(states, 1)})], axis: 0),
+            else: states
+
         %{
-          states:
-            dataset.embedded_frames
-            |> Nx.slice_along_axis(start, length(chunk), axis: 0)
-            |> Nx.new_axis(0),
+          states: Nx.new_axis(states, 0),
           actions: Map.new(actions, fn {key, tensor} -> {key, Nx.new_axis(tensor, 0)} end),
-          is_resetting: Nx.tensor([if(chunk_index == 0, do: 1, else: 0)], type: :u8)
+          is_resetting: Nx.tensor([if(chunk_index == 0, do: 1, else: 0)], type: :u8),
+          valid: valid
         }
       end)
     end)
@@ -64,7 +78,7 @@ defmodule ExPhil.Evaluation.BPTT do
 
     totals =
       evaluator
-      |> Forward.stream(batches)
+      |> stream_valid(batches)
       |> Enum.reduce(%{loss: 0.0, frames: 0, accuracy: zero}, fn {logits, actions}, totals ->
         logits = Map.new(Enum.zip(@heads, Tuple.to_list(logits)))
         count = Nx.axis_size(logits.buttons, 0)
@@ -99,7 +113,24 @@ defmodule ExPhil.Evaluation.BPTT do
     }
   end
 
-  def run(artifacts, opts) do
+  # Forward.stream, then trim padded rows (see batches/2) off logits and
+  # actions so padding is never scored.
+  defp stream_valid(evaluator, batches) do
+    Stream.transform(batches, evaluator, fn batch, state ->
+      {logits, actions, state} = Forward.batch(state, batch)
+      valid = Map.get(batch, :valid)
+      total = Nx.axis_size(elem(logits, 0), 0)
+
+      if is_integer(valid) and valid < total do
+        trim = fn t -> Nx.slice_along_axis(t, 0, valid, axis: 0) end
+        {[{logits |> Tuple.to_list() |> Enum.map(trim) |> List.to_tuple(), Map.new(actions, fn {k, v} -> {k, trim.(v)} end)}], state}
+      else
+        {[{logits, actions}], state}
+      end
+    end)
+  end
+
+    def run(artifacts, opts) do
     unless Enum.all?(artifacts, & &1.config[:bptt]),
       do:
         raise(

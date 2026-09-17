@@ -1,0 +1,296 @@
+{
+  "protocol": "fox_v3_sampled_live_v1",
+  "sessions": [
+    {
+      "session": {
+        "errors": 0,
+        "expected_latency": 1,
+        "frames": 1922,
+        "game_ended": true,
+        "last_frame": 1799,
+        "measured_latency": 1,
+        "player_port": 1,
+        "policy": "/home/blewf/git/exphil/eval_runs/0915_fox_v3_preflight/styled_seed_906/model_policy.bin",
+        "reaction_delay": 0,
+        "scored_fps": 90.29345372460497,
+        "scored_wall_ms": 19935,
+        "stage": "final_destination",
+        "start_frame": -123,
+        "status": "ok"
+      },
+      "replay": "eval_runs/0915_fox_v3_preflight/live/fd_fox_p1_anonymous/replays/Game_20260917T022615.slp",
+      "replay_sha256": "7b8e8a5799c93241d409ba05cf7cb4f8d6d263294f55f60514899171a5f490b0",
+      "scored_frames": 1800,
+      "forced_finish_tail_excluded": true,
+      "shield": {
+        "max": 5,
+        "runs": 9,
+        "breaks": 0,
+        "p50": 4,
+        "p95": 5,
+        "shield_frac": 0.0167
+      },
+      "idle_fraction": 0.0044444444444444444,
+      "longest_idle_frames": 2,
+      "horizontal_input_fraction": 0.1761111111111111,
+      "damage_received": 95.49002838134766,
+      "stocks_lost": 1,
+      "top_actions": [
+        {
+          "id": 236,
+          "name": "AIRDODGE",
+          "frames": 420
+        },
+        {
+          "id": 233,
+          "name": "ROLL_FORWARD",
+          "frames": 145
+        },
+        {
+          "id": 85,
+          "name": "DAMAGE_AIR_2",
+          "frames": 125
+        },
+        {
+          "id": 235,
+          "name": "SPOTDODGE",
+          "frames": 107
+        },
+        {
+          "id": 43,
+          "name": "LANDING_SPECIAL",
+          "frames": 88
+        },
+        {
+          "id": 80,
+          "name": "DAMAGE_NEUTRAL_3",
+          "frames": 71
+        },
+        {
+          "id": 353,
+          "name": "FIREFOX_WAIT_GROUND",
+          "frames": 65
+        },
+        {
+          "id": 12,
+          "name": "ON_HALO_DESCENT",
+          "frames": 60
+        },
+        {
+          "id": 79,
+          "name": "DAMAGE_NEUTRAL_2",
+          "frames": 60
+        },
+        {
+          "id": 0,
+          "name": "DEAD_DOWN",
+          "frames": 60
+        },
+        {
+          "id": 86,
+          "name": "DAMAGE_AIR_3",
+          "frames": 56
+        },
+        {
+          "id": 42,
+          "name": "LANDING",
+          "frames": 54
+        }
+      ]
+    },
+    {
+      "session": {
+        "errors": 0,
+        "expected_latency": 1,
+        "frames": 1922,
+        "game_ended": true,
+        "last_frame": 1799,
+        "measured_latency": 1,
+        "player_port": 1,
+        "policy": "/home/blewf/git/exphil/eval_runs/0915_fox_v3_preflight/styled_seed_906/model_policy.bin",
+        "reaction_delay": 0,
+        "scored_fps": 86.59674781102665,
+        "scored_wall_ms": 20786,
+        "stage": "fountain_of_dreams",
+        "start_frame": -123,
+        "status": "ok"
+      },
+      "replay": "eval_runs/0915_fox_v3_preflight/live/fod_falco_p1_style/replays/Game_20260917T023835.slp",
+      "replay_sha256": "35a89c4a3b386171093621754dc26f65f2b23343c8239f708071a0c422c82f8d",
+      "scored_frames": 1800,
+      "forced_finish_tail_excluded": true,
+      "shield": {
+        "max": 9,
+        "runs": 10,
+        "breaks": 0,
+        "p50": 2,
+        "p95": 9,
+        "shield_frac": 0.0178
+      },
+      "idle_fraction": 0.012222222222222223,
+      "longest_idle_frames": 6,
+      "horizontal_input_fraction": 0.14944444444444444,
+      "damage_received": 70.0900011062622,
+      "stocks_lost": 2,
+      "top_actions": [
+        {
+          "id": 236,
+          "name": "AIRDODGE",
+          "frames": 508
+        },
+        {
+          "id": 12,
+          "name": "ON_HALO_DESCENT",
+          "frames": 120
+        },
+        {
+          "id": 0,
+          "name": "DEAD_DOWN",
+          "frames": 120
+        },
+        {
+          "id": 234,
+          "name": "ROLL_BACKWARD",
+          "frames": 112
+        },
+        {
+          "id": 43,
+          "name": "LANDING_SPECIAL",
+          "frames": 92
+        },
+        {
+          "id": 35,
+          "name": "DEAD_FALL",
+          "frames": 87
+        },
+        {
+          "id": 64,
+          "name": "DOWNSMASH",
+          "frames": 79
+        },
+        {
+          "id": 90,
+          "name": "DAMAGE_FLY_TOP",
+          "frames": 66
+        },
+        {
+          "id": 233,
+          "name": "ROLL_FORWARD",
+          "frames": 62
+        },
+        {
+          "id": 76,
+          "name": "DAMAGE_HIGH_2",
+          "frames": 57
+        },
+        {
+          "id": 63,
+          "name": "UPSMASH",
+          "frames": 49
+        },
+        {
+          "id": 85,
+          "name": "DAMAGE_AIR_2",
+          "frames": 48
+        }
+      ]
+    },
+    {
+      "session": {
+        "errors": 0,
+        "expected_latency": 1,
+        "frames": 1922,
+        "game_ended": true,
+        "last_frame": 1799,
+        "measured_latency": 1,
+        "player_port": 2,
+        "policy": "/home/blewf/git/exphil/eval_runs/0915_fox_v3_preflight/styled_seed_906/model_policy.bin",
+        "reaction_delay": 0,
+        "scored_fps": 59.94205601252123,
+        "scored_wall_ms": 30029,
+        "stage": "pokemon_stadium",
+        "start_frame": -123,
+        "status": "ok"
+      },
+      "replay": "eval_runs/0915_fox_v3_preflight/live/ps_samus_p2_graphical/replays/2026-09-Mainline/Game_20260917T023929.slp",
+      "replay_sha256": "ab102105fd3a5d094304e37b489900f2a29984417dfb161261892b0052928332",
+      "scored_frames": 1800,
+      "forced_finish_tail_excluded": true,
+      "shield": {
+        "max": 11,
+        "runs": 10,
+        "breaks": 0,
+        "p50": 5,
+        "p95": 11,
+        "shield_frac": 0.0294
+      },
+      "idle_fraction": 0.013888888888888888,
+      "longest_idle_frames": 12,
+      "horizontal_input_fraction": 0.13333333333333333,
+      "damage_received": 34.15000057220459,
+      "stocks_lost": 1,
+      "top_actions": [
+        {
+          "id": 236,
+          "name": "AIRDODGE",
+          "frames": 644
+        },
+        {
+          "id": 43,
+          "name": "LANDING_SPECIAL",
+          "frames": 150
+        },
+        {
+          "id": 235,
+          "name": "SPOTDODGE",
+          "frames": 147
+        },
+        {
+          "id": 233,
+          "name": "ROLL_FORWARD",
+          "frames": 62
+        },
+        {
+          "id": 12,
+          "name": "ON_HALO_DESCENT",
+          "frames": 60
+        },
+        {
+          "id": 0,
+          "name": "DEAD_DOWN",
+          "frames": 60
+        },
+        {
+          "id": 64,
+          "name": "DOWNSMASH",
+          "frames": 52
+        },
+        {
+          "id": 24,
+          "name": "KNEE_BEND",
+          "frames": 52
+        },
+        {
+          "id": 182,
+          "name": "SHIELD_REFLECT",
+          "frames": 45
+        },
+        {
+          "id": 353,
+          "name": "FIREFOX_WAIT_GROUND",
+          "frames": 42
+        },
+        {
+          "id": 18,
+          "name": "TURNING",
+          "frames": 41
+        },
+        {
+          "id": 178,
+          "name": "SHIELD_START",
+          "frames": 38
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,28 @@
+{
+  "config": {
+    "head": "autoregressive",
+    "hidden_size": 512,
+    "num_layers": 2,
+    "bptt": true,
+    "execution_contract": "bptt_gru_f32_v1"
+  },
+  "checkpoint": "eval_runs/0915_fox_v3_preflight/tagmap_seed_905/model.axon",
+  "steps": 83,
+  "passed": true,
+  "arithmetic_precision": "highest",
+  "export_matches_checkpoint": true,
+  "policy_sha256": "a20e640fbc755a78d3bce687d167cfb642de3822adc473911898e533bd1b5d13",
+  "policy": "eval_runs/0915_fox_v3_preflight/tagmap_seed_905/model_policy.bin",
+  "tolerance": 0.0001,
+  "maximum_absolute_deltas": {
+    "buttons": 1.6689300537109375e-6,
+    "main_x": 2.1457672119140625e-6,
+    "main_y": 1.7285346984863281e-6,
+    "c_x": 1.7881393432617188e-6,
+    "c_y": 1.9073486328125e-6,
+    "shoulder": 2.0265579223632812e-6,
+    "carry": 3.8743019104003906e-7,
+    "chunk_logits": 1.430511474609375e-6,
+    "chunk_carry": 3.725290298461914e-7
+  }
+}

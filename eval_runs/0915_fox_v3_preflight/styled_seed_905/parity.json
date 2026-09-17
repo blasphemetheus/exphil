@@ -1,0 +1,28 @@
+{
+  "config": {
+    "head": "autoregressive",
+    "hidden_size": 512,
+    "num_layers": 2,
+    "bptt": true,
+    "execution_contract": "bptt_gru_f32_v1"
+  },
+  "checkpoint": "eval_runs/0915_fox_v3_preflight/styled_seed_905/model.axon",
+  "steps": 83,
+  "passed": true,
+  "arithmetic_precision": "highest",
+  "export_matches_checkpoint": true,
+  "policy_sha256": "0fd7535d89b77dcc15f5d2b2b1ed747a06e7c52081f80505be45871ebeb8b716",
+  "policy": "eval_runs/0915_fox_v3_preflight/styled_seed_905/model_policy.bin",
+  "tolerance": 0.0001,
+  "maximum_absolute_deltas": {
+    "buttons": 2.2649765014648438e-6,
+    "main_x": 2.086162567138672e-6,
+    "main_y": 1.9073486328125e-6,
+    "c_x": 1.9073486328125e-6,
+    "c_y": 2.1457672119140625e-6,
+    "shoulder": 2.115964889526367e-6,
+    "carry": 4.3213367462158203e-7,
+    "chunk_logits": 1.6093254089355469e-6,
+    "chunk_carry": 2.980232238769531e-7
+  }
+}

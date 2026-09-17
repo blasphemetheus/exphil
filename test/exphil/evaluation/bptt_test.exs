@@ -82,10 +82,12 @@ defmodule ExPhil.Evaluation.BPTTTest do
 
     dataset = %Data{frames: frames, size: 7, embedded_frames: Nx.iota({7, 32})}
     batches = BPTT.batches(dataset, 2) |> Enum.to_list()
-    assert Enum.map(batches, &Nx.axis_size(&1.states, 1)) == [2, 1, 2, 2]
+    # padded to the chunk size; :valid carries the real length
+    assert Enum.map(batches, &Nx.axis_size(&1.states, 1)) == [2, 2, 2, 2]
+    assert Enum.map(batches, & &1.valid) == [2, 1, 2, 2]
     assert Enum.map(batches, &Nx.to_number(Nx.squeeze(&1.is_resetting))) == [1, 0, 1, 1]
 
-    assert Enum.flat_map(batches, &Nx.to_flat_list(&1.states)) ==
+    assert Enum.flat_map(batches, fn b -> b.states |> Nx.slice_along_axis(0, b.valid, axis: 1) |> Nx.to_flat_list() end) ==
              Nx.to_flat_list(dataset.embedded_frames)
   end
 
@@ -101,6 +103,17 @@ defmodule ExPhil.Evaluation.BPTTTest do
     artifact = Forward.load!(path)
     assert artifact.config.bptt
     assert artifact.config.unroll == 4
+
+    # The live Agent loads through Training.load_policy WITHOUT the
+    # _config.json sidecar Forward merges in; the stamped contract must
+    # validate from the artifact alone (play_dolphin refused every BPTT
+    # export with "inconsistent BPTT GRU execution contract", 2026-09-17).
+    {:ok, standalone} = ExPhil.Training.load_policy(path)
+    assert standalone.config[:precision] == :f32
+    assert standalone.config[:mixed_precision] == false
+
+    assert ExPhil.Networks.Policy.ExecutionContract.validate_inference!(standalone.config, true).execution_contract ==
+             :bptt_gru_f32_v1
     evaluator = Forward.new(artifact.params, artifact.config)
     result = BPTT.evaluate(evaluator, [batch(0, 4, 1), batch(4, 3, 0)])
     whole = BPTT.evaluate(evaluator, [batch(0, 7, 1)])

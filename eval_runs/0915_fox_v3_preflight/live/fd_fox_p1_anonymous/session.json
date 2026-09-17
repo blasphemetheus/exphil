@@ -1,0 +1,16 @@
+{
+  "status": "ok",
+  "errors": 0,
+  "stage": "final_destination",
+  "policy": "/home/blewf/git/exphil/eval_runs/0915_fox_v3_preflight/styled_seed_906/model_policy.bin",
+  "reaction_delay": 0,
+  "expected_latency": 1,
+  "player_port": 1,
+  "frames": 1922,
+  "game_ended": true,
+  "start_frame": -123,
+  "last_frame": 1799,
+  "scored_wall_ms": 19935,
+  "scored_fps": 90.29345372460497,
+  "measured_latency": 1
+}

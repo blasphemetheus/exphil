@@ -8,9 +8,23 @@ rows = File.read!(Path.join(base, "corpus.json")) |> Jason.decode!() |> Map.fetc
 files = Enum.filter(rows, &(&1["split"] == "01_validation"))
 unless length(files) == 16, do: raise("expected all 16 held-out files")
 artifact = Forward.load!(policy)
+
+# S5: resolve identities exactly as training did (matched/pseudo tags win)
+tag_map =
+  case artifact.config[:player_tag_map] do
+    nil -> nil
+    p -> ExPhil.Training.PlayerTagMap.load!(p)
+  end
+
+IO.puts("tag map: " <> if(tag_map, do: "#{tag_map.count} entries", else: "none"))
 unless Nx.Defn.default_options()[:precision] == :highest, do: raise("highest arithmetic required")
 embed_config = ExPhil.Embeddings.config(Map.to_list(artifact.config))
 registry_path = String.replace_suffix(policy, "_policy.bin", "_players.json")
+# ONE evaluator for every file and mode: Forward.new builds a fresh predict
+# closure and Nx.Defn.jit caches per closure, so per-file construction was
+# 32 XLA compiles (~1 min/file, 09-17). Carry resets on each file's first
+# chunk (is_resetting = 1), so sharing is exact.
+evaluator = Forward.new(artifact.params, artifact.config)
 {:ok, registry} = PlayerRegistry.from_json(registry_path)
 started = System.monotonic_time(:millisecond)
 
@@ -26,7 +40,8 @@ results =
       Streaming.parse_chunk([{path, subject.subject_port}],
         subject_character: "Fox",
         label_delay: 0,
-        show_progress: false
+        show_progress: false,
+        tag_map: tag_map
       )
 
     if frames == [], do: raise("empty held-out replay: #{path}")
@@ -38,11 +53,7 @@ results =
           |> Data.from_frames(embed_config: embed_config, player_registry: reg)
           |> Data.precompute_frame_embeddings(show_progress: false)
 
-        result =
-          BPTT.evaluate(
-            Forward.new(artifact.params, artifact.config),
-            BPTT.batches(dataset, artifact.config[:unroll] || 80)
-          )
+        result = BPTT.evaluate(evaluator, BPTT.batches(dataset, artifact.config[:unroll] || 80))
 
         unless result.frames == length(frames), do: raise("incomplete held-out coverage")
         {mode, result}

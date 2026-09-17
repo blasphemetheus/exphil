@@ -1,0 +1,12 @@
+{
+  "seed": "905",
+  "env": {
+    "EXLA_TARGET": "cuda",
+    "EXPHIL_GPU_MEMORY_FRACTION": "0.70",
+    "EXPHIL_EXLA_PRECISION": "highest"
+  },
+  "start": "2026-09-17T01:20:51-05:00",
+  "end": "2026-09-17T01:28:52-05:00",
+  "wall_seconds": 481,
+  "exit_status": 0
+}

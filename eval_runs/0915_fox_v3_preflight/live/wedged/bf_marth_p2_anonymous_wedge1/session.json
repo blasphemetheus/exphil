@@ -1,0 +1,12 @@
+{
+  "status": "ok",
+  "errors": 0,
+  "stage": "battlefield",
+  "policy": "/home/blewf/git/exphil/eval_runs/0915_fox_v3_preflight/styled_seed_906/model_policy.bin",
+  "reaction_delay": 0,
+  "expected_latency": 1,
+  "player_port": 2,
+  "frames": 0,
+  "game_ended": false,
+  "measured_latency": null
+}

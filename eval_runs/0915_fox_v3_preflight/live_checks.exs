@@ -1,5 +1,5 @@
 # Plain Elixir launcher. Each Mix/Dolphin process exits before the next starts.
-[policy] = System.argv()
+[policy | only] = System.argv()  # optional case ids to run (one foreground call each)
 base = Path.join(Path.dirname(__ENV__.file), "live") |> Path.expand()
 registry = String.replace_suffix(policy, "_policy.bin", "_players.json")
 
@@ -10,7 +10,7 @@ cases = [
   {"ps_samus_p2_graphical", "pokemon_stadium", "samus", 2, true, true}
 ]
 
-for {id, stage, opponent, port, styled, graphical} <- cases do
+for {id, stage, opponent, port, styled, graphical} <- cases, only == [] or id in only do
   dir = Path.join(base, id)
   File.mkdir_p!(dir)
 
@@ -43,7 +43,12 @@ for {id, stage, opponent, port, styled, graphical} <- cases do
     "--seconds",
     "30",
     "--dolphin",
-    Path.join(System.user_home!(), ".config/Slippi Launcher/netplay-beta-nixos"),
+    # DOLPHIN.md: --headless needs the headless build (eval_live_protocol.sh
+    # default); the netplay AppImage wrapper is the graphical one.
+    if(graphical,
+      do: Path.join(System.user_home!(), ".config/Slippi Launcher/netplay-beta-nixos"),
+      else: Path.join(System.user_home!(), ".local/share/slippi/exi-ai/dolphin-emu-headless")
+    ),
     "--iso",
     Path.join(System.user_home!(), "isos/melee.iso"),
     "--replay-dir",
