@@ -183,3 +183,17 @@ A nearest-entity distance near the same-player mean (1.99) suggests the cluster 
 4. Any tag in section 1 you know to be shared or borrowed setups?
 
 Answers go into `data/identity/entity_aliases.tsv` (`entity<TAB>alias|alias...`) and rerun `style_identify.exs` with merged entities.
+
+## 7. Adjudication (Bradley, 13:55) — `data/identity/entity_aliases.tsv`
+
+- **merge**: JAKE -> EASY ("sounds realistic"), MAR -> MARS ("probably").
+- **hold** (plausible, await the flat-prior rerun that removes the
+  big-entity attractor effect): VIK -> NELL; LITS/SLAY/BUTT/CRJ -> CUMB;
+  0110/4EVA -> 314.
+- **collision**: FOX ("almost certainly not one person"), LI (2-letter,
+  840 assignments) — void their assignments in the next tag map.
+- C2 is NOT OG Swaglord: filename census shows C2 = Marth 1,421 / Falco
+  461 / Fox 123 games, no Jigglypuff. TJOM unknown.
+- Next (after the run ends, ~15 min of mix): identify + cluster with
+  merges applied and FOX/LI excluded as entities, flat-prior LOO for the
+  hold pairs, then the two cheap gates -> V3.1 data recipe.

@@ -1,0 +1,11 @@
+# Entity adjudication — Bradley, 2026-09-17 13:55 (STYLE_IDENTITY.md S4). Columns: entity<TAB>aliases (| separated)<TAB>status<TAB>note
+# status: merge = apply; hold = plausible, wait for the flat-prior check (count prior pulls small tags toward big entities); collision = do not use as an entity
+EASY	JAKE	merge	Bradley: "sounds realistic"; same default costume; JAKE 52/53 -> EASY
+MARS	MAR	merge	Bradley: "probably"; both blue; MAR 17/23 -> MARS
+NELL	VIK	hold	Bradley unsure; VIK 32/32 -> NELL, both blue
+CUMB	LITS|SLAY|BUTT|CRJ	hold	Bradley unsure; all blue, 85/89, 40/40, 21/21, 63/65 -> CUMB — CUMB is the biggest blue-Fox entity (prior attractor)
+314	0110|4EVA	hold	all red (slot 1), 21/21 and 20/20 -> 314; 314 is the biggest red-Fox entity (prior attractor)
+FOX	-	collision	Bradley: "almost certainly not one person"; generic tag; 494 assignments to be voided
+LI	-	collision	2-letter tag, 840 assignments — treat like FOX until a flat-prior check says otherwise
+C2	-	note	NOT OG Swaglord: C2 is a Marth main (1,421 Marth / 461 Falco / 123 Fox games, no Jigglypuff); handle unknown
+TJOM	-	note	handle unknown to Bradley
