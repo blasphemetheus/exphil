@@ -63,7 +63,9 @@ defmodule ExPhil.Networks.Policy.ExecutionContract do
         unless config[:recurrent_state] in [:carried_zero, "carried_zero"] and
                  config[:training_precision] in [:f32, "f32"] and
                  config[:inference_precision] in [:f32, "f32"] and
-                 config[:precision] in [:f32, "f32"] and
+                 # nil: exports before 2026-09-17 carried no :precision key; the
+                 # stamp's training_precision is the asserted value.
+                 config[:precision] in [nil, :f32, "f32"] and
                  config[:backbone] in [:gru, "gru"] and config[:temporal] == true and
                  config[:bptt] == true and config[:mixed_precision] in [nil, false],
                do: raise(ArgumentError, "inconsistent BPTT GRU execution contract")

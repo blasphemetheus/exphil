@@ -508,6 +508,7 @@ The delay-campaign and interp flags (2026-07/08). Both scripts unless noted.
 | `--num-player-names N` | 112 | Player name dims (0 to disable) |
 | `--learn-player-styles` | false | Enable style-conditional training |
 | `--player-registry PATH` | nil | Save/load player registry JSON |
+| `--player-tag-map PATH` | nil | Per-file identity overrides from the style identity pipeline (`scripts/style_identify.exs` + `style_cluster.exs`): matched real tags and `~cNN` pseudo-tags win over in-file/filename tags (STYLE_IDENTITY.md S5) |
 | `--min-player-games N` | 1 | Min games for player to be in registry |
 
 **Embedding dimension reduction:**
@@ -1546,7 +1547,7 @@ Regenerate: `mix run -e 'ExPhil.Training.Config.FlagDocs.write!()'`.
 | `--truncate-bptt` | optional int | `nil` | Truncated backprop (faster training) |
 | `--bptt` | flag | `false` | Contiguous-BPTT training: cursors walk replays in order, GRU carry flows across chunks, per-timestep loss (GRU only; see BPTT_LOADER_DESIGN.md) |
 | `--unroll` | int | `80` | BPTT chunk length in frames (gradient truncation horizon) |
-| `--bptt-overlap` | int | `0` | Must be 0; input batches are contiguous and nonoverlapping |
+| `--bptt-overlap` | int | `0` | Frames shared between consecutive BPTT chunks (set to frame_delay + 1) |
 | `--bptt-val-files` | int | `16` | Whole replays held out for the carry-threaded val pass (game-level split; val batch is capped at 8 rows) |
 | `--mixed-precision` | flag | `false` | FP32 master weights + BF16 compute (not recommended) |
 | `--frame-delay` | int | `nil` | Training alias for --label-delay on every loader. Live Dolphin --frame-delay N remains reaction delay N-1. |
@@ -1648,6 +1649,7 @@ Regenerate: `mix run -e 'ExPhil.Training.Config.FlagDocs.write!()'`.
 | `--learn-player-styles` | flag | `false` | Enable style-conditional training |
 | `--no-learn-player-styles` | flag | `nil` | _(undocumented)_ |
 | `--player-registry` | string | `nil` | Save/load player registry JSON |
+| `--player-tag-map` | string | `nil` | Per-file identity overrides (matched tags + ~cNN style clusters) from scripts/style_identify.exs + style_cluster.exs; win over in-file/filename tags (STYLE_IDENTITY.md S5) |
 | `--min-player-games` | optional int | `1` | Min games for player to be in registry |
 | `--log-interval` | optional int | `100` | Progress bar update frequency (every N batches) |
 | `--seed` | optional int | `nil` | Random seed for reproducibility |

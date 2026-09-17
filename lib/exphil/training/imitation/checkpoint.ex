@@ -382,6 +382,12 @@ defmodule ExPhil.Training.Imitation.Checkpointing do
         # Temporal config
         temporal: trainer.config[:temporal] || false,
         bptt: trainer.config[:bptt] || false,
+        # Tensor dtype + mixed flag: the BPTT execution contract checks them
+        # at load, and the live Agent (unlike Forward) does not merge
+        # _config.json — without these keys every stamped BPTT export was
+        # refused by play_dolphin (V3 live gate, 2026-09-17).
+        precision: trainer.config[:precision] || :f32,
+        mixed_precision: trainer.config[:mixed_precision] || false,
         unroll: trainer.config[:unroll] || 80,
         frame_delay: trainer.config[:frame_delay] || 0,
         action_delay: trainer.config[:action_delay] || 0,

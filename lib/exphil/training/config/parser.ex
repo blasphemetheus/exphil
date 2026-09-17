@@ -422,6 +422,7 @@ defmodule ExPhil.Training.Config.Parser do
     {"--learn-player-styles", :learn_player_styles, :flag},
     {"--no-learn-player-styles", :no_learn_player_styles, :flag},
     {"--player-registry", :player_registry, :string},
+    {"--player-tag-map", :player_tag_map, :string},
     {"--min-player-games", :min_player_games, :optional_int},
     {"--log-interval", :log_interval, :optional_int},
     {"--seed", :seed, :optional_int},

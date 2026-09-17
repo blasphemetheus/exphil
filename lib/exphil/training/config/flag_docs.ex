@@ -146,6 +146,7 @@ defmodule ExPhil.Training.Config.FlagDocs do
     "--pipeline-offset" => "Label shift = delay + N; the measured live pipeline is +2 (drill only)",
     "--player-port" => "Know which port to train on",
     "--player-registry" => "Save/load player registry JSON",
+    "--player-tag-map" => "Per-file identity overrides (matched tags + ~cNN style clusters) from scripts/style_identify.exs + style_cluster.exs; win over in-file/filename tags (STYLE_IDENTITY.md S5)",
     "--policy-type" => "Policy architecture type",
     "--ppo-epochs" => "PPO update epochs per batch",
     "--precision" => "f32 or bf16 (FP32 is 2x faster due to XLA issues)",

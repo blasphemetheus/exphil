@@ -101,6 +101,11 @@ defmodule ExPhil.Training.Streaming do
                 end
             end
 
+          # One bad file must become an {:error, path, reason} row, never a
+          # crashed Task: async_stream links, so an unrescued raise here
+          # takes the chunk — and a 50 h run — down (09-17; the NIF used to
+          # raise badarg on NaN floats).
+          try do
           if dual_port do
             parse_dual_port(path, frame_delay)
           else
@@ -127,11 +132,22 @@ defmodule ExPhil.Training.Streaming do
 
                 frames = maybe_filename_tags(frames, path, subject_character, target_port)
 
+                # --player-tag-map override (S5): matched/clustered identity
+                # replaces whatever the file carried.
+                frames =
+                  case ExPhil.Training.PlayerTagMap.lookup(Keyword.get(opts, :tag_map), path, target_port) do
+                    nil -> frames
+                    tag -> Enum.map(frames, &Map.put(&1, :player_tag, tag))
+                  end
+
                 {:ok, path, length(frames), frames}
 
               {:error, reason} ->
                 {:error, path, reason}
             end
+          end
+          rescue
+            e -> {:error, path, Exception.message(e)}
           end
         end,
         max_concurrency: System.schedulers_online(),
@@ -162,6 +178,41 @@ defmodule ExPhil.Training.Streaming do
   # No-op when subject_character is nil, the file has real in-file tags, or
   # the filename is unparseable/ambiguous (frames keep their placeholder ->
   # name_id 0, the anonymous bucket).
+  @doc """
+  The subject tag a file's frames will carry after `parse_chunk/2`: the
+  normalized in-file tag when present, else the filename bracket tag for
+  `subject_character` (nil for placeholders, dittos, unparseable names).
+  Registry construction MUST use this, not the filename alone — 16 files in
+  the 09-17 corpus inventory have `????`-mangled filename tags whose frames
+  carry the real in-file name.
+
+  With `tag_map: %ExPhil.Training.PlayerTagMap{}` in `opts`, a map entry for
+  the file+port wins over both (STYLE_IDENTITY.md S5).
+  """
+  @spec subject_tag(Path.t(), integer(), String.t() | nil, keyword()) :: String.t() | nil
+  def subject_tag(path, port, subject_character, opts \\ [])
+
+  def subject_tag(path, port, subject_character, opts) do
+    case ExPhil.Training.PlayerTagMap.lookup(Keyword.get(opts, :tag_map), path, port) do
+      nil -> fallback_subject_tag(path, port, subject_character)
+      tag -> tag
+    end
+  end
+
+  defp fallback_subject_tag(_path, _port, nil), do: nil
+
+  defp fallback_subject_tag(path, port, subject_character) do
+    infile =
+      case ExPhil.Data.Peppi.metadata(path) do
+        {:ok, meta} -> ExPhil.Data.Peppi.player_tag(meta, port)
+        _ -> nil
+      end
+
+    if ExPhil.Data.FilenameTags.placeholder?(infile),
+      do: ExPhil.Data.FilenameTags.subject_tag(path, subject_character),
+      else: infile
+  end
+
   defp maybe_filename_tags(frames, _path, nil, _port), do: frames
   defp maybe_filename_tags([], _path, _subject, _port), do: []
 

@@ -1743,6 +1743,9 @@ defmodule ExPhil.Training.Config do
       learn_player_styles: false,
       # Path to save/load player registry JSON
       player_registry: nil,
+      # STYLE_IDENTITY.md S5: per-file identity overrides (matched real tags +
+      # ~cNN pseudo-tags) from scripts/style_identify.exs + style_cluster.exs
+      player_tag_map: nil,
       # Minimum games for player to be in registry
       min_player_games: 1,
       # Verbosity control
@@ -2119,7 +2122,7 @@ defmodule ExPhil.Training.Config do
   end
 
   defp validate_bptt_overlap!(opts) do
-    if opts[:bptt] and (opts[:bptt_overlap] || 0) != 0,
+    if Keyword.get(opts, :bptt, false) == true and (opts[:bptt_overlap] || 0) != 0,
       do: raise(ArgumentError, "BPTT overlap must be 0; each input is consumed once with carried state")
   end
 
@@ -2583,6 +2586,15 @@ defmodule ExPhil.Training.Config do
       epochs: opts[:epochs],
       batch_size: opts[:batch_size],
       precision: to_string(opts[:precision]),
+      # GPU dot arithmetic actually in force (EXPHIL_EXLA_PRECISION); the
+      # tensor dtype above does not pin it. Stamped so the artifact proves it.
+      exla_precision:
+        Application.get_env(:nx, :default_defn_options, [])
+        |> Keyword.get(:precision, :default)
+        |> to_string(),
+      # STYLE_IDENTITY.md S5: the identity overrides this checkpoint trained
+      # with; held-out scoring must resolve tags the same way.
+      player_tag_map: opts[:player_tag_map],
       frame_delay: opts[:frame_delay],
       label_delay: ExPhil.Training.LabelDelay.resolve!(opts)[:label_delay],
       learning_rate: opts[:lr],

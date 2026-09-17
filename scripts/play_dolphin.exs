@@ -133,11 +133,28 @@ Output.step(1, 5, "Loading agent")
     # script forwarded them) — the 10:24 A/B ran three identical windowed
     # arms and only the activation check caught it
     stateful_step: opts[:stateful_step] || false,
-    stateful_resync: opts[:stateful_resync]
+    stateful_resync: opts[:stateful_resync],
+    # Same drop class as above (found 2026-09-17 by the V3 live gate): the
+    # CLI group parsed --style-tag/--player-registry but only the async
+    # script forwarded them, so a "styled" sync run played anonymous.
+    style_id: opts[:style_id],
+    style_tag: opts[:style_tag],
+    player_registry: opts[:player_registry]
   )
 
 config = Agent.get_config(agent)
 Output.success("Agent loaded")
+
+# A requested style must resolve to a real id; the agent's own fallback is a
+# warning + id 0, which would make a "styled" gate run indistinguishable
+# from an anonymous one.
+if tag = opts[:style_tag] do
+  style_id = ExPhil.Agents.Decode.resolve_style_id(Keyword.take(opts, [:style_tag, :player_registry]))
+  if style_id == 0, do: raise("--style-tag #{tag} did not resolve in #{inspect(opts[:player_registry])}")
+  Output.puts("    Style:    #{tag} -> id #{style_id}")
+else
+  Output.puts("    Style:    anonymous (id #{opts[:style_id] || 0})")
+end
 Output.puts("    Temporal: #{config.temporal}")
 
 if config.temporal do

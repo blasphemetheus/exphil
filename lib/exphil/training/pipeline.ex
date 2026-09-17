@@ -428,19 +428,35 @@ defmodule ExPhil.Training.Pipeline do
         char -> ExPhil.Training.Config.character_name(char)
       end
 
+    tag_map =
+      if path = opts[:player_tag_map] do
+        m = ExPhil.Training.PlayerTagMap.load!(path)
+        Output.puts("  player tag map: #{m.count} entries from #{path}")
+        m
+      end
+
     player_registry =
       if opts[:learn_player_styles] do
-        # subject_tag/2: dittos contribute NO tags (positional resolution
-        # measured 69.2% reliable — see maybe_filename_tags in streaming.ex).
-        tags =
+        # Tags come from the SAME resolver the frames use (in-file first,
+        # filename fallback; dittos contribute NO tags — positional
+        # resolution measured 69.2% reliable, see streaming.ex). Ordered by
+        # game count so the registry cap keeps the most-represented players:
+        # the 09-17 inventory has 368 distinct Fox tags for 111 slots, and
+        # first-seen order kept singletons while dropping frequent ones.
+        port_map = opts[:port_map] || %{}
+
+        tag_counts =
           replay_files
           |> Enum.map(fn
-            {path, _port} -> path
-            path -> path
+            {path, port} -> {path, port}
+            path -> {path, Map.get(port_map, path, opts[:player_port] || 1)}
           end)
-          |> Enum.map(&ExPhil.Data.FilenameTags.subject_tag(&1, subject_character || ""))
+          |> Enum.map(fn {path, port} -> Streaming.subject_tag(path, port, subject_character, tag_map: tag_map) end)
           |> Enum.reject(&is_nil/1)
-          |> Enum.uniq()
+          |> Enum.frequencies()
+          |> Enum.sort_by(fn {tag, n} -> {-n, tag} end)
+
+        tags = Enum.map(tag_counts, &elem(&1, 0))
 
         if tags == [] do
           Output.warning(
@@ -451,7 +467,16 @@ defmodule ExPhil.Training.Pipeline do
           nil
         else
           reg = ExPhil.Training.PlayerRegistry.from_tags(tags, first_id: 1)
-          Output.puts("  player registry: #{ExPhil.Training.PlayerRegistry.size(reg)} filename tags")
+          kept = ExPhil.Training.PlayerRegistry.size(reg)
+          games_total = Enum.sum(Enum.map(tag_counts, &elem(&1, 1)))
+          games_kept = tag_counts |> Enum.take(kept) |> Enum.map(&elem(&1, 1)) |> Enum.sum()
+
+          pseudo_games = tag_counts |> Enum.filter(fn {t, _} -> ExPhil.Training.PlayerTagMap.pseudo?(t) end) |> Enum.map(&elem(&1, 1)) |> Enum.sum()
+
+          Output.puts(
+            "  player registry: #{kept} of #{length(tags)} tags kept " <>
+              "(#{games_kept}/#{games_total} tagged games, #{pseudo_games} via pseudo-tags; #{length(replay_files) - games_total} anonymous)"
+          )
 
           if opts[:checkpoint] do
             reg_path = String.replace_suffix(opts[:checkpoint], ".axon", "_players.json")
@@ -479,7 +504,7 @@ defmodule ExPhil.Training.Pipeline do
         chunk_opts =
           Keyword.take(opts, [
             :player_port, :dual_port, :label_delay, :skip_errors, :show_errors, :port_map
-          ]) ++ [subject_character: subject_character]
+          ]) ++ [subject_character: subject_character, tag_map: tag_map]
 
         dataset_opts =
           Keyword.take(opts, [:temporal, :window_size, :stride, :precompute, :lazy_sequences]) ++
@@ -510,7 +535,7 @@ defmodule ExPhil.Training.Pipeline do
       file_chunks: file_chunks,
       streaming_chunk_opts: Keyword.take(opts, [
         :player_port, :dual_port, :label_delay, :skip_errors, :show_errors, :port_map
-      ]) ++ [subject_character: subject_character],
+      ]) ++ [subject_character: subject_character, tag_map: tag_map],
       streaming_dataset_opts: Keyword.take(opts, [
         :temporal, :window_size, :stride, :precompute, :lazy_sequences
       ]) ++ [embed_config: embed_config, player_registry: player_registry],

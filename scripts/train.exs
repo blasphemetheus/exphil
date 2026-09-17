@@ -112,6 +112,10 @@ Output.config([
   {"Backbone", opts[:backbone]},
   {"Temporal", opts[:temporal]},
   {"Precision", opts[:precision]},
+  # Tensor dtype does not pin GPU dot arithmetic (config.exs); record the
+  # resolved defn option so logs prove which arithmetic a fit used.
+  {"EXLA arithmetic",
+   Application.get_env(:nx, :default_defn_options, []) |> Keyword.get(:precision, :default)},
   {"LR", "#{opts[:learning_rate]} (#{opts[:lr_schedule]})"},
   {"Epochs", opts[:epochs]},
   {"Batch size", "#{opts[:batch_size]}#{if (opts[:accumulation_steps] || 1) > 1, do: " x#{opts[:accumulation_steps]} accum", else: ""}"},
