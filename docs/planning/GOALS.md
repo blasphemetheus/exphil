@@ -2,6 +2,13 @@
 
 **Last Updated:** 2026-08-03
 
+> **2026-09-17 state:** the live list is `HANDOFF_2026-09-17.md`. Track B (Fox
+> execution) is met at the drill level: the multishine method is proven, gated,
+> held-out-validated at rungs 0/2/4 and playable locally. Track A (Mewtwo
+> decision) unchanged in substance: neutral teacher approved, no student
+> promoted. Generalist Fox V3: training path repaired, long run not cleared.
+> The "Next work" section below is stale.
+
 This document states **what the bot should do**. It is deliberately not an
 inventory of what we've built — that lives in the appendix, and only so we
 don't rebuild it. Every number below traces to a real artifact.
