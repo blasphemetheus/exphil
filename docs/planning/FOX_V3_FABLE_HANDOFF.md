@@ -1,13 +1,16 @@
 # Fox V3 — long-training handoff for Claude Fable
 
-**Status: not yet cleared to launch.** The preflight agent is still completing
-the checks in [FOX_V3_PREFLIGHT.md](FOX_V3_PREFLIGHT.md). Update this status only
-after its final mechanical GO. The user assigned the long training job to Fable;
+**Status: MECHANICAL GO (2026-09-17)** — see the GO / NO-GO section at the end of
+[FOX_V3_PREFLIGHT.md](FOX_V3_PREFLIGHT.md). Launch only from a tree that includes
+the 09-17 fixes (arithmetic stamp, tag normalization, export `precision`). The user assigned the long training job to Fable;
 no full run has been started during preflight.
 
 ## What to train
 
-Fresh generalist Fox, not a continuation of the multishine specialist. Temporal
+Fresh generalist Fox, not a continuation of the multishine specialist.
+Data recipe as of 09-17 late: `--player-tag-map` (STYLE_IDENTITY.md S3-S5) so
+matched real tags and `~cNN` style clusters condition the name channel;
+registry keeps the 111 most-played identities. Temporal
 GRU, 512 hidden units, two recurrent layers, autoregressive action head,
 approximately 2.901 million parameters, 264 input channels. BPTT unroll 80,
 overlap **0**, batch 128, active dropout 0.1, causal label delay 0, player styles
@@ -18,7 +21,10 @@ The Peppi source cannot supply projectiles; its projectile block stays disabled.
 
 Evidence root: `eval_runs/0915_fox_v3_preflight/`.
 
-- `verified_seed_905/`, `verified_seed_906/`: corrected short trials and exact args.
+- `styled_seed_905/`, `styled_seed_906/`: the matched two-epoch trials that cleared
+  the gates (highest arithmetic, live style tags), with `parity.json`, `heldout.json`,
+  `launch.json`. `matched_seed_*` = same before the tag fix; `verified_seed_905` =
+  09-15 run of unrecorded arithmetic. All kept, none promoted.
 - `verified_sources/provenance.json`, source archives and patches: all four repos.
   These are shared dirty working trees, not clean release commits. Preserve other
   Fox/Mewtwo work. Do not reset, clean, or silently update dependencies.
@@ -55,8 +61,9 @@ systemd-run --user --unit=exphil-v3-full --collect \
   --learn-player-styles --stream-chunk-size 200 \
   --replays replays/erickfm_ranked/v2_filtered \
   --train-character fox --select-character-port --label-delay 0 \
+  --player-tag-map eval_runs/0917_style_identity/player_tag_map.json \
   --epochs 8 --seed 905 --head autoregressive --save-best \
-  --save-every-batches 1000 --label-smoothing 0.0 --no-focal-loss \
+  --save-every-batches 10000 --label-smoothing 0.0 --no-focal-loss \
   --button-pos-weight 1,1,1,1,1,1,1,1 --action-oversample 1.0 \
   --entropy-weight 0.0 --neutral-weight 1.0 --stick-edge-weight 1.0 \
   --no-register --checkpoint "$train_run/model.axon"
@@ -105,8 +112,13 @@ style also requires the matching `--player-registry` JSON.
 
 Two small-data epochs test the harness, not generalist strength. A 16-game
 validation set is a narrow training monitor, not proof across characters/stages.
+The 16 validation games carry NO player tag (09-17 inventory), so anonymous and
+registry-conditioned held-out scores on the trained artifact will be identical —
+expected; conditioning liveness needs a separate tagged eval sample
+(STYLE_IDENTITY.md, "Name-channel verification still owed").
 Byte hashes detect identical files, not different encodings of the same game.
 Masked tails preserve coverage but produce variable valid-frame counts per
 optimizer step. Full-corpus timings and learning behavior may differ from the
-bounded subset. Report actual training duration and live behavior; do not promise
-the historical approximately 48-hour estimate or strong play in advance.
+bounded subset. Report actual training duration and live behavior. The measured estimate is
+≈ 6.3 h/epoch, ≈ 50 h for 8 epochs (FOX_V3_PREFLIGHT.md, "Measured cost
+estimate"; parse-bound, subset-scaled); do not promise strong play in advance.

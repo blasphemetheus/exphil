@@ -328,3 +328,168 @@ coverage and reports anonymous and training-registry conditioning separately.
 Passing these gates demonstrates the exercised paths, not every possible failure
 or competent generalist play. Hardware/power failure, distribution shift,
 replay near-duplicates, and long-horizon learning quality remain distinct risks.
+
+## Remaining gates — September 17 session (Claude, Opus 5)
+
+Nothing was running at start; GPU free. Evidence stays under
+`eval_runs/0915_fox_v3_preflight/`. Runners: `run_matched_seeds.sh <prefix>`
+(sequential two-epoch fits, `launch.json` per seed records env, wall seconds,
+exit status), `run_offline_gates.sh <prefix> [audit]` (parity + held-out per
+seed, optional corpus inventory), `run_round.sh <prefix>` (both). All launched
+with `systemd-run --user`; no `mix` while a beam was live.
+
+### Contract bugs found and fixed this session
+
+1. **Arithmetic was not provable.** `verified_seed_905` completed on 09-15
+   (val 4.5048) but its launcher (`repairs/train.exs`) never set
+   `EXPHIL_EXLA_PRECISION`, and neither the log nor `model_config.json`
+   recorded the resolved defn precision. `scripts/train.exs` now prints
+   `EXLA arithmetic: :highest` in the banner and `Config.build_config_json/2`
+   stamps `exla_precision` into every `_config.json`. `verified_seed_905` is
+   kept as evidence of unknown arithmetic; a new round was declared.
+2. **`Config.validate/1` crashed without a `:bptt` key.**
+   `opts[:bptt] and …` raised `BadBooleanError` (36 config tests failing in
+   the landed 09-15 tree). Now `Keyword.get(opts, :bptt, false) == true`.
+3. **Sync play script dropped style flags.** `scripts/play_dolphin.exs`
+   parsed `--style-tag/--player-registry` (shared CLI group) but never
+   forwarded them to the Agent — only the async script did — so the
+   "styled" live case would have played anonymous. Forwarded, printed
+   (`Style: TAG -> id N`), and a non-resolving tag now aborts the run
+   instead of the Agent's silent id-0 fallback.
+4. **Style conditioning was dead on this corpus.** Cartridge tags are
+   stored FULL-WIDTH (`ＦＯＸ`); `FilenameTags.placeholder?` was therefore
+   false, the ASCII filename tag (`[FOX]`) was never substituted, and the
+   registry (built from filename tags) matched nothing: on the 256-file
+   subset **0 of 61 tagged training files resolved** to a non-zero id
+   (scratch `tag_audit.exs`; in-file vs filename tags agree 61/61 where
+   both exist). Found because the held-out gate scored anonymous and
+   registry conditioning bit-identically on both seeds.
+   `Peppi.get_player_tag/2` now normalizes through the existing
+   `FilenameTags.normalize_tag/1` (written 09-04, previously used only by
+   `style_fingerprint.exs`). After the fix 61/61 train files resolve and
+   3/16 held-out files hit a trained style (the other three tagged
+   held-out subjects are not in the train registry, correctly id 0).
+   Regression test: `peppi_test.exs` "player_tag is normalized from
+   full-width cartridge tags". **Any earlier `--learn-player-styles` claim
+   on the erickfm corpus trained against an all-zero name channel** and
+   needs re-reading with that in mind.
+
+### Matched round (pre-fix-4), preserved: `matched_seed_905/906`
+
+Highest arithmetic proven in banner and config. Both exit 0.
+
+| Seed | Wall | Ep1 train / val | Ep2 train / val | Parity (max Δ) | Held-out (16 files, 167,806 frames) |
+| --- | ---: | --- | --- | --- | --- |
+| 905 | 461 s | 4.532 / 4.982 | 3.852 / 4.461 | logits 2.4e-6, carry 5.1e-7, chunk 1.4e-6 | 4.2707 (anon == registry, see bug 4) |
+| 906 | 457 s | 4.517 / 4.485 | 3.804 / 4.253 | logits 2.4e-6, carry 5.4e-7, chunk 1.7e-6 | 4.0757 (same) |
+
+Held-out scoring took ~21 min per seed. Open question, not gate-blocking:
+the fresh-process held-out loss sits ~0.19 below the trainer's own
+epoch-2 val_loss for both seeds (4.27 vs 4.46; 4.08 vs 4.25). Same files,
+same label delay, plain CE on both sides per the docstrings; the
+embedding path differs (streaming chunk vs `Data.precompute_frame_embeddings`).
+Worth one targeted comparison before trusting either number as "the"
+validation loss.
+
+### Full-corpus inventory: `full_corpus.json` (42 s)
+
+`replays/erickfm_ranked/v2_filtered` (64,117 symlinks into `/data`):
+**28,452 Fox games selected**, 28,436 train / 16 validation (last 16 of
+the sorted, Fox-filtered list — the same rule as `pipeline.ex:396`, and the
+audit's resolver reported 0 errors so the two lists coincide), 0 parse
+errors, 0 byte-duplicate groups, 0 train/validation hash overlap, 0
+non-singles, 984 dittos (port-1 tie-break), stages FoD 3,628 / PS 4,609 /
+YS 5,390 / DL 4,241 / BF 7,009 / FD 3,575, subject ports 1/2/3/4 =
+11,241 / 7,295 / 3,981 / 5,935, 280,985,709 metadata frames, 76.0 GB,
+143 training chunks with a 36-file tail.
+
+### Measured cost estimate
+
+Subset metadata frames equal training frames (2,257,756 vs 2,257,516), so
+scale = 281.0 M / 2.258 M = **124×**. Seed 906's steady-state epoch 2
+(no JIT) took **181 s**: 200-file chunk parse/embed 134 s (~14k frames/s),
+40-file chunk ~33 s partly overlapped, 542 optimizer steps at ~55 ms
+(~30 s), validation + export ~10 s. Parse/embed dominates and BPTT re-parses
+every epoch (embedding cache off). **≈ 6.3 h/epoch → ≈ 50 h for 8 epochs**,
+plus ~80 s of one-time JIT. GPU: 25.1 GB used at fraction 0.70.
+`--save-every-batches 1000` would write ~540 uniquely named 35 MB
+checkpoints (~19 GB); use 10000 (~hourly, ~2 GB).
+
+### Styled round (post-fix-4): `styled_seed_905/906` — the launch evidence
+
+Same frozen 240/16 subset, overlap 0, dropout 0.1 active, F32 tensors,
+highest arithmetic (banner + `exla_precision` stamped), registry with
+first_id 1 and tags now resolving. Both exit 0.
+
+| Seed | Wall | Ep1 train / val | Ep2 train / val | Parity (max Δ) | Held-out anon / registry |
+| --- | ---: | --- | --- | --- | --- |
+| 905 | 481 s | 4.532 / 5.020 | 3.853 / 4.502 | logits 2.3e-6, carry 4.3e-7 | 4.2939 / 4.2944 |
+| 906 | 479 s | 4.517 / 4.496 | 3.805 / 4.300 | logits 2.3e-6, carry 4.8e-7 | 4.1194 / 4.1196 |
+
+Registry conditioning now changes exactly the three held-out files whose
+subject tag is in the train registry (SKWA, FOX x2) and no others. Policy
+hashes: 905 `sha256sum styled_seed_905/model_policy.bin`, 906 likewise
+(recorded in each `parity.json`).
+
+### Live gate — `live/` (policy `styled_seed_906/model_policy.bin`)
+
+Two more contract bugs surfaced the moment a BPTT export was actually
+played; **no BPTT export had ever been loaded by the live Agent before**:
+
+5. **Exports lacked `:precision`.** `ExecutionContract.load/1` for
+   `bptt_gru_f32_v1` requires `precision == :f32`; `Forward.load!` gets
+   it by merging `_config.json`, the Agent (`Training.load_policy`) does
+   not, so play_dolphin refused every stamped BPTT policy with
+   "inconsistent BPTT GRU execution contract"
+   (`live/fd_fox_p1_anonymous/play_contract_failure.log`).
+   `Checkpoint.export_policy` now writes `precision` and
+   `mixed_precision`; the loader accepts a missing key (pre-09-17
+   artifacts). Regression: `bptt_test.exs` "train, export, load without a
+   sidecar" now validates through `Training.load_policy`.
+6. `live_checks.exs` pointed `--headless` at the graphical netplay
+   AppImage (connect timeout, `play_wrong_dolphin.log`); headless cases
+   now use `~/.local/share/slippi/exi-ai/dolphin-emu-headless` like
+   `eval_live_protocol.sh`.
+
+Results (T=1.0 sampled, `--stateful-step --live-af --reaction-delay 0`,
+`EXPHIL_EXLA_PRECISION=highest`, CPU level 6, 30 s, `report.json`):
+
+| Case | Stage / opp / port | Mode | Latency | Errors | Scored frames | Idle | Horiz. input | Dmg taken | Stocks lost |
+| --- | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| fd_fox_p1_anonymous | FD / Fox / 1 | headless, speed 0 | 1 | 0 | 1800 | 0 % (max 2 f) | 18 % | 95 | 1 |
+| fod_falco_p1_style (TITP→1) | FoD / Falco / 1 | headless, speed 0 | 1 | 0 | 1800 | 1 % (6 f) | 15 % | 70 | 2 |
+| ps_samus_p2_graphical (TITP→1) | PS / Samus / 2 | graphical, 59.94 fps | 1 | 0 | 1800 | 1 % (12 f) | 13 % | 34 | 1 |
+
+Shield: 9 short runs, p95 5 frames, 1.7 % of frames, no holds. Top
+actions: airdodge, rolls, spotdodge, landing-special — a two-epoch
+diagnostic model that moves and does not collapse, and plays badly. Per
+the decision rules that is expected, not a NO-GO.
+
+**Known harness limit (not policy-related):** bot on port 2 with the CPU
+dummy on port 1 **headless** wedges at the CSS — the dummy's port stays
+`controller_status=0` (HUMAN), "Dummy CPU setup TIMED OUT", then MENU
+STUCK (`live/wedged/*`, two attempts; the second may have overlapped a
+GameCube-adapter hog from the melee-sim viewer, the first did not). The
+same port-2/CPU-port-1 combination works graphically (case 3). Every
+headless script to date puts the dummy on port 2, so the port-1 CPU
+toggle in `libmelee_ex` `MenuHelper.configure_cpu` under unthrottled CSS
+is unexercised. Repro: `live_checks.exs <policy> bf_marth_p2_anonymous`.
+Dolphin orphans after each headless case (GOTCHA #97); kill between runs.
+
+## GO / NO-GO — 2026-09-17
+
+**Mechanical GO** for the eight-epoch full-corpus fit, under the recipe in
+`FOX_V3_FABLE_HANDOFF.md`, with these conditions:
+
+- Launch from the working tree containing today's fixes (1-6 above);
+  the exported artifact must carry `exla_precision: "highest"` and
+  `precision: "f32"`.
+- `--save-every-batches 10000` (cadence only).
+- Expect ≈ 6.3 h/epoch, ≈ 50 h total; the progress bar's ETA is not valid
+  for padded BPTT batches.
+- Open, non-blocking: the ~0.19 held-out-vs-trainer-val gap; the port-1
+  CPU headless wedge; the corpus's 984 dittos train as anonymous port-1.
+
+What this does not show: generalist strength (two small epochs), behavior
+against humans, anything about the 28k-game distribution beyond byte-level
+hygiene. Behavior claims wait for the trained artifact's own gates.

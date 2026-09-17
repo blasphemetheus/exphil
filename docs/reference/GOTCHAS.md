@@ -4110,3 +4110,31 @@ touches none of this. Audit recipe: `find cache/embeddings -type f -printf
 '%AY-%Am-%Ad %s %f\n'` grouped by key — keys whose ACCESS date equals their
 write date were never reused. Also pending: `checkpoints/*_ep*.bin` is 1,345
 per-epoch snapshots (4.9 GB) from g20..g25a sweeps.
+
+## #117 (2026-09-17): full-width cartridge tags never matched the ASCII registry — `--learn-player-styles` trained on zeros
+
+Melee stores in-game nametags full-width (`ＦＯＸ`, U+FF01-FF5E). The
+erickfm corpus has them in-file, so `FilenameTags.placeholder?` was false,
+the filename bracket tag (`[FOX]`) was never substituted, and the registry
+(built from filename tags, ASCII) matched nothing: 0 of 61 tagged files in
+the V3 preflight subset resolved to a non-zero `name_id`. Symptom that
+caught it: held-out loss under anonymous and under registry conditioning
+were bit-identical. Fix: `Peppi.get_player_tag/2` normalizes through
+`FilenameTags.normalize_tag/1` (which existed since 09-04 but was only
+used by `style_fingerprint.exs`). Re-read any pre-09-17 style/context
+claim on erickfm data with this in mind. Rule: a conditioning channel is
+only proven live by a measurement that CHANGES when the channel changes.
+
+## #118 (2026-09-17): the live Agent does not merge `_config.json`, so an export must be self-consistent
+
+`Forward.load!` overlays the `_config.json` sidecar on the policy config;
+`Training.load_policy` (what the Agent uses) does not. The BPTT execution
+contract required `precision == :f32`, the export never wrote `precision`,
+and every stamped BPTT policy was refused by `play_dolphin` with
+"inconsistent BPTT GRU execution contract" — no BPTT export had ever been
+played before the V3 live gate. `Checkpoint.export_policy` now writes
+`precision` + `mixed_precision`; the loader accepts a missing key for
+older artifacts. Same session, same shape (parsed at the edge, dropped
+before the consumer): `play_dolphin.exs` swallowed `--style-tag`, and no
+log recorded the resolved EXLA arithmetic. Print the RESOLVED value at the
+consumer, and gate on an artifact loaded the way production loads it.

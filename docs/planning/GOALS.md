@@ -2,7 +2,7 @@
 
 **Last Updated:** 2026-08-03
 
-> **2026-09-17 state:** the live list is `HANDOFF_2026-09-17.md`. Track B (Fox
+> **2026-09-17 state:** the live list is `HANDOFF_2026-09-17b.md` (V3 preflight cleared; 09-17 morning file for the five lines). Track B (Fox
 > execution) is met at the drill level: the multishine method is proven, gated,
 > held-out-validated at rungs 0/2/4 and playable locally. Track A (Mewtwo
 > decision) unchanged in substance: neutral teacher approved, no student
