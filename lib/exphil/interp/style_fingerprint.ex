@@ -82,6 +82,7 @@ defmodule ExPhil.Interp.StyleFingerprint do
     |> Map.merge(ledge_mix(freq))
     |> Map.merge(throw_mix(events))
     |> Map.merge(aerial_features(game_states, port, controllers, minutes))
+    |> Map.merge(ExPhil.Interp.StyleTiming.features(Enum.map(game_states, & &1.players[port]), controllers))
     |> Map.merge(controller_features(controllers, minutes))
   end
 
@@ -102,7 +103,7 @@ defmodule ExPhil.Interp.StyleFingerprint do
   def invariant_keys do
     Enum.map(@buttons, &:"press_#{&1}_per_min") ++
       [:jump_x_ratio, :cstick_active_frac, :lightshield_frac, :press_interval_mean, :press_interval_cv] ++
-      Enum.map(0..8, &:"stick_cell_#{&1}")
+      Enum.map(0..8, &:"stick_cell_#{&1}") ++ ExPhil.Interp.StyleTiming.invariant_keys()
   end
 
   @doc """
@@ -131,7 +132,7 @@ defmodule ExPhil.Interp.StyleFingerprint do
       [:aerial_per_min, :nair_mix, :fair_mix, :bair_mix, :uair_mix, :dair_mix, :cstick_aerial_frac] ++
       Enum.map(@buttons, &:"press_#{&1}_per_min") ++
       [:jump_x_ratio, :cstick_active_frac, :lightshield_frac, :press_interval_mean, :press_interval_cv] ++
-      Enum.map(0..8, &:"stick_cell_#{&1}")
+      Enum.map(0..8, &:"stick_cell_#{&1}") ++ ExPhil.Interp.StyleTiming.keys()
   end
 
   @doc """

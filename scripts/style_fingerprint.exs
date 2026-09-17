@@ -25,7 +25,10 @@ if "--quiet" in System.argv(), do: Logger.configure(level: :warning)
 subject = opts[:subject_character] || "Fox"
 out = opts[:out] || raise("--out PATH required")
 min_frames = opts[:min_frames] || 1800
-conc = opts[:concurrency] || 8
+# Default to every scheduler: the per-file cost is ~100 ms of CPU spread
+# evenly over parse / frame build / features (measured 09-17), so this
+# scales linearly with cores — 8 on a 32-core box left 3-4x on the table.
+conc = opts[:concurrency] || System.schedulers_online()
 
 subject_atom = subject |> String.downcase() |> String.replace(" ", "_") |> String.to_atom()
 subject_display = Config.character_name(subject_atom)
@@ -75,7 +78,7 @@ if opts[:validate_order] do
           _ -> :unusable
         end
       end,
-      max_concurrency: opts[:concurrency] || 8,
+      max_concurrency: conc,
       timeout: :infinity
     )
     |> Enum.reduce({0, 0, 0}, fn
@@ -111,6 +114,7 @@ results =
   files
   |> Task.async_stream(
     fn path ->
+      try do
       case Peppi.metadata(path) do
         {:ok, meta} ->
           # Default: all subject-character players — dittos yield a row per
@@ -178,6 +182,19 @@ results =
                     ditto: is_ditto,
                     candidates: candidates,
                     recorded_at: recorded_at,
+                    # In-file session time (nil on anonymized corpora) beats
+                    # mtime; costume/type/team are the scene-prior evidence
+                    # (YETI_SCENE_PRIORS.md). CPU ports are not players.
+                    started_at: meta.started_at,
+                    random_seed: meta.random_seed,
+                    costume: Map.get(player, :costume),
+                    costume_name: ExPhil.Data.Costumes.perceived(Map.get(player, :character_name) || "", Map.get(player, :costume)),
+                    player_type: Map.get(player, :player_type),
+                    cpu_level: Map.get(player, :cpu_level),
+                    team: Map.get(player, :team),
+                    opponent_character: (Enum.find(meta.players, &(&1.port == opp)) || %{}) |> Map.get(:character_name),
+                    opponent_costume: (Enum.find(meta.players, &(&1.port == opp)) || %{}) |> Map.get(:costume),
+                    stage: meta.stage,
                     features: fp
                   }
                 ]
@@ -191,21 +208,63 @@ results =
         _ ->
           :skip
       end
+      rescue
+      # One bad file must not take the pass down (Task.async_stream links:
+      # an unrescued raise here killed two 20k-file runs on 09-17). Record
+      # the path and reason; the summary reports the count.
+      e -> {:failed, path, Exception.message(e)}
+      end
     end,
     max_concurrency: conc,
     timeout: :infinity
   )
-  |> Enum.reduce({0, 0}, fn
-    {:ok, {:ok, rows}}, {ok, skip} ->
+  |> Enum.reduce({0, 0, [], %{}}, fn
+    {:ok, {:ok, rows}}, {ok, skip, failed, audit} ->
       Enum.each(rows, &IO.write(io, Jason.encode!(&1) <> "\n"))
-      if rem(ok, 50) == 0, do: IO.write(:stderr, "\r  #{ok} files fingerprinted, #{skip} skipped\e[K")
-      {ok + 1, skip}
+      # Firing-rate audit: per feature, how many rows are non-zero. A
+      # detector reading the wrong field shape fires on 0 % of real games
+      # while its synthetic tests pass (v2 timing features, 09-17).
+      audit =
+        Enum.reduce(rows, audit, fn row, acc ->
+          Enum.reduce(row.features, acc, fn {k, v}, acc ->
+            Map.update(acc, k, {if(v != 0, do: 1, else: 0), 1}, fn {nz, n} -> {nz + if(v != 0, do: 1, else: 0), n + 1} end)
+          end)
+        end)
+      if rem(ok, 50) == 0, do: IO.write(:stderr, "\r  #{ok} files fingerprinted, #{skip} skipped, #{length(failed)} failed\e[K")
+      {ok + 1, skip, failed, audit}
 
-    _, {ok, skip} ->
-      {ok, skip + 1}
+    {:ok, {:failed, path, reason}}, {ok, skip, failed, audit} ->
+      {ok, skip, [%{path: path, reason: reason} | failed], audit}
+
+    _, {ok, skip, failed, audit} ->
+      {ok, skip + 1, failed, audit}
   end)
 
 File.close(io)
 IO.write(:stderr, "\r\e[K")
-{ok, skip} = results
-Output.success("#{ok} fingerprints -> #{out} (#{skip} skipped)")
+{ok, skip, failed, audit} = results
+
+# Firing-rate audit (STYLE_IDENTITY.md): every feature's non-zero rate over
+# the rows written; < 5 % is flagged — either a rare situation or a dead
+# detector, and the difference matters before any calibration is trusted.
+if audit != %{} do
+  rates =
+    audit
+    |> Enum.map(fn {k, {nz, n}} -> {k, nz / n} end)
+    |> Enum.sort_by(fn {_, r} -> r end)
+
+  suspects = Enum.filter(rates, fn {_, r} -> r < 0.05 end)
+  File.write!(Path.rootname(out) <> "_audit.json", Jason.encode!(Map.new(rates), pretty: true))
+  Output.puts("  firing-rate audit -> #{Path.rootname(out)}_audit.json (lowest: " <> Enum.map_join(Enum.take(rates, 6), ", ", fn {k, r} -> "#{k}=#{Float.round(r * 100, 1)}%" end) <> ")")
+
+  if suspects != [],
+    do: Output.warning("#{length(suspects)} features fire on < 5 % of rows: " <> Enum.map_join(suspects, ", ", &to_string(elem(&1, 0))))
+end
+
+if failed != [] do
+  failed_path = Path.rootname(out) <> "_failed.json"
+  File.write!(failed_path, Jason.encode!(Enum.reverse(failed), pretty: true))
+  Output.warning("#{length(failed)} files FAILED to parse -> #{failed_path}")
+end
+
+Output.success("#{ok} fingerprints -> #{out} (#{skip} skipped, #{length(failed)} failed)")

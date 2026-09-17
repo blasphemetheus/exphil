@@ -144,3 +144,11 @@ eval_runs/0915_float_input/coverage03/teacher_qualified.json
 eval_runs/0915_float_input/smoke11/report.json
 eval_runs/0915_float_input/review_smoke/report.json
 eval_runs/0915_float_input/nmsub_cpu_smoke/report.json
+
+# Style-identity fingerprints: regenerable in ~6 min (scripts/style_fingerprint.exs); keep derived JSON + tag map
+eval_runs/0917_style_identity/*.jsonl
+eval_runs/0917_style_identity/crashed_run1/
+eval_runs/0917_style_identity/v1_features/*.jsonl
+
+# Live-gate replays stay on disk; session.json/report.json are the tracked evidence
+eval_runs/*/live/**/*.slp

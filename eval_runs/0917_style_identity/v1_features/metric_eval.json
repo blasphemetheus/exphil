@@ -1,0 +1,170 @@
+{
+  "dim": 24,
+  "steps": 400,
+  "min_games": 5,
+  "experiments": {
+    "importance": {
+      "cstick_aerial_frac": 1.0579534769058228,
+      "cstick_active_frac": 0.8359972834587097,
+      "jump_x_ratio": 1.185402274131775,
+      "lightshield_frac": 0.8641253709793091,
+      "press_interval_mean": 0.9490368366241455,
+      "press_a_per_min": 0.7737023830413818,
+      "press_x_per_min": 1.3207645416259766,
+      "press_y_per_min": 1.2688566446304321,
+      "press_z_per_min": 0.7989707589149475,
+      "press_l_per_min": 1.0469510555267334,
+      "press_r_per_min": 1.1815546751022339,
+      "stick_cell_2": 0.774874210357666
+    },
+    "raw_erickfm": {
+      "within": {
+        "tags": 152,
+        "top1": 0.5849056603773585,
+        "top5": 0.8551327150623601,
+        "queries": 3127,
+        "gallery_size": 152
+      },
+      "cross": {
+        "tags": 44,
+        "top1": 0.48282566429034346,
+        "top5": 0.83149708360337,
+        "queries": 1543,
+        "gallery_size": 116
+      }
+    },
+    "zscore_erickfm": {
+      "within": {
+        "tags": 152,
+        "top1": 0.669971218420211,
+        "top5": 0.9142948512951711,
+        "queries": 3127,
+        "gallery_size": 152
+      },
+      "cross": {
+        "tags": 44,
+        "top1": 0.5469863901490603,
+        "top5": 0.8502916396629941,
+        "queries": 1543,
+        "gallery_size": 116
+      }
+    },
+    "raw_yeti": {
+      "within": {
+        "tags": 116,
+        "top1": 0.44130626654898497,
+        "top5": 0.8149455722271256,
+        "queries": 3399,
+        "gallery_size": 116
+      },
+      "cross": {
+        "tags": 44,
+        "top1": 0.4797347089167281,
+        "top5": 0.7501842299189388,
+        "queries": 2714,
+        "gallery_size": 152
+      }
+    },
+    "zscore_yeti": {
+      "within": {
+        "tags": 116,
+        "top1": 0.48278905560458957,
+        "top5": 0.8214180641365108,
+        "queries": 3399,
+        "gallery_size": 116
+      },
+      "cross": {
+        "tags": 44,
+        "top1": 0.5338983050847458,
+        "top5": 0.8330876934414149,
+        "queries": 2714,
+        "gallery_size": 152
+      }
+    },
+    "nca_e_to_yeti": {
+      "within": {
+        "tags": 116,
+        "top1": 0.5148573109738158,
+        "top5": 0.8520152986172403,
+        "queries": 3399,
+        "gallery_size": 116
+      },
+      "cross": {
+        "tags": 44,
+        "top1": 0.5906411201179071,
+        "top5": 0.818349299926308,
+        "queries": 2714,
+        "gallery_size": 152
+      }
+    },
+    "nca_y_to_erickfm": {
+      "within": {
+        "tags": 152,
+        "top1": 0.6875599616245602,
+        "top5": 0.9146146466261592,
+        "queries": 3127,
+        "gallery_size": 152
+      },
+      "cross": {
+        "tags": 44,
+        "top1": 0.5716137394685677,
+        "top5": 0.8593648736228127,
+        "queries": 1543,
+        "gallery_size": 116
+      }
+    },
+    "heldout_zscore": {
+      "within": {
+        "tags": 31,
+        "top1": 0.9146341463414634,
+        "top5": 0.9707317073170731,
+        "queries": 410,
+        "gallery_size": 31
+      },
+      "cross": null
+    },
+    "heldout_nca": {
+      "within": {
+        "tags": 31,
+        "top1": 0.9097560975609756,
+        "top5": 0.973170731707317,
+        "queries": 410,
+        "gallery_size": 31
+      },
+      "cross": null
+    },
+    "held_out_tags": [
+      "SUWA",
+      "SY",
+      "T",
+      "THOR",
+      "TIME",
+      "TITP",
+      "TJOM",
+      "TLOZ",
+      "TM06",
+      "TON",
+      "TORC",
+      "TY",
+      "UHOH",
+      "US 2",
+      "USSR",
+      "UWU",
+      "VIK",
+      "WOW",
+      "WS",
+      "WU",
+      "WU.",
+      "WWLD",
+      "XANA",
+      "YERB",
+      "YETI",
+      "YMFD",
+      "YOTL",
+      "ZACH",
+      "ZOD",
+      "ZZZ",
+      "ッ"
+    ]
+  }
+}
