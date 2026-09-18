@@ -19,6 +19,16 @@ payload = capture_path |> File.read!() |> :erlang.binary_to_term()
 config = config_path |> File.read!() |> Jason.decode!()
 Output.puts("capture: step #{payload.step} batch_idx #{payload.batch_idx} epoch #{payload.epoch} loss #{inspect(payload.loss)}")
 
+finite? = fn t -> Nx.logical_not(Nx.logical_or(Nx.is_nan(t), Nx.is_infinity(t))) end
+
+tensors = fn
+  %Nx.Tensor{} = t, acc -> [t | acc]
+  m, acc when is_map(m) and not is_struct(m) -> Enum.reduce(m, acc, fn {_, v}, a -> if(is_struct(v, Nx.Tensor), do: [v | a], else: if(is_map(v) and not is_struct(v), do: Enum.reduce(v, a, fn {_, w}, b -> if(is_struct(w, Nx.Tensor), do: [w | b], else: b) end), else: a)) end)
+  _, acc -> acc
+end
+
+leaves = fn m -> tensors.(m, []) end
+
 des = fn
   %Nx.Tensor{} = t -> t
   v when is_list(v) or is_binary(v) -> Nx.deserialize(v)
@@ -33,14 +43,14 @@ opt_state = des.(payload.optimizer_state)
 
 # 1. input hygiene
 for {k, v} <- batch, is_struct(v, Nx.Tensor) do
-  nf = Nx.to_number(Nx.sum(Nx.as_type(Nx.logical_not(Nx.is_finite(v)), :s64)))
-  mx = if Nx.type(v) |> elem(0) == :f, do: Nx.to_number(Nx.reduce_max(Nx.abs(Nx.select(Nx.is_finite(v), v, 0.0)))), else: Nx.to_number(Nx.reduce_max(v))
+  nf = Nx.to_number(Nx.sum(Nx.as_type(Nx.logical_or(Nx.is_nan(v), Nx.is_infinity(v)), :s64)))
+  mx = if Nx.type(v) |> elem(0) == :f, do: Nx.to_number(Nx.reduce_max(Nx.abs(Nx.select(finite?.(v), v, 0.0)))), else: Nx.to_number(Nx.reduce_max(v))
   Output.puts("  #{k}: shape #{inspect(Nx.shape(v))} non-finite #{nf} max|v| #{mx}")
 end
 for {k, v} <- batch.actions do
   Output.puts("  actions.#{k}: shape #{inspect(Nx.shape(v))} min #{Nx.to_number(Nx.reduce_min(v))} max #{Nx.to_number(Nx.reduce_max(v))}")
 end
-nf_params = params |> Nx.Container.reduce(0, fn t, acc -> acc + Nx.to_number(Nx.sum(Nx.as_type(Nx.logical_not(Nx.is_finite(t)), :s64))) end)
+nf_params = params |> leaves.() |> Enum.reduce(0, fn t, acc -> acc + Nx.to_number(Nx.sum(Nx.as_type(Nx.logical_or(Nx.is_nan(t), Nx.is_infinity(t)), :s64))) end)
 Output.puts("  pre-update params non-finite: #{nf_params}")
 
 # rebuild the trainer with the run's config
@@ -75,9 +85,8 @@ Output.puts("rows with non-finite forward loss: #{inspect(Enum.reverse(bad_rows)
 Output.puts("training loss (grad fn): #{inspect(Nx.to_number(tloss))}")
 gdata = Utils.ensure_model_state(grads).data
 worst =
-  gdata
-  |> Nx.Container.reduce([], fn t, acc -> [Nx.to_number(Nx.reduce_max(Nx.abs(Nx.select(Nx.is_finite(t), t, 0.0)))) | acc] end)
-nf_grads = gdata |> Nx.Container.reduce(0, fn t, acc -> acc + Nx.to_number(Nx.sum(Nx.as_type(Nx.logical_not(Nx.is_finite(t)), :s64))) end)
+  gdata |> leaves.() |> Enum.map(fn t -> Nx.to_number(Nx.reduce_max(Nx.abs(Nx.select(finite?.(t), t, 0.0)))) end)
+nf_grads = gdata |> leaves.() |> Enum.reduce(0, fn t, acc -> acc + Nx.to_number(Nx.sum(Nx.as_type(Nx.logical_or(Nx.is_nan(t), Nx.is_infinity(t)), :s64))) end)
 Output.puts("gradient: non-finite elements #{nf_grads}, max |grad| #{Enum.max(worst, fn -> 0 end)}")
 
 report = %{capture: capture_path, step: payload.step, forward_loss: inspect(Nx.to_number(loss)), bad_rows: Enum.reverse(bad_rows), training_loss: inspect(Nx.to_number(tloss)), grad_nonfinite: nf_grads, grad_max: Enum.max(worst, fn -> 0 end), params_nonfinite: nf_params, precision: Nx.Defn.default_options()[:precision] || :default}

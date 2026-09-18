@@ -369,14 +369,17 @@ defmodule ExPhil.Training.BpttValTest do
     expected =
       ExPhil.Evaluation.BPTT.batches(ds, 100)
       |> Enum.map(fn b ->
-        n = Nx.axis_size(b.states, 1)
+        # batches/2 pads tail chunks to the chunk size; only :valid frames count
+        n = b.valid
+        total = Nx.axis_size(b.states, 1)
+        weights = Nx.concatenate([Nx.broadcast(1.0, {1, n}), Nx.broadcast(0.0, {1, total - n})], axis: 1)
 
         {loss, _} =
           t.eval_loss_fn.(
             t.policy_params,
             b.states,
             b.actions,
-            Nx.broadcast(1.0, {1, n}),
+            weights,
             Nx.broadcast(0.0, {1, @layers, @hidden})
           )
 

@@ -364,6 +364,24 @@ defmodule ExPhil.Training.Trainer do
       if is_atom(loss), do: capture_fatal_batch(st, batch, carry, loss, batch_idx)
       check_nan!(loss, batch_idx, st)
 
+      # Non-finite gradient: the step was skipped (TrainLoop). Log, capture
+      # the batch for offline replay, count it; a cluster of skips means the
+      # model is already unstable — stop rather than limp.
+      st =
+        if metrics[:skipped] do
+          skips = Map.get(st.meta, :skipped_steps, 0) + 1
+          streak = Map.get(st.meta, :skip_streak, 0) + 1
+          ExPhil.Training.Output.warning("non-finite gradient at batch #{batch_idx + 1} (epoch #{st.epoch}, loss #{Float.round(loss, 4)}) — update skipped (#{skips} total)")
+          if skips <= 5, do: capture_fatal_batch(st, batch, carry, :nonfinite_grad, batch_idx)
+
+          if streak >= 10 or (batch_idx > 1000 and skips > batch_idx / 100),
+            do: raise("Training unstable: #{skips} non-finite-gradient steps (streak #{streak}) by batch #{batch_idx + 1}")
+
+          %{st | meta: st.meta |> Map.put(:skipped_steps, skips) |> Map.put(:skip_streak, streak)}
+        else
+          %{st | meta: Map.put(st.meta, :skip_streak, 0)}
+        end
+
       weight = Nx.sum(batch.frame_weights) |> Nx.to_number()
 
       st = %{

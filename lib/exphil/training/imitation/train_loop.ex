@@ -316,22 +316,55 @@ defmodule ExPhil.Training.Imitation.TrainLoop do
     grads_data = get_params_data(grads)
     params_data = get_params_data(trainer.policy_params)
 
-    {updates, new_optimizer_state} =
-      trainer.optimizer.(grads_data, trainer.optimizer_state, params_data)
+    # A single non-finite gradient element poisons EVERYTHING downstream:
+    # clip_by_global_norm's norm becomes NaN, so every scaled gradient is
+    # NaN and Adam writes NaN into every weight — with this step's loss
+    # still finite. The NaN check then fires one batch later on a dead
+    # model (V3, 2026-09-18: three divergences, 2,901,665/2,901,667 params
+    # non-finite in the capture). Skip the update instead; the caller logs
+    # and captures the batch. One scalar sync per step (~0.1 ms).
+    grad_finite? = grads_finite?(grads_data)
 
-    new_params_data = trainer.apply_updates_fn.(params_data, updates)
-    new_params = put_params_data(trainer.policy_params, new_params_data)
-    new_params = Axon.ModelState.update(new_params, %{}, updated_state)
+    if grad_finite? do
+      {updates, new_optimizer_state} =
+        trainer.optimizer.(grads_data, trainer.optimizer_state, params_data)
 
-    new_trainer = %{
-      trainer
-      | policy_params: new_params,
-        optimizer_state: new_optimizer_state,
-        step: trainer.step + 1
-    }
+      new_params_data = trainer.apply_updates_fn.(params_data, updates)
+      new_params = put_params_data(trainer.policy_params, new_params_data)
+      new_params = Axon.ModelState.update(new_params, %{}, updated_state)
 
-    {new_trainer, %{loss: loss, step: new_trainer.step}, new_carry}
+      new_trainer = %{
+        trainer
+        | policy_params: new_params,
+          optimizer_state: new_optimizer_state,
+          step: trainer.step + 1
+      }
+
+      {new_trainer, %{loss: loss, step: new_trainer.step, skipped: false}, new_carry}
+    else
+      {%{trainer | step: trainer.step + 1}, %{loss: loss, step: trainer.step + 1, skipped: true}, new_carry}
+    end
   end
+
+  @doc "True when every gradient element is finite (one device->host scalar)."
+  def grads_finite?(grads_data) do
+    # Nx.Container for maps is ONE level deep (nested maps arrive as leaves),
+    # so walk the tree by hand.
+    grads_data
+    |> tensor_leaves([])
+    |> Enum.reduce(Nx.tensor(0, type: :s64), fn t, acc ->
+      Nx.add(acc, Nx.sum(Nx.as_type(Nx.logical_or(Nx.is_nan(t), Nx.is_infinity(t)), :s64)))
+    end)
+    |> Nx.to_number()
+    |> Kernel.==(0)
+  end
+
+  defp tensor_leaves(%Nx.Tensor{} = t, acc), do: [t | acc]
+  defp tensor_leaves(%Axon.ModelState{data: data}, acc), do: tensor_leaves(data, acc)
+  defp tensor_leaves(m, acc) when is_map(m) and not is_struct(m), do: Enum.reduce(m, acc, fn {_, v}, a -> tensor_leaves(v, a) end)
+  defp tensor_leaves(l, acc) when is_list(l), do: Enum.reduce(l, acc, &tensor_leaves/2)
+  defp tensor_leaves(t, acc) when is_tuple(t), do: tensor_leaves(Tuple.to_list(t), acc)
+  defp tensor_leaves(_, acc), do: acc
 
   defp train_step_standard(trainer, batch) do
     %{states: states, actions: actions} = batch
