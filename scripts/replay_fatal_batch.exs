@@ -58,7 +58,7 @@ cfg = Map.new(config, fn {k, v} -> {String.to_atom(k), v} end)
 trainer =
   Imitation.new(
     embed_size: cfg[:embed_size], temporal: true, bptt: true, backbone: :gru, head: String.to_atom(cfg[:head] || "autoregressive"),
-    unroll: cfg[:unroll] || 80, hidden_size: cfg[:hidden_size], num_layers: cfg[:num_layers], precision: :f32,
+    unroll: cfg[:unroll] || 80, hidden_size: cfg[:hidden_size] || hd(cfg[:hidden_sizes]), num_layers: cfg[:num_layers], precision: :f32,
     batch_size: Nx.axis_size(batch.states, 0), dropout: cfg[:dropout] || 0.1, learning_rate: cfg[:learning_rate] || 1.0e-4,
     max_grad_norm: cfg[:max_grad_norm] || 1.0, hidden_sizes: cfg[:hidden_sizes]
   )
