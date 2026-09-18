@@ -361,6 +361,7 @@ defmodule ExPhil.Training.Trainer do
       if BpttProf.enabled?() and batch_idx > 0 and rem(batch_idx, 20) == 0,
         do: BpttProf.report("step #{batch_idx}")
 
+      if is_atom(loss), do: capture_fatal_batch(st, batch, carry, loss, batch_idx)
       check_nan!(loss, batch_idx, st)
 
       weight = Nx.sum(batch.frame_weights) |> Nx.to_number()
@@ -488,6 +489,42 @@ defmodule ExPhil.Training.Trainer do
         {st, cbs}
       end
     end)
+  end
+
+  # CLAUDE.md "capture the crime scene": on a non-finite loss, serialize
+  # everything needed to replay the fatal step offline — the batch, the
+  # incoming carry, and the PRE-update params + optimizer state (st.trainer
+  # has not been replaced yet). Two V3 divergences on 09-18 at unrelated
+  # data positions had nothing to examine; each blind rerun cost hours.
+  # File: <checkpoint dir>/fatal_batch_<global step>.bin (term_to_binary of
+  # Nx.serialize'd tensors); reader: scripts/replay_fatal_batch.exs.
+  @doc false
+  def capture_fatal_batch(st, batch, carry, loss, batch_idx) do
+    dir = Path.dirname(st.opts[:checkpoint] || "checkpoints/model.axon")
+    path = Path.join(dir, "fatal_batch_#{st.step}.bin")
+    ser = fn t -> t |> Nx.backend_copy(Nx.BinaryBackend) |> Nx.serialize() end
+    deep = fn
+      %Nx.Tensor{} = t -> ser.(t)
+      m -> Nx.Container.traverse(m, nil, fn t, acc -> {ser.(t), acc} end) |> elem(0)
+    end
+
+    payload = %{
+      loss: loss,
+      step: st.step,
+      batch_idx: batch_idx,
+      epoch: st.epoch,
+      batch: Map.new(batch, fn {k, v} -> {k, if(is_map(v) or is_struct(v, Nx.Tensor), do: deep.(v), else: v)} end),
+      carry: ser.(carry),
+      policy_params: deep.(ExPhil.Training.Utils.ensure_model_state(st.trainer.policy_params).data),
+      optimizer_state: deep.(st.trainer.optimizer_state),
+      config: Map.take(st.trainer.config, [:hidden_size, :num_layers, :head, :bptt, :unroll, :embed_size, :precision])
+    }
+
+    File.mkdir_p!(dir)
+    File.write!(path, :erlang.term_to_binary(payload))
+    ExPhil.Training.Output.error("Fatal batch captured -> #{path}")
+  rescue
+    e -> ExPhil.Training.Output.warning("fatal-batch capture failed: #{Exception.message(e)}")
   end
 
   defp check_nan!(loss, batch_idx, state) when is_atom(loss) do
