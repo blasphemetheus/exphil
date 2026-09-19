@@ -1544,6 +1544,10 @@ defmodule ExPhil.Training.Config do
       # 1 instead of 0 to avoid Polaris/Nx 0.10 compatibility bug
       warmup_steps: 1,
       decay_steps: nil,
+      # AdamW decoupled weight decay (Polaris `decay`). The trainer default is
+      # 1.0e-5 (no effect); V3 showed GRU hidden-kernel norms growing
+      # monotonically without it (HANDOFF_2026-09-18.md).
+      weight_decay: 1.0e-5,
       # Cosine restarts (SGDR)
       # Initial period before first restart (T_0)
       restart_period: 1000,

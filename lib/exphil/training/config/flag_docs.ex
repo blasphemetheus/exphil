@@ -97,6 +97,7 @@ defmodule ExPhil.Training.Config.FlagDocs do
     "--lr-schedule" => "cosine, linear, exponential",
     "--max-episode-frames" => "Max frames per episode (~8 min at 60fps)",
     "--max-files" => "Limit number of replay files",
+    "--weight-decay" => "AdamW decoupled weight decay (default 1e-5 ≈ none); V3.1 uses 0.05 to stop GRU hidden-kernel norm growth",
     "--max-grad-norm" => "Gradient clipping norm (0 = disabled)",
     "--memory-efficient-attention" => "Use memory-efficient attention (true O(n) memory via online softmax)",
     "--min-delta" => "Minimum improvement to count as progress",

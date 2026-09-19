@@ -347,6 +347,7 @@ defmodule ExPhil.Training.Config.Parser do
     {"--restart-period", :restart_period, :int},
     {"--restart-mult", :restart_mult, :float},
     {"--max-grad-norm", :max_grad_norm, :float},
+    {"--weight-decay", :weight_decay, :float},
     {"--resume", :resume, :string},
     {"--reinit-head", :reinit_head, :flag},
     {"--name", :name, :string},
