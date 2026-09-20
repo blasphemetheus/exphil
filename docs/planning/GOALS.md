@@ -1,238 +1,175 @@
 # ExPhil: Goals
 
-**Last Updated:** 2026-08-03
+**Last Updated:** 2026-09-19 (rewritten around the V3/V3.1 generalist line
+and the identity program; previous version 2026-08-03 is in git history).
 
-> **2026-09-17 state:** the live list is `HANDOFF_2026-09-17b.md` (V3 preflight cleared; 09-17 morning file for the five lines). Track B (Fox
-> execution) is met at the drill level: the multishine method is proven, gated,
-> held-out-validated at rungs 0/2/4 and playable locally. Track A (Mewtwo
-> decision) unchanged in substance: neutral teacher approved, no student
-> promoted. Generalist Fox V3: training path repaired, long run not cleared.
-> The "Next work" section below is stale.
-
-This document states **what the bot should do**. It is deliberately not an
-inventory of what we've built — that lives in the appendix, and only so we
-don't rebuild it. Every number below traces to a real artifact.
-
-> **Why this was rewritten.** The previous version (2026-02-28) tracked
-> capabilities: 43 architectures, self-play infra, caching. It never stated a
-> behavioral target. That let hygiene metrics — report-card 6.8/10, zero SDs,
-> zero shield breaks — stand in for progress while the thing we actually
-> wanted went unmeasured for months. The original goal was concrete: *spam
-> short-hop fair as an approach, and follow up fair→fair to combo when it's
-> an option.* That sentence appeared nowhere in the old doc.
+This document states **what the bot should do** and where each line stands,
+measured. Inventory lives in the appendix so we don't rebuild it. Every
+number traces to an artifact; the live day-to-day list is the newest
+`HANDOFF_*.md`.
 
 ---
 
 ## What we're building
 
-A Mewtwo bot that goes in with short-hop fair and combos off it, and a Fox bot
-that multishines perfectly. Low-tier characters are the long-term interest;
-Mewtwo is the current subject because we have the drills and the corpus.
+Three bots and a teacher:
+
+1. **A generalist Fox** that plays Melee like the players it learned from —
+   and, on request, like *one* of them by name (Track D).
+2. **A Fox that multishines perfectly** under any delay rung (Track B — met).
+3. **A Mewtwo that goes in with short-hop fair and converts** (Track A — the
+   decision problem; still the hard one).
+4. **A coach** that steers a human into a drill situation and gives feedback
+   (Track C — long-term; its prerequisites are this program's roadmap).
+
+Low-tier characters remain the long-term interest. High-tier replay data
+drives the generalist and the identity work because that is where the
+corpus is.
 
 ---
 
-## Current state, measured
+## Where each line stands (measured, 2026-09-19)
 
-From the r16 fan-out (6 headless probe games, `logs/overnight_newera8_r16_20260722.log`)
-and the coach report at `logs/coach/20260723_024737/report.md`:
-
-| What | Measured | Reading |
-|------|----------|---------|
-| Armed approaches/min | **0.17** (per-game 0.13/0.25/0.38/0.0/0.25/0.0) | **It does not go in.** |
-| Conversions | **6 / 119 approaches = 5%** | **It does not convert.** |
-| Passivity windows | **125** across 6 games | Long stretches in range, doing nothing. |
-| Dropped punishes | **42** | When it does open, it doesn't follow up. |
-| Top-opener share | **91.4%** one category | **It does one thing.** |
-| Opener entropy | **0.501 bits** (35 openers) | Almost no variety in neutral. |
-| Report-card | 6.8/10 | Mechanically clean — *this is the misleading one.* |
-
-**The honest read:** the bot is mechanically tidy (no SDs, no shield breaks,
-sane jump discipline, real DI) and it *looks* like a Melee player in short
-clips. It picks up some movement cues, some aerials, some out-of-shield
-behavior. But it does not approach, does not convert, and does not chain
-fairs. The hygiene gates are green and the behavioral goal is unmet.
-
-### Diagnosis: it learned the sequence, not the decision
-
-`mewtwo_combo` (fair expert + tech-chase expert) was built to teach
-approach → fair → knockdown → punish. What came out throws the aerial, but not
-*at* anything, and can't chain it. The drill supervised **which buttons**, not
-**when to commit**. That single sentence explains gate-10, the 5% conversion
-rate, and the 91% one-note opener distribution at once.
-
-This reframes the problem: it is not "one missing metric." The training signal
-never contained the decision.
+| Track | Goal | State | Evidence |
+| --- | --- | --- | --- |
+| **D — generalist Fox** | plays a full game as a human Fox would; conditions on player identity | **Playable and improving.** V3 (4.4 passes) → best held-out 1.94; V3.1 (weight decay + cosine LR, warm start) val 2.253 → 2.193 → 2.158 across 3 passes, final pass running. Bradley: "definitely the best version of a bot I've made" (many characters). Style conditioning **live**: `--style-tag` flips the jump button and c-stick habits to the named player's. | `HANDOFF_2026-09-18.md`, `STYLE_IDENTITY.md` S6(c) |
+| **B — Fox multishine** | multishine under any rung | **Met** at rungs 0/2/4; playable local demo; proof method generalizes to any drill | `MULTISHINE_PIPELINE_PROOF.md`, `LOCAL_MULTISHINE_DEMO.md` |
+| **A — Mewtwo decision** | armed approaches/min ≥ 1.0; conversion ≥ 25 %; ≥ 2 connected aerials per opening | **Unchanged since July**: 0.17 / 5 % / unmeasured. Neutral teacher approved; five learned rounds, none promoted; conversion event scorer not started | `MEWTWO_NEUTRAL_TO_COMBO_HANDOFF.md` §10 |
+| **Identity** (enables D, feeds C) | every game trains under an identity, not id 0 | **S0-S6 done.** 58 % of the corpus conditioned (real tags + 39 style clusters); open-set top-1 0.67, closed-set 0.90 at 3 candidates; aliases adjudicated (merges/holds), FOX/LI collisions voided for V3.2 | `STYLE_IDENTITY.md`, `STYLE_RECONCILIATION_2026-09-17.md` |
+| **Sim** (enables A, later RL) | trusted, settable-state engine for drills/eval/search | **Plan only.** Validation gate (input-replay parity vs our `.slp`) not run; Mewtwo/G&W admitted on a local branch; other sessions extending character coverage | `MELEE_SIM_USES.md` |
+| **Direct exhibition** | ≥ 1 stock off a human over Slippi Direct, with consent | Not attempted with the generalist; the multishine bot did it locally. Rule unchanged: Direct only, never matchmaking (EXPH#288). | — |
 
 ---
 
-## Track A — Mewtwo: the DECISION problem
+## Track D — the generalist Fox (NEW; the V2 → V3 line)
+
+**Goal:** a Fox that plays a whole game — neutral, punish, recovery, edgeguard
+— the way the corpus's players do, and that can be asked to play like a
+specific one.
+
+**Recipe that works (V3.1):** GRU 512×2, BPTT unroll 80 / overlap 0, batch
+128, F32 + highest EXLA arithmetic, AR head, T=1.0 sampling, reaction 0,
+identity channel via `--player-tag-map`, AdamW with **weight decay 0.05**,
+**cosine LR**, non-finite-gradient guard + fatal-batch capture. Deployment:
+`--stateful-step --live-af --reaction-delay 0 --temperature 1.0`, never
+`--deterministic`.
+
+**What the V3 run taught (three divergences, all captured):** a single
+non-finite gradient turns global-norm clipping's scale into NaN and writes
+NaN into every weight while the loss still looks fine; the GRU hidden-kernel
+norms drift upward without weight decay until the 80-step backward
+overflows; dropout amplifies it. Weight decay reverses the norm drift, the
+guard makes the rare batches harmless, the LR step-down alone was worth
+−0.75 held-out. Skip counts still escalate late in training (10 → 41 → 188
+per pass) — the backward horizon is the next lever.
+
+Gates (all measured on the same instruments as the drills):
+
+| Gate | Metric | Now | Target |
+| --- | --- | --- | --- |
+| D1 — plays | live: latency 1, 0 errors, no idle/shield lock, moves | ✅ (40 % horizontal input, 0 stocks lost vs CPU 6 in 30 s) | keep |
+| D2 — learns | held-out teacher-forced CE on tagged games | 1.94 (V3 215k); V3.1 trainer-val 2.158 | monotone per pass |
+| D3 — conditions | paired anonymous-vs-registry scores differ exactly on identified files; `--style-tag` moves the fingerprint toward the player | ✅ exact; jump-button tell reproduces per player | effect on option mixes, n ≥ 10 games/arm |
+| D4 — executes | L-cancel press offset, short-hop rate, wavedash angle vs the imitated humans | below all four probed humans | within their range |
+| D5 — beats | ≥ 1 stock off a human over Direct | not attempted | do it |
+
+**Next for D:** V3.2 = V3.1 recipe + unroll 40 (or per-timestep gradient
+value clipping), S4 alias merges + FOX/LI voided in the tag map, 8 fresh
+passes; norm + skip logging per epoch; D4 measured properly (the execution
+gap is a training-budget/sampling question, not an imitation limit).
+
+---
+
+## Track A — Mewtwo: the DECISION problem (unchanged in substance)
 
 **Goal:** approach with short-hop fair; chain fair→fair when the option exists.
 
-All three gates, in order. A1 without A2 is whiffing into space; A2 without A3
-is a poke, not the goal.
-
 | Gate | Metric | Now | Target | Tooling |
-|------|--------|-----|--------|---------|
-| **A1 — goes in** | armed approaches/min | 0.17 | **≥ 1.0** | `ReplayStats.approach_stats/2` ✅ exists |
-| **A2 — connects** | conversion rate (approach → hit) | 5% | **≥ 25%** | `ReplayStats.conversion_stats/2` ✅ exists |
-| **A3 — chains** | mean connected aerials per opening | *unmeasured* | **≥ 2.0** | ⚠️ **needs building** |
+| --- | --- | --- | --- | --- |
+| **A1 — goes in** | armed approaches/min | 0.17 | ≥ 1.0 | `ReplayStats.approach_stats/2` |
+| **A2 — connects** | conversion rate | 5 % | ≥ 25 % | `ReplayStats.conversion_stats/2` |
+| **A3 — chains** | connected aerials per opening | *unmeasured* | ≥ 2.0 | **needs building** — still true |
 
-**A3 is the literal statement of the goal and nothing currently measures it.**
-`FailureScan.dropped_punish` (`lib/exphil/eval/failure_scan.ex`) only detects
-the *failure* case (<15% damage gain). An aerial-chain-length metric belongs
-next to it.
-
-Supporting signal (not gates): opener entropy / top-opener share via
-`ExPhil.Eval.NeutralScan` + the two `StyleCard` gates — useful for catching
-"solved A1 by mashing one move."
-
----
-
-## Track B — Fox: the EXECUTION problem
-
-**Goal:** multishine perfectly, *no matter the circumstance.* It multishines
-sometimes today; the target is reliability, not novelty.
-
-**Corrected twice. Current status 2026-07-24: B0 and the teacher gate are
-DONE; this is now an ordinary imitation problem.**
-
-- *2026-07-23:* the fixture was measured (`ExPhil.Eval.ShineChain`) and found
-  to be a sloppy shine → full jump → air-shine loop, not a multishine. Real
-  finding: the behavior was not in the supervision.
-- *2026-07-24:* the follow-up conclusion that the *bridge* could not execute a
-  multishine was **WRONG** and is retracted. It rested on probes for a
-  technique Melee does not have (down-B cannot cancel jumpsquat — only
-  up-smash/up-B/grab can) and on a metric that broke the chain on the aerial
-  shine a real multishine requires. Both fixed. The scripted teacher now
-  multishines through the normal bridge (max chain 186 in a 30s fixture), and
-  the **table-driven** teacher reproduces it live (max chain 103).
-
-Full writeup: `docs/planning/MULTISHINE_DIAGNOSIS_2026-07-23.md` (see the
-RESOLVED section at the bottom).
-
-Gates:
-
-| Gate | Metric | Now | Target | Tooling |
-|------|--------|-----|--------|---------|
-| **B0 — fixture is clean** | `ShineChain.max_length` of the fixture | **186** ✅ | ≥ 50 | `ShineChain.summary_for_replay` |
-| **B0b — table teacher drives it** | `ShineChain.max_length`, teacher live | **103** ✅ | ≥ 5 | `scripts/demo_expert.exs`, `scripts/inspect_multishine_table.exs` |
-| **B1 — policy enters** | chains started per minute, live | **✅ crushed** | ≥ 1 | `scripts/analyze_policy_shine.exs` |
-| **B2 — policy sustains** | `ShineChain.sustained` (chains ≥ 5) | **✅ c434** | > 0 | `ShineChain` |
-
-**Track B RESOLVED (2026-08-03).** Production policy
-`checkpoints/ms_g6_sp1.bin` (multi-delay {2,3} + SS-on-queue recipe):
-d2 **434.5/min chain-434**, d3 **413.4 c409** (3/3 deterministic),
-d4 **332.4 c313** via `--delay-id-override 3`. Verified multishining
-over Slippi Direct loopback at sharp 5-frame latency (2026-08-01,
-then-champion mdq_ss). The full campaign record — SS-on-queue, jitter
-refuted, spacing refuted, ladder stops at d4, CycleSim offline
-simulator — lives in `LATENCY_ARCHITECTURE.md`.
-
-**Do not gate on `grounded_fraction`.** A real multishine is roughly *one
-third* grounded shine frames (measured steady state: 2 grounded + 4 aerial
-frames per 9-frame cycle → 0.33–0.47). The old "≥ 0.9" target was unreachable
-by construction and is what made correct attempts score as failures. It
-remains useful only as a diagnostic: ~1.0 means lone ground shines that never
-cycle, and a low value *with long air gaps* is the sloppy full-jump loop.
-
-Reference: `ExPhil.Agents.MultishineExpert`, `scripts/demo_expert.exs` (drive
-the teacher live), `scripts/demo_vs_teacher.exs` (policy vs teacher side by
-side), `scripts/inspect_multishine_table.exs` (table coverage without booting
-Dolphin).
+Diagnosis stands: it learned the sequence, not the decision. The neutral
+teacher (`MewtwoNeutralTeacher`) is approved; no student decides. The next
+packet is the fair-conversion EVENT scorer and one reproducible first-fair
+contact (`MEWTWO_NEUTRAL_TO_COMBO_HANDOFF.md` §10). What changed since
+August: the **sim** is the intended instrument for A — randomized-start
+conversion drills at scale — once its validation gate passes and Mewtwo is
+admitted; and the generalist recipe (Track D) is the proven way to train a
+whole-game imitator, which Mewtwo will need once decisions are labelled.
 
 ---
 
-## Method: the escalation ladder
+## Track B — Fox: the EXECUTION problem — MET
 
-Attempt in this order. Do not skip rungs.
-
-1. **Fix what the expert teaches** — supervise the *decision* (when to commit),
-   not just the button sequence. ⚠️ **UNSTARTED — this is the next work.**
-2. **More / better imitation data** — opener weighting, curated go-in corpora,
-   style conditioning, a probe-reg that actually applies.
-3. **Invest in RL properly** — only after 1 and 2 are genuinely exhausted.
-
-### We are here (updated 2026-08-03)
-
-- **Track B (Fox multishine) is resolved** — see the gate table above.
-  The July-era "we are here" (r15-r17a rung-2 attempts) is history;
-  what actually broke Track B open was the DELAY CAMPAIGN (queue-as-
-  input + SS-on-queue + the {2,3} pool) plus the interp instruments
-  (early-reject probes, margin export, CycleSim), not more data.
-- **Track A (Mewtwo decisions) remains at the rung-1 boundary**: P4's
-  verdict (2026-08-02: NO drill policy reads techs — conversion is
-  coverage, not reaction; 584 episodes, 4 checkpoints) sharpens rung 1
-  into a concrete spec: the expert must supervise reaction-conditioned
-  decisions AND the tech-episode frames must be upweighted (the
-  P4 offset curve is the acceptance test).
-- **P5 curation loop validated both directions** (2026-08-03 cycles:
-  whole-rollout mixing destroys core skill; snippet mixing via
-  `--snippet-frames` is safe). The fight-state/pressure gap is open
-  pending the HUMAN replay corpus (always `--replay-dir`, GOTCHA #84).
+Multishine proven at rungs 0/2/4 with the recorded-teacher-clip method,
+held-out validated, playable locally (`LOCAL_MULTISHINE_DEMO.md`). The
+method (proof contract, teacher clips cold+warm, gates in fixed order,
+declared held-out) is the template for any drill. Historical detail:
+`MULTISHINE_PIPELINE_PROOF.md`, `LATENCY_ARCHITECTURE.md`. Open: no
+default multishine policy installed in the play scripts.
 
 ---
 
-## Milestone: Direct exhibition
+## Track C — the Coach (long-term)
 
-**Still a goal. Gated on beating someone** — the bot takes **≥ 1 stock off a
-real human** in a Slippi Direct match. Not "looks presentable," not a date.
-
-**Standing hard rule (unchanged):** Slippi **Direct only, with consent**. The
-bot never queues ranked or unranked matchmaking — the ruleset forbids bots.
-Bot account: EXPH#288.
+Unchanged (`COACH_ROADMAP.md`). Two of its prerequisites moved this month:
+the identity model (who is playing) exists, and the fingerprint instrument
+(what habits a player has) exists and is calibrated — the "what's good per
+situation" model does not.
 
 ---
 
-## Track C — the Coach (long-term goal, added 2026-08-10)
+## Method: the escalation ladder (still the rule)
 
-A teaching agent for human players: it knows what's good per
-character/matchup/percent/situation, steers a live game into a chosen
-drill situation, plays the opposition role, detects what the learner
-did, and gives feedback with a curriculum. (Bradley + brother-in-law's
-idea.) Full design: [COACH_ROADMAP.md](COACH_ROADMAP.md).
+1. Fix what the expert teaches — supervise the decision, not the buttons.
+2. More / better imitation data — identity conditioning is now real; the
+   corpus is 28k Fox games; the sim can generate on-distribution labels.
+3. RL only after 1 and 2 are exhausted — the sim makes this affordable
+   when its time comes.
 
-Why it lives here and not in NOT-goals: its prerequisite stack is the
-CURRENT program's own roadmap — the situation labeler
-([SITUATION_LABELS.md](SITUATION_LABELS.md)), an option vocabulary, a
-moment-inspection API + rewind viewer (interp's daily need unified),
-per-situation corpus statistics (the v0 "what's good" model), and the
-F5 value model. Only the curriculum/feedback product layer is new. The
-"knowledge model for every matchup" is the new capability goal; corpus
-sparsity in low-tier matchups is its known wall.
+---
+
+## Standing rules (accumulated)
+
+- Never crown on stand-dummy numbers; rank at the deploy rung.
+- Every retrain carries all validated mixes; declare a new round for a new
+  budget; keep failed rounds on disk.
+- Delayed recovery labels come only from recorded teacher clips.
+- No `mix` on the dev box while any exphil beam is live (NIF invalidation
+  kills it — includes CPU-only jobs).
+- Non-finite gradients are skipped and captured, never applied; a
+  divergence is replayed before any relaunch.
+- A conditioning channel is proven live only by a measurement that changes
+  when the channel changes.
+- Slippi Direct only, with consent; never matchmaking.
+
+---
 
 ## Explicitly NOT goals right now
 
-These are real and will come back; they are *deferred* so they stop competing
-for attention. Breadth before the core problem multiplies the bug.
-
-- **Five-character program (#33)** — the RAM ceiling that blocked it is gone
-  (streaming shards, `ExPhil.Data.TrainingShards`), but scale doesn't fix a
-  training signal that lacks decisions.
-- **Game & Watch (#23)** — corpus pulled and characterized (162 replays; mean
-  armed/min **2.40**, opener entropy **0.934**, vs the Mewtwo archive's 3.9 /
-  1.28). The data says G&W humans initiate *less*, so G&W inherits a **worse**
-  version of Track A's problem. Deliberately after Mewtwo.
-- **Architecture bake-off / broader backbone screening** — mamba_2 is fine; the
-  bottleneck is not the architecture.
-- **League / population play** — downstream of a bot that can play.
+- Architecture bake-offs (GRU is fine; the bottleneck was the optimizer and
+  the data channel, not the backbone).
+- Five-character program at scale — after Mewtwo decides.
+- League / population play — downstream of a bot that can beat a human.
+- Play-time search in the sim — a bespoke decode rule in spirit.
 
 ---
 
-## Next work (updated 2026-08-03; see newest HANDOFF for the live list)
+## Next work (2026-09-19)
 
-1. **Rung 1: teach the decision** (Track A) — now with the P4 offset
-   curve as the mechanistic acceptance test and tech-episode
-   upweighting as the named lever.
-2. **Fight-state/pressure gap** — human corpus collection
-   (`--replay-dir`!) + richer pressure labels; the P5 loop and
-   snippet-miner are ready.
-3. **Direct exhibition** — recipe is ready (ms_g6_sp1 @ d3); gated on
-   scheduling (ACAB#182 owed a match) + the stock-taking goal below.
-4. **Rung-composition theory + train-unroll-=-deploy-step** — the two
-   open engineering threads (LATENCY_ARCHITECTURE).
-5. **Technique-id conditioning** — "frame-perfect on command": two
-   techniques, one policy, one trigger channel; all machinery exists.
+1. **V3.1 finish + gates** on the final best (parity, held-out, live, D3
+   with n ≥ 10); then **V3.2** (unroll/clipping lever + V3.2 tag map).
+2. **Sim validation gate** (`MELEE_SIM_USES.md`): input-replay parity on
+   our Fox `.slp`, FD/BF first; then the observation/controller adapters.
+3. **A3 metric + fair-conversion event scorer** (Mewtwo §10 steps 3-4).
+4. `INVARIANTS.md` items for the guard/capture, liveness gate, artifact
+   self-consistency, arithmetic stamp; GOTCHAs for the NaN-clip mechanism
+   and the resume-schedule global-step trap.
+5. Identity V3.2 data recipe: merges + collisions applied, flat-prior
+   verdict on the holds, cheap gates.
+6. Direct exhibition with the generalist (D5) once V3.2 is in hand.
 
 ---
 

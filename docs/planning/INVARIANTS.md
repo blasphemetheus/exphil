@@ -283,6 +283,79 @@ Status: `[ ]` open · `[~]` in progress · `[x]` structural · `[g]` guarded onl
   raises at k > 0 unless `:hold` is asked for (a silent whole-list drop
   would be worse than the bug). Not yet run at the g-line rungs (3/4/5);
   the equal-budget hold-vs-drop comparison is open.
+## Tier 5 — added 2026-09-19 (the V3 generalist run surfaced them)
+
+### 15. [x] A non-finite gradient is skipped and captured, never applied (STRUCTURAL 2026-09-18)
+- **Fact:** `clip_by_global_norm` shares one scale across every gradient;
+  one Inf/NaN element makes the scale NaN, so every clipped gradient is NaN
+  and Adam writes NaN into every weight — while that step's LOSS is still
+  finite. The loss check can only fire one batch later, on a dead model.
+- **Was:** V3 diverged three times (04:53, 06:49, 07:35 on 09-18) with
+  nothing to examine; two blind reruns (lower LR) changed nothing. The
+  first capture showed 2,901,665 / 2,901,667 pre-update params non-finite
+  with clean inputs.
+- **Done:** `TrainLoop.train_step_bptt` checks `grads_finite?/1` (one
+  device→host scalar) and returns the trainer unchanged when false;
+  `Trainer` logs the skip, captures the first five such batches
+  (`fatal_batch_<step>.bin`: batch, incoming carry, PRE-update params +
+  optimizer state), counts them, and raises on 10 consecutive or > 1 %.
+  `scripts/replay_fatal_batch.exs` replays a capture (input hygiene,
+  forward-only loss, per-row loss, gradient non-finite/max) under the
+  trained arithmetic. Rule: a divergence is replayed before any relaunch.
+- **Test:** `nonfinite_grad_skip_test` (finite step updates; Inf-input
+  step is skipped with params byte-identical; `grads_finite?` on
+  NaN/Inf/finite trees), `fatal_batch_capture_test` (payload round-trips).
+- **Known limit:** skipping is a backstop, not a fix. V3.1 with weight
+  decay 0.05 still skips 10 → 41 → 188 per pass; the backward horizon
+  (unroll 80) or per-timestep gradient value clipping is the next lever.
+
+### 16. [x] A conditioning channel is proven live by a measurement that changes when the channel changes (2026-09-17)
+- **Fact:** a loss that descends says nothing about whether an input
+  channel is connected. `--learn-player-styles` trained against an
+  all-zero name channel on the erickfm corpus for two weeks (GOTCHA #117:
+  full-width cartridge tags never matched the ASCII registry); every
+  "context lever" readout in that window was made with `name_id == 0`.
+- **Done:** `heldout.exs` scores every held-out file twice — anonymous
+  (id 0) and registry-conditioned — and the gate is EXACT: scores differ
+  on precisely the files whose tag is in the train registry, identical
+  elsewhere (`tagmap_seed_905/heldout.json`: 6 of 16). Live parity:
+  `NameConditioningLiveParityTest` — the Agent's single-frame embed with
+  `name_id` k equals the trainer's batch row for id k, and `--style-tag`
+  resolves through the same registry JSON to the trainer's id. Effect
+  size: `resume3/style_probe/` — `--style-tag` moves the bot's jump
+  button and c-stick habits to the named player's.
+- **Rule:** any new conditioning input (delay id, style id, technique id)
+  ships with a paired measurement of this shape before a long run.
+
+### 17. [x] An exported artifact validates the way production loads it (2026-09-17)
+- **Fact:** `Forward.load!` merges the `_config.json` sidecar; the live
+  Agent (`Training.load_policy`) does not. The BPTT execution contract
+  required `precision == :f32`; the export never wrote `precision`; every
+  stamped BPTT policy was refused by `play_dolphin` — no BPTT export had
+  ever been played (GOTCHA #118). Same class: `play_dolphin.exs` parsed
+  `--style-tag` and dropped it (found by the live gate).
+- **Done:** `Checkpoint.export_policy` writes `precision` +
+  `mixed_precision`; the contract loader accepts a missing key only for
+  pre-09-17 artifacts; `bptt_test` "train, export, load without a
+  sidecar" validates through `Training.load_policy` +
+  `ExecutionContract.validate_inference!`; the sync play script prints
+  `Style: TAG -> id N` and aborts on an unresolved tag.
+- **Rule:** gates load artifacts through the production loader, never
+  only through the evaluation loader.
+
+### 18. [x] Resolved arithmetic and data provenance are stamped where the artifact is, not where the launcher was (2026-09-17)
+- **Fact:** `--precision f32` does not pin GPU dot arithmetic; parity
+  failed at 2.8e-3 under default and passed at 2e-6 under
+  `EXPHIL_EXLA_PRECISION=highest`. The 09-15 "verified" seed had no
+  record of which arithmetic it used.
+- **Done:** `train.exs` banner prints `EXLA arithmetic: <resolved>`;
+  `Config.build_config_json` stamps `exla_precision` and
+  `player_tag_map`; held-out scoring reads the tag map from the artifact's
+  config. Related trap (09-19): `--resume` restores the optimizer's step
+  counter, so LR-schedule horizons are GLOBAL steps — verify the schedule
+  value at the resume step before launching (V3.1: 4.9e-5 at 215k).
+
+
 ## What's left (2026-09-12 15:00 — v3 is gated on this list being empty)
 
 Open: item 13's structural form (handoff API); the sync/async floor
