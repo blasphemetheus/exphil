@@ -1,0 +1,109 @@
+{
+  "protocol": "sim_gate_v1",
+  "created": "2026-09-19",
+  "sim_tool": "melee-sim-light tools/validation/validate_replay.py --backend native --no-build",
+  "replays": [
+    {
+      "path": "/home/blewf/git/exphil/checkpoints/fox_v3_20260917_050901_resume3/live_fd_p1/replays/Game_20260918T150719.slp",
+      "source": "bot_vs_cpu",
+      "sha256": "7946ced887a36083eb45ad45eaf34daef75ac2fc8047be164c3817ed285cb996",
+      "bytes": 704505
+    },
+    {
+      "path": "/home/blewf/git/exphil/checkpoints/fox_v3_20260917_050901_resume3/style_probe/314/g1/replays/Game_20260918T190241.slp",
+      "source": "bot_vs_cpu",
+      "sha256": "a8d8ede4357cf54f74149832024203852fb4652c30fb3a5e3f0c97702f5bb4aa",
+      "bytes": 691095
+    },
+    {
+      "path": "/home/blewf/git/exphil/checkpoints/fox_v3_20260917_050901_resume3/style_probe/anon/g1/replays/Game_20260918T185933.slp",
+      "source": "bot_vs_cpu",
+      "sha256": "7bf3018e9e19c9349b2cf26329c30c058c41c301cb622a24c8dc7465d689a5cc",
+      "bytes": 690330
+    },
+    {
+      "path": "/home/blewf/git/exphil/checkpoints/fox_v3_20260917_050901_resume3/style_probe/C2/g1/replays/Game_20260918T190419.slp",
+      "source": "bot_vs_cpu",
+      "sha256": "a542ec8074b0c7cc26cbd22b4c8c5c3b7940732e8aae2d2e968a083920eeaa88",
+      "bytes": 701535
+    },
+    {
+      "path": "/home/blewf/git/exphil/checkpoints/fox_v3_20260917_050901_resume3/style_probe/SKWA/g1/replays/Game_20260918T190110.slp",
+      "source": "bot_vs_cpu",
+      "sha256": "dbdf0a6f4a0a70ee80f5117dd67e096642a4534fd135bd7976c21acbcdfc74b6",
+      "bytes": 704280
+    },
+    {
+      "path": "/home/blewf/git/exphil/checkpoints/fox_v3_20260917_050901_resume3/style_probe/USSR/g1/replays/Game_20260918T190549.slp",
+      "source": "bot_vs_cpu",
+      "sha256": "92eb3d24ee3cbc18ad76b3ac592f1478cba611b6808310baf6a375606ed6b862",
+      "bytes": 694335
+    },
+    {
+      "path": "/home/blewf/git/exphil/eval_runs/0915_fox_v3_preflight/live/fd_fox_p1_anonymous/replays/Game_20260917T022615.slp",
+      "source": "bot_vs_cpu",
+      "sha256": "7b8e8a5799c93241d409ba05cf7cb4f8d6d263294f55f60514899171a5f490b0",
+      "bytes": 693615
+    },
+    {
+      "path": "/home/blewf/git/exphil/eval_runs/0915_fox_v3_preflight/live/fod_falco_p1_style/replays/Game_20260917T023835.slp",
+      "source": "bot_vs_cpu",
+      "sha256": "35a89c4a3b386171093621754dc26f65f2b23343c8239f708071a0c422c82f8d",
+      "bytes": 688791
+    },
+    {
+      "path": "/data/exphil/replays/erickfm_ranked/partners/FALCO/batch_00/00_39_58 Falco + [TITP] Fox (YI).slp",
+      "source": "human_erickfm",
+      "sha256": "2e94bb24728e76523be5724fdc0ef4b64f1498f99f7f0b15ac1da9da25807272",
+      "bytes": 106
+    },
+    {
+      "path": "/data/exphil/replays/erickfm_ranked/partners/MARTH/00_48_53 [RUDE] Marth + Fox (YI).slp",
+      "source": "human_erickfm",
+      "sha256": "460d0c1a908b421d1dd4967c0035526e1862a735e8687065396ca775adcb9c52",
+      "bytes": 97
+    },
+    {
+      "path": "/data/exphil/replays/erickfm_ranked/partners/MARTH/00_51_07 [RUDE] Marth + Fox (FD).slp",
+      "source": "human_erickfm",
+      "sha256": "e587a7dd489aa19151f067a3a24b229ee276dcf4c30c1138d141852cea8cffdd",
+      "bytes": 97
+    },
+    {
+      "path": "/data/exphil/replays/erickfm_ranked/partners/MARTH/00_56_35.789Z Marth + [MS] Fox (FD).slp",
+      "source": "human_erickfm",
+      "sha256": "c6548f63fa78008b3442d77249b88816021d5bebf0c53c9a78d427be65e05e30",
+      "bytes": 100
+    },
+    {
+      "path": "/data/exphil/replays/erickfm_ranked/partners/MARTH/batch_00/01_38_00 [RUDE] Marth + [314] Fox (BF).slp",
+      "source": "human_erickfm",
+      "sha256": "a896e1a25cc785a8b23056b729e804b611dc0c1beb4b70a143ced7773fbbb35c",
+      "bytes": 112
+    },
+    {
+      "path": "/data/exphil/replays/erickfm_ranked/partners/MARTH/03_31_48 [RUDE] Fox + [INFP] Marth (BF).slp",
+      "source": "human_erickfm",
+      "sha256": "350d0d83af68349f99c85e07f4609d23cf8ae7b5ed34bb412712d1e8855a7575",
+      "bytes": 104
+    },
+    {
+      "path": "/home/blewf/git/exphil/replays_root/yeti/raw/Yeti Weekly #243/Station 7/20_15_36 [MARS] Fox + [ZUR] Marth (PS).slp",
+      "source": "human_yeti",
+      "sha256": "9bd0267252a8849dacbcedc9a211dc6bde9a444fbae31bab93da7f8d231b764a",
+      "bytes": 2661146
+    },
+    {
+      "path": "/home/blewf/git/exphil/replays_root/yeti/raw/Yeti Weekly #243/Station 7/20_25_53 [MARS] Fox + Fox (YS).slp",
+      "source": "human_yeti",
+      "sha256": "de8a336f401bdc3298c7763aece91b194290ac428d6896cca03de5644001546c",
+      "bytes": 2779002
+    },
+    {
+      "path": "/home/blewf/git/exphil/replays_root/yeti/raw/Yeti Weekly #243/Station 7/20_19_33 [MARS] Fox + Fox (BF).slp",
+      "source": "human_yeti",
+      "sha256": "6d4bbe5257a052e4d6f49a27b2175c1b9482a9dac97e80ee80dcd4b98e9c9ee8",
+      "bytes": 2520554
+    }
+  ]
+}

@@ -1,0 +1,14 @@
+replays: 8
+classifications: entries=26 policy=exact source=replays/suites/melee_core_classifications.json
+output_locks: entries=549 source=replays/suites/melee_core_output_locks.json
+
+[native] workers=8
+PASS         1,924/1,924     1.335s     1,442 fps /home/blewf/git/exphil/checkpoints/fox_v3_20260917_050901_resume3/live_fd_p1/replays/Game_20260918T150719.slp
+PASS         1,924/1,924     1.380s     1,394 fps /home/blewf/git/exphil/checkpoints/fox_v3_20260917_050901_resume3/style_probe/314/g1/replays/Game_20260918T190241.slp
+PASS         1,924/1,924     1.315s     1,463 fps /home/blewf/git/exphil/checkpoints/fox_v3_20260917_050901_resume3/style_probe/anon/g1/replays/Game_20260918T185933.slp
+PASS         1,924/1,924     1.319s     1,459 fps /home/blewf/git/exphil/checkpoints/fox_v3_20260917_050901_resume3/style_probe/C2/g1/replays/Game_20260918T190419.slp
+PASS         1,924/1,924     1.330s     1,447 fps /home/blewf/git/exphil/checkpoints/fox_v3_20260917_050901_resume3/style_probe/SKWA/g1/replays/Game_20260918T190110.slp
+PASS         1,924/1,924     1.337s     1,439 fps /home/blewf/git/exphil/checkpoints/fox_v3_20260917_050901_resume3/style_probe/USSR/g1/replays/Game_20260918T190549.slp
+PASS         1,924/1,924     1.332s     1,445 fps /home/blewf/git/exphil/eval_runs/0915_fox_v3_preflight/live/fd_fox_p1_anonymous/replays/Game_20260917T022615.slp
+PASS         1,924/1,924     1.313s     1,466 fps /home/blewf/git/exphil/eval_runs/0915_fox_v3_preflight/live/fod_falco_p1_style/replays/Game_20260917T023835.slp
+[native] summary: pass=8 classified=0 xpass=0 fail=0 error=0 frames=15,392 wall=1.422s aggregate_fps=10,824 runner_cpu=10.659s

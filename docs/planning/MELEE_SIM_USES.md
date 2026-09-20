@@ -111,3 +111,29 @@ against Dolphin on the same prefix. Only then does use 1 become evidence.
   Dolphin harness's observation code.
 - Reward/event definitions for 2 and 4 live in ExPhil
   (`MEWTWO_NEUTRAL_TO_COMBO_HANDOFF.md` §10), not in the sim.
+
+## Validation gate — first run 2026-09-19 (`eval_runs/0919_sim_gate/`)
+
+Tool: the sim's own strict validator (`tools/validation/validate_replay.py
+--backend native --no-build`, exact projection with classifications, not
+tolerances), run from an exphil-side manifest (`manifest.json`, 17 replays
+with sha256/provenance; `run_gate.sh`). Other sessions were rebuilding the
+sim concurrently, so only existing binaries were used (`--no-build`).
+
+| lane | replays | result |
+| --- | ---: | --- |
+| **bot vs CPU** (V3 Fox, FD/FoD, CPU 6, Slippi mainline headless, 2026-09-17/18) | 8 | **8/8 PASS, 15,392/15,392 frames exact** with `--diagnostic-signed-zero-equal`; without it 6 FAIL on exactly one field, `speed_y_attack` of the CPU port, `0` vs `-0` (36 rows / 1,924 frames) — the known `fnmsub` signed-zero class (`HUMAN_REPLAY_FAILURES.md`). ~1,450 fps per replay. |
+| human erickfm (2020, FD/BF/YS) | 6 | ERROR `replay start scene major is missing` — parser, not parity |
+| human Yeti (2020) | 3 | same ERROR |
+
+Reading: for the exact-input lane the sim reproduces our games bit-for-bit
+modulo signed zero → uses 1 (eval replacement) and 2 (state-conditioned
+drills) are unblocked for Fox on the tested stages. The 2020 corpora fail
+before simulation because `native.c` requires `start.scene.major` to
+decide whether the Slippi online code set (fnmsub-zero, offscreen damage,
+…) governed the match; pre-3.x replays don't carry the scene block. Ask
+for the sim sessions: an explicit per-source arithmetic/code-set profile
+(`--scene-major` or a manifest field), mirroring exphil's `accurate_nmsub`
+declaration — the ambiguity is real (old netplay vs local), so it must be
+declared, not inferred. Next: run the human lane once that lands; then
+the observation/controller adapters.
