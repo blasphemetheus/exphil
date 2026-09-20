@@ -4,8 +4,16 @@ alias ExPhil.Training.{Data, PlayerRegistry, Streaming}
 
 [policy] = System.argv()
 base = Path.dirname(__ENV__.file)
-rows = File.read!(Path.join(base, "corpus.json")) |> Jason.decode!() |> Map.fetch!("rows")
-files = Enum.filter(rows, &(&1["split"] == "01_validation"))
+# HELDOUT_CORPUS=full uses the full-corpus inventory's validation split (the
+# trainer's own 16 hashed val files) instead of the preflight's 16 tagged files.
+{corpus_file, split, out_name} =
+  case System.get_env("HELDOUT_CORPUS") do
+    "full" -> {"full_corpus.json", "validation", "heldout_full.json"}
+    _ -> {"corpus.json", "01_validation", "heldout.json"}
+  end
+
+rows = File.read!(Path.join(base, corpus_file)) |> Jason.decode!() |> Map.fetch!("rows")
+files = Enum.filter(rows, &(&1["split"] == split))
 unless length(files) == 16, do: raise("expected all 16 held-out files")
 artifact = Forward.load!(policy)
 
@@ -34,7 +42,7 @@ results =
     hash = :crypto.hash(:sha256, File.read!(path)) |> Base.encode16(case: :lower)
     unless hash == row["sha256"], do: raise("replay changed: #{path}")
     {:ok, metadata} = Peppi.metadata(path)
-    {:ok, subject} = SubjectResolver.resolve(metadata.players, subject_character: :fox)
+    {:ok, subject} = SubjectResolver.resolve(metadata.players, subject_character: :fox, ditto_tie_break: :port1)
 
     {:ok, frames, []} =
       Streaming.parse_chunk([{path, subject.subject_port}],
@@ -93,5 +101,5 @@ report = %{
   elapsed_ms: System.monotonic_time(:millisecond) - started
 }
 
-File.write!(Path.join(Path.dirname(policy), "heldout.json"), Jason.encode!(report, pretty: true))
+File.write!(Path.join(Path.dirname(policy), out_name), Jason.encode!(report, pretty: true))
 IO.puts(Jason.encode!(Map.drop(report, [:files]), pretty: true))

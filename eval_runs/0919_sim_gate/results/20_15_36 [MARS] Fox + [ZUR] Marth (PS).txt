@@ -1,0 +1,8 @@
+replays: 1
+classifications: entries=26 policy=exact source=replays/suites/melee_core_classifications.json
+output_locks: entries=549 source=replays/suites/melee_core_output_locks.json
+
+[native] workers=1
+ERROR                    -   0.004s /home/blewf/git/exphil/replays_root/yeti/raw/Yeti Weekly #243/Station 7/20_15_36 [MARS] Fox + [ZUR] Marth (PS).slp
+      ValueError: replay start scene major is missing
+[native] summary: pass=0 classified=0 xpass=0 fail=0 error=1 frames=0 wall=1.270s aggregate_fps=0 runner_cpu=0.000s

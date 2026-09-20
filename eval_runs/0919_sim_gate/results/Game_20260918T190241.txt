@@ -1,0 +1,10 @@
+replays: 1
+classifications: entries=26 policy=exact source=replays/suites/melee_core_classifications.json
+output_locks: entries=549 source=replays/suites/melee_core_output_locks.json
+
+[native] workers=1
+FAIL         1,888/1,924     1.295s     1,486 fps /home/blewf/git/exphil/checkpoints/fox_v3_20260917_050901_resume3/style_probe/314/g1/replays/Game_20260918T190241.slp
+      mismatch_rows=36 prefix=907 suffix=167 first=785 last=1634 fields=36 fingerprint=f46bae7f9a5b0a4b
+      frame=785 speed_y_attack[1]: expected=0 (0x00000000) actual=-0 (0x80000000)
+      mismatch_fields: speed_y_attack[1]=36@785..1634
+[native] summary: pass=0 classified=0 xpass=0 fail=1 error=0 frames=1,924 wall=1.328s aggregate_fps=1,448 runner_cpu=1.295s

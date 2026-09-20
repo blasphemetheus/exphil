@@ -1,0 +1,7 @@
+replays: 1
+classifications: entries=26 policy=exact source=replays/suites/melee_core_classifications.json
+output_locks: entries=549 source=replays/suites/melee_core_output_locks.json
+
+[native] workers=1
+PASS         1,924/1,924     1.267s     1,518 fps /home/blewf/git/exphil/eval_runs/0915_fox_v3_preflight/live/fd_fox_p1_anonymous/replays/Game_20260917T022615.slp
+[native] summary: pass=1 classified=0 xpass=0 fail=0 error=0 frames=1,924 wall=1.285s aggregate_fps=1,498 runner_cpu=1.267s

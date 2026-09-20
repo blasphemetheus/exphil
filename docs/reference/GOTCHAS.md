@@ -4177,3 +4177,18 @@ before simulation ("replay start scene major is missing"), while the
 exact-input bot-vs-CPU lane reproduces bit-for-bit modulo signed zero
 (`--diagnostic-signed-zero-equal`). The profile has to be DECLARED per
 source (like exphil's `accurate_nmsub`), not inferred from names.
+
+## #122 — The preflight "held-out" split is inside the full run's training set (2026-09-20)
+
+`eval_runs/0915_fox_v3_preflight/corpus.json`'s `01_validation` files (16
+tagged games) were held out from the PREFLIGHT fit only. The full run
+re-hashes the whole source directory into its own `full_corpus.json`
+split, and all 16 landed in `train` (0 in `validation`). Every
+`heldout.json` number produced for a full-run checkpoint against that
+split is train-fit, not generalization — which is how V3-215k looked
+"better held-out" (1.94) than V3.1-ep3 (2.11) while being worse on the
+real validation split (2.32 vs 2.07). Rule: a held-out split belongs to
+the run whose corpus file defines it; score full-run checkpoints with
+`HELDOUT_CORPUS=full` (→ `heldout_full.json`), and print the
+train-overlap count (`comm -12` on sha256s) before believing any
+held-out number.
