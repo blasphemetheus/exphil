@@ -534,3 +534,17 @@ or claim the remote pair supports today's code. Nothing was pushed.
   export-contract tests (`nonfinite_grad_skip_test`, `fatal_batch_capture_test`,
   `bptt_style_pipeline_test`, `name_conditioning_test`, `bptt_test`) are the
   regressions R3 should select when it lands.
+- **R6 narrowing (09-20):** `systemd-run --user … devenv shell -- sh -c 'exit 1'`
+  reports `code=exited, status=1/FAILURE` — devenv and systemd both propagate.
+  The 09-18 success-on-raise therefore comes from `mix run` itself (the
+  trainer raise happens off the script's main process, or the script's own
+  handler returns normally). Next test (needs a free beam):
+  `devenv shell -- mix run -e 'raise "x"'` vs a raise inside the training
+  callback path; fix = `System.halt(1)`/`exit({:shutdown, 1})` from the
+  train.exs rescue, and the status artifact written by the callbacks.
+- **R6 root cause (09-20):** `mix run -e 'spawn(fn -> raise "x" end); Process.sleep(500)'`
+  exits 0 while a raise on the main process exits 1. The trainer raise
+  lives in a spawned process, so the script exits 0 → unit success. Fix in
+  `scripts/train.exs`: run the fit under `Task.async` + `Task.await`
+  (re-raises in the caller) or monitor and `System.halt(1)` on abnormal
+  `:DOWN`; add a test with a fake process.
