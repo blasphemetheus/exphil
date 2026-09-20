@@ -4138,3 +4138,42 @@ older artifacts. Same session, same shape (parsed at the edge, dropped
 before the consumer): `play_dolphin.exs` swallowed `--style-tag`, and no
 log recorded the resolved EXLA arithmetic. Print the RESOLVED value at the
 consumer, and gate on an artifact loaded the way production loads it.
+
+## #119 (2026-09-18): one non-finite gradient element NaNs every weight through global-norm clipping — with a finite loss
+
+`clip_by_global_norm` divides every gradient by one shared norm; a single
+Inf/NaN element makes that norm NaN, every scaled gradient NaN, and Adam
+writes NaN into all 2.9 M parameters in one update. The step's own loss was
+finite, so the NaN check fired one batch later on a dead model. V3 diverged
+three times this way; the fatal-batch capture (`Trainer.capture_fatal_batch/5`,
+`scripts/replay_fatal_batch.exs`) showed 2,901,665/2,901,667 pre-update
+params non-finite with clean inputs. Root mechanism: gradient explosion
+through the layer-2 GRU recurrence over the 80-step unroll, on hidden kernels
+that had grown to ‖W‖₂ ≈ 57 with no weight decay, amplified by dropout's
+1/0.9 rescale. Fixes: `TrainLoop.train_step_bptt` skips non-finite-gradient
+updates (INVARIANTS 15); `--weight-decay 0.05` reverses the norm drift
+(57.6 → 53.0 over two passes); cosine LR. Still open: skips escalate late in
+training (10 → 41 → 188 per pass) even with norms falling — the backward
+horizon (unroll 40) or per-timestep gradient value clipping is the next lever.
+Never "just lower the LR" on a divergence: replay the capture first.
+
+## #120 (2026-09-19): `--resume` restores the optimizer step counter, so LR-schedule horizons are GLOBAL steps
+
+A cosine/linear schedule reads the optimizer's internal count, and
+`--resume <axon>` restores it (215,000 for V3.1). `--decay-steps 196000`
+would have put the resumed run *past* the end of its schedule (LR ≈ 0 from
+the first step). Set the horizon as resume step + planned steps
+(`--decay-steps 411000`) and choose the base LR so the schedule delivers the
+intended value at the resume step; verify by evaluating
+`Optimizer.build_lr_schedule/1` at the resume step before launching (V3.1:
+1.06e-4 base → 4.9e-5 at 215k → 0 at 411k).
+
+## #121 (2026-09-19): melee-sim-light's validator needs `start.scene.major`; pre-3.x replays have none
+
+The sim uses the scene major (8 = Slippi online) to decide whether the
+online code set (fnmsub-zero arithmetic, offscreen damage, …) governed the
+match. Our 2020 erickfm/Yeti replays predate the scene block and error out
+before simulation ("replay start scene major is missing"), while the
+exact-input bot-vs-CPU lane reproduces bit-for-bit modulo signed zero
+(`--diagnostic-signed-zero-equal`). The profile has to be DECLARED per
+source (like exphil's `accurate_nmsub`), not inferred from names.
