@@ -157,19 +157,22 @@ situation" model does not.
 
 ---
 
-## Next work (2026-09-19)
+## Next work (2026-09-20) — three lines, three docs
 
-1. **V3.1 finish + gates** on the final best (parity, held-out, live, D3
-   with n ≥ 10); then **V3.2** (unroll/clipping lever + V3.2 tag map).
-2. **Sim validation gate** (`MELEE_SIM_USES.md`): input-replay parity on
-   our Fox `.slp`, FD/BF first; then the observation/controller adapters.
-3. **A3 metric + fair-conversion event scorer** (Mewtwo §10 steps 3-4).
-4. `INVARIANTS.md` items for the guard/capture, liveness gate, artifact
-   self-consistency, arithmetic stamp; GOTCHAs for the NaN-clip mechanism
-   and the resume-schedule global-step trap.
-5. Identity V3.2 data recipe: merges + collisions applied, flat-prior
-   verdict on the holds, cheap gates.
-6. Direct exhibition with the generalist (D5) once V3.2 is in hand.
+The program now runs as three parallel lines, each with its own planning
+doc, goals, and status ledger. GOALS.md stays the big picture; the docs
+hold the plans.
+
+1. **Imitation squeeze** — `IMITATION_SQUEEZE.md`: pilot-first (5 %
+   matched-seed fits + cliff resumes), no long run until the pilots pick
+   the levers; V3.2 assembled from the winners.
+2. **RL on the prior** — `RL_ON_PRIOR.md`: self-play/PPO on V3.1-ep3 in
+   melee-sim-light, KL-to-prior, gates R0–R5 (R0 = sim adapter parity).
+3. **Coach and style products** — `COACH_STYLE_PRODUCTS.md`: style report
+   card, play-like-X slot fine-tune, sparring launcher, C1–C3 overlays.
+
+Still queued from before: sim validation gate human lane (needs the
+declared scene profile), Direct exhibition (D5, shared with R5).
 
 ---
 
