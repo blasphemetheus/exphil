@@ -11,7 +11,8 @@ defmodule ExPhil.Eval.AerialChain do
   mid-interaction — the same definition `FailureScan.dropped_punish/2`
   uses, so A2/A3 count the same openings.
 
-  From an opening, **connected aerials** are subsequent hit edges on the
+  From an opening, **connected aerials** count the opening hit itself when it
+  is an aerial, plus subsequent hit edges on the
   defender where the attacker is in an aerial attack state (65..69) and the
   defender has not been actionable since the previous hit. Actionability is
   inferred from action ids only (the slim shape has no hitlag/IASA data):
@@ -81,7 +82,7 @@ defmodule ExPhil.Eval.AerialChain do
     stock0 = first.p2.stock
 
     {hits, aerials, connected, i, reason} =
-      Enum.reduce_while((start + 1)..last//1, {1, aerial?(first.p1.action), 0, start, :window}, fn i,
+      Enum.reduce_while((start + 1)..last//1, {1, b2i(aerial?(first.p1.action)), b2i(aerial?(first.p1.action)), start, :window}, fn i,
                                                                                           {hits, aerials, connected, _, _} ->
         f = elem(arr, i)
         prev = elem(arr, i - 1)
@@ -121,9 +122,9 @@ defmodule ExPhil.Eval.AerialChain do
     do: not (MapSet.member?(@hitstun, action) or MapSet.member?(@lifecycle, action) or MapSet.member?(@landing, action))
 
   defp neutral_before?(arr, i, lookback) do
-    lo = max(i - lookback, 0)
+    lo = i - lookback
 
-    lo < i and
+    lo >= 0 and
       Enum.all?(lo..(i - 1)//1, fn j ->
         f = elem(arr, j)
         not MapSet.member?(@non_neutral, f.p1.action) and not MapSet.member?(@non_neutral, f.p2.action)

@@ -232,7 +232,7 @@ defmodule ExPhil.Training.Trainer do
           | epoch: epoch,
             epoch_losses: [],
             batch_idx: 0,
-            meta: Map.drop(st.meta, [:bptt_loss_sum, :bptt_loss_weight])
+            meta: Map.drop(st.meta, [:bptt_loss_sum, :bptt_loss_weight, :epoch_skipped_steps])
         }
 
         epoch_start = System.monotonic_time(:second)
@@ -370,14 +370,18 @@ defmodule ExPhil.Training.Trainer do
       st =
         if metrics[:skipped] do
           skips = Map.get(st.meta, :skipped_steps, 0) + 1
+          # per-epoch count for the rate rule: the fit-wide total kept
+          # growing across epochs and tripped ">1 % of THIS epoch's batches"
+          # at batch 4,288 of V3.1's final epoch (189 > 42) — 09-19.
+          epoch_skips = Map.get(st.meta, :epoch_skipped_steps, 0) + 1
           streak = Map.get(st.meta, :skip_streak, 0) + 1
-          ExPhil.Training.Output.warning("non-finite gradient at batch #{batch_idx + 1} (epoch #{st.epoch}, loss #{Float.round(loss, 4)}) — update skipped (#{skips} total)")
+          ExPhil.Training.Output.warning("non-finite gradient at batch #{batch_idx + 1} (epoch #{st.epoch}, loss #{Float.round(loss, 4)}) — update skipped (#{epoch_skips} this epoch, #{skips} total)")
           if skips <= 5, do: capture_fatal_batch(st, batch, carry, :nonfinite_grad, batch_idx)
 
-          if streak >= 10 or (batch_idx > 1000 and skips > batch_idx / 100),
-            do: raise("Training unstable: #{skips} non-finite-gradient steps (streak #{streak}) by batch #{batch_idx + 1}")
+          if streak >= 10 or (batch_idx > 1000 and epoch_skips > batch_idx / 100),
+            do: raise("Training unstable: #{epoch_skips} non-finite-gradient steps this epoch (streak #{streak}) by batch #{batch_idx + 1}")
 
-          %{st | meta: st.meta |> Map.put(:skipped_steps, skips) |> Map.put(:skip_streak, streak)}
+          %{st | meta: st.meta |> Map.put(:skipped_steps, skips) |> Map.put(:epoch_skipped_steps, epoch_skips) |> Map.put(:skip_streak, streak)}
         else
           %{st | meta: Map.put(st.meta, :skip_streak, 0)}
         end

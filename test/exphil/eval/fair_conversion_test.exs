@@ -38,12 +38,15 @@ defmodule ExPhil.Eval.FairConversionTest do
     assert hd(FairConversion.trials(whiffed)).outcome == :whiffed
   end
 
-  test "stock change inside the window and overlapping trials are reported, not scored" do
+  test "stock change inside the window is reported; a fair contact inside an active trial is consumed, not a new trial" do
     stock = [f(0, 29, 14), f(1, 66, 75), f(2, 66, 75), f(3, 66, 75, s2: 3)]
     assert hd(FairConversion.trials(stock)).outcome == :stock
 
     overlapping = [f(0, 29, 14), f(1, 66, 75), f(2, 29, 14), f(3, 66, 75), f(4, 29, 14)] ++ for(i <- 5..130, do: f(i, 14, 14))
-    outcomes = FairConversion.trials(overlapping) |> Enum.map(& &1.outcome)
-    assert :invalid in outcomes
+    [t] = FairConversion.trials(overlapping)
+    assert t.outcome == :string_hit and t.second_contact_frame == 3
+
+    at_contact = [f(0, 29, 14, s2: 4), f(1, 66, 75, s2: 3)]
+    assert hd(FairConversion.trials(at_contact)).outcome == :invalid
   end
 end

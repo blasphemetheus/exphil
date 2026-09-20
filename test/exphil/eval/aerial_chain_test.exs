@@ -39,7 +39,7 @@ defmodule ExPhil.Eval.AerialChainTest do
   test "openings require a neutral lead-in; combo hits are not new openings" do
     frames = neutral(70) ++ [f(70, 66, 75), f(71, 66, 75), f(72, 29, 42), f(73, 65, 84), f(74, 29, 14)]
     assert length(AerialChain.openings(frames)) == 1
-    assert AerialChain.openings(neutral(10) ++ [f(10, 66, 75)]) == [] or length(AerialChain.openings(neutral(10) ++ [f(10, 66, 75)])) == 0
+    assert AerialChain.openings(neutral(10) ++ [f(10, 66, 75)]) == []
   end
 
   test "a stock change ends the chain" do

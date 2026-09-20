@@ -63,10 +63,15 @@ defmodule ExPhil.Eval.FairConversion do
           do: i
 
     {ts, _} =
+      # a fair contact inside an active trial's window is that trial's second
+      # hit (or a string hit), never a fresh trial
       Enum.reduce(contacts, {[], -1}, fn i, {acc, busy_until} ->
-        t = classify(arr, i, min(i + window, n - 1))
-        t = if i <= busy_until, do: %{t | outcome: :invalid}, else: t
-        {[t | acc], if(t.outcome == :invalid, do: busy_until, else: t.window_end)}
+        if i <= busy_until do
+          {acc, busy_until}
+        else
+          t = classify(arr, i, min(i + window, n - 1))
+          {[t | acc], if(t.outcome == :invalid, do: busy_until, else: t.window_end)}
+        end
       end)
 
     ts |> Enum.reverse() |> Enum.map(&Map.delete(&1, :window_end))
