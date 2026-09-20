@@ -507,3 +507,30 @@ or claim the remote pair supports today's code. Nothing was pushed.
   proof, then warmed/held-out recovery. An existing omitted --snapshot-all CLI
   error is tracked separately; the proof recipe already sets the flag.
 - [Details](EPOCH_METRIC_CORRECTION_2026-09-13.md).
+
+### 2026-09-19 — Triage against the V3/V3.1 week (no boxes closed; three partially advanced)
+
+- **R4 provenance (partial):** every training artifact now stamps
+  `exla_precision` and `player_tag_map` (`Config.build_config_json/2`), and
+  the banner prints the resolved EXLA arithmetic (INVARIANTS 18). Run dirs
+  carry `git_head` + `git_dirty.txt` + a copied tag map — written by hand in
+  the launch command, not by the launcher; the R4 launcher-side recording of
+  ExPhil/Edifice/libmelee_ex/Nx identities remains open.
+- **R5 evaluation identity (partial):** `heldout.exs` verifies the sha256 of
+  every held-out file and complete causal frame coverage before scoring, and
+  scores anonymous vs registry conditioning as a paired measurement
+  (INVARIANTS 16); live sessions record stage/opponent/port/latency/decoding
+  in `session.json` + `report.json`; the sim gate has a hashed manifest
+  (`eval_runs/0919_sim_gate/manifest.json`). The versioned evaluation record
+  and the ranking-tool identity rejection are still open.
+- **R6 run completion (finding, open):** a raise inside `mix run` under
+  `devenv shell --` ended with `sh failed with exit status 1` but the
+  systemd unit reported `Result=success ExecMainStatus=0` three times on
+  09-18. Any watchdog keyed on unit failure would have missed every V3
+  divergence; the launcher must propagate the mix exit status (or the
+  callbacks must write a completion record, per R6) before the next
+  unattended long run.
+- **R3 CI:** untouched; the new trainer guard/capture, tag-map, liveness and
+  export-contract tests (`nonfinite_grad_skip_test`, `fatal_batch_capture_test`,
+  `bptt_style_pipeline_test`, `name_conditioning_test`, `bptt_test`) are the
+  regressions R3 should select when it lands.
