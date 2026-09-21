@@ -30,6 +30,8 @@ Output.config([{"Pool", opts[:pool] || "(built from play)"}, {"Defender", defend
 
 batched = Keyword.get(opts, :batched, true)
 {:ok, sim} = SimPort.start_link(stage: "final_destination", players: [%{character: "fox", costume: 1}, %{character: "fox", costume: 0}], length: 256, seed: seed)
+# the batched pool builder and the batched search both need the sim at batch n from the start
+if batched, do: {:ok, _} = SimPort.reinit(sim, %{stage: "final_destination", players: [%{character: "fox", costume: 1}, %{character: "fox", costume: 0}], batch_size: n, length: 256, seed: seed})
 
 {pool, defender} =
   case defender_kind do
@@ -49,14 +51,14 @@ batched = Keyword.get(opts, :batched, true)
       {:ok, a} = Agent.start_link(agent_opts); {:ok, _} = Agent.warmup(a)
       {:ok, d} = Agent.start_link(agent_opts); {:ok, _} = Agent.warmup(d)
       Output.step(1, 2, "Building play pool (#{opts[:starts] || 100})")
-      pool = Drill.build_pool_from_play(sim, a, d, opts[:starts] || 100, seed: seed, max_distance: 50.0)
+      pool = if batched, do: Drill.build_pool_from_play_batch(sim, a, d, opts[:starts] || 100, n, seed: seed, max_distance: 50.0), else: Drill.build_pool_from_play(sim, a, d, opts[:starts] || 100, seed: seed, max_distance: 50.0)
       Drill.pool_to_disk(pool, Path.join(out, "pool.jsonl"))
       {pool, d}
   end
 
 Output.puts("pool: #{length(pool)} starts")
 Output.step(2, 2, "Shooting #{n} × #{horizon} frames per start (#{if batched, do: "batched: #{n} envs", else: "sequential"})")
-if batched, do: {:ok, _} = SimPort.request(sim, %{cmd: "init", stage: "final_destination", players: [%{character: "fox", costume: 1}, %{character: "fox", costume: 0}], batch_size: n, length: 256, seed: seed})
+if batched, do: {:ok, _} = SimPort.reinit(sim, %{stage: "final_destination", players: [%{character: "fox", costume: 1}, %{character: "fox", costume: 0}], batch_size: n, length: 256, seed: seed})
 labels_io = File.open!(Path.join(out, "labels.jsonl"), [:write, :utf8])
 results_io = File.open!(Path.join(out, "results.jsonl"), [:write, :utf8])
 t0 = System.monotonic_time(:millisecond)

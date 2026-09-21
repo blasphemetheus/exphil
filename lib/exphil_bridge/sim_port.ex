@@ -79,6 +79,9 @@ defmodule ExPhil.Bridge.SimPort do
   @doc "Restore env `i` from a `save` binary or a cached `{:id, state_id}`."
   def restore(server, env, state), do: GenServer.call(server, {:restore, env, state}, @default_timeout)
 
+  @doc "Re-initialize the match (same keys as the init request: stage, players, batch_size, length, seed...). Updates the cached frames and batch size."
+  def reinit(server, req) when is_map(req), do: GenServer.call(server, {:reinit, req}, @default_timeout)
+
   @doc "Raw request passthrough (`%{cmd: ...}`), for probes."
   def request(server, req), do: GenServer.call(server, {:raw, req}, @default_timeout)
 
@@ -187,6 +190,17 @@ defmodule ExPhil.Bridge.SimPort do
 
   def handle_call({:restore, env, bin}, _from, state) when is_binary(bin) do
     reply_frames(send_request(state.port, %{cmd: "restore", env: env, state: Base.encode64(bin)}), state)
+  end
+
+  def handle_call({:reinit, req}, _from, state) do
+    case send_request(state.port, Map.put(req, :cmd, "init")) do
+      {:ok, %{"frames" => rows} = resp} ->
+        frames = map_rows(rows, state.own_port)
+        {:reply, {:ok, frames}, %{state | frames: frames, batch_size: resp["batch_size"] || length(rows)}}
+
+      {:error, reason} ->
+        {:reply, {:error, reason}, state}
+    end
   end
 
   def handle_call({:raw, req}, _from, state), do: {:reply, send_request(state.port, req), state}

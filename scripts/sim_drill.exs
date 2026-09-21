@@ -39,6 +39,7 @@ t0 = System.monotonic_time(:millisecond)
 pool =
   case opts[:pool] || "play" do
     "walk" -> Drill.build_pool(sim, starts, seed: seed, max_distance: opts[:max_distance] || 50.0)
+    "play" when envs > 1 -> Drill.build_pool_from_play_batch(sim, attacker, defender, starts, envs, seed: seed, max_distance: opts[:max_distance] || 50.0)
     "play" -> Drill.build_pool_from_play(sim, attacker, defender, starts, seed: seed, max_distance: opts[:max_distance] || 50.0)
     "file" -> Drill.pool_from_file(opts[:pool_file] || raise("--pool-file required")) |> Enum.take(starts)
   end
@@ -47,7 +48,7 @@ Drill.pool_to_disk(pool, Path.join(out, "pool.jsonl"))
 Drill.pool_to_file(pool, Path.join(out, "pool.term"))
 
 Output.step(3, 3, "Rolling out (#{envs} envs per batch)")
-{:ok, _} = SimPort.request(sim, %{cmd: "init", stage: "final_destination", players: [%{character: "fox", costume: 1}, %{character: "fox", costume: 0}], batch_size: envs, length: 256, seed: seed})
+{:ok, _} = SimPort.reinit(sim, %{stage: "final_destination", players: [%{character: "fox", costume: 1}, %{character: "fox", costume: 0}], batch_size: envs, length: 256, seed: seed})
 t1 = System.monotonic_time(:millisecond)
 io = File.open!(Path.join(out, "rollouts.jsonl"), [:write, :utf8])
 

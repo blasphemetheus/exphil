@@ -70,7 +70,7 @@ defmodule ExPhil.Sim.Drill do
     |> Stream.map(fn i ->
       p1 = %{character: "fox", costume: 1, start_percent: :rand.uniform(max_pct + 1) - 1}
       p2 = %{character: "fox", costume: 0, start_percent: :rand.uniform(max_pct + 1) - 1}
-      {:ok, _} = SimPort.request(sim, %{cmd: "init", stage: stage, players: [p1, p2], length: 256, seed: seed * 100_000 + i})
+      {:ok, _} = SimPort.reinit(sim, %{stage: stage, players: [p1, p2], length: 256, seed: seed * 100_000 + i})
       walk = wmin + :rand.uniform(wmax - wmin + 1) - 1
       run_walk(sim, walk, warm, i, max_dist)
     end)
@@ -98,7 +98,7 @@ defmodule ExPhil.Sim.Drill do
 
     Stream.iterate(0, &(&1 + 1))
     |> Stream.flat_map(fn g ->
-      {:ok, _} = SimPort.request(sim, %{cmd: "init", stage: stage, players: @players, length: 256, seed: seed * 1000 + g})
+      {:ok, _} = SimPort.reinit(sim, %{stage: stage, players: @players, length: 256, seed: seed * 1000 + g})
       Agent.reset_buffer(attacker)
       if is_pid(defender), do: Agent.reset_buffer(defender)
       {:ok, [gs0]} = SimPort.frames(sim)
@@ -120,6 +120,68 @@ defmodule ExPhil.Sim.Drill do
                 end
 
               if term["done"] == 1 or next.frame >= game_frames - 123 or t > game_frames + 200, do: {:halt, {acc, next, hist}}, else: {:cont, {acc, next, hist}}
+
+            {:error, reason} ->
+              raise "sim step failed: #{inspect(reason)}"
+          end
+        end)
+
+      Enum.reverse(entries)
+    end)
+    |> Enum.take(n)
+  end
+
+  @doc """
+  Batched `build_pool_from_play/5`: `envs` self-play games advance together
+  (one policy call per frame per side); every env snapshots on its own
+  schedule. The SimPort must already be initialized with `batch_size: envs`.
+  Games are re-initialized in rounds until `n` entries exist.
+  """
+  def build_pool_from_play_batch(sim, attacker, defender, n, envs, opts \\ []) do
+    seed = Keyword.get(opts, :seed, 1)
+    warm = Keyword.get(opts, :warm, 30)
+    max_dist = Keyword.get(opts, :max_distance, 50.0)
+    every = Keyword.get(opts, :every, 30)
+    game_frames = Keyword.get(opts, :game_frames, 1800)
+    stage = Keyword.get(opts, :stage, "final_destination")
+
+    Stream.iterate(0, &(&1 + 1))
+    |> Stream.flat_map(fn round ->
+      {:ok, _} = SimPort.reinit(sim, %{stage: stage, players: @players, batch_size: envs, length: 256, seed: seed * 1000 + round})
+      ensure_batch(attacker, envs)
+      if is_pid(defender), do: ensure_batch(defender, envs)
+      {:ok, states0} = SimPort.frames(sim)
+      hists0 = List.duplicate([], envs)
+
+      {entries, _, _} =
+        Enum.reduce_while(Stream.iterate(1, &(&1 + 1)), {[], states0, hists0}, fn t, {acc, states, hists} ->
+          {:ok, c1s} = Agent.batch_get_controllers(attacker, states, player_port: 1)
+
+          c2s =
+            if is_pid(defender) do
+              {:ok, cs} = Agent.batch_get_controllers(defender, Enum.map(states, &%{&1 | own_port: 2}), player_port: 2)
+              cs
+            else
+              List.duplicate(@neutral, envs)
+            end
+
+          hists = Enum.zip([states, c1s, c2s, hists]) |> Enum.map(fn {gs, c1, c2, h} -> Enum.take([{gs, c1, c2} | h], warm) end)
+
+          case SimPort.step(sim, Enum.zip_with(c1s, c2s, fn a, b -> [a, b] end)) do
+            {:ok, nexts, terms} ->
+              acc =
+                Enum.zip([nexts, hists, 0..(envs - 1)])
+                |> Enum.reduce(acc, fn {next, h, i}, acc ->
+                  if next.frame > 0 and rem(next.frame, every) == 0 and usable?(next.players[1]) and usable?(next.players[2]) and next.distance <= max_dist do
+                    {:ok, blob, sid} = SimPort.save(sim, i, keep: true)
+                    [%{id: (round * envs + i) * 10_000 + next.frame, game: round * envs + i, blob: blob, state_id: sid, frame: next.frame, summary: %{p1: ScenarioScan.player_summary(next.players[1]), p2: ScenarioScan.player_summary(next.players[2])}, history: Enum.reverse(h)} | acc]
+                  else
+                    acc
+                  end
+                end)
+
+              all_done = Enum.all?(terms, &(&1["done"] == 1))
+              if all_done or hd(nexts).frame >= game_frames - 123 or t > game_frames + 200, do: {:halt, {acc, nexts, hists}}, else: {:cont, {acc, nexts, hists}}
 
             {:error, reason} ->
               raise "sim step failed: #{inspect(reason)}"

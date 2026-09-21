@@ -75,7 +75,7 @@ Output.step(3, 3, "Playing #{games} games")
 
 for g <- 1..games do
   if g > 1 do
-    {:ok, _} = SimPort.request(sim, %{cmd: "init", stage: "final_destination", players: [%{character: "fox", costume: 1}, %{character: "fox", costume: 0}], length: 256, seed: seed0 + g - 1})
+    {:ok, _} = SimPort.reinit(sim, %{stage: "final_destination", players: [%{character: "fox", costume: 1}, %{character: "fox", costume: 0}], length: 256, seed: seed0 + g - 1})
     Agent.reset_buffer(agent_a)
     if agent_b, do: Agent.reset_buffer(agent_b)
   end
