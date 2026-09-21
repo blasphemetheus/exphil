@@ -115,3 +115,32 @@ Verified on main at step 2: FD Fox ditto resets at frame −123, P1 at
 `MatchConfig` seed field is `seed`; `PlayerConfig` has `team_id`, not
 `team`; raw single-env step ≈ 21 µs, JSON round trip ≈ 350 µs (the NIF is
 step 10 for a reason).
+
+## Loop profile and optimizations (2026-09-21, before the first long runs)
+
+Measured with `scripts/sim_profile.exs` on V3.1-ep3, then fixed in order:
+
+| Component | Before | After | How |
+| --- | --- | --- | --- |
+| Policy decisions/s | 113 (batch 1); K agents in parallel processes did NOT scale (118–145 for K=1..8: serialized on the EXLA client) | **8,621** at batch 128 (~14 ms per batched frame, flat in n) | `Agent.batch_init/observe/get_controllers`: one trunk step + one AR sample for n envs. Two hidden O(n) costs found on the way: the per-row embedding (fixed: `embed_states_fast`, one call for the batch) and per-row device reads in the controller conversion (fixed: one device→host copy per head) |
+| Savestate restore | 6.3 ms (1 MB base64 over JSON) | 1.25 ms | worker-side cache: `save(keep: true)` / `upload` → `restore({:id, n})` |
+| Drill loop (two policies, 32 envs) | 55 fps | **734 fps** | `Drill.rollout_batch`, `Drill.build_pool_from_play_batch` (200-start pool 500 s → 73 s) |
+| Search loop (idle defender, 64 candidates as envs) | ~2,800 fps | 1,763–3,000 fps (JSON-bound) | `Search.shoot_batch` |
+| Sim step round trip | 337 µs (batch 1), 2.6 ms (batch 8 = 325 µs/env) | → step 10a: binary rows | JSON encode/decode per env is now the bottleneck when a policy is batched |
+
+Step 10a (in progress, worktree `../exphil-boundary`): length-prefixed
+frames on the Port (`{:packet, 4}`), the worker sends its numpy dtype
+layouts on init, `ExPhil.Bridge.SimRows` decodes gamestate/terminal rows
+and encodes controller rows from the descriptor, binary step = `<<1,
+controller rows>>` → `<<1, gamestate rows, terminal rows>>`; JSON stays
+as the control channel and as the A/B fallback (`binary: false`). This is
+the baseline the C-API NIF (step 10b) has to beat.
+
+Scorer change the same night: the drill's primary metric is
+`ExPhil.Eval.Opening` (any hit = opening: grab / smash / tilt / aerial /
+special, hits detected by percent increase as well as action edges;
+converted = second hit before actionable, or grab → throw). FairConversion
+(Mewtwo's fair-specific event) stays as a secondary. First batched
+baselines: prior vs itself, 200 play-derived starts, 4 s horizon —
+opening rate 0.68, conversion 0.20; random-shooting oracle vs idle on 10
+starts × 64 candidates — a converting candidate on 0.80 of starts.
