@@ -188,3 +188,29 @@ mapping. Search start (64 × 90): port 0.44 s → nif 0.33 s; restore ×64
 (58 ms) is now the largest non-sim cost. Ledger:
 
 | 2026-09-21 | 10b NIF | **DONE** | 28k env-frames/s, bit-identical; both backends kept (Port = the comparison Bradley asked for, and the fallback when cargo is absent) |
+
+## Step 8 pilot — BC on random-program oracle labels: REJECTED by the fingerprint bound (2026-09-21 10:35)
+
+Setup: 791 converting oracle episodes (30 warm frames of the prior's own
+play + 90 oracle frames, causal pairs) exported by `sim_search.exs
+--episodes-out`; `--mix-frames` now runs in BPTT mode as its own cursor
+stream (`pipeline.ex`). Two arms, identical otherwise (V3.1 recipe, warm
+start from the end of epoch 3, 1,400-file slice, 1 pass, constant 2e-5):
+**mix** (+ episodes × 30) and **control**. Drills on one fresh pool (seed
+7, 300 starts, 240 frames); fingerprint of the mix arm vs the Dolphin
+probe (`eval_runs/0921_step8/`).
+
+| Policy | conv. vs self | conv. vs idle | val (subset split) | fingerprint |
+| --- | ---: | ---: | ---: | --- |
+| epoch-3 | 0.22 | 0.45 | — | reference |
+| control | 0.14 | 0.37 | 1.92 | — |
+| mix | 0.27 | 0.40 | 3.14 | **FAILS**: jump_x 0.37→0.08, wavedash/min 4.8→0.4, grabs/min 2.4→8.4, spotdodge→0; NCA distance to Dolphin 7.7 vs within-arm 4.4 |
+
+Reading: a small drill gain vs self, a loss vs idle, and the policy
+adopted the search's macro vocabulary (Y-jump, grab, no wavedash). Random
+input programs are off the policy's manifold; imitating their best-of-64
+teaches the teacher's habits. **Next = policy-guided search**: candidates
+are the prior's own samples (temperature ≥ 1), best-of-N by the same
+scorer — labels are then things the policy could already do, chosen for
+outcome. Keep the control arm in every pilot (the subset pass alone moved
+conversion 0.22→0.14).
