@@ -52,7 +52,7 @@ defmodule ExPhil.Bridge.SimStateTest do
   test "maps a Fox ditto FD row field-for-field to the Peppi convention" do
     gs = SimState.to_game_state(fd_row(), own_port: 1)
 
-    assert %GameState{frame: -123, stage: 32, menu_state: 2, own_port: 1, projectiles: [], items: []} = gs
+    assert %GameState{frame: -124, stage: 32, menu_state: 2, own_port: 1, projectiles: [], items: []} = gs
     assert gs.players[1] == expected_player(-40.0, 1)
     assert gs.players[2] == expected_player(40.0, -1)
     assert_in_delta gs.distance, 80.0, 1.0e-9
@@ -104,7 +104,7 @@ defmodule ExPhil.Bridge.SimStateTest do
     mapped = SimState.to_game_state(fd_row(), own_port: 1)
 
     direct = %GameState{
-      frame: -123, stage: 32, menu_state: 2, own_port: 1, projectiles: [], items: [],
+      frame: -124, stage: 32, menu_state: 2, own_port: 1, projectiles: [], items: [],
       players: %{1 => expected_player(-40.0, 1), 2 => expected_player(40.0, -1)},
       distance: 80.0, fod_platform_left: 0.0, fod_platform_right: 0.0
     }

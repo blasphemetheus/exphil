@@ -51,7 +51,12 @@ defmodule ExPhil.Bridge.SimState do
     fod = get(stage_block, :fod_platforms) || %{}
 
     %GameState{
-      frame: fetch!(row, :frame_id),
+      # Slippi labels the state after k engine ticks as frame -124 + k; the
+      # Python API labels the reset row -123 (its validator seeds a fresh
+      # match at first_frame - 1 and runs row 0 as a hidden warm-up,
+      # tools/validation/native.c:1097). Subtract 1 so sim frames line up
+      # with .slp frames field-for-field (step-3 gate, 2026-09-21).
+      frame: fetch!(row, :frame_id) - 1,
       stage: fetch!(row, :stage_id),
       menu_state: @menu_in_game,
       players: players,

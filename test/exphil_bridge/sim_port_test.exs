@@ -17,9 +17,9 @@ defmodule ExPhil.Bridge.SimPortTest do
     %{sim: sim}
   end
 
-  test "init returns a mapped Fox ditto on FD at frame -123", %{sim: sim} do
+  test "init returns a mapped Fox ditto on FD at Slippi frame -124 (one tick before the first recorded frame)", %{sim: sim} do
     {:ok, [%GameState{} = gs]} = SimPort.frames(sim)
-    assert gs.frame == -123 and gs.stage == 32
+    assert gs.frame == -124 and gs.stage == 32
     assert %Player{character: 1, stock: 4, action: 322} = gs.players[1]
     assert gs.players[1].x < 0 and gs.players[2].x > 0
   end
@@ -37,7 +37,7 @@ defmodule ExPhil.Bridge.SimPortTest do
         gs.frame
       end
 
-    assert frames == Enum.to_list(-122..-83)
+    assert frames == Enum.to_list(-123..-84)
   end
 
   test "save/restore returns to the saved frame", %{sim: sim} do

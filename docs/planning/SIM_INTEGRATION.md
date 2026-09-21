@@ -67,7 +67,7 @@ batch API (NIF) when throughput demands it.
 
 ## Open questions (answer at the step that needs them)
 
-- Nana: is the follower a second slot with the same `source_player`? (the
+- Nana: is the follower a second slot with the same `source_player`? (the mapper assumes yes; verify with an ICs match at step 4 — step 3 used Fox)
   mapper assumes yes; verify at step 3 with an ICs match)
 - `facing` u1: verified at step 2 (P1 spawns at x = −60 with facing 1, toward center) — 1 = right.
 - Items vs projectiles: Fox lasers are items in the sim; ExPhil's
@@ -84,7 +84,7 @@ batch API (NIF) when throughput demands it.
 | --- | --- | --- | --- |
 | 2026-09-21 | 1 mapper | **DONE** | `lib/exphil_bridge/sim_state.ex`; `test/exphil_bridge/sim_state_test.exs` 7/7 (field-for-field vs Peppi convention, atom/string keys, loud KeyError, Nana fold, id clamp, controller row, embed-identical) |
 | 2026-09-21 | 2 worker | **DONE** | `priv/python/sim_worker.py` + `ExPhil.Bridge.SimPort`; `scripts/sim_smoke.exs`: 1,800 frames, 0 protocol errors, round trip mean 354 µs (p99 471), dash-dance script produces DASHING/TURN, save/restore round trip 1.04 MB; `sim_port_test.exs` 3/3 (`--include external`). Found GOTCHA #123 (stick axes [0,1]). |
-| 2026-09-21 | 3 row fidelity | not started | needs a Dolphin FD Fox-ditto `.slp` first frames (any `…_ep3/style_probe/*/replays`) |
+| 2026-09-21 | 3 row fidelity | **DONE** | `scripts/sim_row_fidelity.exs` on `…_ep3/style_probe/anon/g1` (Fox c1 vs Fox c0, FD, seed from the .slp): 0 mismatches on 16 fields × 2 ports over −123..−40 (84 frames); first divergence −39 = the CPU's first input (walk). Found GOTCHA #124 (reset row labeled one frame early); mapper subtracts 1. |
 | 2026-09-21 | 11 human lane | blocked | waiting on the sim's declared scene profile |
 
 ## Base and build recipe (decided 2026-09-21: `main` is the base)

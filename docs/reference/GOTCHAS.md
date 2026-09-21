@@ -4202,3 +4202,14 @@ is `raw / 140`. Writing libmelee-style 0.0 for a neutral y-axis put Fox in
 CROUCHING for 1,709 of 1,800 smoke frames (action 0x28). Convert with
 `ExPhil.Bridge.SimState.axis/1` (`v / 2 + 0.5`, clamped) — never write
 `ControllerState` floats into the sim row directly.
+
+## #124 — melee-sim-light's Python reset row is labeled −123 but is Slippi's −124 (2026-09-21)
+
+Slippi records frame −123 as the state after the first engine tick; the sim's
+`EnvBatch.reset_all()` writes the pre-tick state and labels it `frame_id =
+−123`, so every sim row reads one frame ahead of the `.slp` label (the
+sim's own validator seeds a fresh match at `first_frame − 1` and runs row 0
+as a hidden warm-up, `tools/validation/native.c:1097`). Symptom: entry
+animation one frame "late" (sim −117 = Dolphin −118). `ExPhil.Bridge.SimState`
+maps `frame: frame_id − 1`; with that, a Fox ditto on FD is exact on every
+mapped field from −123 until the first input frame (−39).
