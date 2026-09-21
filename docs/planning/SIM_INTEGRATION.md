@@ -270,3 +270,28 @@ style term INSIDE the selection — reject candidates outside the tells
 (e.g. require a short hop when the human short-hop rate says so) or
 tie-break by the prior's own log-likelihood. **Mix2 remains the clean
 artifact**; mix3 is the stronger-but-drifted one.
+
+## Iteration 3 — mix3b (from mix2; oracle T = 1.0, episodes × 10): drill holds, drift narrows but persists (2026-09-21 14:53)
+
+Oracle at T = 1.0 on mix2's pool: converting candidate on **0.94** of
+starts, per-candidate 24.5 % (T = 1.2: 0.93 / 20.7 %) — lower temperature
+lost no coverage. Mix3b val **2.02** (mix2 2.07, mix3 2.13): the lighter
+mix moved toward the replay prior.
+
+| Policy (seed-7 pool) | conv. vs self | conv. vs idle | val | fingerprint (8 tells) |
+| --- | ---: | ---: | ---: | --- |
+| mix2 | 0.32 | 0.61 | 2.07 | pass |
+| mix3 (T 1.2, ×30) | 0.37 | 0.67 | 2.13 | fail 3: short-hop 0.32, lightshield 0.51, grabs 6.2 |
+| **mix3b (T 1.0, ×10)** | **0.37** | **0.70** | **2.02** | fail 2: lightshield 0.44, grabs 6.2; short-hop 0.36 (bound 0.34 — barely in); NCA 5.15 ≈ mix2 |
+
+Reading: the two knobs fixed the likelihood cost and kept the drill gain,
+but the same three habits move in the same direction every iteration
+(short hop ↓, shield ↑, grabs ↑). Outcome-only selection against a
+non-punishing target systematically prefers full hops, grabs and shield;
+this will not wash out with more knob-turning. **Next = the style term
+inside the selection** (lever 3): score candidates by outcome AND penalize
+the per-episode habit deltas on the eight tells (or hard-reject
+candidates whose input stream is off-habit, e.g. full hop where the
+short-hop rate says short), so the oracle can only pick human-shaped
+winners. Mix2 stays the clean artifact; mix3b is the strongest
+"almost-clean" one (2/8 out, both by < 2×).
