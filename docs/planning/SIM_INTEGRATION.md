@@ -87,6 +87,9 @@ batch API (NIF) when throughput demands it.
 | 2026-09-21 | 3 row fidelity | **DONE** | `scripts/sim_row_fidelity.exs` on `…_ep3/style_probe/anon/g1` (Fox c1 vs Fox c0, FD, seed from the .slp): 0 mismatches on 16 fields × 2 ports over −123..−40 (84 frames); first divergence −39 = the CPU's first input (walk). Found GOTCHA #124 (reset row labeled one frame early); mapper subtracts 1. |
 | 2026-09-21 | 4 R1 prior in sim | **DONE — PASSED** | `scripts/sim_prior_play.exs` (V3.1-ep3 vs frozen self, FD, 10 × 1,800 frames, seeds 100-109, 0 agent errors, 56 fps with two GPU agents) + `scripts/sim_r1_compare.exs` vs the Dolphin anon arm (`…_ep3/style_probe`, vs CPU 6): all 6 tells within 2 sd (jump_x_ratio 0.38 vs 0.37, short_hop 0.62 vs 0.68, c-stick aerial 0.47 vs 0.62, aerials/min 10.1 vs 14.2, rolls 1.1 vs 2.8, spotdodge 3.7 vs 3.6); NCA pairwise dolphin-sim 4.83 vs within-arm 4.36 / 4.79; nearest human C2 9/10 (Dolphin 6/10). Caveat: opponent differs (self vs CPU 6) — dashdance/min 15.5 vs 8.4 is the visible effect. `eval_runs/0921_sim_r1/anon_self_n10/compare.txt`. First attempt had every agent walking off stage: GOTCHA #123 (stick convention). |
 | 2026-09-21 | 5 fingerprint-from-frames | **DONE** (free) | `StyleFingerprint.fingerprint(states, port, controllers)` already takes frame lists; `sim_prior_play.exs` writes rows in the `style_fingerprint.exs` shape |
+| 2026-09-21 | 6 curriculum env v0 | **DONE** | `ExPhil.Sim.Drill` (play-derived pool with history, batched rollouts, `Opening` scorer); baselines: prior vs self 200 starts opening 0.68 / conversion 0.20; 1,000-start run in the overnight chain |
+| 2026-09-21 | 7 search-as-teacher v0 | **DONE (tooling)** | `ExPhil.Sim.Search` random shooting, batched; oracle vs idle 10 × 64: converting candidate on 0.80 of starts; 1,000-start + prior-defender runs in the overnight chain; labels written |
+| 2026-09-21 | 10a binary rows | **DONE (branch)** | see above; merge after the chain |
 | 2026-09-21 | 11 human lane | blocked | waiting on the sim's declared scene profile |
 
 ## Base and build recipe (decided 2026-09-21: `main` is the base)
@@ -144,3 +147,12 @@ converted = second hit before actionable, or grab → throw). FairConversion
 baselines: prior vs itself, 200 play-derived starts, 4 s horizon —
 opening rate 0.68, conversion 0.20; random-shooting oracle vs idle on 10
 starts × 64 candidates — a converting candidate on 0.80 of starts.
+
+**Step 10a result (03:45):** branch `sim-binary-rows` (worktree
+`../exphil-boundary`, NOT merged while the overnight chain runs in the
+main tree — merge in the morning). `SimPort.step` round trip: batch 1
+374 → 70 µs; batch 8 2.9 ms → 0.41 ms; batch 64 23.2 ms → 3.0 ms =
+**21,080 env-frames/s (7.6x)**, 47 µs per env-frame against the raw sim's
+21 µs. Frames and terminals bit-identical to the JSON path
+(`sim_port_test.exs`). The Python side is now ~half of what is left; that
+is the NIF's (10b) target: `21 µs` raw step + zero-copy rows.
