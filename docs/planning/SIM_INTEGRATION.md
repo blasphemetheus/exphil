@@ -173,3 +173,18 @@ itself, while the prior finds one on 19 % (self) / 40 % (idle) with a
 labels), with the fingerprint bound as the guard. Throughput on the
 binary-rows path: search 3,700 fps (2x the JSON run — restore + scoring
 now dominate, not the step), prior-defender search 316 s for 100 starts.
+
+**Step 10b result (04:50):** `native/exphil_msl` (Rust, rustler +
+libloading; loads `libmelee_core.so` from `EXPHIL_SIM_ROOT` at runtime, no
+link-time dependency) exposes `open/reset/step/observe/save/restore/
+match_config_default` with raw C-struct rows; `ExPhil.Bridge.SimBatch`
+(GenServer over `SimBatch.Core`) has the SimPort surface and
+`ExPhil.Sim.Env` dispatches by handle (`--backend nif|port`, default nif).
+Equivalence: reset + 200 scripted steps bit-identical to the Port path,
+frames AND terminals (`sim_batch_test.exs`). Step round trip: **35 µs per
+env-frame at any batch (28k env-frames/s)** vs 21k binary Port vs 2.7k JSON;
+of the 35 µs, 21 is the sim and ~14 is SimRows decode + GameState
+mapping. Search start (64 × 90): port 0.44 s → nif 0.33 s; restore ×64
+(58 ms) is now the largest non-sim cost. Ledger:
+
+| 2026-09-21 | 10b NIF | **DONE** | 28k env-frames/s, bit-identical; both backends kept (Port = the comparison Bradley asked for, and the fallback when cargo is absent) |
