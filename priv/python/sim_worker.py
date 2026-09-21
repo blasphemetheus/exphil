@@ -20,8 +20,10 @@ Commands
           (buttons {A,B,X,Y,Z,L,R,D_UP} 0/1, main_stick_x/y, c_stick_x/y,
           shoulder)       -> {"frames": [...], "terminal": [...]}
   reset   env_ids=[...] (default all) -> {"frames": [...]}
-  save    env             -> {"state": base64}
-  restore env, state      -> {"frames": [row]}
+  save    env, keep=false, no_blob=false -> {"state": base64, "bytes", "state_id"?}
+  upload  state (base64)  -> {"state_id"}      (cache a client blob)
+  forget  state_ids=[...] (default all) -> {"forgotten"}
+  restore env, state | state_id -> {"frames": [row]}   (state_id = cached, no blob transfer)
   stop                    -> {"ok": true} then exit
 
 Rows are the sim's `gamestate_dtype` rows converted to nested JSON with the
@@ -106,6 +108,8 @@ class SimWorker:
         self.length = 256
         self.num_players = 2
         self.frames_written = 0  # rows consumed in the current buffer window
+        self.cache: dict[int, bytes] = {}  # state_id -> savestate (save keep=true / upload)
+        self.next_state_id = 0
 
     # -- lifecycle ---------------------------------------------------------
 
@@ -180,12 +184,47 @@ class SimWorker:
         return {"frames": self._frames()}
 
     def save(self, req: dict[str, Any]) -> dict[str, Any]:
+        """Serialize env `env`. With `keep: true` the blob also stays in the
+        worker's cache under a `state_id` so later restores skip the ~1 MB
+        base64 round trip (search restores the same start 64 times)."""
         state = self._env().save(int(req.get("env", 0)))
-        return {"state": base64.b64encode(state).decode("ascii"), "bytes": len(state)}
+        out: dict[str, Any] = {"bytes": len(state)}
+        if req.get("keep"):
+            out["state_id"] = self._cache_put(state)
+        if not req.get("no_blob"):
+            out["state"] = base64.b64encode(state).decode("ascii")
+        return out
+
+    def upload(self, req: dict[str, Any]) -> dict[str, Any]:
+        """Put a client-held blob into the cache; returns its state_id."""
+        state = base64.b64decode(req["state"])
+        return {"state_id": self._cache_put(state), "bytes": len(state)}
+
+    def forget(self, req: dict[str, Any]) -> dict[str, Any]:
+        ids = req.get("state_ids")
+        if ids is None:
+            n = len(self.cache)
+            self.cache.clear()
+            return {"forgotten": n}
+        n = 0
+        for i in ids:
+            n += 1 if self.cache.pop(int(i), None) is not None else 0
+        return {"forgotten": n}
+
+    def _cache_put(self, state: bytes) -> int:
+        self.next_state_id += 1
+        self.cache[self.next_state_id] = state
+        return self.next_state_id
 
     def restore(self, req: dict[str, Any]) -> dict[str, Any]:
         env = self._env()
-        env.restore(int(req.get("env", 0)), base64.b64decode(req["state"]))
+        if "state_id" in req:
+            state = self.cache.get(int(req["state_id"]))
+            if state is None:
+                raise KeyError(f"unknown state_id {req['state_id']}")
+        else:
+            state = base64.b64decode(req["state"])
+        env.restore(int(req.get("env", 0)), state)
         # restore rewrites native state only; refresh the observation row so
         # current_frame reflects the restored match.
         env.observe()
@@ -229,6 +268,8 @@ def main() -> int:
         "reset": worker.reset,
         "save": worker.save,
         "restore": worker.restore,
+        "upload": worker.upload,
+        "forget": worker.forget,
     }
     for line in sys.stdin:
         line = line.strip()

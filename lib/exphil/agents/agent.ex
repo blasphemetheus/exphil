@@ -164,7 +164,8 @@ defmodule ExPhil.Agents.Agent do
     # while keeping the O(1) step for the other K-1. nil = off.
     :stateful_resync,
     :step_frame_buffer,
-    :steps_since_resync
+    :steps_since_resync,
+    :batch
   ]
 
   @type t :: %__MODULE__{}
@@ -353,6 +354,37 @@ defmodule ExPhil.Agents.Agent do
   end
 
   @doc """
+  BATCHED sim path (SIM_INTEGRATION.md, 2026-09-21): drive `n` independent
+  environments through ONE trunk step + ONE autoregressive sample per frame.
+  Profile that motivated it: `get_controller` costs ~8 ms at batch 1 and K
+  agents in parallel processes do NOT scale (118-145 decisions/s for K=1..8,
+  serialized on the EXLA client), so per-env GenServer calls cap a drill at
+  ~55 fps. Batching amortizes the XLA launch overhead across envs.
+
+  Contract: stateful-step temporal policies with the autoregressive head
+  only (V3.x); no prev-action channel, queue depth 1, no jump debounce /
+  action repeat / steering / critic knobs — the deploy path keeps those.
+  `batch_init/2` allocates the batched trunk state (all rows cold);
+  `batch_reset_rows/2` re-inits chosen rows; `batch_observe/3` advances
+  the rows on `[game_state]` without deciding (history warm-up);
+  `batch_get_controllers/3` returns `[ControllerState]`, one per row.
+  Every list is row-ordered and must have length `n`.
+  """
+  @spec batch_init(GenServer.server(), pos_integer()) :: :ok | {:error, term()}
+  def batch_init(agent, n) when is_integer(n) and n > 0, do: GenServer.call(agent, {:batch_init, n}, 120_000)
+
+  @spec batch_reset_rows(GenServer.server(), [non_neg_integer()]) :: :ok | {:error, term()}
+  def batch_reset_rows(agent, rows), do: GenServer.call(agent, {:batch_reset_rows, rows}, 30_000)
+
+  @spec batch_observe(GenServer.server(), [map()], keyword()) :: :ok | {:error, term()}
+  def batch_observe(agent, game_states, opts \\ []), do: GenServer.call(agent, {:batch_observe, game_states, opts}, 60_000)
+
+  @spec batch_get_controllers(GenServer.server(), [map()], keyword()) ::
+          {:ok, [ExPhil.Bridge.ControllerState.t()]} | {:error, term()}
+  def batch_get_controllers(agent, game_states, opts \\ []),
+    do: GenServer.call(agent, {:batch_get_controllers, game_states, opts}, 60_000)
+
+  @doc """
   Warmup JIT compilation by running a dummy inference.
 
   Call this during menu navigation so the first real game frame
@@ -525,7 +557,9 @@ defmodule ExPhil.Agents.Agent do
       trunk_cold: true,
       stateful_resync: Keyword.get(opts, :stateful_resync, nil),
       step_frame_buffer: [],
-      steps_since_resync: 0
+      steps_since_resync: 0,
+      # batched sim path (batch_init/2): %{n, trunk_state, cold} or nil
+      batch: nil
     }
 
     # Typed decode struct — the single source every decision path reads
@@ -653,6 +687,72 @@ defmodule ExPhil.Agents.Agent do
   end
 
   @impl true
+  # ---- batched sim path -----------------------------------------------------
+
+  def handle_call({:batch_init, n}, _from, state) do
+    case batch_preconditions(state) do
+      :ok ->
+        trunk = init_trunk_state(state.trunk_step_params, state.embed_config, state.backbone, n)
+        {:reply, :ok, %{state | batch: %{n: n, trunk_state: trunk, cold: true}}}
+
+      {:error, _} = e ->
+        {:reply, e, state}
+    end
+  end
+
+  def handle_call({:batch_reset_rows, rows}, _from, %{batch: %{n: n} = b} = state) do
+    fresh = init_trunk_state(state.trunk_step_params, state.embed_config, state.backbone, n)
+    mask = Nx.tensor(Enum.map(0..(n - 1), fn i -> if i in rows, do: 1, else: 0 end), type: :u8)
+
+    trunk =
+      Map.new(b.trunk_state, fn {k, v} ->
+        if is_struct(v, Nx.Tensor) and Nx.rank(v) >= 1 and Nx.axis_size(v, 0) == n do
+          m = Nx.reshape(mask, List.to_tuple([n | List.duplicate(1, Nx.rank(v) - 1)]))
+          {k, Nx.select(Nx.broadcast(m, Nx.shape(v)), fresh[k], v)}
+        else
+          {k, v}
+        end
+      end)
+
+    {:reply, :ok, %{state | batch: %{b | trunk_state: trunk}}}
+  end
+
+  def handle_call({:batch_reset_rows, _rows}, _from, state), do: {:reply, {:error, :batch_not_initialized}, state}
+
+  def handle_call({:batch_observe, game_states, opts}, _from, %{batch: %{}} = state) do
+    try do
+      {_features, state} = batch_trunk_step(state, game_states, opts)
+      {:reply, :ok, state}
+    rescue
+      e -> {:reply, {:error, Exception.message(e)}, state}
+    end
+  end
+
+  def handle_call({:batch_observe, _, _}, _from, state), do: {:reply, {:error, :batch_not_initialized}, state}
+
+  def handle_call({:batch_get_controllers, game_states, opts}, _from, %{batch: %{n: n}} = state) do
+    try do
+      {features, state} = batch_trunk_step(state, game_states, opts)
+      sample_opts = ExPhil.Agents.Decode.sample_opts(state, opts)
+      action = Networks.Policy.sample_autoregressive_from_features(state.policy_params, features, sample_opts)
+      # one device->host copy per head, then host-side row slicing (to_controller_state
+      # does ~7 Nx.to_number calls per row — 128 rows x 7 device reads was the tail)
+      host = Map.new([:buttons, :main_x, :main_y, :c_x, :c_y, :shoulder], fn k -> {k, Nx.backend_transfer(action[k], Nx.BinaryBackend)} end)
+
+      controllers =
+        for i <- 0..(n - 1) do
+          row = Map.new(host, fn {k, t} -> {k, Nx.slice_along_axis(t, i, 1, axis: 0)} end)
+          action_to_controller(row, state)
+        end
+
+      {:reply, {:ok, controllers}, state}
+    rescue
+      e -> {:reply, {:error, Exception.message(e)}, state}
+    end
+  end
+
+  def handle_call({:batch_get_controllers, _, _}, _from, state), do: {:reply, {:error, :batch_not_initialized}, state}
+
   def handle_call({:observe, game_state, controller, opts}, _from, state) do
     case do_observe(state, game_state, controller, opts) do
       {:ok, new_state, nil} -> {:reply, :ok, new_state}
@@ -1843,13 +1943,58 @@ defmodule ExPhil.Agents.Agent do
     :ok
   end
 
-  defp init_trunk_state(trunk_params, embed_config, cell_type) do
+  defp init_trunk_state(trunk_params, embed_config, cell_type, batch_size \\ 1) do
     Edifice.Recurrent.init_state(trunk_params,
-      batch_size: 1,
+      batch_size: batch_size,
       hidden_size: embed_config[:hidden_size] || 256,
       num_layers: embed_config[:num_layers] || 2,
       cell_type: cell_type
     )
+  end
+
+  # ---- batched sim path helpers --------------------------------------------
+
+  defp batch_preconditions(state) do
+    cond do
+      not (state.temporal and state.trunk_state != nil) -> {:error, :batch_needs_stateful_step_policy}
+      state.head != :autoregressive -> {:error, :batch_needs_autoregressive_head}
+      state.use_prev_action -> {:error, :batch_prev_action_channel_unsupported}
+      queue_depth(state) > 1 -> {:error, :batch_queue_depth_unsupported}
+      true -> :ok
+    end
+  end
+
+  # Embed every row with the agent's own config, stack to {n, dim}, run ONE
+  # trunk step on the batched carry. Cold rows (fresh init) get the same
+  # window_size-1 replay of their first frame the single path uses, so
+  # step/window equivalence holds from the first decision.
+  defp batch_trunk_step(%{batch: %{n: n} = b} = state, game_states, opts) do
+    if length(game_states) != n, do: raise(ArgumentError, "batch expects #{n} game states, got #{length(game_states)}")
+
+    # One batched embedding call (embed_states_fast: ~20 Nx ops for the whole
+    # batch) with the same options the single path derives — the per-row
+    # embed was the O(n) cost that made batch 128 take 666 ms (profile
+    # 2026-09-21 03:01), not the network.
+    port = effective_port(hd(game_states), opts)
+    {embed_opts, _prev, _} = embed_inputs(hd(game_states), state)
+
+    game_states =
+      if zero_projectiles?(state.embed_config), do: Enum.map(game_states, &%{&1 | projectiles: []}), else: game_states
+
+    frames = Embeddings.Game.embed_states_fast(game_states, port, embed_opts)
+
+    trunk =
+      if b.cold and not (state.bptt == true) do
+        Enum.reduce(1..max(state.window_size - 1, 0)//1, b.trunk_state, fn _, st ->
+          {_out, st} = trunk_step_fn().(state.trunk_step_params, st, frames)
+          st
+        end)
+      else
+        b.trunk_state
+      end
+
+    {features, new_trunk} = trunk_step_fn().(state.trunk_step_params, trunk, frames)
+    {features, %{state | batch: %{b | trunk_state: new_trunk, cold: false}}}
   end
 
   # Incremental GatedSSM inference with state caching (O(1) per frame)
@@ -2083,6 +2228,14 @@ defmodule ExPhil.Agents.Agent do
   end
 
   defp embed_game_state(game_state, player_port, state) do
+    {opts, prev_controller, game_state} = embed_inputs(game_state, state)
+    Embeddings.Game.embed(game_state, prev_controller, player_port, opts)
+  end
+
+  # The embedding options the agent's config implies (name id, AF
+  # convention, queue/delay config, projectile zeroing) — shared by the
+  # single-frame path and the batched sim path so both embed identically.
+  defp embed_inputs(game_state, state) do
     # Use default Game config for embedding
     # The embed_config we store is just for axis_buckets/shoulder_buckets, not the full Game struct
     #
@@ -2162,7 +2315,7 @@ defmodule ExPhil.Agents.Agent do
         game_state
       end
 
-    Embeddings.Game.embed(game_state, prev_controller, player_port, opts)
+    {opts, prev_controller, game_state}
   end
 
   @doc """

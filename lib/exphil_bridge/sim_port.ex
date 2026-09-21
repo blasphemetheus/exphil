@@ -62,10 +62,21 @@ defmodule ExPhil.Bridge.SimPort do
   @doc "Reset all envs (or `env_ids`)."
   def reset(server, env_ids \\ nil), do: GenServer.call(server, {:reset, env_ids}, @default_timeout)
 
-  @doc "Serialize env `i`'s full state (opaque binary)."
-  def save(server, env \\ 0), do: GenServer.call(server, {:save, env}, @default_timeout)
+  @doc """
+  Serialize env `i`'s full state. Returns `{:ok, binary}`; with `keep: true`
+  returns `{:ok, binary, state_id}` and the worker also keeps the blob so
+  `restore/3` with `{:id, state_id}` skips the ~1 MB transfer (a search
+  restores the same start 64 times).
+  """
+  def save(server, env \\ 0, opts \\ []), do: GenServer.call(server, {:save, env, opts}, @default_timeout)
 
-  @doc "Restore env `i` from `save/2`'s binary."
+  @doc "Cache a blob in the worker; returns `{:ok, state_id}`."
+  def upload(server, blob) when is_binary(blob), do: GenServer.call(server, {:upload, blob}, @default_timeout)
+
+  @doc "Drop cached states (`nil` = all)."
+  def forget(server, state_ids \\ nil), do: GenServer.call(server, {:forget, state_ids}, @default_timeout)
+
+  @doc "Restore env `i` from a `save` binary or a cached `{:id, state_id}`."
   def restore(server, env, state), do: GenServer.call(server, {:restore, env, state}, @default_timeout)
 
   @doc "Raw request passthrough (`%{cmd: ...}`), for probes."
@@ -148,14 +159,33 @@ defmodule ExPhil.Bridge.SimPort do
     reply_frames(send_request(state.port, req), state)
   end
 
-  def handle_call({:save, env}, _from, state) do
-    case send_request(state.port, %{cmd: "save", env: env}) do
+  def handle_call({:save, env, opts}, _from, state) do
+    keep = Keyword.get(opts, :keep, false)
+
+    case send_request(state.port, %{cmd: "save", env: env, keep: keep}) do
+      {:ok, %{"state" => b64, "state_id" => id}} when keep -> {:reply, {:ok, Base.decode64!(b64), id}, state}
       {:ok, %{"state" => b64}} -> {:reply, {:ok, Base.decode64!(b64)}, state}
       {:error, reason} -> {:reply, {:error, reason}, state}
     end
   end
 
-  def handle_call({:restore, env, bin}, _from, state) do
+  def handle_call({:upload, blob}, _from, state) do
+    case send_request(state.port, %{cmd: "upload", state: Base.encode64(blob)}) do
+      {:ok, %{"state_id" => id}} -> {:reply, {:ok, id}, state}
+      {:error, reason} -> {:reply, {:error, reason}, state}
+    end
+  end
+
+  def handle_call({:forget, ids}, _from, state) do
+    req = if ids, do: %{cmd: "forget", state_ids: ids}, else: %{cmd: "forget"}
+    {:reply, send_request(state.port, req), state}
+  end
+
+  def handle_call({:restore, env, {:id, id}}, _from, state) do
+    reply_frames(send_request(state.port, %{cmd: "restore", env: env, state_id: id}), state)
+  end
+
+  def handle_call({:restore, env, bin}, _from, state) when is_binary(bin) do
     reply_frames(send_request(state.port, %{cmd: "restore", env: env, state: Base.encode64(bin)}), state)
   end
 

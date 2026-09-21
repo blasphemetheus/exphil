@@ -10,6 +10,7 @@ defmodule ExPhil.Sim.DrillTest do
       converted?: converted?,
       damage: damage,
       fair: %{outcomes: outcomes},
+      opening: %{by_family: (if contact?, do: %{aerial: 1}, else: %{}), by_opener: (if contact?, do: %{nair: 1}, else: %{})},
       chain: %{mean_connected_aerials: aerials}
     }
   end
@@ -30,6 +31,7 @@ defmodule ExPhil.Sim.DrillTest do
     assert a.mean_damage == 11.5
     assert a.mean_connected_aerials == 0.75
     assert a.outcome_kinds == %{string_hit: 1, escaped: 1}
+    assert a.opening_families == %{aerial: 2} and a.openers == %{nair: 2} and a.total_openings == 2
   end
 
   test "aggregate on no results is all zeros" do
@@ -46,6 +48,17 @@ defmodule ExPhil.Sim.DrillTest do
     assert Enum.map(rows, & &1["id"]) == [7, 8]
     assert Base.decode64!(hd(rows)["blob"]) == <<1, 2, 3>>
     refute Map.has_key?(hd(rows), "history")
+    File.rm_rf!(dir)
+  end
+
+  test "pool_to_file round-trips history and drops worker state ids" do
+    dir = System.tmp_dir!() |> Path.join("drill_pool_#{System.unique_integer([:positive])}")
+    path = Path.join(dir, "pool.term")
+    entry = %{id: 1, blob: <<9, 9>>, state_id: 42, frame: 60, summary: %{}, history: [{%{frame: 59}, :c1, :c2}]}
+    :ok = Drill.pool_to_file([entry], path)
+    [back] = Drill.pool_from_file(path)
+    assert back.history == entry.history and back.blob == <<9, 9>>
+    refute Map.has_key?(back, :state_id)
     File.rm_rf!(dir)
   end
 

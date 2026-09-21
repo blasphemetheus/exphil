@@ -25,7 +25,7 @@ defmodule ExPhil.Sim.Drill do
 
   alias ExPhil.Agents.Agent
   alias ExPhil.Bridge.{ControllerState, SimPort}
-  alias ExPhil.Eval.{AerialChain, FairConversion, ScenarioScan}
+  alias ExPhil.Eval.{AerialChain, FairConversion, Opening, ScenarioScan}
 
   @neutral %ControllerState{
     main_stick: %{x: 0.5, y: 0.5},
@@ -113,8 +113,8 @@ defmodule ExPhil.Sim.Drill do
             {:ok, [next], [term]} ->
               acc =
                 if next.frame > 0 and rem(next.frame, every) == 0 and usable?(next.players[1]) and usable?(next.players[2]) and next.distance <= max_dist do
-                  {:ok, blob} = SimPort.save(sim, 0)
-                  [%{id: g * 10_000 + next.frame, game: g, blob: blob, frame: next.frame, summary: %{p1: ScenarioScan.player_summary(next.players[1]), p2: ScenarioScan.player_summary(next.players[2])}, history: Enum.reverse(hist)} | acc]
+                  {:ok, blob, sid} = SimPort.save(sim, 0, keep: true)
+                  [%{id: g * 10_000 + next.frame, game: g, blob: blob, state_id: sid, frame: next.frame, summary: %{p1: ScenarioScan.player_summary(next.players[1]), p2: ScenarioScan.player_summary(next.players[2])}, history: Enum.reverse(hist)} | acc]
                 else
                   acc
                 end
@@ -181,7 +181,7 @@ defmodule ExPhil.Sim.Drill do
   """
   def rollout(sim, entry, attacker, defender, opts \\ []) do
     horizon = Keyword.get(opts, :horizon, 120)
-    {:ok, [_]} = SimPort.restore(sim, 0, entry.blob)
+    {:ok, [_]} = SimPort.restore(sim, 0, restore_ref(entry))
     Agent.reset_buffer(attacker)
     if is_pid(defender), do: Agent.reset_buffer(defender)
 
@@ -210,17 +210,113 @@ defmodule ExPhil.Sim.Drill do
     frames = Enum.map(states, fn s -> %{frame: s.frame, p1: ScenarioScan.player_summary(s.players[1]), p2: ScenarioScan.player_summary(s.players[2])} end)
     fair = FairConversion.summary(frames, window: horizon)
     chain = AerialChain.summary(frames)
-    trials = FairConversion.trials(frames, window: horizon)
+    # Primary scorer: ANY opening (grab / smash / tilt / aerial / special),
+    # converted = a second hit before the defender is actionable, or grab ->
+    # throw (Opening; Bradley 2026-09-21). FairConversion stays as the
+    # Mewtwo-specific secondary.
+    openings = Opening.openings(frames, window: horizon)
 
     %{
       frames: frames,
       states: states,
       fair: fair,
       chain: chain,
-      contact?: trials != [],
-      converted?: Enum.any?(trials, &(&1.outcome in [:true_two_hit, :string_hit])),
+      opening: Opening.summary(frames, window: horizon),
+      openings: openings,
+      contact?: openings != [],
+      converted?: Enum.any?(openings, & &1.converted?),
       damage: (List.last(states).players[2].percent - gs0.players[2].percent) * 1.0
     }
+  end
+
+  @doc """
+  Batched rollout: `entries` (one per sim env; `length(entries)` must equal
+  the SimPort's batch size) are restored into envs 0..n-1, both agents are
+  warmed with each entry's history through `Agent.batch_observe/3`, then
+  `horizon` frames run with ONE policy call per frame per side
+  (`Agent.batch_get_controllers/3`). Returns one result map per entry, same
+  shape as `rollout/5`. ~75x the single-env decision rate (profile
+  2026-09-21: 113 -> 8,600 decisions/s at batch 128).
+  """
+  def rollout_batch(sim, entries, attacker, defender, opts \\ []) do
+    horizon = Keyword.get(opts, :horizon, 120)
+    n = length(entries)
+
+    entries = Enum.map(entries, fn e -> {_, e} = ensure_cached(sim, e); e end)
+    Enum.with_index(entries) |> Enum.each(fn {e, i} -> {:ok, _} = SimPort.restore(sim, i, restore_ref(e)) end)
+
+    ensure_batch(attacker, n)
+    if is_pid(defender), do: ensure_batch(defender, n)
+
+    warm = entries |> Enum.map(&length(&1.history)) |> Enum.min(fn -> 0 end)
+
+    for t <- 0..(warm - 1)//1 do
+      states = Enum.map(entries, fn e -> elem(Enum.at(e.history, t), 0) end)
+      :ok = Agent.batch_observe(attacker, states, player_port: 1)
+      if is_pid(defender), do: :ok = Agent.batch_observe(defender, Enum.map(states, &%{&1 | own_port: 2}), player_port: 2)
+    end
+
+    {:ok, gs0s} = SimPort.frames(sim)
+
+    {history, _} =
+      Enum.reduce(1..horizon, {[gs0s], gs0s}, fn _, {acc, states} ->
+        {:ok, c1s} = Agent.batch_get_controllers(attacker, states, player_port: 1)
+
+        c2s =
+          if is_pid(defender) do
+            {:ok, cs} = Agent.batch_get_controllers(defender, Enum.map(states, &%{&1 | own_port: 2}), player_port: 2)
+            cs
+          else
+            List.duplicate(@neutral, n)
+          end
+
+        case SimPort.step(sim, Enum.zip_with(c1s, c2s, fn a, b -> [a, b] end)) do
+          {:ok, nexts, _terms} -> {[nexts | acc], nexts}
+          {:error, reason} -> raise "sim step failed: #{inspect(reason)}"
+        end
+      end)
+
+    per_env = history |> Enum.reverse() |> Enum.zip() |> Enum.map(&Tuple.to_list/1)
+
+    Enum.map(per_env, fn states -> score_states(states, horizon) end)
+  end
+
+  defp ensure_batch(agent, n) do
+    case Agent.batch_reset_rows(agent, Enum.to_list(0..(n - 1))) do
+      :ok -> :ok
+      {:error, :batch_not_initialized} -> :ok = Agent.batch_init(agent, n)
+      {:error, other} -> raise "batch reset failed: #{inspect(other)}"
+    end
+  end
+
+  # Shared scorer for single and batched rollouts.
+  defp score_states(states, horizon) do
+    gs0 = hd(states)
+    frames = Enum.map(states, fn s -> %{frame: s.frame, p1: ScenarioScan.player_summary(s.players[1]), p2: ScenarioScan.player_summary(s.players[2])} end)
+    openings = Opening.openings(frames, window: horizon)
+
+    %{
+      frames: frames,
+      states: states,
+      fair: FairConversion.summary(frames, window: horizon),
+      chain: AerialChain.summary(frames),
+      opening: Opening.summary(frames, window: horizon),
+      openings: openings,
+      contact?: openings != [],
+      converted?: Enum.any?(openings, & &1.converted?),
+      damage: (List.last(states).players[2].percent - gs0.players[2].percent) * 1.0
+    }
+  end
+
+  @doc "Cached state id when the entry was saved with keep: true (or uploaded), else the blob."
+  def restore_ref(%{state_id: id}) when is_integer(id), do: {:id, id}
+  def restore_ref(%{blob: blob}), do: blob
+
+  @doc "Upload an entry's blob once so later restores use the worker cache."
+  def ensure_cached(sim, %{state_id: id} = e) when is_integer(id), do: {sim, e}
+  def ensure_cached(sim, e) do
+    {:ok, id} = SimPort.upload(sim, e.blob)
+    {sim, Map.put(e, :state_id, id)}
   end
 
   defp controller(:idle, _gs, _port), do: @neutral
@@ -238,6 +334,8 @@ defmodule ExPhil.Sim.Drill do
     contacts = Enum.count(results, & &1.contact?)
     conv = Enum.count(results, & &1.converted?)
     outcomes = results |> Enum.flat_map(&Map.to_list(&1.fair.outcomes)) |> Enum.reduce(%{}, fn {k, v}, acc -> Map.update(acc, k, v, &(&1 + v)) end)
+    families = results |> Enum.flat_map(&Map.to_list(Map.get(&1, :opening, %{by_family: %{}}).by_family)) |> Enum.reduce(%{}, fn {k, v}, acc -> Map.update(acc, k, v, &(&1 + v)) end)
+    openers = results |> Enum.flat_map(&Map.to_list(Map.get(&1, :opening, %{by_opener: %{}}).by_opener)) |> Enum.reduce(%{}, fn {k, v}, acc -> Map.update(acc, k, v, &(&1 + v)) end)
 
     %{
       starts: n,
@@ -246,9 +344,25 @@ defmodule ExPhil.Sim.Drill do
       conversion_given_contact: if(contacts == 0, do: 0.0, else: conv / contacts),
       mean_damage: if(n == 0, do: 0.0, else: Enum.sum(Enum.map(results, & &1.damage)) / n),
       mean_connected_aerials: results |> Enum.map(& &1.chain.mean_connected_aerials) |> then(&(if n == 0, do: 0.0, else: Enum.sum(&1) / n)),
-      outcome_kinds: outcomes
+      outcome_kinds: outcomes,
+      opening_families: families,
+      openers: openers,
+      total_openings: Enum.sum(Map.values(families))
     }
   end
+
+  @doc """
+  Full pool (blobs + warm history) as one Erlang term file, so every arm of
+  an experiment runs on the SAME starts with the SAME history (state_ids are
+  dropped: they belong to the worker that made them; `ensure_cached/2`
+  re-uploads on first use).
+  """
+  def pool_to_file(pool, path) do
+    File.mkdir_p!(Path.dirname(path))
+    File.write!(path, :erlang.term_to_binary(Enum.map(pool, &Map.delete(&1, :state_id)), [:compressed]))
+  end
+
+  def pool_from_file(path), do: path |> File.read!() |> :erlang.binary_to_term()
 
   @doc "Pool entries without history (for saving); blobs base64."
   def pool_to_disk(pool, path) do

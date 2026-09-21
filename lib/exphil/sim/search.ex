@@ -21,7 +21,7 @@ defmodule ExPhil.Sim.Search do
 
   alias ExPhil.Agents.Agent
   alias ExPhil.Bridge.{ControllerState, SimPort}
-  alias ExPhil.Eval.{AerialChain, FairConversion, ScenarioScan}
+  alias ExPhil.Eval.{AerialChain, FairConversion, Opening, ScenarioScan}
   alias ExPhil.Sim.Drill
 
   @neutral Drill.neutral()
@@ -73,7 +73,7 @@ defmodule ExPhil.Sim.Search do
   """
   def evaluate(sim, entry, program, defender, opts \\ []) do
     horizon = length(program)
-    {:ok, [gs0]} = SimPort.restore(sim, 0, entry.blob)
+    {:ok, [gs0]} = SimPort.restore(sim, 0, Drill.restore_ref(entry))
 
     if is_pid(defender) do
       Agent.reset_buffer(defender)
@@ -96,19 +96,20 @@ defmodule ExPhil.Sim.Search do
     states = Enum.reverse(states)
     ctrls = Enum.reverse(ctrls)
     frames = Enum.map(states, fn s -> %{frame: s.frame, p1: ScenarioScan.player_summary(s.players[1]), p2: ScenarioScan.player_summary(s.players[2])} end)
-    trials = FairConversion.trials(frames, window: horizon)
+    openings = Opening.openings(frames, window: horizon)
     chain = AerialChain.summary(frames)
     damage = (List.last(states).players[2].percent - gs0.players[2].percent) * 1.0
-    converted = Enum.any?(trials, &(&1.outcome in [:true_two_hit, :string_hit]))
-    contact = trials != []
+    converted = Enum.any?(openings, & &1.converted?)
+    contact = openings != []
+    hits = openings |> Enum.map(& &1.hits) |> Enum.sum()
     p1_end = List.last(states).players[1]
     # penalize dying / leaving the stage: a "combo" that ends in an SD is not a label
     alive = p1_end.stock == gs0.players[1].stock and abs(p1_end.x) < 90.0
 
     score =
-      (if converted, do: 1000.0, else: 0.0) + (if contact, do: 100.0, else: 0.0) + damage + 10.0 * chain.mean_connected_aerials - (if alive, do: 0.0, else: 500.0)
+      (if converted, do: 1000.0, else: 0.0) + (if contact, do: 100.0, else: 0.0) + damage + 10.0 * hits - (if alive, do: 0.0, else: 500.0)
 
-    %{program: Enum.map(program, &elem(&1, 0)), controllers: ctrls, states: states, frames: frames, converted?: converted, contact?: contact, damage: damage, chain: chain, alive?: alive, score: score, fair: FairConversion.summary(frames, window: horizon)}
+    %{program: Enum.map(program, &elem(&1, 0)), controllers: ctrls, states: states, frames: frames, converted?: converted, contact?: contact, damage: damage, chain: chain, opening: Opening.summary(frames, window: horizon), openings: openings, alive?: alive, score: score, fair: FairConversion.summary(frames, window: horizon)}
   end
 
   defp defender_controller(:idle, _gs), do: @neutral
@@ -130,6 +131,7 @@ defmodule ExPhil.Sim.Search do
     max_hold = Keyword.get(opts, :max_hold, 12)
     if seed = Keyword.get(opts, :seed), do: :rand.seed(:exsss, {seed, entry.id, 3})
 
+    {_, entry} = Drill.ensure_cached(sim, entry)
     results = for _ <- 1..n, do: evaluate(sim, entry, random_program(horizon, max_hold), defender, opts)
     best = Enum.max_by(results, & &1.score)
 
@@ -141,6 +143,90 @@ defmodule ExPhil.Sim.Search do
       n_converted: Enum.count(results, & &1.converted?),
       n_contact: Enum.count(results, & &1.contact?)
     }
+  end
+
+  @doc """
+  Batched random shooting: the SimPort's batch size is the candidate count —
+  every env restores the same start, env i plays program i, the defender
+  (if a policy) decides for all envs in one call per frame. Same result
+  shape as `shoot/4`.
+  """
+  def shoot_batch(sim, entry, defender, opts \\ []) do
+    n = Keyword.fetch!(opts, :n)
+    horizon = Keyword.get(opts, :horizon, 90)
+    max_hold = Keyword.get(opts, :max_hold, 12)
+    if seed = Keyword.get(opts, :seed), do: :rand.seed(:exsss, {seed, entry.id, 3})
+
+    {_, entry} = Drill.ensure_cached(sim, entry)
+    programs = for _ <- 1..n, do: random_program(horizon, max_hold)
+    for i <- 0..(n - 1), do: {:ok, _} = SimPort.restore(sim, i, Drill.restore_ref(entry))
+
+    if is_pid(defender) do
+      case Agent.batch_reset_rows(defender, Enum.to_list(0..(n - 1))) do
+        :ok -> :ok
+        {:error, :batch_not_initialized} -> :ok = Agent.batch_init(defender, n)
+      end
+
+      Enum.each(entry.history, fn {gs, _c1, _c2} ->
+        :ok = Agent.batch_observe(defender, List.duplicate(%{gs | own_port: 2}, n), player_port: 2)
+      end)
+    end
+
+    {:ok, gs0s} = SimPort.frames(sim)
+    prog_arr = Enum.map(programs, &List.to_tuple/1)
+
+    {history, _} =
+      Enum.reduce(0..(horizon - 1), {[gs0s], gs0s}, fn t, {acc, states} ->
+        c1s = Enum.map(prog_arr, fn p -> elem(elem(p, t), 1) end)
+
+        c2s =
+          if is_pid(defender) do
+            {:ok, cs} = Agent.batch_get_controllers(defender, Enum.map(states, &%{&1 | own_port: 2}), player_port: 2)
+            cs
+          else
+            List.duplicate(@neutral, n)
+          end
+
+        case SimPort.step(sim, Enum.zip_with(c1s, c2s, fn a, b -> [a, b] end)) do
+          {:ok, nexts, _} -> {[nexts | acc], nexts}
+          {:error, reason} -> raise "sim step failed: #{inspect(reason)}"
+        end
+      end)
+
+    per_env = history |> Enum.reverse() |> Enum.zip() |> Enum.map(&Tuple.to_list/1)
+
+    results =
+      Enum.zip(per_env, programs)
+      |> Enum.map(fn {states, program} -> score_program(states, program, horizon) end)
+
+    best = Enum.max_by(results, & &1.score)
+
+    %{
+      best: best,
+      tried: n,
+      converted_any?: Enum.any?(results, & &1.converted?),
+      contact_any?: Enum.any?(results, & &1.contact?),
+      n_converted: Enum.count(results, & &1.converted?),
+      n_contact: Enum.count(results, & &1.contact?)
+    }
+  end
+
+  defp score_program(states, program, horizon) do
+    gs0 = hd(states)
+    frames = Enum.map(states, fn s -> %{frame: s.frame, p1: ScenarioScan.player_summary(s.players[1]), p2: ScenarioScan.player_summary(s.players[2])} end)
+    openings = Opening.openings(frames, window: horizon)
+    chain = AerialChain.summary(frames)
+    damage = (List.last(states).players[2].percent - gs0.players[2].percent) * 1.0
+    converted = Enum.any?(openings, & &1.converted?)
+    contact = openings != []
+    hits = openings |> Enum.map(& &1.hits) |> Enum.sum()
+    p1_end = List.last(states).players[1]
+    alive = p1_end.stock == gs0.players[1].stock and abs(p1_end.x) < 90.0
+
+    score =
+      (if converted, do: 1000.0, else: 0.0) + (if contact, do: 100.0, else: 0.0) + damage + 10.0 * hits - (if alive, do: 0.0, else: 500.0)
+
+    %{program: Enum.map(program, &elem(&1, 0)), controllers: Enum.map(program, &elem(&1, 1)), states: states, frames: frames, converted?: converted, contact?: contact, damage: damage, chain: chain, opening: Opening.summary(frames, window: horizon), openings: openings, alive?: alive, score: score, fair: FairConversion.summary(frames, window: horizon)}
   end
 
   @doc "Controller -> compact JSON for the label file."

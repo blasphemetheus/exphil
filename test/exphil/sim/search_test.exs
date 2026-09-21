@@ -20,7 +20,8 @@ defmodule ExPhil.Sim.SearchTest do
     runs = Search.random_program(2000) |> Enum.chunk_by(&elem(&1, 0))
     presses = runs |> Enum.filter(fn [{n, _} | _] -> n in [:jump, :nair, :fair_r, :shine] end) |> Enum.map(&length/1)
     moves = runs |> Enum.filter(fn [{n, _} | _] -> n in [:dash_r, :dash_l] end) |> Enum.map(&length/1)
-    assert presses != [] and Enum.max(presses) <= 4
+    median = fn xs -> xs |> Enum.sort() |> Enum.at(div(length(xs), 2)) end
+    assert presses != [] and median.(presses) <= 2
     assert moves != [] and Enum.max(moves) > 4
   end
 

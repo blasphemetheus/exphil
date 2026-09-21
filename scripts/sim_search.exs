@@ -17,7 +17,7 @@ alias ExPhil.Bridge.SimPort
 alias ExPhil.Sim.{Drill, Search}
 alias ExPhil.Training.Output
 
-{opts, _, _} = OptionParser.parse(System.argv(), strict: [pool: :string, policy: :string, defender: :string, n: :integer, horizon: :integer, out: :string, seed: :integer, starts: :integer, max_hold: :integer])
+{opts, _, _} = OptionParser.parse(System.argv(), strict: [pool: :string, policy: :string, defender: :string, n: :integer, horizon: :integer, out: :string, seed: :integer, starts: :integer, max_hold: :integer, batched: :boolean])
 defender_kind = opts[:defender] || "idle"
 n = opts[:n] || 64
 horizon = opts[:horizon] || 90
@@ -28,6 +28,7 @@ File.mkdir_p!(out)
 Output.banner("Search-as-teacher v0 (step 7)")
 Output.config([{"Pool", opts[:pool] || "(built from play)"}, {"Defender", defender_kind}, {"Candidates/start", n}, {"Horizon", horizon}, {"Seed", seed}, {"Out", out}])
 
+batched = Keyword.get(opts, :batched, true)
 {:ok, sim} = SimPort.start_link(stage: "final_destination", players: [%{character: "fox", costume: 1}, %{character: "fox", costume: 0}], length: 256, seed: seed)
 
 {pool, defender} =
@@ -54,7 +55,8 @@ Output.config([{"Pool", opts[:pool] || "(built from play)"}, {"Defender", defend
   end
 
 Output.puts("pool: #{length(pool)} starts")
-Output.step(2, 2, "Shooting #{n} × #{horizon} frames per start")
+Output.step(2, 2, "Shooting #{n} × #{horizon} frames per start (#{if batched, do: "batched: #{n} envs", else: "sequential"})")
+if batched, do: {:ok, _} = SimPort.request(sim, %{cmd: "init", stage: "final_destination", players: [%{character: "fox", costume: 1}, %{character: "fox", costume: 0}], batch_size: n, length: 256, seed: seed})
 labels_io = File.open!(Path.join(out, "labels.jsonl"), [:write, :utf8])
 results_io = File.open!(Path.join(out, "results.jsonl"), [:write, :utf8])
 t0 = System.monotonic_time(:millisecond)
@@ -63,10 +65,11 @@ results =
   pool
   |> Enum.with_index(1)
   |> Enum.map(fn {entry, i} ->
-    r = Search.shoot(sim, entry, defender, n: n, horizon: horizon, seed: seed, max_hold: opts[:max_hold] || 12)
+    shoot = if batched, do: &Search.shoot_batch/4, else: &Search.shoot/4
+    r = shoot.(sim, entry, defender, n: n, horizon: horizon, seed: seed, max_hold: opts[:max_hold] || 12)
     b = r.best
 
-    IO.write(results_io, Jason.encode!(%{id: entry.id, start: entry.summary, tried: r.tried, n_converted: r.n_converted, n_contact: r.n_contact, best: %{score: b.score, converted: b.converted?, contact: b.contact?, damage: b.damage, alive: b.alive?, program: b.program, aerials: b.chain.mean_connected_aerials, outcomes: b.fair.outcomes}}) <> "\n")
+    IO.write(results_io, Jason.encode!(%{id: entry.id, start: entry.summary, tried: r.tried, n_converted: r.n_converted, n_contact: r.n_contact, best: %{score: b.score, converted: b.converted?, contact: b.contact?, damage: b.damage, alive: b.alive?, program: b.program, aerials: b.chain.mean_connected_aerials, openings: Enum.map(b.openings, &Map.take(&1, [:frame, :opener, :family, :hits, :damage, :converted?])), outcomes: b.fair.outcomes}}) <> "\n")
 
     if b.contact? and b.alive? do
       IO.write(labels_io, Jason.encode!(%{id: entry.id, converted: b.converted?, damage: b.damage, frames: Enum.zip(b.frames, [nil | b.controllers]) |> Enum.map(fn {f, c} -> %{frame: f.frame, p1: f.p1, p2: f.p2, ctrl: c && Search.controller_json(c)} end)}) <> "\n")
