@@ -17,7 +17,7 @@ alias ExPhil.Sim.Env
 alias ExPhil.Sim.{Drill, Search}
 alias ExPhil.Training.Output
 
-{opts, _, _} = OptionParser.parse(System.argv(), strict: [pool: :string, policy: :string, defender: :string, n: :integer, horizon: :integer, out: :string, seed: :integer, starts: :integer, max_hold: :integer, batched: :boolean, backend: :string, pool_term: :string, episodes_out: :string])
+{opts, _, _} = OptionParser.parse(System.argv(), strict: [pool: :string, policy: :string, defender: :string, n: :integer, horizon: :integer, out: :string, seed: :integer, starts: :integer, max_hold: :integer, batched: :boolean, backend: :string, pool_term: :string, episodes_out: :string, teacher: :string, temperature: :float])
 defender_kind = opts[:defender] || "idle"
 n = opts[:n] || 64
 horizon = opts[:horizon] || 90
@@ -25,11 +25,15 @@ out = opts[:out] || raise("--out DIR required")
 seed = opts[:seed] || 1
 File.mkdir_p!(out)
 
-Output.banner("Search-as-teacher v0 (step 7)")
-Output.config([{"Pool", opts[:pool] || "(built from play)"}, {"Defender", defender_kind}, {"Candidates/start", n}, {"Horizon", horizon}, {"Seed", seed}, {"Out", out}])
 
 batched = Keyword.get(opts, :batched, true)
 backend = String.to_atom(opts[:backend] || "nif")
+teacher = String.to_atom(opts[:teacher] || "random")
+temperature = opts[:temperature] || 1.2
+agent_opts = [policy_path: opts[:policy], deterministic: false, temperature: 1.0, af_convention: :parsed, frame_delay: 0, harness: :sync_runner, reaction_delay: 0, stateful_step: true]
+attacker = if teacher == :policy, do: (fn -> {:ok, a} = Agent.start_link(agent_opts); {:ok, _} = Agent.warmup(a); a end).(), else: nil
+Output.banner("Search-as-teacher v0 (step 7)")
+Output.config([{"Pool", opts[:pool] || opts[:pool_term] || "(built from play)"}, {"Defender", defender_kind}, {"Teacher", teacher}, {"Temperature", temperature}, {"Candidates/start", n}, {"Horizon", horizon}, {"Seed", seed}, {"Out", out}])
 {:ok, sim} = Env.start(backend, stage: "final_destination", players: [%{character: "fox", costume: 1}, %{character: "fox", costume: 0}], length: 256, seed: seed)
 # the batched pool builder and the batched search both need the sim at batch n from the start
 if batched, do: {:ok, _} = Env.reinit(sim, %{stage: "final_destination", players: [%{character: "fox", costume: 1}, %{character: "fox", costume: 0}], batch_size: n, length: 256, seed: seed})
@@ -40,7 +44,7 @@ if batched, do: {:ok, _} = Env.reinit(sim, %{stage: "final_destination", players
       path = opts[:pool] || opts[:pool_term] || raise("--pool or --pool-term required for --defender idle")
       pool =
         if opts[:pool_term] do
-          Drill.pool_from_file(opts[:pool_term])
+          Drill.pool_from_file(opts[:pool_term]) |> then(fn p -> if opts[:starts], do: Enum.take(p, opts[:starts]), else: p end)
         else
           path |> File.stream!() |> Stream.map(&Jason.decode!/1) |> Enum.map(fn r -> %{id: r["id"], blob: Base.decode64!(r["blob"]), frame: r["frame"], summary: r["summary"], history: []} end)
         end
@@ -69,7 +73,11 @@ results =
   pool
   |> Enum.with_index(1)
   |> Enum.map(fn {entry, i} ->
-    shoot = if batched, do: &Search.shoot_batch/4, else: &Search.shoot/4
+    shoot = cond do
+      teacher == :policy -> fn s, e, d, o -> Search.shoot_policy(s, e, attacker, d, Keyword.put(o, :temperature, temperature)) end
+      batched -> &Search.shoot_batch/4
+      true -> &Search.shoot/4
+    end
     r = shoot.(sim, entry, defender, n: n, horizon: horizon, seed: seed, max_hold: opts[:max_hold] || 12)
     b = r.best
 
@@ -117,7 +125,7 @@ Output.success("wrote #{out}/{results.jsonl,labels.jsonl,summary.json}")
 if opts[:episodes_out] do
   lists = :ets.tab2list(episodes) |> Enum.map(&elem(&1, 1))
   File.write!(opts[:episodes_out], :erlang.term_to_binary(%{
-    expert: "search_oracle_v0",
+    expert: (if teacher == :policy, do: "search_policy_guided_v1", else: "search_oracle_v0"), temperature: temperature,
     exported_at: DateTime.utc_now() |> DateTime.to_iso8601(),
     action_delay: 0,
     label_convention: ExPhil.Data.LabelConvention.current(),

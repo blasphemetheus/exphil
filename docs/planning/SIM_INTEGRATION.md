@@ -214,3 +214,31 @@ are the prior's own samples (temperature ≥ 1), best-of-N by the same
 scorer — labels are then things the policy could already do, chosen for
 outcome. Keep the control arm in every pilot (the subset pass alone moved
 conversion 0.22→0.14).
+
+## Step 8 v1 — BC on POLICY-GUIDED search labels: PASSED (2026-09-21 11:41)
+
+Oracle v1 = the prior's own samples (T = 1.2, 64 per start, 90 frames,
+`Search.shoot_policy`), best by the Opening scorer: converting candidate
+on **0.88** of the same 1,000 starts (random programs: 0.79), per-candidate
+conversion 15 % (vs 10 %), 879 episodes. Same pilot recipe as v0 (warm
+start end-of-epoch-3, 1,400-file slice, 1 pass at 2e-5, episodes × 30),
+same seed-7 drill pool, same fingerprint gate.
+
+| Policy | conv. vs self | conv. vs idle | val (subset split) | fingerprint gate |
+| --- | ---: | ---: | ---: | --- |
+| epoch-3 (reference) | 0.22 | 0.45 | — | — |
+| control (subset pass only) | 0.14 | 0.37 | 1.92 | — |
+| mix v0 (random-program labels) | 0.27 | 0.40 | 3.14 | FAIL |
+| **mix2 (policy-guided labels)** | **0.32** | **0.61** | 2.07 | **PASS** (6/6 tells; jump_x 0.37 = 0.37, c-stick aerial 0.59 vs 0.62, short-hop 0.70 vs 0.68; NCA to Dolphin 5.1 vs within-arm 4.4) |
+
+Reading: labels drawn from the policy's own distribution and selected
+for outcome raise conversion on both targets (+0.10 vs self, +0.16 vs
+idle over the reference; +0.18 / +0.24 over the control that shares
+every other knob) at a 0.15-nat replay-likelihood cost and inside the
+style bound. Aerials/min 14 → 21 and grabs/min 2.4 → 5.6 are the visible
+behavioural shift (more committed offense); lightshield 0.29 → 0.42 is
+the one drift to watch. This is expert iteration in one step; the loop
+(oracle from mix2's samples → mix3 …) and the full-corpus version are the
+V3.2 candidates.
+
+| 2026-09-21 | 8 BC on oracle labels | **DONE — PASSED (v1)** | `checkpoints/fox_v3_1_step8_mix2/model_policy.bin`; `eval_runs/0921_step8/` (pilot.sh, pilot2.sh, drills, fp_mix2/compare.txt) |

@@ -231,6 +231,81 @@ defmodule ExPhil.Sim.Search do
     %{program: Enum.map(program, &elem(&1, 0)), controllers: Enum.map(program, &elem(&1, 1)), states: states, frames: frames, converted?: converted, contact?: contact, damage: damage, chain: chain, opening: Opening.summary(frames, window: horizon), openings: openings, alive?: alive, score: score, fair: FairConversion.summary(frames, window: horizon)}
   end
 
+  @doc """
+  Policy-guided search (step 8 v1, after the random-program labels failed
+  the fingerprint bound): the candidates are the PRIOR's own samples. Every
+  env restores the same start, the attacker agent (batched) is warmed with
+  the start's history and then samples independently per env at
+  `:temperature` (default 1.2) for `horizon` frames; the best rollout by the
+  same scorer is the label. Labels are therefore things the policy could
+  already do, selected for outcome — on-manifold by construction.
+  `defender` is `:idle` or a batched Agent pid. Same result shape as
+  `shoot_batch/4`; `best.controllers` are the sampled controllers.
+  """
+  def shoot_policy(sim, entry, attacker, defender, opts \\ []) do
+    n = Keyword.fetch!(opts, :n)
+    horizon = Keyword.get(opts, :horizon, 90)
+    temperature = Keyword.get(opts, :temperature, 1.2)
+
+    {_, entry} = Drill.ensure_cached(sim, entry)
+    for i <- 0..(n - 1), do: {:ok, _} = Env.restore(sim, i, Drill.restore_ref(entry), frames: false)
+    {:ok, _, _} = Env.observe(sim)
+
+    ensure_batch(attacker, n)
+    if is_pid(defender), do: ensure_batch(defender, n)
+
+    Enum.each(entry.history, fn {gs, _c1, _c2} ->
+      :ok = Agent.batch_observe(attacker, List.duplicate(gs, n), player_port: 1)
+      if is_pid(defender), do: :ok = Agent.batch_observe(defender, List.duplicate(%{gs | own_port: 2}, n), player_port: 2)
+    end)
+
+    {:ok, gs0s} = Env.frames(sim)
+
+    {history, ctrl_hist, _} =
+      Enum.reduce(1..horizon, {[gs0s], [], gs0s}, fn _, {acc, cacc, states} ->
+        {:ok, c1s} = Agent.batch_get_controllers(attacker, states, player_port: 1, temperature: temperature)
+
+        c2s =
+          if is_pid(defender) do
+            {:ok, cs} = Agent.batch_get_controllers(defender, Enum.map(states, &%{&1 | own_port: 2}), player_port: 2)
+            cs
+          else
+            List.duplicate(@neutral, n)
+          end
+
+        case Env.step(sim, Enum.zip_with(c1s, c2s, fn a, b -> [a, b] end)) do
+          {:ok, nexts, _} -> {[nexts | acc], [c1s | cacc], nexts}
+          {:error, reason} -> raise "sim step failed: #{inspect(reason)}"
+        end
+      end)
+
+    per_env = history |> Enum.reverse() |> Enum.zip() |> Enum.map(&Tuple.to_list/1)
+    ctrls_per_env = ctrl_hist |> Enum.reverse() |> Enum.zip() |> Enum.map(&Tuple.to_list/1)
+
+    results =
+      Enum.zip(per_env, ctrls_per_env)
+      |> Enum.map(fn {states, ctrls} -> score_program(states, Enum.map(ctrls, &{:policy, &1}), horizon) end)
+
+    best = Enum.max_by(results, & &1.score)
+
+    %{
+      best: best,
+      tried: n,
+      converted_any?: Enum.any?(results, & &1.converted?),
+      contact_any?: Enum.any?(results, & &1.contact?),
+      n_converted: Enum.count(results, & &1.converted?),
+      n_contact: Enum.count(results, & &1.contact?)
+    }
+  end
+
+  defp ensure_batch(agent, n) do
+    case Agent.batch_reset_rows(agent, Enum.to_list(0..(n - 1))) do
+      :ok -> :ok
+      {:error, :batch_not_initialized} -> :ok = Agent.batch_init(agent, n)
+      {:error, other} -> raise "batch reset failed: #{inspect(other)}"
+    end
+  end
+
   @doc "Controller -> compact JSON for the label file."
   def controller_json(%ControllerState{} = c) do
     %{mx: c.main_stick.x, my: c.main_stick.y, cx: c.c_stick.x, cy: c.c_stick.y, a: c.button_a, b: c.button_b, x: c.button_x, y: c.button_y, z: c.button_z, l: c.button_l, r: c.button_r, sh: max(c.l_shoulder || 0.0, c.r_shoulder || 0.0)}
