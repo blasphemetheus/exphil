@@ -17,7 +17,7 @@ defmodule ExPhil.Bridge.SimBatch.Core do
 
   alias ExPhil.Bridge.{ControllerState, SimRows, SimState}
 
-  defstruct [:ref, :n, :layouts, :frames, :terminals, :own_port, :players, :stage, cache: %{}, next_id: 0]
+  defstruct [:ref, :n, :layouts, :frames, :terminals, :own_port, :players, :stage, :lib, :data_root, cache: %{}, next_id: 0]
 
   @characters %{
     "mario" => 0, "fox" => 1, "falcon" => 2, "captainfalcon" => 2, "donkeykong" => 3, "dk" => 3,
@@ -43,7 +43,7 @@ defmodule ExPhil.Bridge.SimBatch.Core do
 
     with true <- File.exists?(lib) || {:error, {:sim_library_missing, lib}},
          {:ok, ref} <- ExPhil.Bridge.SimNif.open(lib, Path.join(root, "data"), n) do
-      batch = %__MODULE__{ref: ref, n: n, layouts: layouts!(), own_port: Keyword.get(opts, :own_port, 1)}
+      batch = %__MODULE__{ref: ref, n: n, layouts: layouts!(), own_port: Keyword.get(opts, :own_port, 1), lib: lib, data_root: Path.join(root, "data")}
       reinit(batch, Map.new(Keyword.take(opts, [:stage, :players, :seed, :stocks, :max_frame, :batch_size])))
     else
       {:error, _} = e -> e
@@ -58,7 +58,16 @@ defmodule ExPhil.Bridge.SimBatch.Core do
   def reinit(%__MODULE__{} = b, req) when is_map(req) do
     req = Map.new(req, fn {k, v} -> {to_string(k), v} end)
 
-    if req["batch_size"] && req["batch_size"] != b.n,
+    b =
+      if req["batch_size"] && req["batch_size"] != b.n do
+        # a different batch size = a new C batch (the savestate cache carries over)
+        {:ok, ref} = ExPhil.Bridge.SimNif.open(b.lib, b.data_root, req["batch_size"])
+        %{b | ref: ref, n: req["batch_size"]}
+      else
+        b
+      end
+
+    if false,
       do: raise(ArgumentError, "SimBatch batch_size is fixed at #{b.n} (asked #{req["batch_size"]}); start a new batch")
 
     {:ok, default_bin} = ExPhil.Bridge.SimNif.match_config_default(b.ref)

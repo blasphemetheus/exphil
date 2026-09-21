@@ -17,7 +17,7 @@ alias ExPhil.Sim.Env
 alias ExPhil.Sim.{Drill, Search}
 alias ExPhil.Training.Output
 
-{opts, _, _} = OptionParser.parse(System.argv(), strict: [pool: :string, policy: :string, defender: :string, n: :integer, horizon: :integer, out: :string, seed: :integer, starts: :integer, max_hold: :integer, batched: :boolean, backend: :string])
+{opts, _, _} = OptionParser.parse(System.argv(), strict: [pool: :string, policy: :string, defender: :string, n: :integer, horizon: :integer, out: :string, seed: :integer, starts: :integer, max_hold: :integer, batched: :boolean, backend: :string, pool_term: :string, episodes_out: :string])
 defender_kind = opts[:defender] || "idle"
 n = opts[:n] || 64
 horizon = opts[:horizon] || 90
@@ -37,13 +37,13 @@ if batched, do: {:ok, _} = Env.reinit(sim, %{stage: "final_destination", players
 {pool, defender} =
   case defender_kind do
     "idle" ->
-      path = opts[:pool] || raise("--pool required for --defender idle")
+      path = opts[:pool] || opts[:pool_term] || raise("--pool or --pool-term required for --defender idle")
       pool =
-        path
-        |> File.stream!()
-        |> Stream.map(&Jason.decode!/1)
-        |> Enum.map(fn r -> %{id: r["id"], blob: Base.decode64!(r["blob"]), frame: r["frame"], summary: r["summary"], history: []} end)
-        |> then(fn p -> if opts[:starts], do: Enum.take(p, opts[:starts]), else: p end)
+        if opts[:pool_term] do
+          Drill.pool_from_file(opts[:pool_term])
+        else
+          path |> File.stream!() |> Stream.map(&Jason.decode!/1) |> Enum.map(fn r -> %{id: r["id"], blob: Base.decode64!(r["blob"]), frame: r["frame"], summary: r["summary"], history: []} end)
+        end
       {pool, :idle}
 
     "self" ->
@@ -61,6 +61,7 @@ Output.puts("pool: #{length(pool)} starts")
 Output.step(2, 2, "Shooting #{n} × #{horizon} frames per start (#{if batched, do: "batched: #{n} envs", else: "sequential"})")
 if batched, do: {:ok, _} = Env.reinit(sim, %{stage: "final_destination", players: [%{character: "fox", costume: 1}, %{character: "fox", costume: 0}], batch_size: n, length: 256, seed: seed})
 labels_io = File.open!(Path.join(out, "labels.jsonl"), [:write, :utf8])
+episodes = :ets.new(:episodes, [:ordered_set, :public])
 results_io = File.open!(Path.join(out, "results.jsonl"), [:write, :utf8])
 t0 = System.monotonic_time(:millisecond)
 
@@ -73,6 +74,14 @@ results =
     b = r.best
 
     IO.write(results_io, Jason.encode!(%{id: entry.id, start: entry.summary, tried: r.tried, n_converted: r.n_converted, n_contact: r.n_contact, best: %{score: b.score, converted: b.converted?, contact: b.contact?, damage: b.damage, alive: b.alive?, program: b.program, aerials: b.chain.mean_connected_aerials, openings: Enum.map(b.openings, &Map.take(&1, [:frame, :opener, :family, :hits, :damage, :converted?])), outcomes: b.fair.outcomes}}) <> "\n")
+
+    if b.converted? and b.alive? and opts[:episodes_out] do
+      # Training episode (causal pairs: state[t] with the input issued from it): the warm
+      # history the policy actually played (its own labels), then the oracle program.
+      warm = Enum.map(entry.history, fn {gs, c1, _c2} -> %{game_state: gs, controller: c1, player_tag: nil} end)
+      prog = Enum.zip(Enum.take(b.states, length(b.controllers)), b.controllers) |> Enum.map(fn {gs, c} -> %{game_state: gs, controller: c, player_tag: nil} end)
+      :ets.insert(episodes, {entry.id, warm ++ prog})
+    end
 
     if b.contact? and b.alive? do
       IO.write(labels_io, Jason.encode!(%{id: entry.id, converted: b.converted?, damage: b.damage, frames: Enum.zip(b.frames, [nil | b.controllers]) |> Enum.map(fn {f, c} -> %{frame: f.frame, p1: f.p1, p2: f.p2, ctrl: c && Search.controller_json(c)} end)}) <> "\n")
@@ -104,3 +113,16 @@ Output.puts("ORACLE #{defender_kind}: starts #{starts}  any-candidate converted 
 File.write!(Path.join(out, "summary.json"), Jason.encode!(%{defender: defender_kind, starts: starts, n: n, horizon: horizon, seed: seed, any_converted_rate: conv / max(starts, 1), any_contact_rate: contact / max(starts, 1), best_converted_alive_rate: best_conv / max(starts, 1), mean_best_damage: mean_dmg, candidate_conversion_rate: per_cand_conv / max(starts * n, 1), elapsed_ms: ms}, pretty: true))
 Env.stop(sim)
 Output.success("wrote #{out}/{results.jsonl,labels.jsonl,summary.json}")
+
+if opts[:episodes_out] do
+  lists = :ets.tab2list(episodes) |> Enum.map(&elem(&1, 1))
+  File.write!(opts[:episodes_out], :erlang.term_to_binary(%{
+    expert: "search_oracle_v0",
+    exported_at: DateTime.utc_now() |> DateTime.to_iso8601(),
+    action_delay: 0,
+    label_convention: ExPhil.Data.LabelConvention.current(),
+    frame_lists: lists,
+    defender: defender_kind, n: n, horizon: horizon, seed: seed
+  }, [:compressed]))
+  Output.success("wrote #{length(lists)} oracle episodes (#{Enum.sum(Enum.map(lists, &length/1))} frames) to #{opts[:episodes_out]}")
+end

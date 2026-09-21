@@ -1143,6 +1143,7 @@ defmodule ExPhil.Training.Pipeline do
           gpu: true
         ]
 
+        main_stream =
         if ropts[:pipeline_chunks] and not awbc? do
           # Overlap parse+embed of chunk k+1 with training on chunk k
           # (V2_PREP item 1b — post-throughput-fix the epoch wall is
@@ -1176,6 +1177,39 @@ defmodule ExPhil.Training.Pipeline do
             chunk_dataset = Streaming.create_dataset(chunk_frames, dataset_opts)
             ExPhil.Training.TrajectoryCursors.batch_stream(chunk_dataset, cursor_opts)
           end)
+        end
+
+        # --mix-frames in BPTT mode (SIM_INTEGRATION.md step 8, 2026-09-21): the
+        # windowed mix path further down builds Data.batched_sequences batches,
+        # which train_step_bptt cannot consume (no carry / is_resetting). Here the
+        # mix (search-oracle episodes) is ITS OWN cursor stream — segments split
+        # at frame-counter jumps, so each episode is a segment — appended
+        # x mix_oversample after the main corpus each epoch.
+        case ropts[:mix_frames] do
+          nil ->
+            main_stream
+
+          spec ->
+            {mixed, mstats} = ExPhil.Training.MixFrames.load(spec, label_delay: ropts[:label_delay])
+            oversample = ropts[:mix_oversample] || 1
+
+            Logger.info(
+              "[Streaming] bptt curriculum mix: #{length(mixed)} frames from " <>
+                "#{length(mstats)} export(s), oversample #{oversample}"
+            )
+
+            if mixed == [] do
+              main_stream
+            else
+              mix_dataset = Streaming.create_dataset(mixed, dataset_opts)
+
+              Stream.concat(
+                main_stream,
+                Stream.flat_map(1..oversample, fn _ ->
+                  ExPhil.Training.TrajectoryCursors.batch_stream(mix_dataset, cursor_opts)
+                end)
+              )
+            end
         end
       else
       if ropts[:pipeline_chunks] and not awbc? do
@@ -1240,7 +1274,7 @@ defmodule ExPhil.Training.Pipeline do
     # split_by_replay sees each as its own segment. The mix embeds
     # in-memory (no chunk-cache key change — GOTCHA #106 disk budget).
     stream =
-      case ropts[:mix_frames] do
+      case (if ropts[:bptt], do: nil, else: ropts[:mix_frames]) do
         nil ->
           stream
 
