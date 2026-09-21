@@ -40,6 +40,14 @@ defmodule ExPhil.Bridge.SimPortTest do
     assert frames == Enum.to_list(-123..-84)
   end
 
+  test "binary step and JSON step produce identical mapped frames", %{sim: sim} do
+    {:ok, [a], [ta]} = SimPort.step(sim, [[nil, nil]])
+    {:ok, json_sim} = SimPort.start_link(stage: "final_destination", players: [%{character: "fox"}, %{character: "fox", costume: 1}], length: 16, binary: false)
+    {:ok, [b], [tb]} = SimPort.step(json_sim, [[nil, nil]])
+    assert a == b and ta == tb
+    SimPort.stop(json_sim)
+  end
+
   test "save/restore returns to the saved frame", %{sim: sim} do
     for _ <- 1..5, do: {:ok, _, _} = SimPort.step(sim)
     {:ok, [before]} = SimPort.frames(sim)

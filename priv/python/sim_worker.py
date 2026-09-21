@@ -251,13 +251,90 @@ class SimWorker:
 # protocol loop
 # ---------------------------------------------------------------------------
 
-def respond(payload: dict[str, Any]) -> None:
+# ---------------------------------------------------------------------------
+# framing: every message is a 4-byte big-endian length + payload (Erlang
+# `{:packet, 4}`). A payload starting with '{' is a JSON request; a payload
+# starting with BIN_STEP is a binary step (see step_binary). Responses use
+# the same framing: JSON, or BIN_STEP + raw rows.
+# ---------------------------------------------------------------------------
+
+BIN_STEP = b"\x01"
+
+
+def dtype_layout(dt: np.dtype) -> dict[str, Any]:
+    """Recursive layout descriptor (offsets, formats, shapes) so the Elixir side
+    builds its decoder/encoder from the sim's own dtype, never by hand."""
+    if dt.fields is None:
+        if dt.subdtype:
+            sub, shape = dt.subdtype
+            return {"kind": "array", "shape": list(shape), "item": dtype_layout(sub), "itemsize": dt.itemsize}
+        return {"kind": "scalar", "fmt": dt.str, "itemsize": dt.itemsize}
+    fields = [
+        {"name": name, "offset": off, **dtype_layout(fdt)}
+        for name, (fdt, off) in sorted(((n, (v[0], v[1])) for n, v in dt.fields.items()), key=lambda kv: kv[1][1])
+    ]
+    return {"kind": "struct", "itemsize": dt.itemsize, "fields": fields}
+
+
+def layouts() -> dict[str, Any]:
+    from melee_sim import dtypes as _dt
+
+    return {
+        "gamestate": dtype_layout(_dt.gamestate_dtype()),
+        "terminal": dtype_layout(_dt.terminal_dtype()),
+        "controller_input": dtype_layout(_dt.controller_input_dtype()),
+    }
+
+
+def _write_frame(payload: bytes) -> None:
     try:
-        sys.stdout.write(json.dumps(payload, separators=(",", ":")) + "\n")
-        sys.stdout.flush()
+        out = sys.stdout.buffer
+        out.write(len(payload).to_bytes(4, "big"))
+        out.write(payload)
+        out.flush()
     except BrokenPipeError:
         # Elixir closed the port (normal shutdown race); nothing to say to.
         raise SystemExit(0)
+
+
+def respond(payload: dict[str, Any]) -> None:
+    _write_frame(json.dumps(payload, separators=(",", ":")).encode("utf-8"))
+
+
+def _read_frame() -> bytes | None:
+    inp = sys.stdin.buffer
+    head = inp.read(4)
+    if len(head) < 4:
+        return None
+    n = int.from_bytes(head, "big")
+    payload = b""
+    while len(payload) < n:
+        chunk = inp.read(n - len(payload))
+        if not chunk:
+            return None
+        payload += chunk
+    return payload
+
+
+def step_binary(worker: "SimWorker", body: bytes) -> bytes:
+    """Binary step: body = controller_input rows (batch x 112 bytes) or empty.
+    Reply = BIN_STEP + gamestate rows (batch x 980) + terminal rows (batch x 16)."""
+    from melee_sim import dtypes as _dt
+
+    env = worker._env()
+    if worker.frames_written + 1 >= worker.length:
+        env.reset_cursor()
+        worker.frames_written = 0
+    if body:
+        rows = np.frombuffer(body, dtype=_dt.controller_input_dtype())
+        if rows.shape[0] != worker.batch_size:
+            raise ValueError(f"expected {worker.batch_size} controller rows, got {rows.shape[0]}")
+        env.controller_action_view[worker.frames_written][:] = rows
+    env.step()
+    worker.frames_written += 1
+    frame = env.current_frame
+    term = env.terminal_view[worker.frames_written - 1]
+    return BIN_STEP + np.ascontiguousarray(frame).tobytes() + np.ascontiguousarray(term).tobytes()
 
 
 def main() -> int:
@@ -271,23 +348,32 @@ def main() -> int:
         "upload": worker.upload,
         "forget": worker.forget,
     }
-    for line in sys.stdin:
-        line = line.strip()
-        if not line:
+    while True:
+        payload = _read_frame()
+        if payload is None:
+            break
+        if payload[:1] == BIN_STEP:
+            try:
+                _write_frame(step_binary(worker, payload[1:]))
+            except Exception as exc:
+                log.exception("binary step failed")
+                respond({"ok": False, "error": f"{type(exc).__name__}: {exc}"})
             continue
         try:
-            req = json.loads(line)
-        except json.JSONDecodeError as exc:
+            req = json.loads(payload.decode("utf-8"))
+        except (json.JSONDecodeError, UnicodeDecodeError) as exc:
             respond({"ok": False, "error": f"invalid JSON: {exc}"})
             continue
         cmd = req.get("cmd")
         try:
             if cmd == "ping":
-                respond({"ok": True, "pong": True, "melee_sim": msl.__file__})
+                respond({"ok": True, "pong": True, "melee_sim": msl.__file__, "layout": layouts()})
             elif cmd == "stop":
                 worker.close()
                 respond({"ok": True})
                 return 0
+            elif cmd == "init":
+                respond({"ok": True, **handlers[cmd](req), "layout": layouts()})
             elif cmd in handlers:
                 respond({"ok": True, **handlers[cmd](req)})
             else:
