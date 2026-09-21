@@ -56,6 +56,11 @@
   .track svg { width: 100%; height: auto; display: block; background: var(--bg); border-radius: 4px; }
   .track text { font-family: var(--font-mono); font-size: 9px; fill: var(--muted); }
   .verdict { font-size: 13px; line-height: 1.5; }
+  .facts { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; font-size: 13px; }
+  .facts h3 { font-family: var(--font-display); font-size: 13px; margin: 0 0 6px; }
+  .facts ul { margin: 0; padding-left: 18px; display: grid; gap: 4px; line-height: 1.4; }
+  .facts b { font-family: var(--font-mono); font-weight: 500; }
+  @media (max-width: 700px) { .facts { grid-template-columns: 1fr; } }
   .verdict b { font-family: var(--font-mono); font-weight: 500; }
   footer { font-size: 12px; color: var(--muted); line-height: 1.5; max-width: 84ch; }
   code { font-family: var(--font-mono); font-size: 11.5px; }
@@ -229,6 +234,38 @@ function track(roll, title) {
   return svg;
 }
 
+// Plain-language summary of one rollout: what Fox did, when, and what it got.
+function summarize(roll) {
+  const fr = roll.frames, n = fr.length;
+  const runs = [];
+  fr.forEach((f, i) => { const nm = name(f.a1); if (!runs.length || runs[runs.length - 1].nm !== nm) runs.push({ nm, fam: fam(f.a1), start: i, len: 1 }); else runs[runs.length - 1].len++; });
+  const count = f => runs.filter(r => r.fam === f).reduce((s, r) => s + r.len, 0);
+  const attacks = runs.filter(r => r.fam === 'attack' || r.fam === 'special' || r.fam === 'grab');
+  const firstAttack = attacks[0];
+  const hits = []; fr.forEach((f, i) => { if (i > 0 && f.pct2 > fr[i - 1].pct2) hits.push({ i, by: name(f.a1), dmg: +(f.pct2 - fr[i - 1].pct2).toFixed(1) }); });
+  const jumps = []; runs.forEach((r, k) => { if (r.nm === 'knee bend') { let apex = fr[r.start].y1; for (let j = r.start; j < Math.min(n, r.start + 40); j++) { if (j > r.start && fr[j].g1) break; apex = Math.max(apex, fr[j].y1); } jumps.push({ i: r.start, h: apex - fr[r.start].y1 }); } });
+  const sh = jumps.filter(j => j.h < 25).length, fh = jumps.length - sh;
+  const shieldF = count('shield'), moveF = count('move') + count('idle'), hitstunF = count('hitstun');
+  const facts = [];
+  facts.push(firstAttack ? `first attack: <b>${firstAttack.nm}</b> at frame +${firstAttack.start}` : `<b>never attacks</b> in the 90 frames`);
+  if (attacks.length > 1) facts.push(`attacks in order: ${attacks.slice(0, 5).map(a => `${a.nm} (+${a.start})`).join(', ')}${attacks.length > 5 ? '…' : ''}`);
+  facts.push(jumps.length ? `jumps: ${sh} short hop${sh === 1 ? '' : 's'}, ${fh} full hop${fh === 1 ? '' : 's'}` : 'no jumps');
+  facts.push(`${moveF} frames moving or idle, ${shieldF} shielding${hitstunF ? `, ${hitstunF} in hitstun` : ''}`);
+  facts.push(hits.length ? `hits: ${hits.map(h => `+${h.i} ${h.by} ${h.dmg}%`).join(', ')} → <b>${roll.damage}% total</b>` : '<b>no hit lands</b>');
+  facts.push(roll.converted ? `<b>converts</b> (${roll.openings.map(o => o.opener).join(', ')} opening with a follow-up before the defender can act)` : 'does not convert');
+  return { facts, firstAttack: firstAttack ? firstAttack.start : null, firstHit: hits.length ? hits[0].i : null, attacks: attacks.length, shieldF, moveF, sh, fh };
+}
+function diffLine(t, b) {
+  const parts = [];
+  if (b.firstAttack != null && t.firstAttack == null) parts.push('the best line attacks; the typical one never does');
+  else if (b.firstAttack != null && t.firstAttack != null && t.firstAttack - b.firstAttack >= 8) parts.push(`the best line attacks ${t.firstAttack - b.firstAttack} frames earlier`);
+  if (t.shieldF - b.shieldF >= 10) parts.push(`the typical line shields ${t.shieldF - b.shieldF} more frames`);
+  if (t.moveF - b.moveF >= 15) parts.push(`the typical line spends ${t.moveF - b.moveF} more frames moving or waiting`);
+  if (b.firstHit != null && t.firstHit == null) parts.push('only the best line lands a hit');
+  if (b.fh > t.fh) parts.push(`the best line full-hops (${b.fh}) where the typical one does not`);
+  if (b.sh > t.sh) parts.push(`the best line short-hops (${b.sh}) where the typical one does not`);
+  return parts.length ? parts.join('; ') + '.' : 'the two lines differ in timing rather than in which moves are used.';
+}
 function renderExample() {
   const e = curStart, ex = document.getElementById('example');
   ex.innerHTML = '';
@@ -240,10 +277,16 @@ function renderExample() {
   Object.entries(famVar).forEach(([k, v]) => { const s = document.createElement('span'); s.style.setProperty('--k', `var(${v})`); s.textContent = k; keys.appendChild(s); });
   const hk = document.createElement('span'); hk.style.setProperty('--k', 'var(--hit)'); hk.textContent = '▲ defender takes damage'; keys.appendChild(hk);
   ex.appendChild(keys);
+  const st = summarize(e.typical), sb = summarize(e.best);
+  const facts = document.createElement("div"); facts.className = "facts";
+  facts.innerHTML = `<div><h3>Typical policy sample</h3><ul>${st.facts.map(f => `<li>${f}</li>`).join("")}</ul></div><div><h3>Oracle: best of the same 64</h3><ul>${sb.facts.map(f => `<li>${f}</li>`).join("")}</ul></div>`;
+  ex.appendChild(facts);
+  const dl = document.createElement("p"); dl.className = "verdict"; dl.innerHTML = `<b>What differs:</b> ${diffLine(st, sb)}`; ex.appendChild(dl);
   ex.appendChild(strip('Typical policy sample (median of 64)', e.typical));
   ex.appendChild(strip('Oracle: best of the same 64', e.best));
   const tr = document.createElement('div'); tr.className = 'track';
-  tr.appendChild(track(e.typical, 'typical: Fox path (solid), defender (dashed), hits (red)'));
+  const tt = document.createElement('p'); tt.className = 'sub'; tt.textContent = 'Side view of the same 90 frames: x runs across the stage, y is height, the grey line is the FD floor. Solid = Fox, dashed = defender, ● start, ○ end, red = where the defender took a hit.'; ex.appendChild(tt);
+  tr.appendChild(track(e.typical, 'typical'));
   tr.appendChild(track(e.best, 'oracle best'));
   ex.appendChild(tr);
 }
