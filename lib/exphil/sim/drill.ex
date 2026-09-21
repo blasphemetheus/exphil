@@ -305,7 +305,8 @@ defmodule ExPhil.Sim.Drill do
     n = length(entries)
 
     entries = Enum.map(entries, fn e -> {_, e} = ensure_cached(sim, e); e end)
-    Enum.with_index(entries) |> Enum.each(fn {e, i} -> {:ok, _} = SimPort.restore(sim, i, restore_ref(e)) end)
+    Enum.with_index(entries) |> Enum.each(fn {e, i} -> {:ok, _} = SimPort.restore(sim, i, restore_ref(e), frames: false) end)
+    {:ok, _, _} = SimPort.observe(sim)
 
     ensure_batch(attacker, n)
     if is_pid(defender), do: ensure_batch(defender, n)

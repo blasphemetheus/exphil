@@ -77,7 +77,10 @@ defmodule ExPhil.Bridge.SimPort do
   def forget(server, state_ids \\ nil), do: GenServer.call(server, {:forget, state_ids}, @default_timeout)
 
   @doc "Restore env `i` from a `save` binary or a cached `{:id, state_id}`."
-  def restore(server, env, state), do: GenServer.call(server, {:restore, env, state}, @default_timeout)
+  def restore(server, env, state, opts \\ []), do: GenServer.call(server, {:restore, env, state, opts}, @default_timeout)
+
+  @doc "Current frames of every env straight from the sim (binary, no step): use after restoring several envs with `frames: false`."
+  def observe(server), do: GenServer.call(server, :observe, @default_timeout)
 
   @doc "Re-initialize the match (same keys as the init request: stage, players, batch_size, length, seed...). Updates the cached frames and batch size."
   def reinit(server, req) when is_map(req), do: GenServer.call(server, {:reinit, req}, @default_timeout)
@@ -227,11 +230,15 @@ defmodule ExPhil.Bridge.SimPort do
     {:reply, send_request(state.port, req), state}
   end
 
-  def handle_call({:restore, env, {:id, id}}, _from, state) do
-    reply_frames(send_request(state.port, %{cmd: "restore", env: env, state_id: id}), state)
+  def handle_call({:restore, env, {:id, id}, opts}, _from, state) do
+    if Keyword.get(opts, :frames, true) do
+      reply_frames(send_request(state.port, %{cmd: "restore", env: env, state_id: id}), state)
+    else
+      {:reply, send_request(state.port, %{cmd: "restore", env: env, state_id: id, no_frames: true}), state}
+    end
   end
 
-  def handle_call({:restore, env, bin}, _from, state) when is_binary(bin) do
+  def handle_call({:restore, env, bin, _opts}, _from, state) when is_binary(bin) do
     reply_frames(send_request(state.port, %{cmd: "restore", env: env, state: Base.encode64(bin)}), state)
   end
 
@@ -245,6 +252,24 @@ defmodule ExPhil.Bridge.SimPort do
         {:reply, {:error, reason}, state}
     end
   end
+
+  def handle_call(:observe, _from, %{layout: %{} = layout} = state) do
+    Port.command(state.port, <<2>>)
+
+    case receive_packet(state.port) do
+      {:ok, {:binary, rest}} ->
+        n = state.batch_size
+        gsize = SimRows.itemsize(layout["gamestate"]) * n
+        <<g::binary-size(gsize), t::binary>> = rest
+        frames = layout["gamestate"] |> SimRows.decode_rows(g, n) |> map_rows(state.own_port)
+        {:reply, {:ok, frames, SimRows.decode_rows(layout["terminal"], t, n)}, %{state | frames: frames}}
+
+      {:ok, other} -> {:reply, {:error, {:sim_bad_response, other}}, state}
+      {:error, reason} -> {:reply, {:error, reason}, state}
+    end
+  end
+
+  def handle_call(:observe, _from, state), do: {:reply, {:error, :binary_layout_missing}, state}
 
   def handle_call({:raw, req}, _from, state), do: {:reply, send_request(state.port, req), state}
 

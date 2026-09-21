@@ -159,7 +159,8 @@ defmodule ExPhil.Sim.Search do
 
     {_, entry} = Drill.ensure_cached(sim, entry)
     programs = for _ <- 1..n, do: random_program(horizon, max_hold)
-    for i <- 0..(n - 1), do: {:ok, _} = SimPort.restore(sim, i, Drill.restore_ref(entry))
+    for i <- 0..(n - 1), do: {:ok, _} = SimPort.restore(sim, i, Drill.restore_ref(entry), frames: false)
+    {:ok, _, _} = SimPort.observe(sim)
 
     if is_pid(defender) do
       case Agent.batch_reset_rows(defender, Enum.to_list(0..(n - 1))) do

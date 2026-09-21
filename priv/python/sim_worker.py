@@ -228,6 +228,8 @@ class SimWorker:
         # restore rewrites native state only; refresh the observation row so
         # current_frame reflects the restored match.
         env.observe()
+        if req.get("no_frames"):
+            return {}
         return {"frames": self._frames()}
 
     # -- views -------------------------------------------------------------
@@ -259,6 +261,7 @@ class SimWorker:
 # ---------------------------------------------------------------------------
 
 BIN_STEP = b"\x01"
+BIN_OBSERVE = b"\x02"  # request: <<2>> -> reply: BIN_STEP + current gamestate rows + terminal rows, no step
 
 
 def dtype_layout(dt: np.dtype) -> dict[str, Any]:
@@ -352,6 +355,15 @@ def main() -> int:
         payload = _read_frame()
         if payload is None:
             break
+        if payload[:1] == BIN_OBSERVE:
+            try:
+                env = worker._env()
+                term = env.terminal_view[max(worker.frames_written - 1, 0)]
+                _write_frame(BIN_STEP + np.ascontiguousarray(env.current_frame).tobytes() + np.ascontiguousarray(term).tobytes())
+            except Exception as exc:
+                log.exception("binary observe failed")
+                respond({"ok": False, "error": f"{type(exc).__name__}: {exc}"})
+            continue
         if payload[:1] == BIN_STEP:
             try:
                 _write_frame(step_binary(worker, payload[1:]))
