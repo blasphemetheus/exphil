@@ -156,3 +156,20 @@ main tree — merge in the morning). `SimPort.step` round trip: batch 1
 21 µs. Frames and terminals bit-identical to the JSON path
 (`sim_port_test.exs`). The Python side is now ~half of what is left; that
 is the NIF's (10b) target: `21 µs` raw step + zero-copy rows.
+
+## Overnight results 2026-09-21 (one shared 1,000-start pool, `eval_runs/0921_sim_drill/self_n1000/pool.{jsonl,term}`)
+
+| Arm | Starts | Opening on ≥1 rollout | Converted | Mean damage | Notes |
+| --- | ---: | ---: | ---: | ---: | --- |
+| Prior vs itself, 240-frame horizon | 1,000 | 0.62 | **0.19** | 6.7 | the drill baseline (`…_drill/self_n1000`) |
+| Prior vs idle, 240 frames | 1,000 | 0.72 | 0.40 | 9.0 | `…_drill/idle_n1000` |
+| Oracle vs idle, 64 candidates × 90 frames | 1,000 | 0.94 | **0.79** | 13.1 | 9.7 % of individual candidates convert; labels for 936 starts (`…_search/idle_n1000/labels.jsonl`) |
+| Oracle vs the frozen prior, 64 × 90 | 100 | 1.00 | **0.79** | 12.4 | 5.3 % of candidates; the moving target costs the oracle nothing at the "best of 64" level (`…_search/self_n100`) |
+
+Reading: from the prior's own states, a 90-frame follow-up that opens
+and converts exists on ~80 % of starts, against idle or against the prior
+itself, while the prior finds one on 19 % (self) / 40 % (idle) with a
+240-frame horizon. That gap is the step-8 target (BC/DAgger on the oracle
+labels), with the fingerprint bound as the guard. Throughput on the
+binary-rows path: search 3,700 fps (2x the JSON run — restore + scoring
+now dominate, not the step), prior-defender search 316 s for 100 starts.
