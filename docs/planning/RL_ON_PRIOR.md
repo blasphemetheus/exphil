@@ -111,3 +111,65 @@ recipe is character-agnostic, the priors are not.
 | --- | --- | --- | --- |
 | 2026-09-20 | — | Doc written | Prior = V3.1-ep3; sim gate 8/8 exact on bot-vs-CPU; PPO code unvalidated (PPO_STATUS 07-23); nothing on this ladder run yet |
 | 2026-09-20 | R0 | not started | Waiting on: sim Python API surface + arithmetic-profile declaration from the sim sessions |
+
+## Addendum 2026-09-21 — starting point and the curriculum-env route (Bradley)
+
+Sim `main` now carries every character (Kirby merged as #29; Mewtwo/G&W/
+Roy/Pichu via the workspace branches), so the sim is prioritized.
+
+**API facts that set the plan** (`melee_sim/env_batch.py`, `dtypes.py`):
+`EnvBatch(batch_size, length)` with `configure_match(stage, players=[
+PlayerConfig(character, costume, start_percent, facing, team)])`,
+`reset_all/reset_matches`, `step`, `save/restore` per env (bytes),
+`gamestate_view` = structured rows with per-slot `pos_x/pos_y`, the five
+`speed_*` fields, `percent`, `shield_hp`, `action_id`, `action_frame`,
+`hitlag`, `hitstun`, `char_id`, `stocks`, `facing`, `on_ground`,
+`jumps_left`, `invulnerable`, plus items and `terminal_view`
+(`done/stockout/alive_count`). Controller input via `write_controller`
+(float sticks/buttons/shoulder) — the same 13-dim controller ExPhil
+emits. Recorded-input replay lives only in the C validator (`native.c`:
+raw analog lanes, UCF, physical vs processed buttons); porting that to
+Python is a rabbit hole and is NOT needed for the closed loop.
+
+**Starting thing = the closed loop, not input replay.**
+1. **State mapper** (`ExPhil.Bridge.SimState`): sim row → `Types.GameState`
+   / `Types.Player` (every embedding input has a sim field; `controller_state`
+   comes from what we wrote; Nana = second slot on the same port). Unit
+   test: the reset-state row of a Fox-vs-Fox FD match maps to the same
+   embedding as frame −123 of a Dolphin FD Fox ditto (`parity.exs` style).
+2. **Sim worker** over the existing bridge protocol (`priv/python/`): a
+   Python process that owns an `EnvBatch`, sends mapped state rows, takes
+   controller rows back; batch_size 1 first, then N. This is R0 in
+   practice.
+3. **R1**: V3.1-ep3 vs a frozen copy of itself in the sim, 30 games,
+   fingerprint vs `…_ep3/style_probe/` (the sim writes no `.slp`, so the
+   fingerprint runs on a trace → the `StyleFingerprint` input adapter
+   takes frames, not files; small change). Since the sim reproduces our
+   Dolphin games exactly, R1 failing would point at the mapper, not the
+   sim.
+
+**Curriculum envs with combo rewards (Bradley 09-21) — the first RL use.**
+`configure_match` + `save/restore` give randomized starts for free:
+positions, percents, facing, action + action frame (restore a saved state
+then overwrite), stale queue. The reward for "teach this combo" already
+exists as scorers: `ExPhil.Eval.AerialChain` (A3) and `FairConversion`
+(in-window fair contact consumed) — a drill = (start distribution, scorer,
+horizon K). Two teachers on the same drill, in order:
+- **Search-as-teacher first** (MELEE_SIM_USES §3): from each start, roll N
+  candidate input sequences for K frames with save/restore, keep the one
+  the scorer accepts, BC/DAgger on the labels. No critic, no PPO
+  machinery, deterministic, and it yields the label machine the drill
+  program always wanted. Pre-registered check = the fingerprint bound
+  (habits stay human) + the drill's conversion rate on held-out starts.
+- **PPO on the same env** once the actor-critic on the trunk exists
+  (R2/R3), with the drill scorer as shaped reward and the KL-to-prior
+  penalty.
+Fox fair-conversion on FD first (scorers exist, prior exists); Mewtwo
+short-hop-fair conversion second (needs a Mewtwo prior). 2v1 curricula
+(train a doubles-capable agent by facing two opponents; Bradley notes
+prior work exists) are possible — `MAX_PLAYERS = 4`, `is_teams`,
+`team_alive_mask` — but come after the 1v1 drill loop works.
+
+**Ledger:** R0 → mapper + worker (this repo, Python allowed: bridge
+tooling); nothing touches the sim sessions' builds — the installed
+package under `~/git/melee-sim-light/.venv` imports cleanly with peppi.
