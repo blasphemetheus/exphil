@@ -1,0 +1,223 @@
+<title>Fox Regret Map</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;700;800&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+  :root {
+    --bg: #eef1f6; --panel: #ffffff; --ink: #12213a; --muted: #5b6b85; --line: #d5dce8;
+    --accent: #2f6fe0; --stage: #26324a; --stage-edge: #8a97b3;
+    --lo: #c9403f; --mid: #e0a422; --hi: #2fb37e; --hover: #12213a;
+    --font-display: "Archivo", "Helvetica Neue", Arial, sans-serif;
+    --font-body: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
+    --font-mono: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #0f1522; --panel: #171f2f; --ink: #e6ecf5; --muted: #98a6c0; --line: #2a3448;
+      --accent: #6ea0ff; --stage: #dfe6f5; --stage-edge: #6c7a96; --hover: #e6ecf5;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #0f1522; --panel: #171f2f; --ink: #e6ecf5; --muted: #98a6c0; --line: #2a3448;
+    --accent: #6ea0ff; --stage: #dfe6f5; --stage-edge: #6c7a96; --hover: #e6ecf5;
+  }
+  body { background: var(--bg); color: var(--ink); font-family: var(--font-body); margin: 0; }
+  .wrap { max-width: 1240px; margin: 0 auto; padding: 28px 24px 48px; display: grid; gap: 22px; }
+  header { display: grid; gap: 8px; }
+  .eyebrow { font-family: var(--font-mono); font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+  h1 { font-family: var(--font-display); font-weight: 800; font-size: clamp(26px, 3.4vw, 40px); line-height: 1.05; margin: 0; letter-spacing: -0.01em; text-wrap: balance; }
+  .lede { max-width: 66ch; color: var(--muted); line-height: 1.5; margin: 0; }
+  .tiles { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+  .tile { background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 12px 14px; display: grid; gap: 4px; }
+  .tile .k { font-size: 12px; color: var(--muted); letter-spacing: 0.04em; text-transform: uppercase; }
+  .tile .v { font-family: var(--font-mono); font-size: 26px; font-weight: 500; font-variant-numeric: tabular-nums; }
+  .tile .s { font-size: 12px; color: var(--muted); }
+  .grid { display: grid; grid-template-columns: minmax(0, 7fr) minmax(300px, 5fr); gap: 22px; align-items: start; }
+  @media (max-width: 900px) { .grid { grid-template-columns: 1fr; } .tiles { grid-template-columns: repeat(2, 1fr); } }
+  .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 16px; display: grid; gap: 12px; }
+  .panel h2 { font-family: var(--font-display); font-weight: 700; font-size: 17px; margin: 0; }
+  .sub { font-size: 13px; color: var(--muted); margin: 0; line-height: 1.45; }
+  .controls { display: flex; flex-wrap: wrap; gap: 10px 18px; font-size: 13px; align-items: center; }
+  .controls label { display: inline-flex; gap: 6px; align-items: center; cursor: pointer; }
+  .controls select { font: inherit; color: var(--ink); background: var(--panel); border: 1px solid var(--line); border-radius: 4px; padding: 3px 6px; }
+  .controls input:focus-visible, .controls select:focus-visible, .bar:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  svg { width: 100%; height: auto; display: block; }
+  .stage-fill { fill: var(--stage); opacity: 0.9; }
+  .zone { fill: none; stroke: var(--stage-edge); stroke-dasharray: 4 4; stroke-width: 1.2; }
+  .axis { fill: var(--muted); font-family: var(--font-mono); font-size: 9px; }
+  .legend { display: flex; align-items: center; gap: 10px; font-family: var(--font-mono); font-size: 12px; color: var(--muted); }
+  .ramp { flex: 1; height: 10px; border-radius: 3px; background: linear-gradient(90deg, var(--lo), var(--mid), var(--hi)); }
+  .tip { position: fixed; pointer-events: none; background: var(--hover); color: var(--bg); font-family: var(--font-mono); font-size: 12px; padding: 8px 10px; border-radius: 4px; line-height: 1.45; max-width: 280px; z-index: 10; }
+  .tip[hidden] { display: none; }
+  .bars { display: grid; gap: 6px; max-height: 620px; overflow-y: auto; padding-right: 4px; }
+  .bar { display: grid; grid-template-columns: 150px 1fr 44px; gap: 8px; align-items: center; font-size: 12.5px; background: none; border: 0; padding: 2px 0; color: inherit; text-align: left; cursor: pointer; font-family: inherit; }
+  .bar .name { font-family: var(--font-mono); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .bar .track { position: relative; height: 14px; background: var(--line); border-radius: 3px; overflow: hidden; }
+  .bar .pol { position: absolute; left: 0; top: 0; bottom: 0; background: var(--accent); border-radius: 3px 0 0 3px; }
+  .bar .ora { position: absolute; top: 3px; bottom: 3px; width: 2px; background: var(--ink); }
+  .bar .n { font-family: var(--font-mono); color: var(--muted); text-align: right; font-variant-numeric: tabular-nums; }
+  .bar.active .name { color: var(--accent); font-weight: 600; }
+  .keys { display: flex; gap: 16px; font-size: 12px; color: var(--muted); align-items: center; flex-wrap: wrap; }
+  .swatch { display: inline-block; width: 14px; height: 10px; background: var(--accent); border-radius: 2px; vertical-align: middle; margin-right: 5px; }
+  .tick { display: inline-block; width: 2px; height: 12px; background: var(--ink); vertical-align: middle; margin-right: 6px; }
+  footer { font-size: 12px; color: var(--muted); line-height: 1.5; max-width: 80ch; }
+  footer code { font-family: var(--font-mono); font-size: 11.5px; }
+</style>
+
+<div class="wrap">
+  <header>
+    <div class="eyebrow">ExPhil · sim evals · mix2 on its own 1,000 starts · Final Destination · 2026-09-21</div>
+    <h1>Where does the bot leave value on the table?</h1>
+    <p class="lede">Every dot is a real state the policy reached against itself. From each one it sampled 64 continuations; the color is how many of them converted an opening into a second hit. The oracle picks the best of the 64, so nearly every start has a converting line somewhere in the policy. Regret is the gap between what it could do and what it usually does.</p>
+  </header>
+
+  <div class="tiles">
+    <div class="tile"><div class="k">Starts</div><div class="v" id="t-n">—</div><div class="s">policy vs itself, seed 11, 30-frame history each</div></div>
+    <div class="tile"><div class="k">Policy converts</div><div class="v" id="t-pol">—</div><div class="s">mean share of its own 64 samples</div></div>
+    <div class="tile"><div class="k">Oracle converts</div><div class="v" id="t-ora">—</div><div class="s">starts where at least one sample did</div></div>
+    <div class="tile"><div class="k">Regret</div><div class="v" id="t-reg">—</div><div class="s">oracle − policy, per start</div></div>
+  </div>
+
+  <div class="grid">
+    <section class="panel">
+      <h2>On the stage</h2>
+      <p class="sub">Attacker positions at the start of each 90-frame window. Hover a dot for the start; click a geometry situation on the right (distance, height, defender state) to show only its starts.</p>
+      <div class="controls">
+        <label>Color by
+          <select id="color-by">
+            <option value="policy">policy conversion rate</option>
+            <option value="regret">regret (oracle − policy)</option>
+            <option value="dmg">best damage</option>
+          </select>
+        </label>
+        <label><input type="checkbox" id="show-p2"> show defender positions</label>
+        <label><input type="checkbox" id="show-grid" checked> 12-unit heat grid</label>
+        <label><input type="checkbox" id="only-hit"> only starts where the policy never converted</label>
+      </div>
+      <svg id="stage" viewBox="-240 -170 480 380" role="img" aria-label="Final Destination with start positions colored by conversion rate"></svg>
+      <div class="legend"><span id="leg-lo">0.00</span><div class="ramp"></div><span id="leg-hi">1.00</span><span id="leg-name">policy conversion rate</span></div>
+    </section>
+
+    <section class="panel">
+      <h2>By situation</h2>
+      <p class="sub">Bar = the policy's own conversion rate in that situation; tick = the oracle's. Sorted weakest first. A start can carry several labels.</p>
+      <div class="keys"><span><span class="swatch"></span>policy</span><span><span class="tick"></span>oracle</span><span>n = starts</span></div>
+      <div class="bars" id="bars"></div>
+    </section>
+  </div>
+
+  <footer>
+    Source: <code>eval_runs/0921_step8/oracle_mix2_t10/results.jsonl</code> (per start) and <code>eval_runs/0921_evals/regret_mix2.json</code> (bins, min n 15). Rates are per-start means with no interval shown; 300-start comparisons carry about ±0.05, 1,000-start about ±0.03. Situation labels come from <code>ExPhil.Situations</code> folded over each start's history plus geometry bins (distance band, defender height, defender percent, defender state). Bins overlap, so bars are not a partition. Coordinates are Melee units; FD's edges sit at ±85.6.
+  </footer>
+</div>
+<div class="tip" id="tip" hidden></div>
+
+<script>
+const STARTS = __STARTS__;
+const BINS = __BINS__;
+
+// Situation membership per start is not in the compact data; geometry bins are recomputed here so highlighting works for them.
+function geoBins(s) {
+  const [x1, y1, a1, g1] = s.p1, [x2, y2, a2, pct, g2] = s.p2;
+  const d = Math.hypot(x1 - x2, y1 - y2);
+  const out = [];
+  out.push(d < 20 ? 'd<20' : d < 35 ? 'd20-35' : d < 50 ? 'd35-50' : 'd50+');
+  out.push(pct < 30 ? 'p2%<30' : pct < 70 ? 'p2%30-70' : 'p2%70+');
+  out.push(g2 ? 'def_grounded' : 'def_airborne');
+  out.push(y2 - y1 > 8 ? 'def_above' : y1 - y2 > 8 ? 'def_below' : 'level');
+  const hit = (a2 >= 75 && a2 <= 91) || (a2 >= 223 && a2 <= 232);
+  const fam = a2 >= 65 && a2 <= 69 ? 'def_aerial' : a2 >= 58 && a2 <= 64 ? 'def_smash' : a2 >= 51 && a2 <= 57 ? 'def_tilt' : a2 >= 44 && a2 <= 49 ? 'def_jab' : a2 === 50 ? 'def_dash_attack' : (a2 >= 212 && a2 <= 222) ? 'def_grab' : (a2 >= 341 && a2 <= 400) ? 'def_special' : (a2 >= 178 && a2 <= 182) ? 'def_shield' : null;
+  out.push(hit ? 'def_hitstun' : fam || 'def_neutral');
+  return out;
+}
+STARTS.forEach(s => { s.rate = s.nc / s.tried; s.reg = (s.best ? 1 : 0) - s.rate; s.geo = geoBins(s); });
+
+const n = STARTS.length;
+const mean = a => a.reduce((x, y) => x + y, 0) / Math.max(a.length, 1);
+document.getElementById('t-n').textContent = n.toLocaleString();
+document.getElementById('t-pol').textContent = mean(STARTS.map(s => s.rate)).toFixed(3);
+document.getElementById('t-ora').textContent = mean(STARTS.map(s => s.best ? 1 : 0)).toFixed(3);
+document.getElementById('t-reg').textContent = mean(STARTS.map(s => s.reg)).toFixed(3);
+
+const css = v => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+function hex(c) { const m = c.match(/#([0-9a-f]{6})/i); return m ? [1, 3, 5].map(i => parseInt(m[1].slice(i - 1, i + 1), 16)) : [128, 128, 128]; }
+function ramp(t) {
+  const lo = hex(css('--lo')), mid = hex(css('--mid')), hi = hex(css('--hi'));
+  const [a, b, u] = t < 0.5 ? [lo, mid, t * 2] : [mid, hi, (t - 0.5) * 2];
+  return `rgb(${a.map((v, i) => Math.round(v + (b[i] - v) * u)).join(',')})`;
+}
+
+const svg = document.getElementById('stage');
+const NS = 'http://www.w3.org/2000/svg';
+const el = (tag, attrs) => { const e = document.createElementNS(NS, tag); for (const k in attrs) e.setAttribute(k, attrs[k]); return e; };
+const tip = document.getElementById('tip');
+let highlight = null;
+
+function metric(s) {
+  const by = document.getElementById('color-by').value;
+  if (by === 'policy') return [s.rate, 0, 1];
+  if (by === 'regret') return [s.reg, -0.2, 1];
+  return [s.dmg, 0, 40];
+}
+
+function draw() {
+  svg.innerHTML = '';
+  const showP2 = document.getElementById('show-p2').checked;
+  const showGrid = document.getElementById('show-grid').checked;
+  const onlyMiss = document.getElementById('only-hit').checked;
+  const by = document.getElementById('color-by').value;
+  const [, lo, hi] = metric(STARTS[0]);
+  document.getElementById('leg-lo').textContent = lo.toFixed(2);
+  document.getElementById('leg-hi').textContent = hi.toFixed(2);
+  document.getElementById('leg-name').textContent = by === 'policy' ? 'policy conversion rate' : by === 'regret' ? 'regret' : 'best damage (%)';
+
+  // blast zones (dashed) and the FD slab; y is flipped (Melee y up).
+  const Y = y => -y;
+  svg.appendChild(el('rect', { x: -224, y: Y(188), width: 448, height: 328, class: 'zone' }));
+  svg.appendChild(el('path', { d: `M -85.6 ${Y(0)} L 85.6 ${Y(0)} L 70 ${Y(-30)} L 30 ${Y(-70)} L -30 ${Y(-70)} L -70 ${Y(-30)} Z`, class: 'stage-fill' }));
+  [-200, -100, 0, 100, 200].forEach(x => { const t = el('text', { x, y: Y(-160), class: 'axis', 'text-anchor': 'middle' }); t.textContent = x; svg.appendChild(t); });
+  [150, 100, 50].forEach(y => { const t = el('text', { x: -232, y: Y(y) + 3, class: 'axis' }); t.textContent = y; svg.appendChild(t); });
+
+  const geoSet = new Set(STARTS.flatMap(s => s.geo));
+  const hl = highlight && geoSet.has(highlight) ? highlight : null;
+  const rows = STARTS.filter(s => !onlyMiss || s.nc === 0).filter(s => !hl || s.geo.includes(hl));
+
+  if (showGrid) {
+    const cell = 12, agg = new Map();
+    rows.forEach(s => { const k = `${Math.floor(s.p1[0] / cell)},${Math.floor(s.p1[1] / cell)}`; const g = agg.get(k) || { sum: 0, c: 0 }; g.sum += metric(s)[0]; g.c++; agg.set(k, g); });
+    agg.forEach((g, k) => {
+      const [gx, gy] = k.split(',').map(Number);
+      const t = (g.sum / g.c - lo) / (hi - lo);
+      svg.appendChild(el('rect', { x: gx * cell, y: Y((gy + 1) * cell), width: cell, height: cell, fill: ramp(Math.max(0, Math.min(1, t))), opacity: Math.min(0.85, 0.25 + g.c * 0.08) }));
+    });
+  }
+
+  rows.forEach(s => {
+    const [v] = metric(s);
+    const t = (v - lo) / (hi - lo);
+    const c = el('circle', { cx: s.p1[0], cy: Y(s.p1[1]), r: showGrid ? 1.6 : 2.4, fill: ramp(Math.max(0, Math.min(1, t))), stroke: css('--panel'), 'stroke-width': 0.4 });
+    c.addEventListener('mousemove', e => {
+      tip.hidden = false; tip.style.left = (e.clientX + 14) + 'px'; tip.style.top = (e.clientY + 14) + 'px';
+      tip.innerHTML = `start ${s.id}<br>attacker (${s.p1[0].toFixed(1)}, ${s.p1[1].toFixed(1)}) action ${s.p1[2]}<br>defender (${s.p2[0].toFixed(1)}, ${s.p2[1].toFixed(1)}) action ${s.p2[2]} at ${s.p2[3]}%<br>policy ${s.nc}/${s.tried} converted · oracle ${s.best ? 'yes' : 'no'} · best dmg ${s.dmg}<br>${s.geo.join(' · ')}`;
+    });
+    c.addEventListener('mouseleave', () => { tip.hidden = true; });
+    svg.appendChild(c);
+    if (showP2) svg.appendChild(el('circle', { cx: s.p2[0], cy: Y(s.p2[1]), r: 1.4, fill: 'none', stroke: css('--muted'), 'stroke-width': 0.6 }));
+  });
+}
+
+const bars = document.getElementById('bars');
+BINS.slice().sort((a, b) => a.policy - b.policy).forEach(b => {
+  const row = document.createElement('button');
+  row.className = 'bar'; row.type = 'button'; row.dataset.bin = b.bin;
+  row.innerHTML = `<span class="name" title="${b.bin}">${b.bin}</span><span class="track"><span class="pol" style="width:${(b.policy * 100).toFixed(1)}%"></span><span class="ora" style="left:${(b.oracle * 100).toFixed(1)}%"></span></span><span class="n">${b.n}</span>`;
+  row.title = `${b.bin}: policy ${b.policy}, oracle ${b.oracle}, regret ${b.regret}, n ${b.n}`;
+  row.addEventListener('click', () => {
+    highlight = highlight === b.bin ? null : b.bin;
+    document.querySelectorAll('.bar').forEach(x => x.classList.toggle('active', x.dataset.bin === highlight));
+    draw();
+  });
+  bars.appendChild(row);
+});
+
+['color-by', 'show-p2', 'show-grid', 'only-hit'].forEach(id => document.getElementById(id).addEventListener('change', draw));
+draw();
+</script>
