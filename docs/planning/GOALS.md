@@ -166,7 +166,7 @@ hold the plans.
 1. **Imitation squeeze** — `IMITATION_SQUEEZE.md`: pilot-first (5 %
    matched-seed fits + cliff resumes), no long run until the pilots pick
    the levers; V3.2 assembled from the winners.
-2. **RL on the prior** — `RL_ON_PRIOR.md`: self-play/PPO on V3.1-ep3 in
+2. **RL on the prior** — `RL_ON_PRIOR.md` (+ `SIM_INTEGRATION.md`, the sim plan/tracker): self-play/PPO on V3.1-ep3 in
    melee-sim-light, KL-to-prior, gates R0–R5 (R0 = sim adapter parity).
 3. **Coach and style products** — `COACH_STYLE_PRODUCTS.md`: style report
    card, play-like-X slot fine-tune, sparring launcher, C1–C3 overlays.
