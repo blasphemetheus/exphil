@@ -213,7 +213,48 @@ defmodule ExPhil.Sim.Search do
     }
   end
 
-  defp score_program(states, program, horizon) do
+  # Style term INSIDE the selection (iteration 4, 2026-09-21): outcome-only
+  # selection against a non-punishing target drifted the same three habits
+  # every iteration (short hop ↓, shield ↑, grabs ↑). Penalize them per
+  # candidate so the oracle prefers human-shaped winners: a converting
+  # short-hop candidate beats a converting full-hop one; a full-hop-only
+  # converter still beats a non-converter (penalties stay below the 1000
+  # conversion bonus). Weights are per-episode, tunable via `:style_penalty`.
+  @style_penalty %{full_hop: 120.0, grab: 60.0, shield_frame: 2.0}
+  @knee_bend 24
+  @jumps [25, 26]
+  @airborne_ok MapSet.new(Enum.to_list(25..34) ++ Enum.to_list(65..69) ++ [236])
+  @shield_states MapSet.new(178..182)
+  @grab_starts MapSet.new([212, 214])
+  # Fox full hop apex ≈ 42 units, short hop ≈ 15 (frame data); 25 splits them.
+  @full_hop_height 25.0
+
+  @doc "Per-candidate habit counts the selection penalizes: full hops, grab attempts, shield frames."
+  def style_counts(states) do
+    arr = List.to_tuple(states)
+    n = tuple_size(arr)
+    p1 = fn i -> elem(arr, i).players[1] end
+
+    full_hops =
+      for i <- 1..(n - 1)//1, p1.(i - 1).action == @knee_bend, p1.(i).action in @jumps, reduce: 0 do
+        acc ->
+          y0 = p1.(i - 1).y
+
+          apex =
+            Enum.reduce_while(i..min(i + 40, n - 1)//1, y0, fn j, best ->
+              p = p1.(j)
+              if j > i and (p.on_ground == true or not MapSet.member?(@airborne_ok, p.action)), do: {:halt, best}, else: {:cont, max(best, p.y)}
+            end)
+
+          if apex - y0 > @full_hop_height, do: acc + 1, else: acc
+      end
+
+    grabs = for i <- 1..(n - 1)//1, MapSet.member?(@grab_starts, p1.(i).action), not MapSet.member?(@grab_starts, p1.(i - 1).action), reduce: 0, do: (acc -> acc + 1)
+    shield = Enum.count(0..(n - 1), fn i -> MapSet.member?(@shield_states, p1.(i).action) end)
+    %{full_hops: full_hops, grabs: grabs, shield_frames: shield}
+  end
+
+  defp score_program(states, program, horizon, style_penalty \\ @style_penalty) do
     gs0 = hd(states)
     frames = Enum.map(states, fn s -> %{frame: s.frame, p1: ScenarioScan.player_summary(s.players[1]), p2: ScenarioScan.player_summary(s.players[2])} end)
     openings = Opening.openings(frames, window: horizon)
@@ -224,11 +265,19 @@ defmodule ExPhil.Sim.Search do
     hits = openings |> Enum.map(& &1.hits) |> Enum.sum()
     p1_end = List.last(states).players[1]
     alive = p1_end.stock == gs0.players[1].stock and abs(p1_end.x) < 90.0
+    style = style_counts(states)
+
+    style_cost =
+      if style_penalty do
+        style.full_hops * style_penalty.full_hop + style.grabs * style_penalty.grab + style.shield_frames * style_penalty.shield_frame
+      else
+        0.0
+      end
 
     score =
-      (if converted, do: 1000.0, else: 0.0) + (if contact, do: 100.0, else: 0.0) + damage + 10.0 * hits - (if alive, do: 0.0, else: 500.0)
+      (if converted, do: 1000.0, else: 0.0) + (if contact, do: 100.0, else: 0.0) + damage + 10.0 * hits - (if alive, do: 0.0, else: 500.0) - style_cost
 
-    %{program: Enum.map(program, &elem(&1, 0)), controllers: Enum.map(program, &elem(&1, 1)), states: states, frames: frames, converted?: converted, contact?: contact, damage: damage, chain: chain, opening: Opening.summary(frames, window: horizon), openings: openings, alive?: alive, score: score, fair: FairConversion.summary(frames, window: horizon)}
+    %{program: Enum.map(program, &elem(&1, 0)), controllers: Enum.map(program, &elem(&1, 1)), states: states, frames: frames, converted?: converted, contact?: contact, damage: damage, chain: chain, opening: Opening.summary(frames, window: horizon), openings: openings, alive?: alive, score: score, style: style, style_cost: style_cost, fair: FairConversion.summary(frames, window: horizon)}
   end
 
   @doc """
@@ -246,6 +295,7 @@ defmodule ExPhil.Sim.Search do
     n = Keyword.fetch!(opts, :n)
     horizon = Keyword.get(opts, :horizon, 90)
     temperature = Keyword.get(opts, :temperature, 1.2)
+    style_penalty = Keyword.get(opts, :style_penalty, @style_penalty)
 
     {_, entry} = Drill.ensure_cached(sim, entry)
     for i <- 0..(n - 1), do: {:ok, _} = Env.restore(sim, i, Drill.restore_ref(entry), frames: false)
@@ -284,7 +334,7 @@ defmodule ExPhil.Sim.Search do
 
     results =
       Enum.zip(per_env, ctrls_per_env)
-      |> Enum.map(fn {states, ctrls} -> score_program(states, Enum.map(ctrls, &{:policy, &1}), horizon) end)
+      |> Enum.map(fn {states, ctrls} -> score_program(states, Enum.map(ctrls, &{:policy, &1}), horizon, style_penalty) end)
 
     best = Enum.max_by(results, & &1.score)
 

@@ -17,7 +17,7 @@ alias ExPhil.Sim.Env
 alias ExPhil.Sim.{Drill, Search}
 alias ExPhil.Training.Output
 
-{opts, _, _} = OptionParser.parse(System.argv(), strict: [pool: :string, policy: :string, defender: :string, n: :integer, horizon: :integer, out: :string, seed: :integer, starts: :integer, max_hold: :integer, batched: :boolean, backend: :string, pool_term: :string, episodes_out: :string, teacher: :string, temperature: :float])
+{opts, _, _} = OptionParser.parse(System.argv(), strict: [pool: :string, policy: :string, defender: :string, n: :integer, horizon: :integer, out: :string, seed: :integer, starts: :integer, max_hold: :integer, batched: :boolean, backend: :string, pool_term: :string, episodes_out: :string, teacher: :string, temperature: :float, style_penalty: :boolean])
 defender_kind = opts[:defender] || "idle"
 n = opts[:n] || 64
 horizon = opts[:horizon] || 90
@@ -30,10 +30,11 @@ batched = Keyword.get(opts, :batched, true)
 backend = String.to_atom(opts[:backend] || "nif")
 teacher = String.to_atom(opts[:teacher] || "random")
 temperature = opts[:temperature] || 1.2
+style_penalty = if Keyword.get(opts, :style_penalty, true), do: nil, else: :off
 agent_opts = [policy_path: opts[:policy], deterministic: false, temperature: 1.0, af_convention: :parsed, frame_delay: 0, harness: :sync_runner, reaction_delay: 0, stateful_step: true]
 attacker = if teacher == :policy, do: (fn -> {:ok, a} = Agent.start_link(agent_opts); {:ok, _} = Agent.warmup(a); a end).(), else: nil
 Output.banner("Search-as-teacher v0 (step 7)")
-Output.config([{"Pool", opts[:pool] || opts[:pool_term] || "(built from play)"}, {"Defender", defender_kind}, {"Teacher", teacher}, {"Temperature", temperature}, {"Candidates/start", n}, {"Horizon", horizon}, {"Seed", seed}, {"Out", out}])
+Output.config([{"Pool", opts[:pool] || opts[:pool_term] || "(built from play)"}, {"Defender", defender_kind}, {"Teacher", teacher}, {"Temperature", temperature}, {"Style penalty", (if style_penalty == :off, do: "off", else: "on")}, {"Candidates/start", n}, {"Horizon", horizon}, {"Seed", seed}, {"Out", out}])
 {:ok, sim} = Env.start(backend, stage: "final_destination", players: [%{character: "fox", costume: 1}, %{character: "fox", costume: 0}], length: 256, seed: seed)
 # the batched pool builder and the batched search both need the sim at batch n from the start
 if batched, do: {:ok, _} = Env.reinit(sim, %{stage: "final_destination", players: [%{character: "fox", costume: 1}, %{character: "fox", costume: 0}], batch_size: n, length: 256, seed: seed})
@@ -74,14 +75,14 @@ results =
   |> Enum.with_index(1)
   |> Enum.map(fn {entry, i} ->
     shoot = cond do
-      teacher == :policy -> fn s, e, d, o -> Search.shoot_policy(s, e, attacker, d, Keyword.put(o, :temperature, temperature)) end
+      teacher == :policy -> fn s, e, d, o -> Search.shoot_policy(s, e, attacker, d, o |> Keyword.put(:temperature, temperature) |> then(&(if style_penalty == :off, do: Keyword.put(&1, :style_penalty, nil), else: &1))) end
       batched -> &Search.shoot_batch/4
       true -> &Search.shoot/4
     end
     r = shoot.(sim, entry, defender, n: n, horizon: horizon, seed: seed, max_hold: opts[:max_hold] || 12)
     b = r.best
 
-    IO.write(results_io, Jason.encode!(%{id: entry.id, start: entry.summary, tried: r.tried, n_converted: r.n_converted, n_contact: r.n_contact, best: %{score: b.score, converted: b.converted?, contact: b.contact?, damage: b.damage, alive: b.alive?, program: b.program, aerials: b.chain.mean_connected_aerials, openings: Enum.map(b.openings, &Map.take(&1, [:frame, :opener, :family, :hits, :damage, :converted?])), outcomes: b.fair.outcomes}}) <> "\n")
+    IO.write(results_io, Jason.encode!(%{id: entry.id, start: entry.summary, tried: r.tried, n_converted: r.n_converted, n_contact: r.n_contact, best: %{score: b.score, converted: b.converted?, contact: b.contact?, damage: b.damage, alive: b.alive?, style: Map.get(b, :style), style_cost: Map.get(b, :style_cost), program: b.program, aerials: b.chain.mean_connected_aerials, openings: Enum.map(b.openings, &Map.take(&1, [:frame, :opener, :family, :hits, :damage, :converted?])), outcomes: b.fair.outcomes}}) <> "\n")
 
     if b.converted? and b.alive? and opts[:episodes_out] do
       # Training episode (causal pairs: state[t] with the input issued from it): the warm
@@ -116,6 +117,8 @@ mean_dmg = results |> Enum.map(& &1.best.damage) |> then(&(if starts == 0, do: 0
 per_cand_conv = results |> Enum.map(& &1.n_converted) |> Enum.sum()
 ms = System.monotonic_time(:millisecond) - t0
 
+style_mean = fn k -> results |> Enum.map(&(Map.get(&1.best, :style) || %{}) |> Map.get(k, 0)) |> then(&(if starts == 0, do: 0.0, else: Enum.sum(&1) / starts)) |> Float.round(2) end
+Output.puts("best-candidate habits per episode: full hops #{style_mean.(:full_hops)}  grabs #{style_mean.(:grabs)}  shield frames #{style_mean.(:shield_frames)}")
 Output.puts("ORACLE #{defender_kind}: starts #{starts}  any-candidate converted #{Float.round(conv / max(starts, 1), 3)}  any-candidate contact #{Float.round(contact / max(starts, 1), 3)}  best converted+alive #{Float.round(best_conv / max(starts, 1), 3)}  mean best damage #{Float.round(mean_dmg, 1)}  candidate-level conversion #{Float.round(per_cand_conv / max(starts * n, 1), 4)}  (#{div(ms, 1000)} s)")
 
 File.write!(Path.join(out, "summary.json"), Jason.encode!(%{defender: defender_kind, starts: starts, n: n, horizon: horizon, seed: seed, any_converted_rate: conv / max(starts, 1), any_contact_rate: contact / max(starts, 1), best_converted_alive_rate: best_conv / max(starts, 1), mean_best_damage: mean_dmg, candidate_conversion_rate: per_cand_conv / max(starts * n, 1), elapsed_ms: ms}, pretty: true))
