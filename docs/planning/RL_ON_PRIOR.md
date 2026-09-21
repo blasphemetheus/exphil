@@ -173,3 +173,5 @@ prior work exists) are possible — `MAX_PLAYERS = 4`, `is_teams`,
 **Ledger:** R0 → mapper + worker (this repo, Python allowed: bridge
 tooling); nothing touches the sim sessions' builds — the installed
 package under `~/git/melee-sim-light/.venv` imports cleanly with peppi.
+| 2026-09-21 | R0 | **DONE** | SIM_INTEGRATION steps 1-3: mapper embed-identical, worker 1,800 frames 0 errors, row fidelity exact −123..−40 vs Dolphin |
+| 2026-09-21 | R1 | **DONE — PASSED** | V3.1-ep3 vs frozen self in the sim, 10 games: all six fingerprint tells within 2 sd of the Dolphin probe arm; NCA dolphin-sim distance = within-arm spread. Loop speed 56 fps with two GPU agents over JSON — the NIF (step 10) is the throughput lever for R2/R3 |
