@@ -96,3 +96,15 @@ makes "randomized starts from this moment" cheap (MELEE_SIM_USES §2).
 | --- | --- | --- | --- |
 | 2026-09-20 | — | Doc written | S2a (registry profiles) already works: D3 n=10 pass, Bradley played C2 and INFP |
 | 2026-09-20 | S1 | not started | All inputs exist (`style_fingerprint.exs`, calibration, metric) |
+
+### S4 — the model's own costume (Bradley 2026-09-21, "a favorite costume developed by training")
+Costume is not an input today (mapper drops it, no embedding dims), so a
+preference must come from somewhere the model *does* express itself:
+(a) per named slot, the matcher's P(costume | entity) is a queryable
+preference now (evidence, not truth — sample it); (b) **costume head**:
+predict the subject's costume from play (fingerprint-style), then let the
+policy play in the sim and pick the costume its own play predicts — a
+preference that is genuinely a product of training; (c) costume as an
+embedding input (V3.2 pilot, changes the contract). Do (b) with the S1
+report card; the head doubles as matcher evidence.
+- [ ] S4 costume head + "pick your costume" demo.
