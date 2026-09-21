@@ -1,0 +1,31 @@
+[17:05:31] Drill rates per start (95 % CI):
+[17:05:31]   ep3      n 300  conversion 0.217 [0.17, 0.263]  opening 0.63 [0.577, 0.683]  damage 7.153 [6.106, 8.29]
+[17:05:31]   ctrl     n 300  conversion 0.143 [0.107, 0.183]  opening 0.563 [0.507, 0.62]  damage 5.358 [4.282, 6.412]
+[17:05:31]   mix2     n 300  conversion 0.317 [0.267, 0.37]  opening 0.733 [0.687, 0.783]  damage 9.786 [8.632, 10.995]
+[17:05:31]   mix3     n 300  conversion 0.37 [0.317, 0.423]  opening 0.79 [0.743, 0.84]  damage 11.255 [10.006, 12.584]
+[17:05:31]   mix3b    n 300  conversion 0.373 [0.32, 0.427]  opening 0.773 [0.723, 0.817]  damage 10.906 [9.678, 12.194]
+[17:05:32]   mix4     n 300  conversion 0.327 [0.273, 0.38]  opening 0.807 [0.76, 0.85]  damage 9.929 [8.912, 11.036]
+[17:05:32] Paired differences in conversion (same starts), 95 % CI — the number iterations were decided on:
+[17:05:32]   mix2 − ep3: 0.1 [0.03, 0.17] (n 300)  <- outside zero
+[17:05:32]   mix3 − ep3: 0.153 [0.077, 0.227] (n 300)  <- outside zero
+[17:05:32]   mix3b − ep3: 0.157 [0.083, 0.23] (n 300)  <- outside zero
+[17:05:32]   mix4 − ep3: 0.11 [0.04, 0.177] (n 300)  <- outside zero
+[17:05:32]   ep3 − ctrl: 0.073 [0.017, 0.13] (n 300)  <- outside zero
+[17:05:32]   mix2 − ctrl: 0.173 [0.113, 0.233] (n 300)  <- outside zero
+[17:05:32]   mix3 − ctrl: 0.227 [0.163, 0.29] (n 300)  <- outside zero
+[17:05:32]   mix3b − ctrl: 0.23 [0.16, 0.297] (n 300)  <- outside zero
+[17:05:32]   mix4 − ctrl: 0.183 [0.123, 0.25] (n 300)  <- outside zero
+[17:05:32]   mix3 − mix2: 0.053 [-0.017, 0.127] (n 300)
+[17:05:32]   mix3b − mix2: 0.057 [-0.017, 0.13] (n 300)
+[17:05:32]   mix4 − mix2: 0.01 [-0.063, 0.083] (n 300)
+[17:05:32]   mix3b − mix3: 0.003 [-0.073, 0.083] (n 300)
+[17:05:32]   mix4 − mix3: -0.043 [-0.123, 0.03] (n 300)
+[17:05:32]   mix4 − mix3b: -0.047 [-0.123, 0.037] (n 300)
+[17:05:32] Oracle rates per start (95 % CI):
+[17:05:32]   ep3      n 1000  any-candidate converted 0.895 [0.876, 0.914]  per-candidate 0.164 [0.153, 0.175]
+[17:05:32]   mix2     n 1000  any-candidate converted 0.94 [0.925, 0.954]  per-candidate 0.245 [0.233, 0.258]
+[17:05:32]   mix2style n 1000  any-candidate converted 0.924 [0.906, 0.94]  per-candidate 0.245 [0.233, 0.258]
+[17:05:32] Fingerprint tells per game (95 % CI; n = games — this is why 10-game verdicts are soft):
+[17:05:32]   dolphin (n 10): jump_x_ratio 0.373 [0.358, 0.389]  cstick_aerial_frac 0.62 [0.558, 0.684]  short_hop_frac 0.682 [0.576, 0.767]  aerial_per_min 14.192 [11.793, 16.791]  roll_forward_per_min 2.798 [1.999, 3.598]  spotdodge_per_min 3.598 [2.399, 4.997]  lightshield_frac 0.289 [0.27, 0.306]  grab_per_min 2.399 [1.599, 3
+[17:05:32]   mix2 (n 10): jump_x_ratio 0.368 [0.348, 0.388]  cstick_aerial_frac 0.595 [0.53, 0.662]  short_hop_frac 0.701 [0.53, 0.814]  aerial_per_min 21.252 [17.603, 25.116]  roll_forward_per_min 2.147 [1.073, 3.22]  spotdodge_per_min 3.005 [1.503, 4.723]  lightshield_frac 0.421 [0.394, 0.444]  grab_per_min 5.581 [3.435, 8.157
+[17:05:32]   mix4 (n 10): jump_x_ratio 0.352 [0.315, 0.389]  cstick_aerial_frac 0.645 [0.577, 0.714]  short_hop_frac 0.661 [0.468, 0.822]  aerial_per_min 18.247 [15.886, 20.823]  roll_forward_per_min 3.22 [1.503, 5.367]  spotdodge_per_min 2.361 [1.073, 4.079]  lightshield_frac 0.447 [0.414, 0.495]  grab_per_min 3.864 [1.932, 6.0

@@ -344,3 +344,10 @@ R presses; neutral ← c-stick aerials + light shield − bair/dair. The
 policies' own sim play: **every checkpoint picks La (blue)** — ep3 p=0.53,
 mix2 0.71, mix3b 0.74, mix4 0.71 (9/10 game votes). The expert-iteration
 loop made the bot "more blue".
+
+**Correction (17:05, from EVALS_PROGRAM item 2):** with bootstrap
+intervals, mix2 − epoch-3 (+0.10 [0.03, 0.17]) and every mix − control are
+real; mix3/mix3b/mix4 − mix2 are NOT resolved at 300 starts (+0.01 to
++0.06, CIs cross zero). Iterations 2–4 established the style-term
+mechanics, not a compounding gain. Re-run the four arms at 1,000 starts
+before claiming a trend.

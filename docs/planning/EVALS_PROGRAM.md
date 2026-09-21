@@ -96,3 +96,42 @@ the identity channel.
 | --- | --- | --- | --- |
 | 2026-09-21 | doc | written | priority list from Bradley; regret maps first |
 | 2026-09-21 | 1 regret maps | in progress | `scripts/regret_map.exs` (oracle results + pool states → situation bins) |
+
+## Results 2026-09-21
+
+**Regret diff, epoch-3 → mix2 on the same 1,000 starts** (`regret_diff_ep3_to_mix2.json`):
+policy rate 0.164 → 0.245 overall. The gain is nearly uniform (+0.07 to
++0.10 per situation); largest in `warmup_frames`, `retreat`, `approach`,
+`neutral` (+0.10), smallest in `disadvantage` (+0.03), `combo_active`
+(+0.05), `conversion_open` (+0.05), `advantage` (+0.05). The oracle's own
+coverage improved most where selection improved least (`disadvantage`
+0.72 → 0.84): the loop taught neutral/approach selection and left the
+hard states (defender acting, combo continuation) nearly untouched —
+those are the targeted-start candidates for the next iteration.
+
+**Bootstrap intervals (`scripts/eval_ci.exs`, `eval_runs/0921_evals/ci_self.txt`) — the correction:**
+paired differences in conversion on the seed-7 pool, 95 % CI:
+
+| Comparison | Δ conversion | 95 % CI | verdict |
+| --- | ---: | --- | --- |
+| mix2 − epoch-3 | +0.10 | [0.03, 0.17] | real |
+| mix4 − epoch-3 | +0.11 | [0.04, 0.18] | real |
+| mix3b − epoch-3 | +0.16 | [0.08, 0.23] | real |
+| every mix − control | +0.17 to +0.23 | all outside zero | real |
+| mix3 − mix2 | +0.05 | [−0.02, 0.13] | **not resolved** |
+| mix3b − mix2 | +0.06 | [−0.02, 0.13] | **not resolved** |
+| mix4 − mix2 | +0.01 | [−0.06, 0.08] | **not resolved** |
+
+So: expert iteration's FIRST step is a clean, significant gain over both
+the reference and the control; the "compounding" read on iterations 2–4
+was inside the noise of 300 starts (±0.05 per arm, ±0.07 paired). To
+resolve a 0.05 step needs ~1,000-start drills (±0.03) — cheap now (~2 min
+per arm on the batched NIF loop). Fingerprint tells at n = 10: the
+lightshield shift is real (Dolphin [0.27, 0.31] vs mix2 [0.39, 0.44]) and
+so is grabs for mix2 ([3.4, 8.2] vs [1.6, 3.2]); short-hop intervals are
+±0.15 wide, so mix3's "short-hop 0.32" fail was real but mix4's "0.66
+pass" is soft. Rule from here: every drill arm at 1,000 starts, every
+fingerprint at 30 games, intervals printed next to every number.
+
+| 2026-09-21 | 1 regret maps | **DONE v0** | map + viewer (artifact "Fox Regret Map"), diff ep3→mix2 |
+| 2026-09-21 | 2 bootstrap CIs | **DONE** | `eval_ci.exs`; iterations 2–4 unresolved at n=300 |
