@@ -135,3 +135,28 @@ fingerprint at 30 games, intervals printed next to every number.
 
 | 2026-09-21 | 1 regret maps | **DONE v0** | map + viewer (artifact "Fox Regret Map"), diff ep3→mix2 |
 | 2026-09-21 | 2 bootstrap CIs | **DONE** | `eval_ci.exs`; iterations 2–4 unresolved at n=300 |
+
+## Viewer direction (Bradley 2026-09-21 17:20)
+
+The regret map v1 artifact (dots on the stage) showed data, not findings:
+position is not the axis regret lives on, the finding was never stated,
+nothing was inspectable, and the situation labels drove nothing. v2
+(`priv/viewer/regret_viewer_v2_template.html`) is findings-first:
+ranked situations → starts by regret → two frame strips (typical policy
+sample vs oracle best, action families per frame, hit markers, stick/
+button per frame on hover) → path traces. Data from `sim_search.exs
+examples.jsonl` (labels + both rollouts per start).
+
+Longer term an artifact is the wrong home. Options, to decide:
+- **Layers on melee-sim-light's HTML viewer** (it already renders
+  fighters, hitboxes, shields from `*.msltrace.json`): export our
+  rollouts as traces and overlay regret / option distributions / probe
+  readouts as layers. Closest to "Arwing-like", and playback for free.
+- **Phoenix LiveView app** in this repo: reads `eval_runs/`, pool files,
+  registries; pages per eval (regret, league, option divergence, fingerprint
+  cards); can call the sim live (re-roll a start, steer a feature, watch).
+  Heavier, but the coach/engine-lens products need exactly this surface.
+- Livebook: quickest for one-off analysis, poor as a product surface.
+Recommendation: v2 artifact now for the finding; trace export next (it
+unlocks playback in the sim viewer for every eval); LiveView when the
+coach line starts.

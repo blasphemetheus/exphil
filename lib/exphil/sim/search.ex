@@ -337,9 +337,12 @@ defmodule ExPhil.Sim.Search do
       |> Enum.map(fn {states, ctrls} -> score_program(states, Enum.map(ctrls, &{:policy, &1}), horizon, style_penalty) end)
 
     best = Enum.max_by(results, & &1.score)
+    # a TYPICAL sample (median score) for the examples viewer: what the policy usually does here
+    typical = results |> Enum.sort_by(& &1.score) |> Enum.at(div(length(results), 2))
 
     %{
       best: best,
+      typical: typical,
       tried: n,
       converted_any?: Enum.any?(results, & &1.converted?),
       contact_any?: Enum.any?(results, & &1.contact?),

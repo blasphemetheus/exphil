@@ -66,6 +66,8 @@ Output.puts("pool: #{length(pool)} starts")
 Output.step(2, 2, "Shooting #{n} × #{horizon} frames per start (#{if batched, do: "batched: #{n} envs", else: "sequential"})")
 if batched, do: {:ok, _} = Env.reinit(sim, %{stage: "final_destination", players: [%{character: "fox", costume: 1}, %{character: "fox", costume: 0}], batch_size: n, length: 256, seed: seed})
 labels_io = File.open!(Path.join(out, "labels.jsonl"), [:write, :utf8])
+examples_io = File.open!(Path.join(out, "examples.jsonl"), [:write, :utf8])
+slim = fn frames, ctrls -> Enum.zip(frames, [nil | ctrls]) |> Enum.map(fn {f, c} -> %{f: f.frame, a1: f.p1.action, a2: f.p2.action, x1: Float.round(f.p1.x, 1), y1: Float.round(f.p1.y, 1), x2: Float.round(f.p2.x, 1), y2: Float.round(f.p2.y, 1), pct2: f.p2.percent, g1: f.p1.on_ground, c: c && Search.controller_json(c)} end) end
 episodes = :ets.new(:episodes, [:ordered_set, :public])
 results_io = File.open!(Path.join(out, "results.jsonl"), [:write, :utf8])
 t0 = System.monotonic_time(:millisecond)
@@ -83,6 +85,14 @@ results =
     b = r.best
 
     IO.write(results_io, Jason.encode!(%{id: entry.id, start: entry.summary, tried: r.tried, n_converted: r.n_converted, n_contact: r.n_contact, best: %{score: b.score, converted: b.converted?, contact: b.contact?, damage: b.damage, alive: b.alive?, style: Map.get(b, :style), style_cost: Map.get(b, :style_cost), program: b.program, aerials: b.chain.mean_connected_aerials, openings: Enum.map(b.openings, &Map.take(&1, [:frame, :opener, :family, :hits, :damage, :converted?])), outcomes: b.fair.outcomes}}) <> "\n")
+
+    # examples for the regret viewer: situation labels + the oracle best and a typical policy sample, frame by frame
+    if teacher == :policy do
+      hist_states = Enum.map(entry.history, &elem(&1, 0))
+      labels = if hist_states == [], do: [], else: hist_states |> ExPhil.Situations.label_states(1, as: :set) |> List.last() |> MapSet.to_list()
+      t = Map.get(r, :typical) || b
+      IO.write(examples_io, Jason.encode!(%{id: entry.id, start: entry.summary, labels: labels, n_converted: r.n_converted, tried: r.tried, best: %{converted: b.converted?, damage: b.damage, openings: Enum.map(b.openings, &Map.take(&1, [:frame, :opener, :family, :hits, :damage, :converted?])), frames: slim.(b.frames, b.controllers)}, typical: %{converted: t.converted?, damage: t.damage, openings: Enum.map(t.openings, &Map.take(&1, [:frame, :opener, :family, :hits, :damage, :converted?])), frames: slim.(t.frames, t.controllers)}}) <> "\n")
+    end
 
     if b.converted? and b.alive? and opts[:episodes_out] do
       # Training episode (causal pairs: state[t] with the input issued from it): the warm
@@ -107,6 +117,7 @@ results =
   end)
 
 File.close(labels_io)
+File.close(examples_io)
 File.close(results_io)
 
 starts = length(results)

@@ -1,0 +1,252 @@
+<title>Fox Regret Map</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;700;800&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+  :root {
+    --bg: #eef1f6; --panel: #ffffff; --ink: #12213a; --muted: #5b6b85; --line: #d5dce8; --line-strong: #b9c3d6;
+    --accent: #2f6fe0; --accent-soft: #dce7fb; --hit: #c9403f; --good: #2fb37e;
+    --f-idle: #c7cfdc; --f-move: #9fb3d1; --f-jump: #6f9be6; --f-attack: #2f6fe0; --f-shield: #b48be0; --f-hitstun: #c9403f; --f-grab: #e0a422; --f-special: #24a0b5; --f-lag: #8a97b3;
+    --font-display: "Archivo", "Helvetica Neue", Arial, sans-serif; --font-body: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif; --font-mono: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+  }
+  @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+    --bg: #0f1522; --panel: #171f2f; --ink: #e6ecf5; --muted: #98a6c0; --line: #2a3448; --line-strong: #3a4761; --accent: #6ea0ff; --accent-soft: #23345a;
+    --f-idle: #2c3648; --f-move: #3b4d6b; --f-jump: #3f6bb8; --f-attack: #6ea0ff; --f-shield: #8d6bc4; --f-hitstun: #d05a58; --f-grab: #d2a03a; --f-special: #2fb4c9; --f-lag: #4f5c78;
+  } }
+  :root[data-theme="dark"] {
+    --bg: #0f1522; --panel: #171f2f; --ink: #e6ecf5; --muted: #98a6c0; --line: #2a3448; --line-strong: #3a4761; --accent: #6ea0ff; --accent-soft: #23345a;
+    --f-idle: #2c3648; --f-move: #3b4d6b; --f-jump: #3f6bb8; --f-attack: #6ea0ff; --f-shield: #8d6bc4; --f-hitstun: #d05a58; --f-grab: #d2a03a; --f-special: #2fb4c9; --f-lag: #4f5c78;
+  }
+  body { background: var(--bg); color: var(--ink); font-family: var(--font-body); margin: 0; }
+  .wrap { max-width: 1180px; margin: 0 auto; padding: 28px 24px 56px; display: grid; gap: 26px; }
+  .eyebrow { font-family: var(--font-mono); font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+  h1 { font-family: var(--font-display); font-weight: 800; font-size: clamp(26px, 3.4vw, 40px); line-height: 1.05; margin: 0; letter-spacing: -0.01em; text-wrap: balance; }
+  h2 { font-family: var(--font-display); font-weight: 700; font-size: 18px; margin: 0; }
+  .finding { font-size: 17px; line-height: 1.5; max-width: 70ch; margin: 0; }
+  .finding strong { font-family: var(--font-mono); font-weight: 500; }
+  .sub { font-size: 13px; color: var(--muted); margin: 0; line-height: 1.45; max-width: 80ch; }
+  .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 16px 18px; display: grid; gap: 12px; }
+  ol.findings { margin: 0; padding-left: 22px; display: grid; gap: 8px; line-height: 1.45; }
+  ol.findings li strong { font-family: var(--font-mono); font-weight: 500; }
+  .split { display: grid; grid-template-columns: 300px minmax(0, 1fr); gap: 18px; align-items: start; }
+  @media (max-width: 860px) { .split { grid-template-columns: 1fr; } }
+  .list { display: grid; gap: 4px; max-height: 560px; overflow-y: auto; }
+  .row { display: grid; grid-template-columns: 1fr auto; gap: 8px; align-items: center; font-size: 13px; background: none; border: 1px solid transparent; border-radius: 4px; padding: 6px 8px; color: inherit; text-align: left; cursor: pointer; font-family: inherit; }
+  .row:hover { border-color: var(--line-strong); }
+  .row.active { background: var(--accent-soft); border-color: var(--accent); }
+  .row .name { font-family: var(--font-mono); }
+  .row .num { font-family: var(--font-mono); color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .row:focus-visible, select:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+  .minibar { height: 6px; background: var(--line); border-radius: 3px; position: relative; grid-column: 1 / -1; }
+  .minibar .pol { position: absolute; left: 0; top: 0; bottom: 0; background: var(--accent); border-radius: 3px; }
+  .minibar .ora { position: absolute; top: -2px; bottom: -2px; width: 2px; background: var(--ink); }
+  .example { display: grid; gap: 14px; }
+  .strip-title { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; font-size: 13px; }
+  .strip-title b { font-family: var(--font-display); font-weight: 700; }
+  .strip-title .num { font-family: var(--font-mono); color: var(--muted); }
+  .strip { display: grid; grid-template-columns: 62px 1fr; gap: 6px 8px; align-items: center; font-size: 11px; }
+  .strip .lbl { font-family: var(--font-mono); color: var(--muted); text-align: right; }
+  .cells { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 1px; height: 18px; }
+  .cell { position: relative; border-radius: 1px; }
+  .cell.hit::after { content: ""; position: absolute; left: 50%; top: -5px; width: 0; height: 0; border: 4px solid transparent; border-top: 6px solid var(--hit); transform: translateX(-50%); }
+  .labels { position: relative; height: 14px; font-family: var(--font-mono); font-size: 10px; color: var(--muted); white-space: nowrap; }
+  .labels span { position: absolute; top: 0; transform: translateX(-2px); }
+  .tick-row { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); font-family: var(--font-mono); font-size: 9px; color: var(--muted); }
+  .keys { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 12px; color: var(--muted); }
+  .keys span::before { content: ""; display: inline-block; width: 12px; height: 10px; border-radius: 2px; margin-right: 5px; vertical-align: middle; background: var(--k); }
+  .track { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .track svg { width: 100%; height: auto; display: block; background: var(--bg); border-radius: 4px; }
+  .track text { font-family: var(--font-mono); font-size: 9px; fill: var(--muted); }
+  .verdict { font-size: 13px; line-height: 1.5; }
+  .verdict b { font-family: var(--font-mono); font-weight: 500; }
+  footer { font-size: 12px; color: var(--muted); line-height: 1.5; max-width: 84ch; }
+  code { font-family: var(--font-mono); font-size: 11.5px; }
+  .tip { position: fixed; pointer-events: none; background: var(--ink); color: var(--bg); font-family: var(--font-mono); font-size: 11.5px; padding: 6px 8px; border-radius: 4px; z-index: 10; }
+  .tip[hidden] { display: none; }
+</style>
+
+<div class="wrap">
+  <header style="display:grid;gap:10px">
+    <div class="eyebrow" id="eyebrow">ExPhil · sim evals · regret map v2</div>
+    <h1>Where does the bot leave value on the table?</h1>
+    <p class="finding" id="finding">Loading…</p>
+    <p class="sub">A start is a real state the policy reached. From each one it sampled 64 continuations of 90 frames; "policy" is the share of those that converted an opening into a follow-up hit, "oracle" is whether any did. The examples below put the oracle's best line next to a typical policy line from the same frame.</p>
+  </header>
+
+  <section class="panel">
+    <h2>What the map says</h2>
+    <ol class="findings" id="findings"></ol>
+  </section>
+
+  <section class="panel">
+    <h2>Situations, then examples, then frames</h2>
+    <p class="sub">Pick a situation on the left (sorted by how much conversion is lost there). Its starts are listed by regret: where the oracle converts and the policy rarely does. Pick a start to see both lines frame by frame.</p>
+    <div class="split">
+      <div style="display:grid;gap:12px">
+        <div class="list" id="situations"></div>
+        <div class="list" id="starts" style="max-height:260px"></div>
+      </div>
+      <div class="example" id="example"><p class="sub">No start selected.</p></div>
+    </div>
+  </section>
+
+  <footer id="foot"></footer>
+</div>
+<div class="tip" id="tip" hidden></div>
+
+<script>
+const EX = __EXAMPLES__;
+const ACT = __ACTIONS__;
+const META = __META__;
+
+const fam = a => {
+  if (a >= 75 && a <= 91) return 'hitstun';
+  if (a >= 223 && a <= 232) return 'hitstun';
+  if (a >= 44 && a <= 69) return 'attack';
+  if ((a >= 212 && a <= 222)) return 'grab';
+  if (a >= 178 && a <= 182) return 'shield';
+  if (a === 24 || (a >= 25 && a <= 28)) return 'jump';
+  if (a >= 341 && a <= 400) return 'special';
+  if (a === 42 || a === 43 || (a >= 70 && a <= 74)) return 'lag';
+  if (a >= 14 && a <= 23 || a === 29 || a === 30 || (a >= 31 && a <= 40)) return 'move';
+  if (a >= 183 && a <= 201) return 'hitstun';
+  return 'idle';
+};
+const famVar = { idle: '--f-idle', move: '--f-move', jump: '--f-jump', attack: '--f-attack', shield: '--f-shield', hitstun: '--f-hitstun', grab: '--f-grab', special: '--f-special', lag: '--f-lag' };
+const name = a => (ACT[String(a)] || `#${a}`).replace(/_/g, ' ');
+
+EX.forEach(e => { e.rate = e.n_converted / e.tried; e.regret = (e.best.converted ? 1 : 0) - e.rate; });
+const n = EX.length;
+const mean = a => a.reduce((x, y) => x + y, 0) / Math.max(a.length, 1);
+const polAll = mean(EX.map(e => e.rate)), oraAll = mean(EX.map(e => e.best.converted ? 1 : 0));
+
+// situations: labels + geometry bins
+function geo(e) {
+  const p1 = e.start.p1, p2 = e.start.p2;
+  const d = Math.hypot(p1.x - p2.x, p1.y - p2.y);
+  const a2 = p2.action;
+  const hit = (a2 >= 75 && a2 <= 91) || (a2 >= 223 && a2 <= 232);
+  const f = fam(a2);
+  return [d < 20 ? 'distance < 20' : d < 35 ? 'distance 20–35' : d < 50 ? 'distance 35–50' : 'distance 50+',
+          p2.percent < 30 ? 'defender under 30%' : p2.percent < 70 ? 'defender 30–70%' : 'defender 70%+',
+          p2.on_ground ? 'defender grounded' : 'defender airborne',
+          hit ? 'defender in hitstun' : f === 'attack' ? 'defender attacking' : f === 'grab' ? 'defender grabbing' : f === 'shield' ? 'defender shielding' : f === 'special' ? 'defender in a special' : 'defender neutral'];
+}
+EX.forEach(e => { e.bins = [...(e.labels || []).map(l => String(l).replace(/_/g, ' ')), ...geo(e)]; });
+const binIndex = new Map();
+EX.forEach(e => e.bins.forEach(b => { if (!binIndex.has(b)) binIndex.set(b, []); binIndex.get(b).push(e); }));
+const bins = [...binIndex.entries()].map(([bin, es]) => ({ bin, n: es.length, policy: mean(es.map(e => e.rate)), oracle: mean(es.map(e => e.best.converted ? 1 : 0)), es }))
+  .map(b => ({ ...b, regret: b.oracle - b.policy, lost: (b.oracle - b.policy) * b.n })).filter(b => b.n >= 15);
+
+document.getElementById('eyebrow').textContent = `ExPhil · sim evals · ${META.policy} on ${n.toLocaleString()} of its own starts · ${META.stage} · ${META.date}`;
+document.getElementById('finding').innerHTML = `The policy converts from one of these starts <strong>${(polAll * 100).toFixed(0)} %</strong> of the time on its own; a line that converts exists inside its own 64 samples <strong>${(oraAll * 100).toFixed(0)} %</strong> of the time. The gap is selection, not capability.`;
+
+const weakest = bins.slice().sort((a, b) => a.policy - b.policy).slice(0, 4);
+const strongest = bins.slice().sort((a, b) => b.policy - a.policy).slice(0, 3);
+const oracleWeak = bins.slice().sort((a, b) => a.oracle - b.oracle).slice(0, 3);
+const fl = document.getElementById('findings');
+const li = html => { const l = document.createElement('li'); l.innerHTML = html; fl.appendChild(l); };
+li(`The policy selects worst when <strong>${weakest.map(b => `${b.bin} (${(b.policy * 100).toFixed(0)} %, n ${b.n})`).join(', ')}</strong> — the defender is acting or the policy is behind, and it waits.`);
+li(`It selects best in <strong>${strongest.map(b => `${b.bin} (${(b.policy * 100).toFixed(0)} %)`).join(', ')}</strong> — clean approaches on a grounded defender.`);
+li(`Even the oracle struggles in <strong>${oracleWeak.map(b => `${b.bin} (${(b.oracle * 100).toFixed(0)} %)`).join(', ')}</strong>: those need new behaviour, not better selection.`);
+li(`Position barely matters: conversion by distance band runs ${bins.filter(b => b.bin.startsWith('distance')).sort((a, b) => a.bin.localeCompare(b.bin)).map(b => `<strong>${b.bin.replace('distance ', '')} → ${(b.policy * 100).toFixed(0)} %</strong>`).join(', ')}; the defender's state and the attacker's timing carry the signal.`);
+
+// situation list
+const sits = document.getElementById('situations');
+let curBin = null, curStart = null;
+bins.slice().sort((a, b) => b.lost - a.lost).forEach(b => {
+  const btn = document.createElement('button'); btn.className = 'row'; btn.type = 'button';
+  btn.innerHTML = `<span class="name">${b.bin}</span><span class="num">${(b.policy * 100).toFixed(0)} % · n ${b.n}</span><span class="minibar"><span class="pol" style="width:${(b.policy * 100).toFixed(1)}%"></span><span class="ora" style="left:${(b.oracle * 100).toFixed(1)}%"></span></span>`;
+  btn.title = `${b.bin}: policy ${(b.policy * 100).toFixed(1)} %, oracle ${(b.oracle * 100).toFixed(1)} %, n ${b.n}`;
+  btn.addEventListener('click', () => { curBin = b; renderStarts(); [...sits.children].forEach(c => c.classList.toggle('active', c === btn)); });
+  sits.appendChild(btn);
+});
+
+const startsEl = document.getElementById('starts');
+function renderStarts() {
+  startsEl.innerHTML = '';
+  const es = curBin.es.slice().sort((a, b) => b.regret - a.regret || b.best.damage - a.best.damage).slice(0, 40);
+  es.forEach(e => {
+    const btn = document.createElement('button'); btn.className = 'row'; btn.type = 'button';
+    btn.innerHTML = `<span class="name">start ${e.id}</span><span class="num">policy ${e.n_converted}/${e.tried} · oracle ${e.best.converted ? 'converts' : 'no'} · ${e.best.damage}%</span>`;
+    btn.addEventListener('click', () => { curStart = e; renderExample(); [...startsEl.children].forEach(c => c.classList.toggle('active', c === btn)); });
+    startsEl.appendChild(btn);
+  });
+  if (es[0]) startsEl.children[0].click();
+}
+
+const tip = document.getElementById('tip');
+function strip(title, roll, who) {
+  const frames = roll.frames;
+  const hitFrames = new Set();
+  frames.forEach((f, i) => { if (i > 0 && f.pct2 > frames[i - 1].pct2) hitFrames.add(i); });
+  const wrap = document.createElement('div'); wrap.style.display = 'grid'; wrap.style.gap = '6px';
+  const t = document.createElement('div'); t.className = 'strip-title';
+  t.innerHTML = `<b>${title}</b><span class="num">${roll.converted ? 'converts' : 'does not convert'} · ${roll.damage}% dealt · openers ${roll.openings.map(o => o.opener).join(', ') || 'none'}</span>`;
+  wrap.appendChild(t);
+  for (const [label, key] of [['Fox', 'a1'], ['defender', 'a2']]) {
+    const row = document.createElement('div'); row.className = 'strip';
+    const l = document.createElement('div'); l.className = 'lbl'; l.textContent = label; row.appendChild(l);
+    const cells = document.createElement('div'); cells.className = 'cells';
+    frames.forEach((f, i) => {
+      const c = document.createElement('div'); c.className = 'cell' + (key === 'a2' && hitFrames.has(i) ? ' hit' : '');
+      c.style.background = `var(${famVar[fam(f[key])]})`;
+      c.addEventListener('mousemove', ev => { tip.hidden = false; tip.style.left = (ev.clientX + 12) + 'px'; tip.style.top = (ev.clientY + 12) + 'px'; tip.textContent = `+${i}: ${name(f[key])}${key === 'a2' ? ` · ${f.pct2}%` : ''}${f.c && key === 'a1' ? ` · stick ${(f.c.mx - 0.5).toFixed(1)},${(f.c.my - 0.5).toFixed(1)}${f.c.a ? ' A' : ''}${f.c.b ? ' B' : ''}${f.c.x || f.c.y ? ' jump' : ''}${f.c.z ? ' Z' : ''}${f.c.sh > 0.3 ? ' L' : ''}` : ''}`; });
+      c.addEventListener('mouseleave', () => { tip.hidden = true; });
+      cells.appendChild(c);
+    });
+    row.appendChild(cells); wrap.appendChild(row);
+    // transition labels for Fox
+    if (key === 'a1') {
+      const lab = document.createElement('div'); lab.className = 'strip';
+      const sp = document.createElement('div'); lab.appendChild(sp);
+      const labels = document.createElement('div'); labels.className = 'labels';
+      let last = null, lastPos = -99;
+      frames.forEach((f, i) => { const nm = name(f.a1); if (nm !== last) { last = nm; if (i - lastPos >= 7 && fam(f.a1) !== 'idle' && fam(f.a1) !== 'move') { const s = document.createElement('span'); s.style.left = (i / frames.length * 100) + '%'; s.textContent = nm; labels.appendChild(s); lastPos = i; } } });
+      lab.appendChild(labels); wrap.appendChild(lab);
+    }
+  }
+  const ticks = document.createElement('div'); ticks.className = 'strip';
+  ticks.appendChild(document.createElement('div'));
+  const tr = document.createElement('div'); tr.className = 'tick-row';
+  frames.forEach((f, i) => { const s = document.createElement('span'); s.textContent = i % 15 === 0 ? `+${i}` : ''; tr.appendChild(s); });
+  ticks.appendChild(tr); wrap.appendChild(ticks);
+  return wrap;
+}
+
+function track(roll, title) {
+  const ns = 'http://www.w3.org/2000/svg';
+  const svg = document.createElementNS(ns, 'svg'); svg.setAttribute('viewBox', '-120 -70 240 120');
+  const mk = (tag, at) => { const e = document.createElementNS(ns, tag); for (const k in at) e.setAttribute(k, at[k]); return e; };
+  svg.appendChild(mk('line', { x1: -85.6, y1: 0, x2: 85.6, y2: 0, stroke: 'var(--line-strong)', 'stroke-width': 1.5 }));
+  const pts = who => roll.frames.map(f => `${f['x' + who]},${-f['y' + who]}`).join(' ');
+  svg.appendChild(mk('polyline', { points: pts(2), fill: 'none', stroke: 'var(--muted)', 'stroke-width': 1, 'stroke-dasharray': '2 2' }));
+  svg.appendChild(mk('polyline', { points: pts(1), fill: 'none', stroke: 'var(--accent)', 'stroke-width': 1.4 }));
+  const f0 = roll.frames[0], fe = roll.frames[roll.frames.length - 1];
+  svg.appendChild(mk('circle', { cx: f0.x1, cy: -f0.y1, r: 2.2, fill: 'var(--accent)' }));
+  svg.appendChild(mk('circle', { cx: fe.x1, cy: -fe.y1, r: 2.2, fill: 'none', stroke: 'var(--accent)', 'stroke-width': 1 }));
+  roll.frames.forEach((f, i) => { if (i > 0 && f.pct2 > roll.frames[i - 1].pct2) svg.appendChild(mk('circle', { cx: f.x2, cy: -f.y2, r: 2, fill: 'var(--hit)' })); });
+  const t = mk('text', { x: -116, y: -60 }); t.textContent = title; svg.appendChild(t);
+  return svg;
+}
+
+function renderExample() {
+  const e = curStart, ex = document.getElementById('example');
+  ex.innerHTML = '';
+  const head = document.createElement('div'); head.className = 'verdict';
+  head.innerHTML = `<b>start ${e.id}</b> · Fox ${name(e.start.p1.action)} at (${e.start.p1.x.toFixed(0)}, ${e.start.p1.y.toFixed(0)}), defender ${name(e.start.p2.action)} at (${e.start.p2.x.toFixed(0)}, ${e.start.p2.y.toFixed(0)}) on ${e.start.p2.percent}% · situations: ${e.bins.join(' · ')}<br>The policy converted <b>${e.n_converted} of ${e.tried}</b> samples here. Below: its median sample against the best one.`;
+  ex.appendChild(head);
+  const keys = document.createElement('div'); keys.className = 'keys';
+  Object.entries(famVar).forEach(([k, v]) => { const s = document.createElement('span'); s.style.setProperty('--k', `var(${v})`); s.textContent = k; keys.appendChild(s); });
+  const hk = document.createElement('span'); hk.style.setProperty('--k', 'var(--hit)'); hk.textContent = '▲ defender takes damage'; keys.appendChild(hk);
+  ex.appendChild(keys);
+  ex.appendChild(strip('Typical policy sample (median of 64)', e.typical));
+  ex.appendChild(strip('Oracle: best of the same 64', e.best));
+  const tr = document.createElement('div'); tr.className = 'track';
+  tr.appendChild(track(e.typical, 'typical: Fox path (solid), defender (dashed), hits (red)'));
+  tr.appendChild(track(e.best, 'oracle best'));
+  ex.appendChild(tr);
+}
+
+document.getElementById('foot').innerHTML = `Source: <code>${META.source}</code> — policy-guided search (the policy's own samples at T = ${META.temperature}, best of ${META.n} by the Opening scorer), 90-frame windows, idle defender. Situation labels: <code>ExPhil.Situations</code> over each start's 30-frame history, plus geometry. Bins overlap. Per-start rates carry the noise of 64 samples (±0.12); situation rates with n ≥ 100 carry about ±0.04. Action names from libmelee's enum.`;
+
+if (sits.children[0]) sits.children[0].click();
+</script>
