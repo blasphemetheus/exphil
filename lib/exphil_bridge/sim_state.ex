@@ -76,12 +76,15 @@ defmodule ExPhil.Bridge.SimState do
   Convert a `ControllerState` to the sim's float controller row
   (`controller_player_dtype`).
 
-  The sim's stick floats are `(raw + 80) / 160`: **[0, 1] with 0.5 neutral**
-  (`melee_sim/controller.py` `neutral_controller`, `from_raw_axis`), not
-  libmelee's [-1, 1]. Sending 0.0 for a neutral y-axis is a full crouch
-  (found 2026-09-21 in the step-2 smoke: 1,709 crouching frames). Shoulder
-  is `raw / 140` in [0, 1] already. Buttons are 0/1. The sim takes one
-  shoulder value; we send the larger of L/R.
+  Stick convention: ExPhil's `ControllerState` uses libmelee's **[0, 1] with
+  0.5 neutral** everywhere (Peppi NIF `(joystick + 1) / 2`, the policy head,
+  `play_dolphin.exs` pass-through, libmelee_ex `(x - 0.5) * 160` = raw), and
+  the sim's float row is the same `(raw + 80) / 160`. So sticks pass
+  through unchanged (clamped); shoulder is `raw / 140` in [0, 1] as well.
+  GOTCHA #123: never apply a [-1, 1] → [0, 1] conversion here — doing so
+  turned the policy's neutral into an up-right tilt and every agent walked
+  off the stage (2026-09-21). Buttons are 0/1. The sim takes one shoulder
+  value; we send the larger of L/R.
   """
   @spec controller_to_row(ControllerState.t()) :: map()
   def controller_to_row(%ControllerState{} = c) do
@@ -104,9 +107,9 @@ defmodule ExPhil.Bridge.SimState do
     }
   end
 
-  @doc "libmelee stick axis [-1, 1] -> sim float axis [0, 1] (0.5 neutral)."
+  @doc "Stick axis: libmelee [0, 1] (0.5 neutral) -> sim [0, 1] (0.5 neutral); identity with clamping."
   @spec axis(number()) :: float()
-  def axis(v) when is_number(v), do: clamp01(v / 2.0 + 0.5)
+  def axis(v) when is_number(v), do: clamp01(v * 1.0)
 
   defp clamp01(v) when v < 0.0, do: 0.0
   defp clamp01(v) when v > 1.0, do: 1.0

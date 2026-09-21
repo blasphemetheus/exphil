@@ -106,3 +106,13 @@ highlighted) — reproducible here as a grid of sim viewers.
   damage, population 512, tournament selection, mutation = per-frame
   token flip; 200 generations; output = curve + top-1 trace. Evidence: the
   trace in the viewer and the curve.
+
+## The video (Bradley 2026-09-21)
+
+- [ ] ★★ **Record our own "AI learns Melee" evolution video** at the end of
+  the GA + RL work: population grid in the sim viewer, generation counter,
+  best-so-far highlighted, the combo-length / win-rate curve alongside,
+  narrated. Every ★ item above produces a segment (10,000 Foxes heat map,
+  GA longest combo, reward-hacking zoo bloopers, self-play climbing the
+  league). Evidence: a rendered cut. Prerequisite: the viewer-trace export
+  from sim runs (`*.msltrace.json`) wired to a batch renderer.

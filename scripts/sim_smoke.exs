@@ -30,7 +30,7 @@ p1 = gs0.players[1]
 Output.puts("reset: frame #{gs0.frame} stage #{gs0.stage} p1 char #{p1.character} action #{p1.action} at (#{p1.x}, #{p1.y}) facing #{p1.facing}; p2 at #{gs0.players[2].x}")
 
 neutral = %ControllerState{
-  main_stick: %{x: 0.0, y: 0.0}, c_stick: %{x: 0.0, y: 0.0}, l_shoulder: 0.0, r_shoulder: 0.0,
+  main_stick: %{x: 0.5, y: 0.5}, c_stick: %{x: 0.5, y: 0.5}, l_shoulder: 0.0, r_shoulder: 0.0,
   button_a: false, button_b: false, button_x: false, button_y: false, button_z: false,
   button_l: false, button_r: false, button_d_up: false
 }
@@ -38,11 +38,11 @@ neutral = %ControllerState{
 # Scripted P1: dash right for 30 frames, short hop + nair, then dash-dance; P2 idles.
 script = fn t ->
   cond do
-    t < 30 -> %{neutral | main_stick: %{x: 1.0, y: 0.0}}
+    t < 30 -> %{neutral | main_stick: %{x: 1.0, y: 0.5}}
     t in 30..31 -> %{neutral | button_y: true}
     t in 36..38 -> %{neutral | button_a: true}
-    rem(div(t, 12), 2) == 0 -> %{neutral | main_stick: %{x: 1.0, y: 0.0}}
-    true -> %{neutral | main_stick: %{x: -1.0, y: 0.0}}
+    rem(div(t, 12), 2) == 0 -> %{neutral | main_stick: %{x: 1.0, y: 0.5}}
+    true -> %{neutral | main_stick: %{x: 0.0, y: 0.5}}
   end
 end
 

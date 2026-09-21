@@ -53,8 +53,8 @@ batch API (NIF) when throughput demands it.
   `stage_id` = external Slippi id = `GameState.stage` (GOTCHA #96);
   `action_id` = GALE01 action state = `Player.action`.
 - Controller in: `write_controller` float row (buttons 0/1, sticks in
-  **[0, 1] with 0.5 neutral** = `(raw + 80) / 160`, shoulder `raw / 140`;
-  GOTCHA #123). `SimState.axis/1` converts from libmelee [-1, 1]; L/R
+  **[0, 1] with 0.5 neutral** = `(raw + 80) / 160`, shoulder `raw / 140` — the SAME convention as ExPhil's libmelee-style `ControllerState`, so sticks pass through;
+  GOTCHA #123). No conversion; L/R
   collapse to `max`.
 - Recorded-input replay exists only in the C validator (`native.c`: raw
   analog lanes, UCF, physical vs processed buttons). Not needed for the

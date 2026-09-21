@@ -26,7 +26,7 @@ defmodule ExPhil.Bridge.SimPortTest do
 
   test "stepping past the buffer window keeps counting frames", %{sim: sim} do
     y = %ControllerState{
-      main_stick: %{x: 0.0, y: 0.0}, c_stick: %{x: 0.0, y: 0.0}, l_shoulder: 0.0, r_shoulder: 0.0,
+      main_stick: %{x: 0.5, y: 0.5}, c_stick: %{x: 0.5, y: 0.5}, l_shoulder: 0.0, r_shoulder: 0.0,
       button_a: false, button_b: false, button_x: false, button_y: true, button_z: false,
       button_l: false, button_r: false, button_d_up: false
     }

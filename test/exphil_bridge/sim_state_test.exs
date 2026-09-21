@@ -85,19 +85,20 @@ defmodule ExPhil.Bridge.SimStateTest do
   end
 
   test "controller round-trips to the sim's float row" do
+    # libmelee convention everywhere in ExPhil: [0, 1], 0.5 neutral — same as the sim row.
     c = %ControllerState{
-      main_stick: %{x: 0.5, y: -1.0}, c_stick: %{x: 0.0, y: 0.0},
+      main_stick: %{x: 0.75, y: 0.0}, c_stick: %{x: 0.5, y: 0.5},
       l_shoulder: 0.0, r_shoulder: 0.7,
       button_a: false, button_b: true, button_x: false, button_y: true,
       button_z: false, button_l: false, button_r: false, button_d_up: false
     }
     row = SimState.controller_to_row(c)
     assert row.buttons == %{A: 0, B: 1, X: 0, Y: 1, Z: 0, L: 0, R: 0, D_UP: 0}
-    # sim axes are [0, 1] with 0.5 neutral: +0.5 -> 0.75, -1.0 -> 0.0, 0.0 -> 0.5
     assert row.main_stick_x == 0.75 and row.main_stick_y == 0.0
     assert row.c_stick_x == 0.5 and row.c_stick_y == 0.5
     assert row.shoulder == 0.7
-    assert SimState.axis(1.0) == 1.0 and SimState.axis(-1.0) == 0.0 and SimState.axis(0.0) == 0.5
+    # pass-through with clamping; a [-1, 1] input is a caller bug, not converted (GOTCHA #123)
+    assert SimState.axis(1.0) == 1.0 and SimState.axis(0.5) == 0.5 and SimState.axis(-1.0) == 0.0
   end
 
   test "the mapped state embeds identically to the same state built directly" do
