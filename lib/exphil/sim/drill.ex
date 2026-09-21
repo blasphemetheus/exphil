@@ -24,7 +24,8 @@ defmodule ExPhil.Sim.Drill do
   """
 
   alias ExPhil.Agents.Agent
-  alias ExPhil.Bridge.{ControllerState, SimPort}
+  alias ExPhil.Bridge.ControllerState
+  alias ExPhil.Sim.Env
   alias ExPhil.Eval.{AerialChain, FairConversion, Opening, ScenarioScan}
 
   @neutral %ControllerState{
@@ -70,7 +71,7 @@ defmodule ExPhil.Sim.Drill do
     |> Stream.map(fn i ->
       p1 = %{character: "fox", costume: 1, start_percent: :rand.uniform(max_pct + 1) - 1}
       p2 = %{character: "fox", costume: 0, start_percent: :rand.uniform(max_pct + 1) - 1}
-      {:ok, _} = SimPort.reinit(sim, %{stage: stage, players: [p1, p2], length: 256, seed: seed * 100_000 + i})
+      {:ok, _} = Env.reinit(sim, %{stage: stage, players: [p1, p2], length: 256, seed: seed * 100_000 + i})
       walk = wmin + :rand.uniform(wmax - wmin + 1) - 1
       run_walk(sim, walk, warm, i, max_dist)
     end)
@@ -98,10 +99,10 @@ defmodule ExPhil.Sim.Drill do
 
     Stream.iterate(0, &(&1 + 1))
     |> Stream.flat_map(fn g ->
-      {:ok, _} = SimPort.reinit(sim, %{stage: stage, players: @players, length: 256, seed: seed * 1000 + g})
+      {:ok, _} = Env.reinit(sim, %{stage: stage, players: @players, length: 256, seed: seed * 1000 + g})
       Agent.reset_buffer(attacker)
       if is_pid(defender), do: Agent.reset_buffer(defender)
-      {:ok, [gs0]} = SimPort.frames(sim)
+      {:ok, [gs0]} = Env.frames(sim)
 
       {entries, _, _} =
         Enum.reduce_while(Stream.iterate(1, &(&1 + 1)), {[], gs0, []}, fn t, {acc, gs, hist} ->
@@ -109,11 +110,11 @@ defmodule ExPhil.Sim.Drill do
           c2 = controller(defender, gs, 2)
           hist = Enum.take([{gs, c1, c2} | hist], warm)
 
-          case SimPort.step(sim, [[c1, c2]]) do
+          case Env.step(sim, [[c1, c2]]) do
             {:ok, [next], [term]} ->
               acc =
                 if next.frame > 0 and rem(next.frame, every) == 0 and usable?(next.players[1]) and usable?(next.players[2]) and next.distance <= max_dist do
-                  {:ok, blob, sid} = SimPort.save(sim, 0, keep: true)
+                  {:ok, blob, sid} = Env.save(sim, 0, keep: true)
                   [%{id: g * 10_000 + next.frame, game: g, blob: blob, state_id: sid, frame: next.frame, summary: %{p1: ScenarioScan.player_summary(next.players[1]), p2: ScenarioScan.player_summary(next.players[2])}, history: Enum.reverse(hist)} | acc]
                 else
                   acc
@@ -147,10 +148,10 @@ defmodule ExPhil.Sim.Drill do
 
     Stream.iterate(0, &(&1 + 1))
     |> Stream.flat_map(fn round ->
-      {:ok, _} = SimPort.reinit(sim, %{stage: stage, players: @players, batch_size: envs, length: 256, seed: seed * 1000 + round})
+      {:ok, _} = Env.reinit(sim, %{stage: stage, players: @players, batch_size: envs, length: 256, seed: seed * 1000 + round})
       ensure_batch(attacker, envs)
       if is_pid(defender), do: ensure_batch(defender, envs)
-      {:ok, states0} = SimPort.frames(sim)
+      {:ok, states0} = Env.frames(sim)
       hists0 = List.duplicate([], envs)
 
       {entries, _, _} =
@@ -167,13 +168,13 @@ defmodule ExPhil.Sim.Drill do
 
           hists = Enum.zip([states, c1s, c2s, hists]) |> Enum.map(fn {gs, c1, c2, h} -> Enum.take([{gs, c1, c2} | h], warm) end)
 
-          case SimPort.step(sim, Enum.zip_with(c1s, c2s, fn a, b -> [a, b] end)) do
+          case Env.step(sim, Enum.zip_with(c1s, c2s, fn a, b -> [a, b] end)) do
             {:ok, nexts, terms} ->
               acc =
                 Enum.zip([nexts, hists, 0..(envs - 1)])
                 |> Enum.reduce(acc, fn {next, h, i}, acc ->
                   if next.frame > 0 and rem(next.frame, every) == 0 and usable?(next.players[1]) and usable?(next.players[2]) and next.distance <= max_dist do
-                    {:ok, blob, sid} = SimPort.save(sim, i, keep: true)
+                    {:ok, blob, sid} = Env.save(sim, i, keep: true)
                     [%{id: (round * envs + i) * 10_000 + next.frame, game: round * envs + i, blob: blob, state_id: sid, frame: next.frame, summary: %{p1: ScenarioScan.player_summary(next.players[1]), p2: ScenarioScan.player_summary(next.players[2])}, history: Enum.reverse(h)} | acc]
                   else
                     acc
@@ -196,13 +197,13 @@ defmodule ExPhil.Sim.Drill do
   # Countdown with neutral inputs, then `walk` frames of random inputs; keep
   # the last `warm` frames of history; accept only usable states.
   defp run_walk(sim, walk, warm, i, max_dist) do
-    {:ok, [gs0]} = SimPort.frames(sim)
+    {:ok, [gs0]} = Env.frames(sim)
     pre = max(-1 - gs0.frame, 0)
 
     hist =
       Enum.reduce(1..(pre + walk)//1, {[], gs0, {@neutral, @neutral}}, fn t, {h, gs, {c1, c2}} ->
         {c1, c2} = if t <= pre, do: {@neutral, @neutral}, else: {maybe_new(c1), maybe_new(c2)}
-        {:ok, [next], _} = SimPort.step(sim, [[c1, c2]])
+        {:ok, [next], _} = Env.step(sim, [[c1, c2]])
         {Enum.take([{gs, c1, c2} | h], warm), next, {c1, c2}}
       end)
 
@@ -211,7 +212,7 @@ defmodule ExPhil.Sim.Drill do
     p2 = final.players[2]
 
     if usable?(p1) and usable?(p2) and final.distance <= max_dist do
-      {:ok, blob} = SimPort.save(sim, 0)
+      {:ok, blob} = Env.save(sim, 0)
       %{id: i, blob: blob, frame: final.frame, summary: %{p1: ScenarioScan.player_summary(p1), p2: ScenarioScan.player_summary(p2)}, history: Enum.reverse(history)}
     else
       nil
@@ -243,7 +244,7 @@ defmodule ExPhil.Sim.Drill do
   """
   def rollout(sim, entry, attacker, defender, opts \\ []) do
     horizon = Keyword.get(opts, :horizon, 120)
-    {:ok, [_]} = SimPort.restore(sim, 0, restore_ref(entry))
+    {:ok, [_]} = Env.restore(sim, 0, restore_ref(entry))
     Agent.reset_buffer(attacker)
     if is_pid(defender), do: Agent.reset_buffer(defender)
 
@@ -252,14 +253,14 @@ defmodule ExPhil.Sim.Drill do
       if is_pid(defender), do: :ok = Agent.observe(defender, %{gs | own_port: 2}, c2, player_port: 2)
     end)
 
-    {:ok, [gs0]} = SimPort.frames(sim)
+    {:ok, [gs0]} = Env.frames(sim)
 
     {states, _} =
       Enum.reduce_while(1..horizon, {[gs0], gs0}, fn _, {acc, gs} ->
         c1 = controller(attacker, gs, 1)
         c2 = controller(defender, gs, 2)
 
-        case SimPort.step(sim, [[c1, c2]]) do
+        case Env.step(sim, [[c1, c2]]) do
           {:ok, [next], [term]} ->
             if term["done"] == 1, do: {:halt, {[next | acc], next}}, else: {:cont, {[next | acc], next}}
 
@@ -305,8 +306,8 @@ defmodule ExPhil.Sim.Drill do
     n = length(entries)
 
     entries = Enum.map(entries, fn e -> {_, e} = ensure_cached(sim, e); e end)
-    Enum.with_index(entries) |> Enum.each(fn {e, i} -> {:ok, _} = SimPort.restore(sim, i, restore_ref(e), frames: false) end)
-    {:ok, _, _} = SimPort.observe(sim)
+    Enum.with_index(entries) |> Enum.each(fn {e, i} -> {:ok, _} = Env.restore(sim, i, restore_ref(e), frames: false) end)
+    {:ok, _, _} = Env.observe(sim)
 
     ensure_batch(attacker, n)
     if is_pid(defender), do: ensure_batch(defender, n)
@@ -319,7 +320,7 @@ defmodule ExPhil.Sim.Drill do
       if is_pid(defender), do: :ok = Agent.batch_observe(defender, Enum.map(states, &%{&1 | own_port: 2}), player_port: 2)
     end
 
-    {:ok, gs0s} = SimPort.frames(sim)
+    {:ok, gs0s} = Env.frames(sim)
 
     {history, _} =
       Enum.reduce(1..horizon, {[gs0s], gs0s}, fn _, {acc, states} ->
@@ -333,7 +334,7 @@ defmodule ExPhil.Sim.Drill do
             List.duplicate(@neutral, n)
           end
 
-        case SimPort.step(sim, Enum.zip_with(c1s, c2s, fn a, b -> [a, b] end)) do
+        case Env.step(sim, Enum.zip_with(c1s, c2s, fn a, b -> [a, b] end)) do
           {:ok, nexts, _terms} -> {[nexts | acc], nexts}
           {:error, reason} -> raise "sim step failed: #{inspect(reason)}"
         end
@@ -378,7 +379,7 @@ defmodule ExPhil.Sim.Drill do
   @doc "Upload an entry's blob once so later restores use the worker cache."
   def ensure_cached(sim, %{state_id: id} = e) when is_integer(id), do: {sim, e}
   def ensure_cached(sim, e) do
-    {:ok, id} = SimPort.upload(sim, e.blob)
+    {:ok, id} = Env.upload(sim, e.blob)
     {sim, Map.put(e, :state_id, id)}
   end
 

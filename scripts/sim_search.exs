@@ -13,11 +13,11 @@
 #     --starts 100 --n 32 --horizon 90 --out eval_runs/0921_sim_search/self_n100
 
 alias ExPhil.Agents.Agent
-alias ExPhil.Bridge.SimPort
+alias ExPhil.Sim.Env
 alias ExPhil.Sim.{Drill, Search}
 alias ExPhil.Training.Output
 
-{opts, _, _} = OptionParser.parse(System.argv(), strict: [pool: :string, policy: :string, defender: :string, n: :integer, horizon: :integer, out: :string, seed: :integer, starts: :integer, max_hold: :integer, batched: :boolean])
+{opts, _, _} = OptionParser.parse(System.argv(), strict: [pool: :string, policy: :string, defender: :string, n: :integer, horizon: :integer, out: :string, seed: :integer, starts: :integer, max_hold: :integer, batched: :boolean, backend: :string])
 defender_kind = opts[:defender] || "idle"
 n = opts[:n] || 64
 horizon = opts[:horizon] || 90
@@ -29,9 +29,10 @@ Output.banner("Search-as-teacher v0 (step 7)")
 Output.config([{"Pool", opts[:pool] || "(built from play)"}, {"Defender", defender_kind}, {"Candidates/start", n}, {"Horizon", horizon}, {"Seed", seed}, {"Out", out}])
 
 batched = Keyword.get(opts, :batched, true)
-{:ok, sim} = SimPort.start_link(stage: "final_destination", players: [%{character: "fox", costume: 1}, %{character: "fox", costume: 0}], length: 256, seed: seed)
+backend = String.to_atom(opts[:backend] || "nif")
+{:ok, sim} = Env.start(backend, stage: "final_destination", players: [%{character: "fox", costume: 1}, %{character: "fox", costume: 0}], length: 256, seed: seed)
 # the batched pool builder and the batched search both need the sim at batch n from the start
-if batched, do: {:ok, _} = SimPort.reinit(sim, %{stage: "final_destination", players: [%{character: "fox", costume: 1}, %{character: "fox", costume: 0}], batch_size: n, length: 256, seed: seed})
+if batched, do: {:ok, _} = Env.reinit(sim, %{stage: "final_destination", players: [%{character: "fox", costume: 1}, %{character: "fox", costume: 0}], batch_size: n, length: 256, seed: seed})
 
 {pool, defender} =
   case defender_kind do
@@ -58,7 +59,7 @@ if batched, do: {:ok, _} = SimPort.reinit(sim, %{stage: "final_destination", pla
 
 Output.puts("pool: #{length(pool)} starts")
 Output.step(2, 2, "Shooting #{n} × #{horizon} frames per start (#{if batched, do: "batched: #{n} envs", else: "sequential"})")
-if batched, do: {:ok, _} = SimPort.reinit(sim, %{stage: "final_destination", players: [%{character: "fox", costume: 1}, %{character: "fox", costume: 0}], batch_size: n, length: 256, seed: seed})
+if batched, do: {:ok, _} = Env.reinit(sim, %{stage: "final_destination", players: [%{character: "fox", costume: 1}, %{character: "fox", costume: 0}], batch_size: n, length: 256, seed: seed})
 labels_io = File.open!(Path.join(out, "labels.jsonl"), [:write, :utf8])
 results_io = File.open!(Path.join(out, "results.jsonl"), [:write, :utf8])
 t0 = System.monotonic_time(:millisecond)
@@ -101,5 +102,5 @@ ms = System.monotonic_time(:millisecond) - t0
 Output.puts("ORACLE #{defender_kind}: starts #{starts}  any-candidate converted #{Float.round(conv / max(starts, 1), 3)}  any-candidate contact #{Float.round(contact / max(starts, 1), 3)}  best converted+alive #{Float.round(best_conv / max(starts, 1), 3)}  mean best damage #{Float.round(mean_dmg, 1)}  candidate-level conversion #{Float.round(per_cand_conv / max(starts * n, 1), 4)}  (#{div(ms, 1000)} s)")
 
 File.write!(Path.join(out, "summary.json"), Jason.encode!(%{defender: defender_kind, starts: starts, n: n, horizon: horizon, seed: seed, any_converted_rate: conv / max(starts, 1), any_contact_rate: contact / max(starts, 1), best_converted_alive_rate: best_conv / max(starts, 1), mean_best_damage: mean_dmg, candidate_conversion_rate: per_cand_conv / max(starts * n, 1), elapsed_ms: ms}, pretty: true))
-SimPort.stop(sim)
+Env.stop(sim)
 Output.success("wrote #{out}/{results.jsonl,labels.jsonl,summary.json}")

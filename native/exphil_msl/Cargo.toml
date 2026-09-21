@@ -1,0 +1,19 @@
+[package]
+name = "exphil_msl"
+version = "0.1.0"
+edition = "2021"
+description = "Rust NIF over melee-sim-light's C batch API (SIM_INTEGRATION.md step 10b)"
+
+[lib]
+name = "exphil_msl"
+path = "src/lib.rs"
+crate-type = ["cdylib"]
+
+[dependencies]
+rustler = "0.35"
+# libmelee_core.so is loaded at runtime from EXPHIL_SIM_ROOT (no link-time
+# dependency on the sim checkout).
+libloading = "0.8"
+
+[profile.release]
+opt-level = 3

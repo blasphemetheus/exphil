@@ -9,11 +9,11 @@
 #       --starts 300 --horizon 120 --defender self|idle --out eval_runs/0921_sim_drill/v0 [--seed 1]
 
 alias ExPhil.Agents.Agent
-alias ExPhil.Bridge.SimPort
+alias ExPhil.Sim.Env
 alias ExPhil.Sim.Drill
 alias ExPhil.Training.Output
 
-{opts, _, _} = OptionParser.parse(System.argv(), strict: [policy: :string, starts: :integer, horizon: :integer, defender: :string, out: :string, seed: :integer, temperature: :float, pool: :string, max_distance: :float, pool_file: :string, envs: :integer])
+{opts, _, _} = OptionParser.parse(System.argv(), strict: [policy: :string, starts: :integer, horizon: :integer, defender: :string, out: :string, seed: :integer, temperature: :float, pool: :string, max_distance: :float, pool_file: :string, envs: :integer, backend: :string])
 policy = opts[:policy] || raise("--policy required")
 starts = opts[:starts] || 100
 horizon = opts[:horizon] || 120
@@ -24,7 +24,8 @@ File.mkdir_p!(out)
 
 Output.banner("Fair-conversion drill v0 (step 6)")
 envs = opts[:envs] || 32
-Output.config([{"Policy", policy}, {"Starts", starts}, {"Horizon", horizon}, {"Defender", defender_kind}, {"Pool", opts[:pool] || "play"}, {"Envs", envs}, {"Seed", seed}, {"Out", out}])
+backend = String.to_atom(opts[:backend] || "nif")
+Output.config([{"Policy", policy}, {"Starts", starts}, {"Horizon", horizon}, {"Defender", defender_kind}, {"Pool", opts[:pool] || "play"}, {"Envs", envs}, {"Backend", backend}, {"Seed", seed}, {"Out", out}])
 
 agent_opts = [policy_path: policy, deterministic: false, temperature: opts[:temperature] || 1.0, af_convention: :parsed, frame_delay: 0, harness: :sync_runner, reaction_delay: 0, stateful_step: true]
 
@@ -32,7 +33,7 @@ Output.step(1, 3, "Agents + sim")
 {:ok, attacker} = Agent.start_link(agent_opts)
 {:ok, _} = Agent.warmup(attacker)
 defender = if defender_kind == "self", do: (fn -> {:ok, d} = Agent.start_link(agent_opts); {:ok, _} = Agent.warmup(d); d end).(), else: :idle
-{:ok, sim} = SimPort.start_link(stage: "final_destination", players: [%{character: "fox", costume: 1}, %{character: "fox", costume: 0}], length: 256, seed: seed)
+{:ok, sim} = Env.start(backend, stage: "final_destination", players: [%{character: "fox", costume: 1}, %{character: "fox", costume: 0}], length: 256, seed: seed)
 
 Output.step(2, 3, "Building start pool (#{starts})")
 t0 = System.monotonic_time(:millisecond)
@@ -48,7 +49,7 @@ Drill.pool_to_disk(pool, Path.join(out, "pool.jsonl"))
 Drill.pool_to_file(pool, Path.join(out, "pool.term"))
 
 Output.step(3, 3, "Rolling out (#{envs} envs per batch)")
-{:ok, _} = SimPort.reinit(sim, %{stage: "final_destination", players: [%{character: "fox", costume: 1}, %{character: "fox", costume: 0}], batch_size: envs, length: 256, seed: seed})
+{:ok, _} = Env.reinit(sim, %{stage: "final_destination", players: [%{character: "fox", costume: 1}, %{character: "fox", costume: 0}], batch_size: envs, length: 256, seed: seed})
 t1 = System.monotonic_time(:millisecond)
 io = File.open!(Path.join(out, "rollouts.jsonl"), [:write, :utf8])
 
@@ -75,5 +76,5 @@ Output.puts("rollouts: #{length(results)} × #{horizon} frames in #{div(ms, 1000
 Output.puts("BASELINE #{defender_kind}: contact rate #{Float.round(agg.contact_rate, 3)}  conversion rate #{Float.round(agg.conversion_rate, 3)}  conversion|contact #{Float.round(agg.conversion_given_contact, 3)}  mean damage #{Float.round(agg.mean_damage, 1)}  mean connected aerials/opening #{Float.round(agg.mean_connected_aerials, 2)}")
 Output.puts("openings: #{agg.total_openings} by family #{inspect(agg.opening_families)} by opener #{inspect(agg.openers)}; fair outcomes #{inspect(agg.outcome_kinds)}")
 File.write!(Path.join(out, "summary.json"), Jason.encode!(Map.merge(agg, %{policy: policy, defender: defender_kind, horizon: horizon, seed: seed, starts: length(pool)}), pretty: true))
-SimPort.stop(sim)
+Env.stop(sim)
 Output.success("wrote #{out}/{pool.jsonl,rollouts.jsonl,summary.json}")

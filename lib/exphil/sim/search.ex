@@ -20,7 +20,8 @@ defmodule ExPhil.Sim.Search do
   """
 
   alias ExPhil.Agents.Agent
-  alias ExPhil.Bridge.{ControllerState, SimPort}
+  alias ExPhil.Bridge.ControllerState
+  alias ExPhil.Sim.Env
   alias ExPhil.Eval.{AerialChain, FairConversion, Opening, ScenarioScan}
   alias ExPhil.Sim.Drill
 
@@ -73,7 +74,7 @@ defmodule ExPhil.Sim.Search do
   """
   def evaluate(sim, entry, program, defender, opts \\ []) do
     horizon = length(program)
-    {:ok, [gs0]} = SimPort.restore(sim, 0, Drill.restore_ref(entry))
+    {:ok, [gs0]} = Env.restore(sim, 0, Drill.restore_ref(entry))
 
     if is_pid(defender) do
       Agent.reset_buffer(defender)
@@ -84,7 +85,7 @@ defmodule ExPhil.Sim.Search do
       Enum.reduce_while(program, {[gs0], [], gs0}, fn {_name, c1}, {acc, cs, gs} ->
         c2 = defender_controller(defender, gs)
 
-        case SimPort.step(sim, [[c1, c2]]) do
+        case Env.step(sim, [[c1, c2]]) do
           {:ok, [next], [term]} ->
             if term["done"] == 1, do: {:halt, {[next | acc], [c1 | cs], next}}, else: {:cont, {[next | acc], [c1 | cs], next}}
 
@@ -159,8 +160,8 @@ defmodule ExPhil.Sim.Search do
 
     {_, entry} = Drill.ensure_cached(sim, entry)
     programs = for _ <- 1..n, do: random_program(horizon, max_hold)
-    for i <- 0..(n - 1), do: {:ok, _} = SimPort.restore(sim, i, Drill.restore_ref(entry), frames: false)
-    {:ok, _, _} = SimPort.observe(sim)
+    for i <- 0..(n - 1), do: {:ok, _} = Env.restore(sim, i, Drill.restore_ref(entry), frames: false)
+    {:ok, _, _} = Env.observe(sim)
 
     if is_pid(defender) do
       case Agent.batch_reset_rows(defender, Enum.to_list(0..(n - 1))) do
@@ -173,7 +174,7 @@ defmodule ExPhil.Sim.Search do
       end)
     end
 
-    {:ok, gs0s} = SimPort.frames(sim)
+    {:ok, gs0s} = Env.frames(sim)
     prog_arr = Enum.map(programs, &List.to_tuple/1)
 
     {history, _} =
@@ -188,7 +189,7 @@ defmodule ExPhil.Sim.Search do
             List.duplicate(@neutral, n)
           end
 
-        case SimPort.step(sim, Enum.zip_with(c1s, c2s, fn a, b -> [a, b] end)) do
+        case Env.step(sim, Enum.zip_with(c1s, c2s, fn a, b -> [a, b] end)) do
           {:ok, nexts, _} -> {[nexts | acc], nexts}
           {:error, reason} -> raise "sim step failed: #{inspect(reason)}"
         end
