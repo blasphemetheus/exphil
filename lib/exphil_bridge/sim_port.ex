@@ -28,7 +28,7 @@ defmodule ExPhil.Bridge.SimPort do
   use GenServer
   require Logger
 
-  alias ExPhil.Bridge.{ControllerState, SimState}
+  alias ExPhil.Bridge.{ControllerState, SimRows, SimState}
 
   @default_timeout 30_000
 
@@ -105,7 +105,9 @@ defmodule ExPhil.Bridge.SimPort do
           Port.open({:spawn_executable, python}, [
             :binary,
             :exit_status,
-            {:line, 16 * 1024 * 1024},
+            # 4-byte length-prefixed frames both ways; JSON control messages
+            # and binary step frames share the channel (SimRows).
+            {:packet, 4},
             {:args, [script]},
             {:cd, root},
             {:env,
@@ -117,7 +119,16 @@ defmodule ExPhil.Bridge.SimPort do
              ]}
           ])
 
-        state = %{port: port, own_port: Keyword.get(opts, :own_port, 1), frames: [], batch_size: 1}
+        state = %{
+          port: port,
+          own_port: Keyword.get(opts, :own_port, 1),
+          frames: [],
+          batch_size: 1,
+          # dtype layouts from the worker (init/ping); binary steps need them
+          layout: nil,
+          # :binary false forces the JSON step path (A/B and fallback)
+          binary: Keyword.get(opts, :binary, true)
+        }
 
         init_req =
           %{cmd: "init"}
@@ -131,7 +142,7 @@ defmodule ExPhil.Bridge.SimPort do
 
         case send_request(port, init_req) do
           {:ok, %{"frames" => rows} = resp} ->
-            {:ok, %{state | frames: map_rows(rows, state.own_port), batch_size: resp["batch_size"] || 1}}
+            {:ok, %{state | frames: map_rows(rows, state.own_port), batch_size: resp["batch_size"] || 1, layout: resp["layout"]}}
 
           {:error, reason} ->
             Port.close(port)
@@ -142,6 +153,38 @@ defmodule ExPhil.Bridge.SimPort do
 
   @impl true
   def handle_call(:frames, _from, state), do: {:reply, {:ok, state.frames}, state}
+
+  def handle_call({:step, controllers}, _from, %{binary: true, layout: %{} = layout} = state) do
+    # Binary step: <<1, controller rows>> -> <<1, gamestate rows, terminal rows>>.
+    body =
+      if controllers do
+        cl = layout["controller_input"]
+        rows = encode_controllers(controllers)
+        for per_env <- rows, into: <<>>, do: SimRows.encode(cl, %{"players" => per_env})
+      else
+        <<>>
+      end
+
+    Port.command(state.port, <<1>> <> body)
+
+    case receive_packet(state.port) do
+      {:ok, {:binary, rest}} ->
+        n = state.batch_size
+        gl = layout["gamestate"]
+        tl = layout["terminal"]
+        gsize = SimRows.itemsize(gl) * n
+        <<g::binary-size(gsize), t::binary>> = rest
+        frames = gl |> SimRows.decode_rows(g, n) |> map_rows(state.own_port)
+        terminal = SimRows.decode_rows(tl, t, n)
+        {:reply, {:ok, frames, terminal}, %{state | frames: frames}}
+
+      {:ok, other} ->
+        {:reply, {:error, {:sim_bad_response, other}}, state}
+
+      {:error, reason} ->
+        {:reply, {:error, reason}, state}
+    end
+  end
 
   def handle_call({:step, controllers}, _from, state) do
     req = %{cmd: "step"}
@@ -196,7 +239,7 @@ defmodule ExPhil.Bridge.SimPort do
     case send_request(state.port, Map.put(req, :cmd, "init")) do
       {:ok, %{"frames" => rows} = resp} ->
         frames = map_rows(rows, state.own_port)
-        {:reply, {:ok, frames}, %{state | frames: frames, batch_size: resp["batch_size"] || length(rows)}}
+        {:reply, {:ok, frames}, %{state | frames: frames, batch_size: resp["batch_size"] || length(rows), layout: resp["layout"] || state.layout}}
 
       {:error, reason} ->
         {:reply, {:error, reason}, state}
@@ -211,7 +254,7 @@ defmodule ExPhil.Bridge.SimPort do
     {:stop, {:sim_worker_exited, status}, state}
   end
 
-  def handle_info({port, {:data, {_eol, line}}}, %{port: port} = state) do
+  def handle_info({port, {:data, line}}, %{port: port} = state) do
     Logger.warning("[SimPort] unsolicited line: #{String.slice(line, 0, 200)}")
     {:noreply, state}
   end
@@ -263,26 +306,28 @@ defmodule ExPhil.Bridge.SimPort do
     end
   end
 
-  # One request, one response line. The worker answers strictly in order,
-  # so the first complete line after a request is its reply.
+  # One request, one response frame. The worker answers strictly in order,
+  # so the first frame after a request is its reply.
   defp send_request(port, req) do
-    Port.command(port, Jason.encode!(req) <> "\n")
-    receive_line(port, "")
+    Port.command(port, Jason.encode!(req))
+
+    case receive_packet(port) do
+      {:ok, {:binary, _}} -> {:error, :sim_unexpected_binary}
+      other -> other
+    end
   end
 
-  defp receive_line(port, acc) do
+  defp receive_packet(port) do
     receive do
-      {^port, {:data, {:noeol, chunk}}} ->
-        receive_line(port, acc <> chunk)
+      {^port, {:data, <<1, rest::binary>>}} ->
+        {:ok, {:binary, rest}}
 
-      {^port, {:data, {:eol, chunk}}} ->
-        line = acc <> chunk
-
-        case Jason.decode(line) do
+      {^port, {:data, payload}} ->
+        case Jason.decode(payload) do
           {:ok, %{"ok" => true} = resp} -> {:ok, resp}
           {:ok, %{"ok" => false, "error" => err}} -> {:error, {:sim_error, err}}
           {:ok, other} -> {:error, {:sim_bad_response, other}}
-          {:error, _} -> {:error, {:sim_bad_json, String.slice(line, 0, 200)}}
+          {:error, _} -> {:error, {:sim_bad_json, String.slice(payload, 0, 200)}}
         end
 
       {^port, {:exit_status, status}} ->
