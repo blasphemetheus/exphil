@@ -52,8 +52,9 @@ batch API (NIF) when throughput demands it.
   character id (identity, clamp > 0x20 → 32; NIF `internal_character_id`);
   `stage_id` = external Slippi id = `GameState.stage` (GOTCHA #96);
   `action_id` = GALE01 action state = `Player.action`.
-- Controller in: `write_controller` float row (buttons 0/1, sticks
-  [-1, 1], one `shoulder`). ExPhil's 13-dim controller maps directly; L/R
+- Controller in: `write_controller` float row (buttons 0/1, sticks in
+  **[0, 1] with 0.5 neutral** = `(raw + 80) / 160`, shoulder `raw / 140`;
+  GOTCHA #123). `SimState.axis/1` converts from libmelee [-1, 1]; L/R
   collapse to `max`.
 - Recorded-input replay exists only in the C validator (`native.c`: raw
   analog lanes, UCF, physical vs processed buttons). Not needed for the
@@ -68,12 +69,12 @@ batch API (NIF) when throughput demands it.
 
 - Nana: is the follower a second slot with the same `source_player`? (the
   mapper assumes yes; verify at step 3 with an ICs match)
-- `facing` u1 semantics (assumed 1 = right) — verify at step 3.
+- `facing` u1: verified at step 2 (P1 spawns at x = −60 with facing 1, toward center) — 1 = right.
 - Items vs projectiles: Fox lasers are items in the sim; ExPhil's
   `projectiles` list is empty from the mapper. Does the embedding read
   projectiles? If so, map laser item types at step 4.
 - Stadium transformation / Whispy are not in the row; FD/BF first.
-- Which sim branch is the base for us: `main` (all characters after #29)
+- ~~Which sim branch is the base~~ — DECIDED: `main` (see recipe below).
   or the workspace? Decide with the sim sessions before step 2 pins the
   venv.
 
@@ -82,6 +83,33 @@ batch API (NIF) when throughput demands it.
 | Date | Step | State | Evidence |
 | --- | --- | --- | --- |
 | 2026-09-21 | 1 mapper | **DONE** | `lib/exphil_bridge/sim_state.ex`; `test/exphil_bridge/sim_state_test.exs` 7/7 (field-for-field vs Peppi convention, atom/string keys, loud KeyError, Nana fold, id clamp, controller row, embed-identical) |
-| 2026-09-21 | 2 worker | not started | — |
+| 2026-09-21 | 2 worker | **DONE** | `priv/python/sim_worker.py` + `ExPhil.Bridge.SimPort`; `scripts/sim_smoke.exs`: 1,800 frames, 0 protocol errors, round trip mean 354 µs (p99 471), dash-dance script produces DASHING/TURN, save/restore round trip 1.04 MB; `sim_port_test.exs` 3/3 (`--include external`). Found GOTCHA #123 (stick axes [0,1]). |
 | 2026-09-21 | 3 row fidelity | not started | needs a Dolphin FD Fox-ditto `.slp` first frames (any `…_ep3/style_probe/*/replays`) |
 | 2026-09-21 | 11 human lane | blocked | waiting on the sim's declared scene profile |
+
+## Base and build recipe (decided 2026-09-21: `main` is the base)
+
+Our clone: `~/git/msl-main` (origin = kyhavlov/melee-sim-light, branch
+`main`, currently 5e036b4a with Kirby merged). Never touch the sim
+sessions' checkout at `~/git/melee-sim-light`; we only borrow its venv
+interpreter and its already-built PPC toolchain (read-only symlink).
+
+    git clone --branch main ~/git/melee-sim-light ~/git/msl-main   # then set origin to GitHub
+    ln -s ~/isos/melee.iso ~/git/msl-main/SSBM.iso
+    PYV=~/git/melee-sim-light/.venv/bin/python
+    $PYV -m tools.data.extract --iso ~/isos/melee.iso --out-dir ~/git/msl-main/data   # ~20 s
+    ln -s ~/git/melee-sim-light/build/melee_core/toolchain ~/git/msl-main/build/melee_core/toolchain
+    make python-library PY=$PYV HOST_CC=gcc -j16    # from the exphil devenv PATH (gcc 15); ~40 s
+
+`SimPort` reads `EXPHIL_SIM_ROOT` (default `~/git/msl-main`) and
+`EXPHIL_SIM_PYTHON` (default the sim venv python) and exports
+`PYTHONPATH`, `MSL_CORE_LIBRARY`, `MSL_DATA_DIR` for the worker. The
+extracted data profile is per-branch: the workspace's `build/data-main`
+is NOT readable by main's tools (manifest profile mismatch) — extract per
+clone. `uv` is not on this box; the Makefile's `PY=` override sidesteps it.
+
+Verified on main at step 2: FD Fox ditto resets at frame −123, P1 at
+(−60, 10) facing 1 (= right, toward center), P2 at (60, 10) facing 0;
+`MatchConfig` seed field is `seed`; `PlayerConfig` has `team_id`, not
+`team`; raw single-env step ≈ 21 µs, JSON round trip ≈ 350 µs (the NIF is
+step 10 for a reason).

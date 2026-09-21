@@ -93,8 +93,11 @@ defmodule ExPhil.Bridge.SimStateTest do
     }
     row = SimState.controller_to_row(c)
     assert row.buttons == %{A: 0, B: 1, X: 0, Y: 1, Z: 0, L: 0, R: 0, D_UP: 0}
-    assert row.main_stick_x == 0.5 and row.main_stick_y == -1.0
+    # sim axes are [0, 1] with 0.5 neutral: +0.5 -> 0.75, -1.0 -> 0.0, 0.0 -> 0.5
+    assert row.main_stick_x == 0.75 and row.main_stick_y == 0.0
+    assert row.c_stick_x == 0.5 and row.c_stick_y == 0.5
     assert row.shoulder == 0.7
+    assert SimState.axis(1.0) == 1.0 and SimState.axis(-1.0) == 0.0 and SimState.axis(0.0) == 0.5
   end
 
   test "the mapped state embeds identically to the same state built directly" do

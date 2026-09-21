@@ -69,8 +69,14 @@ defmodule ExPhil.Bridge.SimState do
 
   @doc """
   Convert a `ControllerState` to the sim's float controller row
-  (`controller_player_dtype`): buttons as 0/1, sticks in [-1, 1], shoulder in
-  [0, 1]. The sim takes one shoulder value; we send the larger of L/R.
+  (`controller_player_dtype`).
+
+  The sim's stick floats are `(raw + 80) / 160`: **[0, 1] with 0.5 neutral**
+  (`melee_sim/controller.py` `neutral_controller`, `from_raw_axis`), not
+  libmelee's [-1, 1]. Sending 0.0 for a neutral y-axis is a full crouch
+  (found 2026-09-21 in the step-2 smoke: 1,709 crouching frames). Shoulder
+  is `raw / 140` in [0, 1] already. Buttons are 0/1. The sim takes one
+  shoulder value; we send the larger of L/R.
   """
   @spec controller_to_row(ControllerState.t()) :: map()
   def controller_to_row(%ControllerState{} = c) do
@@ -85,13 +91,21 @@ defmodule ExPhil.Bridge.SimState do
         R: b(c.button_r),
         D_UP: b(Map.get(c, :button_d_up))
       },
-      main_stick_x: c.main_stick.x * 1.0,
-      main_stick_y: c.main_stick.y * 1.0,
-      c_stick_x: c.c_stick.x * 1.0,
-      c_stick_y: c.c_stick.y * 1.0,
-      shoulder: max(c.l_shoulder || 0.0, c.r_shoulder || 0.0) * 1.0
+      main_stick_x: axis(c.main_stick.x),
+      main_stick_y: axis(c.main_stick.y),
+      c_stick_x: axis(c.c_stick.x),
+      c_stick_y: axis(c.c_stick.y),
+      shoulder: clamp01(max(c.l_shoulder || 0.0, c.r_shoulder || 0.0) * 1.0)
     }
   end
+
+  @doc "libmelee stick axis [-1, 1] -> sim float axis [0, 1] (0.5 neutral)."
+  @spec axis(number()) :: float()
+  def axis(v) when is_number(v), do: clamp01(v / 2.0 + 0.5)
+
+  defp clamp01(v) when v < 0.0, do: 0.0
+  defp clamp01(v) when v > 1.0, do: 1.0
+  defp clamp01(v), do: v * 1.0
 
   @doc "Sim internal character kind -> frame-level character id (identity, clamped)."
   @spec character_id(integer()) :: integer()

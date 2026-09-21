@@ -4192,3 +4192,13 @@ the run whose corpus file defines it; score full-run checkpoints with
 `HELDOUT_CORPUS=full` (→ `heldout_full.json`), and print the
 train-overlap count (`comm -12` on sha256s) before believing any
 held-out number.
+
+## #123 — melee-sim-light stick axes are [0, 1] with 0.5 neutral, not libmelee's [-1, 1] (2026-09-21)
+
+The sim's float controller row (`controller_player_dtype`) stores sticks as
+`(raw + 80) / 160`, so neutral is 0.5 and 0.0 is full-down/left
+(`melee_sim/controller.py` `neutral_controller`, `from_raw_axis`); shoulder
+is `raw / 140`. Writing libmelee-style 0.0 for a neutral y-axis put Fox in
+CROUCHING for 1,709 of 1,800 smoke frames (action 0x28). Convert with
+`ExPhil.Bridge.SimState.axis/1` (`v / 2 + 0.5`, clamped) — never write
+`ControllerState` floats into the sim row directly.

@@ -137,3 +137,25 @@ for the sim sessions: an explicit per-source arithmetic/code-set profile
 declaration — the ambiguity is real (old netplay vs local), so it must be
 declared, not inferred. Next: run the human lane once that lands; then
 the observation/controller adapters.
+
+## The whole range (Bradley 2026-09-21: "list them all")
+
+Ranked nowhere; labelled by what they are. Every one runs on the same
+closed loop (`SIM_INTEGRATION.md` steps 1–2, done).
+
+| Label | Use | What it needs beyond the loop |
+| --- | --- | --- |
+| **Most professional** | Regression-grade evaluation: every checkpoint scored on fixed start distributions with confidence intervals, in CI, no Dolphin | scorers (have), a run manifest |
+| **Highest leverage** | Curriculum drills with combo scorers as reward, search-as-teacher labels | save/restore (have), scorer library |
+| **Coolest** | Search-as-teacher: brute-force the best K-frame input sequence from any state, distill it — an oracle for any character with no hand logic | batched rollouts, a scoring horizon |
+| **Headline** | Self-play PPO on the imitation prior, millions of frames/hour | actor-critic on the trunk, KL-to-prior |
+| **Highest paid** (the product) | The coach: per-situation "what the best players do here" and "what the engine thinks", counterfactual replays of YOUR game (branch from any frame, play out the alternative) | value model (R2), rewind viewer (have) |
+| **Most compute** | Full-population league across all 26 characters with matchup tables, on 16 cores × batch 256 | opponent pool (have, unvalidated), scheduler |
+| **Least compute** | Deterministic frame-data queries: "does this fair hit from here at this percent?" answered by stepping 30 frames | nothing |
+| **Stupidest** (and fun) | Ten-thousand-Fox Monte Carlo of a single situation to make a heat map of where the bot dies; or evolve inputs with a genetic algorithm to find the longest Fox combo on Fox at 0 % | a plot |
+| **The Viking one** | Longboat league: every character sails out at once (4 slots, teams), last raft standing; or "berserker" reward = damage dealt only, no survival term, to see what a policy that fears nothing looks like | `is_teams`, 4 slots (have) |
+| **Sneakiest** | Reward-hacking zoo: run RL with deliberately bad rewards and catalogue the exploits (ledge stall, camping) so the fingerprint bound is tuned before the real run | fingerprint-from-frames (step 5) |
+| **Most scientific** | Style transfer test: same drill, every registry profile, measure which habits survive RL pressure — is identity a prior or a costume? | identity channel (have) |
+| **Most useful to humans** | "Play this moment 100 times": load a real replay frame, let a human retry it against the bot from that state (Improoover reps without the savestate plumbing) | replay-to-state seeding (step 3) |
+| **Most Melee** | A 20XX-style practice partner: CPU that DI's like SKWA or C2, tech-chases like a human, shield-drops like a human — the named profiles as training dummies | named profiles (have) + drill starts |
+| **Longest shot** | Cross-character transfer via the sim: train Fox, fine-tune Mewtwo on sim-generated Mewtwo games labeled by the search oracle | Mewtwo admission trusted |
