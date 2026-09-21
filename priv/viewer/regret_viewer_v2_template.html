@@ -113,7 +113,8 @@ const fam = a => {
 const famVar = { idle: '--f-idle', move: '--f-move', jump: '--f-jump', attack: '--f-attack', shield: '--f-shield', hitstun: '--f-hitstun', grab: '--f-grab', special: '--f-special', lag: '--f-lag' };
 const name = a => (ACT[String(a)] || `#${a}`).replace(/_/g, ' ');
 
-EX.forEach(e => { e.rate = e.n_converted / e.tried; e.regret = (e.best.converted ? 1 : 0) - e.rate; });
+const decodeFrames = fr => fr && fr.map(a => ({ a1: a[0], a2: a[1], x1: a[2], y1: a[3], x2: a[4], y2: a[5], pct2: a[6], g1: a[7] === 1, c: a.length > 9 ? { mx: a[8] / 10, my: a[9] / 10, a: !!(a[10] & 1), b: !!(a[10] & 2), x: !!(a[10] & 4), y: false, z: !!(a[10] & 8), sh: (a[10] & 16) ? 1 : 0 } : null }));
+EX.forEach(e => { e.rate = e.n_converted / e.tried; e.regret = (e.best.converted ? 1 : 0) - e.rate; e.best.frames = decodeFrames(e.best.frames); e.typical.frames = decodeFrames(e.typical.frames); });
 const n = EX.length;
 const mean = a => a.reduce((x, y) => x + y, 0) / Math.max(a.length, 1);
 const polAll = mean(EX.map(e => e.rate)), oraAll = mean(EX.map(e => e.best.converted ? 1 : 0));
@@ -163,7 +164,7 @@ bins.slice().sort((a, b) => b.lost - a.lost).forEach(b => {
 const startsEl = document.getElementById('starts');
 function renderStarts() {
   startsEl.innerHTML = '';
-  const es = curBin.es.slice().sort((a, b) => b.regret - a.regret || b.best.damage - a.best.damage).slice(0, 40);
+  const es = curBin.es.slice().sort((a, b) => (b.best.frames ? 1 : 0) - (a.best.frames ? 1 : 0) || b.regret - a.regret || b.best.damage - a.best.damage).slice(0, 40);
   es.forEach(e => {
     const btn = document.createElement('button'); btn.className = 'row'; btn.type = 'button';
     btn.innerHTML = `<span class="name">start ${e.id}</span><span class="num">policy ${e.n_converted}/${e.tried} · oracle ${e.best.converted ? 'converts' : 'no'} · ${e.best.damage}%</span>`;
@@ -231,6 +232,7 @@ function track(roll, title) {
 function renderExample() {
   const e = curStart, ex = document.getElementById('example');
   ex.innerHTML = '';
+  if (!e.best.frames) { ex.innerHTML = `<p class="sub">Frames were exported for the 320 highest-regret starts only; start ${e.id} (regret ${e.regret.toFixed(2)}) is outside that set. Its numbers: policy ${e.n_converted}/${e.tried}, oracle ${e.best.converted ? "converts" : "no"}.</p>`; return; }
   const head = document.createElement('div'); head.className = 'verdict';
   head.innerHTML = `<b>start ${e.id}</b> · Fox ${name(e.start.p1.action)} at (${e.start.p1.x.toFixed(0)}, ${e.start.p1.y.toFixed(0)}), defender ${name(e.start.p2.action)} at (${e.start.p2.x.toFixed(0)}, ${e.start.p2.y.toFixed(0)}) on ${e.start.p2.percent}% · situations: ${e.bins.join(' · ')}<br>The policy converted <b>${e.n_converted} of ${e.tried}</b> samples here. Below: its median sample against the best one.`;
   ex.appendChild(head);
