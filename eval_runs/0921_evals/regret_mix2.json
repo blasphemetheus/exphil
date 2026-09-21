@@ -1,0 +1,298 @@
+{
+  "bins": [
+    {
+      "bin": "neutral",
+      "n": 736,
+      "policy": 0.285,
+      "oracle": 0.976,
+      "regret": 0.69,
+      "lost": 508.1
+    },
+    {
+      "bin": "def_below",
+      "n": 116,
+      "policy": 0.307,
+      "oracle": 0.94,
+      "regret": 0.633,
+      "lost": 73.4
+    },
+    {
+      "bin": "def_airborne",
+      "n": 285,
+      "policy": 0.24,
+      "oracle": 0.968,
+      "regret": 0.728,
+      "lost": 207.5
+    },
+    {
+      "bin": "approach",
+      "n": 278,
+      "policy": 0.324,
+      "oracle": 0.986,
+      "regret": 0.662,
+      "lost": 184.0
+    },
+    {
+      "bin": "warmup_frames",
+      "n": 131,
+      "policy": 0.278,
+      "oracle": 0.954,
+      "regret": 0.676,
+      "lost": 88.5
+    },
+    {
+      "bin": "def_aerial",
+      "n": 111,
+      "policy": 0.276,
+      "oracle": 1.0,
+      "regret": 0.724,
+      "lost": 80.4
+    },
+    {
+      "bin": "d20-35",
+      "n": 365,
+      "policy": 0.251,
+      "oracle": 0.962,
+      "regret": 0.711,
+      "lost": 259.4
+    },
+    {
+      "bin": "p2%<30",
+      "n": 684,
+      "policy": 0.256,
+      "oracle": 0.947,
+      "regret": 0.692,
+      "lost": 473.1
+    },
+    {
+      "bin": "level",
+      "n": 751,
+      "policy": 0.234,
+      "oracle": 0.935,
+      "regret": 0.701,
+      "lost": 526.1
+    },
+    {
+      "bin": "d<20",
+      "n": 374,
+      "policy": 0.262,
+      "oracle": 0.93,
+      "regret": 0.668,
+      "lost": 250.0
+    },
+    {
+      "bin": "def_neutral",
+      "n": 604,
+      "policy": 0.238,
+      "oracle": 0.937,
+      "regret": 0.699,
+      "lost": 422.4
+    },
+    {
+      "bin": "def_grounded",
+      "n": 715,
+      "policy": 0.247,
+      "oracle": 0.929,
+      "regret": 0.682,
+      "lost": 487.3
+    },
+    {
+      "bin": "onstage_center",
+      "n": 423,
+      "policy": 0.242,
+      "oracle": 0.943,
+      "regret": 0.701,
+      "lost": 296.5
+    },
+    {
+      "bin": "onstage_corner",
+      "n": 19,
+      "policy": 0.23,
+      "oracle": 1.0,
+      "regret": 0.77,
+      "lost": 14.6
+    },
+    {
+      "bin": "cornered",
+      "n": 42,
+      "policy": 0.248,
+      "oracle": 1.0,
+      "regret": 0.752,
+      "lost": 31.6
+    },
+    {
+      "bin": "d35-50",
+      "n": 261,
+      "policy": 0.213,
+      "oracle": 0.923,
+      "regret": 0.711,
+      "lost": 185.5
+    },
+    {
+      "bin": "def_above",
+      "n": 133,
+      "policy": 0.254,
+      "oracle": 0.97,
+      "regret": 0.716,
+      "lost": 95.3
+    },
+    {
+      "bin": "retreat",
+      "n": 153,
+      "policy": 0.276,
+      "oracle": 0.993,
+      "regret": 0.718,
+      "lost": 109.8
+    },
+    {
+      "bin": "conversion_open",
+      "n": 159,
+      "policy": 0.198,
+      "oracle": 0.918,
+      "regret": 0.721,
+      "lost": 114.6
+    },
+    {
+      "bin": "combo_active",
+      "n": 129,
+      "policy": 0.202,
+      "oracle": 0.946,
+      "regret": 0.744,
+      "lost": 96.0
+    },
+    {
+      "bin": "def_grab",
+      "n": 63,
+      "policy": 0.191,
+      "oracle": 0.905,
+      "regret": 0.714,
+      "lost": 45.0
+    },
+    {
+      "bin": "disadvantage",
+      "n": 137,
+      "policy": 0.105,
+      "oracle": 0.839,
+      "regret": 0.735,
+      "lost": 100.7
+    },
+    {
+      "bin": "def_jab",
+      "n": 31,
+      "policy": 0.288,
+      "oracle": 0.935,
+      "regret": 0.647,
+      "lost": 20.1
+    },
+    {
+      "bin": "def_smash",
+      "n": 84,
+      "policy": 0.318,
+      "oracle": 0.976,
+      "regret": 0.658,
+      "lost": 55.3
+    },
+    {
+      "bin": "def_special",
+      "n": 68,
+      "policy": 0.175,
+      "oracle": 0.824,
+      "regret": 0.649,
+      "lost": 44.1
+    },
+    {
+      "bin": "above_stage",
+      "n": 43,
+      "policy": 0.352,
+      "oracle": 0.977,
+      "regret": 0.625,
+      "lost": 26.9
+    },
+    {
+      "bin": "advantage",
+      "n": 120,
+      "policy": 0.17,
+      "oracle": 0.858,
+      "regret": 0.689,
+      "lost": 82.6
+    },
+    {
+      "bin": "in_hitstun",
+      "n": 16,
+      "policy": 0.137,
+      "oracle": 0.938,
+      "regret": 0.801,
+      "lost": 12.8
+    },
+    {
+      "bin": "pummel_throw_decision",
+      "n": 67,
+      "policy": 0.288,
+      "oracle": 0.925,
+      "regret": 0.637,
+      "lost": 42.7
+    },
+    {
+      "bin": "jc_window",
+      "n": 26,
+      "policy": 0.346,
+      "oracle": 1.0,
+      "regret": 0.654,
+      "lost": 17.0
+    },
+    {
+      "bin": "being_tech_chased",
+      "n": 92,
+      "policy": 0.104,
+      "oracle": 0.804,
+      "regret": 0.7,
+      "lost": 64.4
+    },
+    {
+      "bin": "tech_chase",
+      "n": 76,
+      "policy": 0.158,
+      "oracle": 0.868,
+      "regret": 0.71,
+      "lost": 54.0
+    },
+    {
+      "bin": "p2%30-70",
+      "n": 255,
+      "policy": 0.232,
+      "oracle": 0.918,
+      "regret": 0.686,
+      "lost": 175.0
+    },
+    {
+      "bin": "percent_deficit",
+      "n": 62,
+      "policy": 0.188,
+      "oracle": 0.935,
+      "regret": 0.748,
+      "lost": 46.4
+    },
+    {
+      "bin": "percent_lead",
+      "n": 35,
+      "policy": 0.193,
+      "oracle": 0.943,
+      "regret": 0.75,
+      "lost": 26.3
+    },
+    {
+      "bin": "p2%70+",
+      "n": 61,
+      "policy": 0.184,
+      "oracle": 0.951,
+      "regret": 0.767,
+      "lost": 46.8
+    }
+  ],
+  "overall": {
+    "policy": 0.245,
+    "oracle": 0.94
+  },
+  "n_per_start": 64,
+  "starts": 1000
+}

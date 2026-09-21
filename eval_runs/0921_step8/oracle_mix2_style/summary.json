@@ -1,0 +1,13 @@
+{
+  "seed": 2,
+  "n": 64,
+  "horizon": 90,
+  "defender": "idle",
+  "starts": 1000,
+  "any_converted_rate": 0.924,
+  "any_contact_rate": 0.984,
+  "best_converted_alive_rate": 0.924,
+  "mean_best_damage": 14.934934194087981,
+  "candidate_conversion_rate": 0.24521875,
+  "elapsed_ms": 1987324
+}

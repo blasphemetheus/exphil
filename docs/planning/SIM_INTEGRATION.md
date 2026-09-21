@@ -295,3 +295,52 @@ candidates whose input stream is off-habit, e.g. full hop where the
 short-hop rate says short), so the oracle can only pick human-shaped
 winners. Mix2 stays the clean artifact; mix3b is the strongest
 "almost-clean" one (2/8 out, both by < 2×).
+
+## Iteration 4 — style term inside the selection: two of three drifts fixed (2026-09-21 16:27)
+
+Oracle (mix2 samples, T = 1.0, style penalty on): converting candidate
+0.924 (0.94 without the term); chosen episodes average 0.0 full hops,
+0.03 grabs, 0.15 shield frames. Mix4 val **2.01** (best of all arms).
+
+| Policy (seed-7 pool) | conv. vs self | conv. vs idle | val | fingerprint (8 tells) |
+| --- | ---: | ---: | ---: | --- |
+| mix2 | 0.32 | 0.61 | 2.07 | pass |
+| mix3b (T 1.0, ×10) | 0.37 | 0.70 | 2.02 | fail 2 (lightshield 0.44, grabs 6.2) |
+| **mix4 (+ style term)** | 0.33 | 0.65 | **2.01** | **fail 1**: lightshield 0.45 (human 0.29); short-hop **0.66** (= human 0.68), grabs **3.9** (in) |
+
+Reading: selection pressure works on what it can see — short hops and
+grabs are back in the human range and the drill gain vs idle holds
+(0.65 vs 0.61; vs self 0.33 vs 0.32, both inside the ±0.05 noise of 300
+starts). Light shield did not move because it is not a selection
+artifact: mix2 already sat at 0.42 and every arm inherits it from the warm
+history + the subset pass. Next for shielding: a per-frame shield penalty
+10x larger, or fix it upstream (the control arm's drift, see the
+IMITATION_SQUEEZE pilots). Artifact ranking now: **mix4** = strongest
+near-clean (1/8 out), mix2 = clean.
+
+## Regret map v0 (EVALS_PROGRAM item 1) — mix2 on its own 1,000 starts
+
+`scripts/regret_map.exs`, `eval_runs/0921_evals/regret_mix2.json`. Policy
+rate = share of its 64 samples that convert; oracle = best of 64. Overall
+policy 0.245, oracle 0.94. Regret is ~0.7 in EVERY bin (the oracle
+converts almost everywhere), so the informative columns are the policy's
+own rate and where the oracle dips: **lowest policy rates** disadvantage
+0.105, being_tech_chased 0.104, tech_chase 0.158, advantage 0.17,
+def_special 0.175 (and the oracle is weakest there too: 0.80–0.86);
+**highest** above_stage 0.35, jc_window 0.35, approach 0.32, def_smash
+0.32, def_below 0.31. Reading: the selection gap is largest when the
+defender is acting (tech-chase timing, punishing specials) and smallest
+in clean approaches. Next: the mix2 − epoch-3 diff on the same pool
+(epoch-3 oracle on pool_mix2 queued), and bootstrap intervals.
+
+## Costume head (COACH_STYLE_PRODUCTS S4) — the model picks blue
+
+`scripts/costume_head.exs`, `eval_runs/0921_costume_head/head.bin`:
+logistic regression on 62 z-scored fingerprint habits, 42,176 Fox games,
+game-level 80/20 split. **Test accuracy 0.468** vs majority 0.348 / chance
+0.25 — costume is predictable from play (partly via identity). Weights:
+red ← X-jump + Y presses; green ← few Y presses; blue ← c-stick aerials +
+R presses; neutral ← c-stick aerials + light shield − bair/dair. The
+policies' own sim play: **every checkpoint picks La (blue)** — ep3 p=0.53,
+mix2 0.71, mix3b 0.74, mix4 0.71 (9/10 game votes). The expert-iteration
+loop made the bot "more blue".

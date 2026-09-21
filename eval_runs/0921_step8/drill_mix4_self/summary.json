@@ -1,0 +1,47 @@
+{
+  "seed": 7,
+  "policy": "/home/blewf/git/exphil/checkpoints/fox_v3_1_step8_mix4/model_policy.bin",
+  "starts": 300,
+  "horizon": 240,
+  "defender": "self",
+  "mean_connected_aerials": 0.09,
+  "contact_rate": 0.8066666666666666,
+  "conversion_rate": 0.32666666666666666,
+  "conversion_given_contact": 0.4049586776859504,
+  "mean_damage": 9.928519442478816,
+  "total_openings": 403,
+  "opening_families": {
+    "special": 68,
+    "special_or_other": 63,
+    "aerial": 126,
+    "grab": 28,
+    "smash": 56,
+    "tilt": 4,
+    "jab": 53,
+    "dash_attack": 5
+  },
+  "openers": {
+    "special": 68,
+    "fair": 6,
+    "special_or_other": 63,
+    "grab": 28,
+    "jab": 53,
+    "dash_attack": 5,
+    "ftilt": 3,
+    "dtilt": 1,
+    "fsmash": 13,
+    "usmash": 19,
+    "dsmash": 24,
+    "nair": 26,
+    "bair": 16,
+    "uair": 3,
+    "dair": 75
+  },
+  "outcome_kinds": {
+    "timeout": 1,
+    "interrupted": 2,
+    "escaped": 2,
+    "true_two_hit": 1,
+    "whiffed": 1
+  }
+}
