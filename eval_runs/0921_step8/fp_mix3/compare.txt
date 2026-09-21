@@ -1,0 +1,22 @@
+games per arm: [{"dolphin:anon", 10}, {"sim:p1", 10}, {"sim:p2", 10}]
+
+Mean distance (learned metric) from each arm's games to each human centroid, and to the OTHER arm's centroid
+arm                 SKWA       314        C2      USSR  dolphinC      simC
+dolphin:anon        7.15      7.27      6.94      8.78      2.94      5.43
+sim:p1               8.7      8.68      7.84     10.54       5.4      2.99
+sim:p2             11.25     11.35     10.46     13.08      8.19      6.04
+
+mean pairwise distance: dolphin-dolphin 4.36  sim-sim 4.46  dolphin-sim 6.16
+
+Nearest human per game:
+  dolphin:anon -> ["C2", "SKWA", "C2", "SKWA", "314", "C2", "C2", "C2", "SKWA", "C2"]
+  sim:p1       -> ["C2", "C2", "C2", "C2", "C2", "C2", "C2", "C2", "C2", "C2"]
+  sim:p2       -> ["C2", "C2", "C2", "C2", "C2", "C2", "C2", "C2", "SKWA", "C2"]
+
+Raw habits, mean (sd): rows = arms; cols = jump_x_ratio dashdance_per_min wavedash_per_min cstick_aerial_frac lcancel_press_offset_mean short_hop_frac lightshield_frac roll_forward_per_min spotdodge_per_min aerial_per_min grab_per_min airdodge_per_min
+  dolphin:anon  0.37(0.03)     8.4(8.2)    4.8(2.15)   0.62(0.11)   2.97(0.64)   0.68(0.17)   0.29(0.03)     2.8(1.4)    3.6(2.27)  14.19(4.46)    2.4(1.58)    2.8(3.01)
+  sim:p1        0.36(0.04)   2.36(2.36)   2.58(1.97)   0.68(0.18)   2.22(0.34)   0.32(0.35)   0.51(0.03)   3.22(1.82)   4.72(3.17)  15.67(4.53)   6.23(2.76)   1.72(1.69)
+  sim:p2        0.37(0.04)   3.43(2.52)   2.58(1.36)   0.61(0.14)    2.6(0.47)   0.64(0.26)   0.53(0.04)   2.36(1.58)   6.44(2.68)  18.46(4.77)   6.44(2.48)    1.5(1.77)
+
+R1 tells within 2 sd of the Dolphin arm: [jump_x_ratio: true, cstick_aerial_frac: true, short_hop_frac: false, aerial_per_min: true, roll_forward_per_min: true, spotdodge_per_min: true, lightshield_frac: false, grab_per_min: false]
+R1 GATE: 3 tell(s) outside the spread

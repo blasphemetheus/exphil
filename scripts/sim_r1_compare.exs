@@ -69,7 +69,7 @@ for {name, rows} <- arms, rows != [] do
 end
 
 # Gate: for each tell, |sim mean - dolphin mean| <= 2 * dolphin sd (n=10 spread).
-tells = [:jump_x_ratio, :cstick_aerial_frac, :short_hop_frac, :aerial_per_min, :roll_forward_per_min, :spotdodge_per_min]
+tells = [:jump_x_ratio, :cstick_aerial_frac, :short_hop_frac, :aerial_per_min, :roll_forward_per_min, :spotdodge_per_min, :lightshield_frac, :grab_per_min]
 verdicts = for k <- tells do
   ok = abs(mean.(sim_p1, k) - mean.(dolphin, k)) <= 2 * max(sd.(dolphin, k), 0.01)
   {k, ok}

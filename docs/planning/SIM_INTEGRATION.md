@@ -242,3 +242,31 @@ the one drift to watch. This is expert iteration in one step; the loop
 V3.2 candidates.
 
 | 2026-09-21 | 8 BC on oracle labels | **DONE — PASSED (v1)** | `checkpoints/fox_v3_1_step8_mix2/model_policy.bin`; `eval_runs/0921_step8/` (pilot.sh, pilot2.sh, drills, fp_mix2/compare.txt) |
+
+## Expert iteration step 2 — mix3: drill compounds, style drifts past the bound (2026-09-21 13:19)
+
+Mix2 played 1,000 fresh starts (seed 11; its own baseline there: opening
+0.74, conversion 0.30), its own samples at T = 1.2 were the oracle
+(converting candidate on **0.93** of starts, per-candidate 20.7 % — the
+sampling distribution itself improved), and mix3 = mix2 + one subset pass
+with those 931 episodes × 30 (`eval_runs/0921_step8/{pool_mix2,
+oracle_mix2, drill_mix3_*, fp_mix3}`, `checkpoints/fox_v3_1_step8_mix3`).
+
+| Policy (seed-7 pool) | conv. vs self | conv. vs idle | val | fingerprint (8 tells) |
+| --- | ---: | ---: | ---: | --- |
+| epoch-3 | 0.22 | 0.45 | — | reference |
+| mix2 | 0.32 | 0.61 | 2.07 | PASS 8/8-equivalent (6/6 + lightshield 0.42, grabs 5.6 inside) |
+| **mix3** | **0.37** | **0.67** | 2.13 | **FAIL 3/8**: short_hop 0.68→0.32, lightshield 0.29→0.51, grabs 2.4→6.2; dashdance 8.4→2.4; NCA to Dolphin 6.2 (mix2 5.1, within-arm 4.4) |
+
+Reading: the loop compounds on the drill metric (+0.05 / +0.06 per
+iteration) but the second step traded short hops for full hops and
+doubled shielding — full-hop aerials convert more against a slow target
+and are not how the corpus plays. The selection pressure is on outcome
+only; the style bound is checked after the fact. Levers for iteration 3,
+in order: (1) lower the label share (oversample 30 → 10) so the replay
+prior anchors harder; (2) sample the oracle at T = 1.0 (T = 1.2 over-
+represents rare actions, which is where full hops come from); (3) put the
+style term INSIDE the selection — reject candidates outside the tells
+(e.g. require a short hop when the human short-hop rate says so) or
+tie-break by the prior's own log-likelihood. **Mix2 remains the clean
+artifact**; mix3 is the stronger-but-drifted one.
