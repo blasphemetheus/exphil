@@ -160,3 +160,20 @@ Longer term an artifact is the wrong home. Options, to decide:
 Recommendation: v2 artifact now for the finding; trace export next (it
 unlocks playback in the sim viewer for every eval); LiveView when the
 coach line starts.
+
+**1,000-start drills, six arms, one fresh pool (seed 21, epoch-3 self-play), vs self — resolved (`eval_runs/0921_evals/drills1000/ci.txt`):**
+
+| Policy | conversion (95 % CI) | paired vs mix2 |
+| --- | --- | --- |
+| epoch-3 | 0.187 [0.163, 0.212] | −0.107 [−0.143, −0.072] |
+| control | 0.174 [0.151, 0.198] | — (vs ep3: −0.013, not resolved) |
+| mix2 | 0.294 [0.266, 0.322] | reference |
+| mix3 (T 1.2, ×30) | 0.351 [0.322, 0.380] | **+0.057 [0.015, 0.094]** real |
+| mix3b (T 1.0, ×10) | 0.352 [0.322, 0.382] | **+0.058 [0.018, 0.098]** real |
+| mix4 (+ style term) | 0.325 [0.297, 0.355] | +0.031 [−0.010, 0.071] not resolved |
+
+Reading: the loop DOES compound — iteration 2 adds ~0.06 on top of the
+first step's ~0.11 — and the style term keeps roughly half of that
+increment while restoring short hops and grabs. The control's "loss" at
+300 starts was noise (−0.013 at 1,000). Decision-grade numbers from here
+on are 1,000-start.

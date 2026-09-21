@@ -1,0 +1,113 @@
+• Validating lock
+✓ Validating lock in 7.95ms
+  evaluating file '«nix-internal»/derivation-internal.nix'
+• Configuring shell
+• Configuring cachix
+  [35;1mwarning:[0m Substituter '[35;1mhttps://devenv.cachix.org[0m' is already present in the substituters list
+✓ Configuring cachix in 1.13ms
+• Evaluating shell
+✓ Evaluating shell in 3.06ms (cached)
+✓ Configuring shell in 5.65ms
+• Loading tasks
+• Evaluating devenv.config.task.config
+✓ Evaluating devenv.config.task.config in 230µs (cached)
+✓ Loading tasks in 745µs
+• Running tasks
+• Running devenv:files:cleanup
+✓ Running devenv:files:cleanup in 5.51ms
+• Running devenv:enterShell
+✓ Running devenv:enterShell in 5.07ms
+• Running devenv:enterTest
+✓ Running devenv:enterTest in 570ns (no command)
+✓ Running tasks in 10.7ms
+ExPhil dev shell ready (CUDA enabled).
+==> exla
+Using libexla.so from /home/blewf/.cache/xla/exla/elixir-1.18.4-erts-16.4.0.4-xla-0.10.0-exla-0.13.1-decg6fk5k7bp5vm7tu6gza2v2y/libexla.so
+EXLA_CPU_ONLY is not set, checking for nvcc availability
+CUDA is available.
+make: '/home/blewf/git/exphil/_build/dev/lib/exla/priv/libexla.so' is up to date.
+==> exphil
+    warning: def any_button?/2 has multiple clauses and also declares default values. In such cases, the default values should be defined in a header. Instead of:
+
+        def foo(:first_clause, b \\ :default) do ... end
+        def foo(:second_clause, b) do ... end
+
+    one should write:
+
+        def foo(a, b \\ :default)
+        def foo(:first_clause, b) do ... end
+        def foo(:second_clause, b) do ... end
+
+    │
+ 96 │   def any_button?(c, opts \\ []) do
+    │       ~
+    │
+    └─ lib/exphil/interp/labels.ex:96:7
+
+    warning: variable "opts" is unused (if the variable is not meant to be used, prefix it with an underscore)
+    │
+ 75 │   def evaluate(sim, entry, program, defender, opts \\ []) do
+    │                                               ~~~~
+    │
+    └─ lib/exphil/sim/search.ex:75:47: ExPhil.Sim.Search.evaluate/5
+
+    warning: redefining @doc attribute previously set at line 22
+    │
+ 48 │   @doc """
+    │   ~~~~~~~~
+    │
+    └─ lib/exphil/training/imitation/validation.ex:48: ExPhil.Training.Imitation.Validation (module)
+
+     warning: module attribute @baseline_defaults was set but never used
+     │
+ 105 │   @baseline_defaults [
+     │   ~~~~~~~~~~~~~~~~~~~~
+     │
+     └─ lib/exphil/training/config.ex:105: ExPhil.Training.Config (module)
+
+      warning: function blind_target_css/1 is unused
+      │
+ 1723 │   defp blind_target_css(state) do
+      │        ~
+      │
+      └─ lib/exphil_bridge/melee_port.ex:1723:8: ExPhil.Bridge.MeleePort (module)
+
+     warning: clauses with the same name and arity (number of arguments) should be grouped together, "def handle_call/3" was previously defined (lib/exphil/agents/agent.ex:596)
+     │
+ 950 │   def handle_call({:reconfigure, opts}, _from, state) do
+     │       ~
+     │
+     └─ lib/exphil/agents/agent.ex:950:7
+
+
+17:32:14.025 [info] [ExPhil] Application started
+
+17:32:14.027 [debug] [ExPhil] Supervision tree: [{ExPhil.Training.AsyncCheckpoint, #PID<0.289.0>, :worker, [ExPhil.Training.AsyncCheckpoint]}, {ExPhil.Telemetry.Collector, #PID<0.288.0>, :worker, [ExPhil.Telemetry.Collector]}, {ExPhil.Agents.Supervisor, #PID<0.287.0>, :supervisor, [ExPhil.Agents.Supervisor]}, {ExPhil.Bridge.Supervisor, #PID<0.286.0>, :supervisor, [ExPhil.Bridge.Supervisor]}, {ExPhil.Registry, #PID<0.284.0>, :supervisor, [Registry]}]
+
+╔════════════════════════════════════════════════════════════╗
+║               Bootstrap intervals (B = 2000)               ║
+╚════════════════════════════════════════════════════════════╝
+
+[17:32:14] Drill rates per start (95 % CI):
+[17:32:14]   ep3      n 1000  conversion 0.187 [0.164, 0.211]  opening 0.624 [0.593, 0.654]  damage 6.566 [5.9, 7.209]
+[17:32:14]   ctrl     n 1000  conversion 0.174 [0.152, 0.197]  opening 0.611 [0.58, 0.64]  damage 5.888 [5.3, 6.457]
+[17:32:14]   mix2     n 1000  conversion 0.294 [0.265, 0.323]  opening 0.724 [0.696, 0.751]  damage 9.256 [8.646, 9.906]
+[17:32:15]   mix3     n 1000  conversion 0.351 [0.322, 0.381]  opening 0.74 [0.711, 0.766]  damage 10.206 [9.472, 10.981]
+[17:32:15]   mix3b    n 1000  conversion 0.352 [0.324, 0.381]  opening 0.753 [0.726, 0.779]  damage 9.611 [8.895, 10.34]
+[17:32:15]   mix4     n 1000  conversion 0.325 [0.296, 0.354]  opening 0.762 [0.735, 0.789]  damage 9.791 [9.085, 10.509]
+[17:32:15] Paired differences in conversion (same starts), 95 % CI — the number iterations were decided on:
+[17:32:15]   mix2 − ep3: 0.107 [0.072, 0.143] (n 1000)  <- outside zero
+[17:32:15]   mix3 − ep3: 0.164 [0.129, 0.202] (n 1000)  <- outside zero
+[17:32:15]   mix3b − ep3: 0.165 [0.126, 0.202] (n 1000)  <- outside zero
+[17:32:15]   mix4 − ep3: 0.138 [0.1, 0.176] (n 1000)  <- outside zero
+[17:32:15]   ep3 − ctrl: 0.013 [-0.022, 0.046] (n 1000)
+[17:32:15]   mix2 − ctrl: 0.12 [0.083, 0.157] (n 1000)  <- outside zero
+[17:32:15]   mix3 − ctrl: 0.177 [0.143, 0.214] (n 1000)  <- outside zero
+[17:32:15]   mix3b − ctrl: 0.178 [0.14, 0.216] (n 1000)  <- outside zero
+[17:32:16]   mix4 − ctrl: 0.151 [0.112, 0.188] (n 1000)  <- outside zero
+[17:32:16]   mix3 − mix2: 0.057 [0.015, 0.094] (n 1000)  <- outside zero
+[17:32:16]   mix3b − mix2: 0.058 [0.018, 0.098] (n 1000)  <- outside zero
+[17:32:16]   mix4 − mix2: 0.031 [-0.01, 0.071] (n 1000)
+[17:32:16]   mix3b − mix3: 0.001 [-0.041, 0.046] (n 1000)
+[17:32:16]   mix4 − mix3: -0.026 [-0.066, 0.016] (n 1000)
+[17:32:16]   mix4 − mix3b: -0.027 [-0.068, 0.012] (n 1000)
