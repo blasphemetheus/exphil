@@ -81,7 +81,7 @@
           <div id="pt-note" class="meta"></div>
           <h3>Summon a line</h3>
           <div id="line-buttons" class="line-buttons"></div>
-          <div class="nav"><button id="restart-line" type="button" title="replay the summoned line from its first frame" disabled>↺ replay</button></div>
+          <div class="nav"><button id="restart-line" type="button" title="replay the summoned line from its first frame" disabled>↺ replay</button><button id="split-line" type="button" title="jump to 20 frames before this line first differs from what really happened" disabled>⇥ to the split</button></div>
         </aside>
       </section>
 
@@ -97,7 +97,25 @@
     </main>
 
     <script type="module">
+      import { mslTraceToReplayData } from "/tools/viewer/msltrace1.js";
       const params = new URLSearchParams(location.search);
+      // decoded traces, to find where a line departs from the real game (positions differ > 0.01)
+      const traceCache = new Map();
+      function replayOf(file) {
+        if (!traceCache.has(file)) traceCache.set(file, fetch(`${run}/${file}`).then((r) => r.json()).then(mslTraceToReplayData));
+        return traceCache.get(file);
+      }
+      function splitFrame(a, b) {
+        const n = Math.min(a.frames.length, b.frames.length);
+        for (let i = 0; i < n; i++) {
+          const pa = a.frames[i].players, pb = b.frames[i].players;
+          for (let p = 0; p < Math.min(pa.length, pb.length); p++) {
+            const sa = pa[p] && pa[p].state, sb = pb[p] && pb[p].state;
+            if (sa && sb && (Math.abs(sa.xPosition - sb.xPosition) > 0.01 || Math.abs(sa.yPosition - sb.yPosition) > 0.01)) return i;
+          }
+        }
+        return null;
+      }
       const run = (params.get("run") || "/runs/191207_v1").replace(/\/$/, "");
       const meta = document.querySelector("#meta");
       const svg = document.querySelector("#evalbar");
@@ -231,8 +249,16 @@
         const line = p.lines[kind];
         if (!line || !line.file) return;
         send("line", { load: `${run}/${line.file}`, label: `${kind} from f${p.frame} (${fmt(line.value)})${line.note ? " · " + line.note : ""}`, restart: true });
-        held = { index: current, kind };
+        held = { index: current, kind, split: undefined };
         renderLineButtons();
+        if (kind !== "actual" && p.lines.actual && p.lines.actual.file) {
+          const mine = held;
+          Promise.all([replayOf(line.file), replayOf(p.lines.actual.file)]).then(([l, a]) => {
+            if (held !== mine) return;
+            held.split = splitFrame(l, a);
+            renderLineButtons();
+          }).catch((e) => console.error(e));
+        }
       }
 
       function renderLineButtons() {
@@ -254,10 +280,14 @@
         }
         const hp = held ? review.points[held.index] : null;
         document.querySelector("#cap-line-kind").textContent = hp ? `${held.kind} line` : "a line";
+        const splitText = !hp || held.kind === "actual" ? "" : held.split === undefined ? " · finding the split…" : held.split === null ? " · never departs from the actual" : ` · departs from the actual at +${held.split} f (${(held.split / 60).toFixed(1)} s)`;
         document.querySelector("#cap-line").textContent = hp
-          ? `from f${hp.frame} (${fmt(hp.lines[held.kind].value)})${p && hp !== p ? " — stale, pick one for f" + p.frame : ""}`
+          ? `from f${hp.frame} (${fmt(hp.lines[held.kind].value)})${splitText}${p && hp !== p ? " — stale, pick one for f" + p.frame : ""}`
           : "press a button to summon one";
         document.querySelector("#restart-line").disabled = !held;
+        const jump = document.querySelector("#split-line");
+        jump.disabled = !(held && typeof held.split === "number");
+        jump.textContent = held && typeof held.split === "number" ? `⇥ to the split (+${held.split} f)` : "⇥ to the split";
       }
 
       function showCard(p, preview) {
@@ -284,6 +314,7 @@
       document.querySelector("#prev-b").addEventListener("click", () => stepBlunder(-1));
       document.querySelector("#next-b").addEventListener("click", () => stepBlunder(1));
       document.querySelector("#restart-line").addEventListener("click", () => held && send("line", { restart: true }));
+      document.querySelector("#split-line").addEventListener("click", () => held && typeof held.split === "number" && send("line", { goto: Math.max(0, held.split - 20) }));
       window.addEventListener("keydown", (e) => {
         if (e.key === "ArrowLeft") select(current - 1);
         if (e.key === "ArrowRight") select(current + 1);

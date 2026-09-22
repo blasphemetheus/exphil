@@ -38,7 +38,7 @@
       }
 
       async function load(url, text) {
-        if (loaded === url) { setLabel(text || label.textContent); return; }
+        if (loaded === url) { setLabel(text || label.textContent); viewer.setFrame(0); return; }   // re-press = restart from the top
         setLabel(`loading ${url.split("/").pop()}…`);
         try {
           const res = await fetch(url);
@@ -67,7 +67,8 @@
           if (loaded) { viewer.pausePlayback(); viewer.setFrame(msg.seek); }
           else { pendingSeek = msg.seek; pendingPause = true; }
         }
-        if (msg.restart) { if (loaded) viewer.setFrame(0); else { pendingSeek = 0; pendingPause = false; } }   // no pause: the viewer autoplays on load
+        if (msg.restart && !msg.load) { if (loaded) viewer.setFrame(0); else { pendingSeek = 0; pendingPause = false; } }
+        if (typeof msg.goto === "number") { if (loaded) viewer.setFrame(msg.goto); else { pendingSeek = msg.goto; pendingPause = false; } }   // seek without pausing
         if (msg.pause) viewer.pausePlayback();
         if (msg.clear) { viewer.clear(); loaded = null; setLabel("not loaded"); }
       });
