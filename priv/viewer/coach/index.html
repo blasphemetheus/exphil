@@ -79,6 +79,10 @@
             <button id="prev-b" type="button" title="previous blunder">◀ blunder</button>
             <button id="next-b" type="button" title="next blunder">blunder ▶</button>
           </div>
+          <div class="nav">
+            <button id="prev-m" type="button" title="previous shout-out of any kind (blunder, missed kill, escape, sealed, doomed)">◀ mark</button>
+            <button id="next-m" type="button" title="next shout-out of any kind">mark ▶</button>
+          </div>
           <h2 id="pt-title">Hover the eval bar to preview, click to select</h2>
           <dl id="pt-info"></dl>
           <div id="pt-note" class="meta"></div>
@@ -93,7 +97,10 @@
         <div class="legend">
           <span><i style="background: var(--expected)"></i>expected (prior self-play mean, ±1 sd band)</span>
           <span><i style="background: var(--actual)"></i>actual (the replay's next horizon)</span>
-          <span><i class="blk" style="background: var(--blunder)"></i>blunder (actual − expected below threshold)</span>
+          <span><i class="blk" style="background: #b3261e"></i>blunder / missed kill</span>
+          <span><i class="blk" style="background: #b8860b"></i>escape (doomed, yet kept the stock)</span>
+          <span><i class="blk" style="background: #2e7d32"></i>sealed (band: the prior is sure the stock is yours)</span>
+          <span><i class="blk" style="background: #4b4d47"></i>doomed (band: the prior is sure the stock is gone)</span>
           <span>value = stocks taken − lost + (damage dealt − taken)/100, from the subject's side</span>
         </div>
       </section>
@@ -159,6 +166,38 @@
       const fmt = (v, d = 2) => (v == null ? "n/a" : (v >= 0 ? "+" : "") + Number(v).toFixed(d));
       const secs = (f) => `${Math.floor(Math.max(0, f) / 60 / 60)}:${String(Math.floor(Math.max(0, f) / 60) % 60).padStart(2, "0")}`;
 
+      // Shout-out vocabulary. A point is DECIDED when the prior is (nearly) certain: |expected| ≥ 0.9 with sd ≤ 0.25.
+      //   sealed  – decided in the subject's favour (the stock is theirs to take)   → marked at the ENTRY of each sealed stretch
+      //   doomed  – decided against the subject (the stock is as good as gone)     → marked at the ENTRY of each doomed stretch
+      //   missed  – sealed, yet the actual next window did not take the stock (actual < +0.5)
+      //   escape  – doomed, yet the subject kept the stock (actual > −0.5)
+      //   blunder – actual − expected below the threshold (only when not already a missed kill)
+      const MARK = {
+        blunder: { label: "blunder",     text: "BLUNDER",     color: "#b3261e", hint: "actual fell ≥ 0.5 below the prior's expectation" },
+        missed:  { label: "missed kill", text: "MISSED KILL", color: "#b3261e", hint: "the stock was sealed (expected ≈ +1) and it was not taken" },
+        escape:  { label: "escape",      text: "ESCAPE",      color: "#b8860b", hint: "the stock was doomed (expected ≈ −1) and it was kept" },
+        sealed:  { label: "sealed",      text: "SEALED",      color: "#2e7d32", hint: "from here the prior is certain the subject takes a stock" },
+        doomed:  { label: "doomed",      text: "DOOMED",      color: "#4b4d47", hint: "from here the prior is certain the subject loses a stock" },
+      };
+      const DECIDED_MIN = 0.9, DECIDED_SD = 0.25;
+      function annotate() {
+        let prev = null;
+        for (const q of review.points) {
+          q.marks = [];
+          q.decided = null;
+          if (q.diverged) { prev = null; continue; }
+          const decided = q.sd <= DECIDED_SD && Math.abs(q.expected) >= DECIDED_MIN ? (q.expected > 0 ? "sealed" : "doomed") : null;
+          q.decided = decided;
+          if (decided && decided !== prev) q.marks.push(decided);
+          if (decided === "sealed" && q.actual != null && q.actual < 0.5) q.marks.push("missed");
+          else if (decided === "doomed" && q.actual != null && q.actual > -0.5) q.marks.push("escape");
+          else if (q.blunder) q.marks.push("blunder");
+          prev = decided;
+        }
+      }
+      const marked = (q) => q.marks && q.marks.length > 0;
+      const mainMark = (q) => (q.marks || []).find((k) => k !== "sealed" && k !== "doomed") || (q.marks || [])[0];
+
       function drawBar() {
         const W = 1000, H = 150, padL = 34, padR = 8, padT = 8, padB = 18;
         const pts = review.points;
@@ -198,9 +237,16 @@
           svg.append(el("rect", { x: x(firstDiv.frame), y: padT, width: W - padR - x(firstDiv.frame), height: H - padT - padB, fill: "#e9e9e4", opacity: 0.7 }));
           svg.append(el("text", { x: Math.min(x(firstDiv.frame) + 4, 860), y: H - padB - 4, "font-size": 9, fill: "#6b6d66" }, `seed diverged from f${firstDiv.frame}: rollouts unreliable`));
         }
-        // blunder ticks
-        for (const p of pts.filter((p) => p.blunder && !p.diverged)) {
-          svg.append(el("rect", { class: "tick", "data-frame": p.frame, x: x(p.frame) - 1.5, y: padT, width: 3, height: H - padT - padB, fill: "var(--blunder)", opacity: 0.5 }));
+        // decided stretches as faint bands (green = sealed, grey = doomed), then a tick per mark
+        for (let i = 0; i < pts.length; i++) {
+          if (!pts[i].decided) continue;
+          let j = i; while (j + 1 < pts.length && pts[j + 1].decided === pts[i].decided) j++;
+          svg.append(el("rect", { x: x(pts[i].frame), y: padT, width: Math.max(2, x(Math.min(pts[j].frame + review.every, f1)) - x(pts[i].frame)), height: H - padT - padB, fill: MARK[pts[i].decided].color, opacity: 0.10 }));
+          i = j;
+        }
+        for (const p of pts.filter(marked)) {
+          const k = mainMark(p);
+          svg.append(el("rect", { class: "tick", "data-frame": p.frame, x: x(p.frame) - 1.5, y: padT, width: 3, height: H - padT - padB, fill: MARK[k].color, opacity: 0.55 }));
         }
         // cursor
         svg.append(el("line", { id: "cursor", x1: -10, x2: -10, y1: padT, y2: H - padB, stroke: "#20211f", "stroke-width": 1.5, "stroke-dasharray": "3 2", "vector-effect": "non-scaling-stroke" }));
@@ -209,8 +255,8 @@
         pts.forEach((p, i) => {
           const g = el("g", { class: "pt", "data-i": i });
           g.append(el("rect", { x: x(p.frame) - (W / pts.length) / 2, y: padT, width: W / pts.length, height: H - padT - padB, fill: "transparent" }));
-          g.append(el("circle", p.diverged ? { cx: x(p.frame), cy: y(p.expected), r: 3, fill: "#fff", stroke: "#9da096", "stroke-width": 1 } : { cx: x(p.frame), cy: y(p.expected), r: 3, fill: p.blunder ? "var(--blunder)" : "var(--expected)" }));
-          g.append(el("title", {}, `f${p.frame} (${secs(p.frame)})  expected ${fmt(p.expected)} ±${p.sd.toFixed(2)}  actual ${fmt(p.actual)}${p.blunder ? "  BLUNDER" : ""}${p.diverged ? "  (diverged)" : ""}`));
+          g.append(el("circle", p.diverged ? { cx: x(p.frame), cy: y(p.expected), r: 3, fill: "#fff", stroke: "#9da096", "stroke-width": 1 } : { cx: x(p.frame), cy: y(p.expected), r: 3, fill: marked(p) ? MARK[mainMark(p)].color : "var(--expected)" }));
+          g.append(el("title", {}, `f${p.frame} (${secs(p.frame)})  expected ${fmt(p.expected)} ±${p.sd.toFixed(2)}  actual ${fmt(p.actual)}${marked(p) ? "  " + p.marks.map((k) => MARK[k].text).join(" + ") : ""}${p.diverged ? "  (diverged)" : ""}`));
           g.addEventListener("click", () => select(i));
           g.addEventListener("mouseenter", () => { showCard(p, true); hover.setAttribute("x1", x(p.frame)); hover.setAttribute("x2", x(p.frame)); });
           svg.append(g);
@@ -238,18 +284,19 @@
       // tick on the bar, and selects that moment (without seeking) so its lines are one press away.
       let inWindow = null;
       function watchBlunders(f) {
-        // overlapping windows: the most recent blunder wins
-        const p = review.points.filter((q) => q.blunder && !q.diverged && f >= q.frame && f < q.frame + review.horizon).pop() || null;
+        // overlapping windows: the most recent mark wins
+        const p = review.points.filter((q) => marked(q) && f >= q.frame && f < q.frame + review.horizon).pop() || null;
         if (p !== inWindow) {
           inWindow = p;
           if (p) {
-            send("main", { banner: { text: `BLUNDER · f${p.frame} · ${secs(p.frame)}`, sub: `expected ${fmt(p.expected)} → actual ${fmt(p.actual)}` } });
+            const k = mainMark(p);
+            send("main", { banner: { text: `${p.marks.map((m) => MARK[m].text).join(" + ")} · f${p.frame} · ${secs(p.frame)}`, sub: `expected ${fmt(p.expected)} ±${p.sd.toFixed(2)} → actual ${fmt(p.actual)}`, color: MARK[k].color } });
             const i = review.points.indexOf(p);
             if (i !== current) select(i, { seek: false });
           } else send("main", { banner: null });
           for (const r of svg.querySelectorAll("rect.tick")) r.classList.toggle("live", p && Number(r.dataset.frame) === p.frame);
         }
-        document.querySelector("#cap-main").textContent = p ? `${review.replay} · in the blunder window: +${f - p.frame} f of ${review.horizon}` : review.replay;
+        document.querySelector("#cap-main").textContent = p ? `${review.replay} · ${MARK[mainMark(p)].label} window: +${f - p.frame} f of ${review.horizon}` : review.replay;
       }
 
       function select(i, opts = {}) {
@@ -314,7 +361,7 @@
       }
 
       function showCard(p, preview) {
-        const flag = p.diverged ? ` <span class="tag diverged">diverged</span>` : p.blunder ? ` <span class="tag blunder">blunder</span>` : (p.delta != null && p.delta > 0.5 ? ` <span class="tag good">above expectation</span>` : "");
+        const flag = p.diverged ? ` <span class="tag diverged">diverged</span>` : marked(p) ? p.marks.map((k) => ` <span class="tag" style="background:${MARK[k].color}" title="${MARK[k].hint}">${MARK[k].label}</span>`).join("") : (p.delta != null && p.delta > 0.5 ? ` <span class="tag good">above expectation</span>` : "");
         document.querySelector("#pt-title").innerHTML = `${preview ? '<span class="preview">preview</span> ' : ""}f${p.frame} · ${secs(p.frame)}${flag}`;
         const s = p.subject, o = p.opponent;
         document.querySelector("#pt-info").innerHTML = [
@@ -330,8 +377,14 @@
 
       function stepBlunder(dir) {
         const pts = review.points;
-        for (let i = current + dir; i >= 0 && i < pts.length; i += dir) if (pts[i].blunder && !pts[i].diverged) return select(i);
+        for (let i = current + dir; i >= 0 && i < pts.length; i += dir) if ((pts[i].marks || []).some((k) => k === "blunder" || k === "missed")) return select(i);
       }
+      function stepMark(dir) {
+        const pts = review.points;
+        for (let i = current + dir; i >= 0 && i < pts.length; i += dir) if (marked(pts[i])) return select(i);
+      }
+      document.querySelector("#prev-m").addEventListener("click", () => stepMark(-1));
+      document.querySelector("#next-m").addEventListener("click", () => stepMark(1));
       document.querySelector("#prev").addEventListener("click", () => select(current - 1));
       document.querySelector("#next").addEventListener("click", () => select(current + 1));
       document.querySelector("#prev-b").addEventListener("click", () => stepBlunder(-1));
@@ -348,17 +401,20 @@
         const res = await fetch(`${run}/review.json`);
         if (!res.ok) throw new Error(`${run}/review.json → ${res.status}`);
         review = await res.json();
+        annotate();
         const sub = review.players.find((p) => p.port === review.subject);
         const opp = review.players.find((p) => p.port !== review.subject);
-        meta.textContent = `${review.replay} · stage ${review.stage} · subject p${review.subject} ${sub?.character} vs p${opp?.port} ${opp?.character} · every ${review.every} f, horizon ${review.horizon} f, ${review.samples} samples · ${review.points.length} points, ${review.blunders.length} blunders`;
+        meta.textContent = `${review.replay} · stage ${review.stage} · subject p${review.subject} ${sub?.character} vs p${opp?.port} ${opp?.character} · every ${review.every} f, horizon ${review.horizon} f, ${review.samples} samples · ${review.points.length} points`;
+        const counts = {}; for (const q of review.points) for (const k of q.marks || []) counts[k] = (counts[k] || 0) + 1;
+        meta.textContent += " · " + (Object.keys(MARK).filter((k) => counts[k]).map((k) => `${counts[k]} ${MARK[k].label}${counts[k] > 1 && (k === "blunder" || k === "escape") ? "s" : ""}`).join(", ") || "no marks");
         send("main", { load: `${run}/${review.game}`, label: `whole game · ${review.replay}` });
-        send("main", { marks: review.points.filter((p) => p.blunder && !p.diverged).map((p) => ({ i: p.frame - review.first_frame, label: `f${p.frame}` })) });
+        send("main", { marks: review.points.filter(marked).map((p) => ({ i: p.frame - review.first_frame, label: MARK[mainMark(p)].label, color: MARK[mainMark(p)].color })) });
         document.querySelector("#cap-main").textContent = review.replay;
         drawBar();
         const want = Number(params.get("f"));
         const i = Number.isFinite(want) && params.get("f") ? review.points.findIndex((p) => p.frame === want) : -1;
-        const firstBlunder = review.points.findIndex((p) => p.blunder && !p.diverged);
-        select(i >= 0 ? i : (firstBlunder >= 0 ? firstBlunder : 0));
+        const firstMark = review.points.findIndex((p) => (p.marks || []).some((k) => k !== "sealed" && k !== "doomed")) >= 0 ? review.points.findIndex((p) => (p.marks || []).some((k) => k !== "sealed" && k !== "doomed")) : review.points.findIndex(marked);
+        select(i >= 0 ? i : (firstMark >= 0 ? firstMark : 0));
       } catch (error) {
         console.error(error);
         meta.textContent = `failed to load review: ${error.message}`;
