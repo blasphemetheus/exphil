@@ -139,7 +139,7 @@ defmodule ExPhil.Sim.Coach do
     * `kill` — the sample that takes the opponent's stock EARLIEST (absent if none does)
     * `death` — the sample where the subject loses a stock earliest (absent if none does)
     * `nearest` — the sample whose value is closest to what actually happened
-    * `safe` — the sample that takes the least damage
+    * `safe` — the sample that takes the least damage (a lost stock counts as 1000%)
   """
   def lines(rollouts, values, actual, subject, opp) do
     ranked = Enum.zip(rollouts, values) |> Enum.sort_by(&elem(&1, 1))
@@ -159,8 +159,13 @@ defmodule ExPhil.Sim.Coach do
       |> Enum.min_by(&elem(&1, 1), fn -> nil end)
     end
 
+    # a lost stock counts as 1000% so "safe" cannot be won by dying early (death resets percent)
     damage_taken = fn states ->
-      states |> Enum.chunk_every(2, 1, :discard) |> Enum.reduce(0.0, fn [a, b], t -> t + max(0.0, b.players[subject].percent - a.players[subject].percent) end)
+      states
+      |> Enum.chunk_every(2, 1, :discard)
+      |> Enum.reduce(0.0, fn [a, b], t ->
+        t + max(0.0, b.players[subject].percent - a.players[subject].percent) + 1000.0 * max(0, (a.players[subject].stock || 0) - (b.players[subject].stock || 0))
+      end)
     end
 
     base = %{
