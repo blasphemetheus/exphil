@@ -351,3 +351,18 @@ real; mix3/mix3b/mix4 − mix2 are NOT resolved at 300 starts (+0.01 to
 +0.06, CIs cross zero). Iterations 2–4 established the style-term
 mechanics, not a compounding gain. Re-run the four arms at 1,000 starts
 before claiming a trend.
+
+## Live look at mix4 (Bradley, 2026-09-21 evening, local Dolphin, several characters)
+
+Takes a stock off Bradley; "kinda owns me sometimes in neutral", "a little
+fearsome away from the ledge". Fails at the edge: does not edgeguard
+successfully, and self-destructs off the side with short-hop fair, full-hop
+fair, side-B, up-B, or an airdodge; still multi-jabs. Reading: the drill
+gains are neutral/approach gains (exactly what the regret diff said) and
+the sim drill never contains an edge situation with a stock on the line —
+the idle/self defender on FD center, 90–240 frames, cannot teach
+edgeguards or recovery. Next drill families: edge situations (defender
+offstage / on ledge; attacker near the edge), with survival in the scorer
+(an SD is −1000 already; add "stock lost within the window" to the drill
+metric), and a no-jab-spam term. Track D: D5 (a stock off a human) MET
+locally; Direct still owed.
