@@ -215,7 +215,9 @@
         drawCurve();
         const want = Number(params.get("g"));
         const i = params.get("g") ? traced.findIndex((g) => g.generation === want) : -1;
-        select(i >= 0 ? i : Math.max(0, traced.findIndex((g) => g.generation === data.best.generation)));
+        // default: the first traced generation that reached the run's best fitness (the best gen itself may not be traced)
+        const atBest = traced.findIndex((g) => g.best >= data.best.fitness - 1e-6);
+        select(i >= 0 ? i : (atBest >= 0 ? atBest : traced.length - 1));
       } catch (error) {
         console.error(error);
         meta.textContent = `failed to load run: ${error.message}`;
