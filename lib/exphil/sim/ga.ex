@@ -141,7 +141,12 @@ defmodule ExPhil.Sim.GA do
     style_penalty = Keyword.get(opts, :style_penalty, %{full_hop: 120.0, grab: 60.0, shield_frame: 2.0})
     frames = Enum.map(states, fn s -> %{frame: s.frame, p1: ScenarioScan.player_summary(s.players[1]), p2: ScenarioScan.player_summary(s.players[2])} end)
     openings = AerialChain.openings(frames, window: length(states))
-    chain = if openings == [], do: 0, else: Enum.max(Enum.map(openings, & &1.hits))
+    # the longest chain by MOVES that land (a 5-hit drill is one move), not by hitstun entries
+    {chain, hits} =
+      openings
+      |> Enum.map(fn o -> {moves_landed(states, o.frame, o.chain_end), o.hits} end)
+      |> Enum.max_by(&elem(&1, 0), fn -> {0, 0} end)
+
     aerials = if openings == [], do: 0, else: Enum.max(Enum.map(openings, & &1.connected_aerials))
     last = List.last(states)
     damage = (last.players[2].percent - gs0.players[2].percent) * 1.0
@@ -150,7 +155,28 @@ defmodule ExPhil.Sim.GA do
     style = Search.style_counts(states)
     style_cost = style.full_hops * style_penalty.full_hop + style.grabs * style_penalty.grab + style.shield_frames * style_penalty.shield_frame
     fitness = 100.0 * chain + damage - if(alive, do: 0.0, else: 500.0) - style_cost
-    %{fitness: fitness, chain: chain, aerials: aerials, damage: damage, alive?: alive, style: style, style_cost: style_cost, openings: length(openings)}
+    %{fitness: fitness, chain: chain, hits: hits, aerials: aerials, damage: damage, alive?: alive, style: style, style_cost: style_cost, openings: length(openings)}
+  end
+
+  @doc """
+  Distinct P1 attack instances that land on P2 between `from` and `to`
+  (frame numbers, inclusive). An instance starts when P1's action changes
+  or its action frame counter restarts; it "lands" on any frame in which
+  P2's percent rises. Multi-hit moves (drill, nair) count once.
+  """
+  def moves_landed(states, from, to) do
+    states
+    |> Enum.filter(&(&1.frame >= from - 1 and &1.frame <= to))
+    |> Enum.chunk_every(2, 1, :discard)
+    |> Enum.reduce({0, MapSet.new()}, fn [a, b], {inst, landed} ->
+      pa = a.players[1]
+      pb = b.players[1]
+      inst = if pb.action != pa.action or (pb.action_frame || 0) < (pa.action_frame || 0), do: inst + 1, else: inst
+      landed = if b.players[2].percent > a.players[2].percent, do: MapSet.put(landed, inst), else: landed
+      {inst, landed}
+    end)
+    |> elem(1)
+    |> MapSet.size()
   end
 
   @doc """
@@ -243,6 +269,7 @@ defmodule ExPhil.Sim.GA do
           mean: Enum.sum(fits) / length(fits),
           median: fits |> Enum.sort() |> Enum.at(div(length(fits), 2)),
           best_chain: elite.score.chain,
+          best_hits: elite.score.hits,
           best_damage: elite.score.damage,
           chains: Enum.frequencies(Enum.map(results, & &1.score.chain)),
           elite: elite,

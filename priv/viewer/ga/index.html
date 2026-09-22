@@ -81,7 +81,7 @@
           <span><i style="background: var(--best)"></i>best fitness of the generation</span>
           <span><i style="background: var(--mean)"></i>mean of the population</span>
           <span><i style="background: var(--sofar)"></i>best so far</span>
-          <span>fitness = 100 × chain hits + damage − 500 if the attacker dies − style penalty · dots = generations with a saved elite trace (click)</span>
+          <span>fitness = 100 × moves landed in the longest chain + damage − 500 if the attacker dies − style penalty · dots = generations with a saved elite trace (click)</span>
         </div>
       </section>
 
@@ -146,7 +146,7 @@
         for (const g of traced) {
           const grp = el("g", { class: "pt" });
           grp.append(el("circle", { cx: x(g.generation), cy: y(g.best), r: 3.5, fill: g.generation === data.best.generation ? "var(--hi)" : "var(--best)", stroke: "#fff", "stroke-width": 0.8 }));
-          grp.append(el("title", {}, `gen ${g.generation} · best ${fmt(g.best)} · chain ${g.best_chain} hits · ${fmt(g.best_damage)}%`));
+          grp.append(el("title", {}, `gen ${g.generation} · best ${fmt(g.best)} · chain ${g.best_chain} moves · ${fmt(g.best_damage)}%`));
           grp.addEventListener("click", () => select(traced.indexOf(g)));
           svg.append(grp);
         }
@@ -160,7 +160,7 @@
         const c = document.querySelector("#cursor"); c.setAttribute("x1", svg._x(g.generation)); c.setAttribute("x2", svg._x(g.generation));
         document.querySelector("#sel-title").textContent = `Generation ${g.generation}${g.generation === data.best.generation ? " · the best of the run" : ""}`;
         document.querySelector("#sel-stats").innerHTML = [
-          ["best", fmt(g.best)], ["mean", fmt(g.mean)], ["median", fmt(g.median)], ["chain", `${g.best_chain} hits`], ["damage", `${fmt(g.best_damage)}%`], ["best so far", fmt(g.best_so_far)], ["chains in pop", Object.entries(g.chains || {}).sort((a, b) => a[0] - b[0]).map(([k, v]) => `${k}:${v}`).join(" ")], ["time", `${g.ms} ms`],
+          ["best", fmt(g.best)], ["mean", fmt(g.mean)], ["median", fmt(g.median)], ["chain", `${g.best_chain} moves${g.best_hits != null ? " (" + g.best_hits + " hits)" : ""}`], ["damage", `${fmt(g.best_damage)}%`], ["best so far", fmt(g.best_so_far)], ["chains in pop", Object.entries(g.chains || {}).sort((a, b) => a[0] - b[0]).map(([k, v]) => `${k}:${v}`).join(" ")], ["time", `${g.ms} ms`],
         ].map(([k, v]) => `<span class="stat">${k} <b>${v}</b></span>`).join("");
         document.querySelector("#genome").replaceChildren(...(g.elite_genome || []).map(([n, h]) => { const s = document.createElement("span"); s.className = "tok" + (PRESS.has(n) ? " press" : ""); s.innerHTML = `${n}<small>×${h}</small>`; return s; }));
         document.querySelector("#play").disabled = false;
@@ -178,8 +178,8 @@
         document.querySelector("#restart").disabled = false;
       }
 
-      document.querySelector("#play").addEventListener("click", () => { const g = traced[current]; play(g.generation, g.trace, `gen ${g.generation}: ${g.best_chain} hits, ${fmt(g.best_damage)}% (fitness ${fmt(g.best)})`); });
-      document.querySelector("#play-best").addEventListener("click", () => play("best", data.best.trace, `best of the run (gen ${data.best.generation}): ${data.best.chain} hits, ${fmt(data.best.damage)}%`));
+      document.querySelector("#play").addEventListener("click", () => { const g = traced[current]; play(g.generation, g.trace, `gen ${g.generation}: ${g.best_chain} moves, ${fmt(g.best_damage)}% (fitness ${fmt(g.best)})`); });
+      document.querySelector("#play-best").addEventListener("click", () => play("best", data.best.trace, `best of the run (gen ${data.best.generation}): ${data.best.chain} moves, ${fmt(data.best.damage)}%`));
       document.querySelector("#restart").addEventListener("click", () => send("elite", { restart: true }));
       document.querySelector("#prev").addEventListener("click", () => select(current - 1));
       document.querySelector("#next").addEventListener("click", () => select(current + 1));
@@ -196,10 +196,10 @@
           const id = `strip${g.generation}`;
           const fig = document.createElement("figure");
           if (g.generation === data.best.generation) fig.classList.add("best");
-          fig.innerHTML = `<figcaption><b>gen ${g.generation}</b><span>${g.best_chain} hits · ${fmt(g.best_damage)}%</span></figcaption>`;
+          fig.innerHTML = `<figcaption><b>gen ${g.generation}</b><span>${g.best_chain} moves · ${fmt(g.best_damage)}%</span></figcaption>`;
           const f = document.createElement("iframe"); f.id = id; f.src = `/coach/pane.html?id=${id}`; f.title = `gen ${g.generation} elite`;
           fig.append(f); box.append(fig); panes[id] = f;
-          send(id, { load: `${run}/${g.trace}`, label: `gen ${g.generation}: ${g.best_chain} hits, ${fmt(g.best_damage)}%`, restart: true });
+          send(id, { load: `${run}/${g.trace}`, label: `gen ${g.generation}: ${g.best_chain} moves, ${fmt(g.best_damage)}%`, restart: true });
         }
         document.querySelector("#play-strip").disabled = false;
       });
@@ -210,7 +210,7 @@
         if (!res.ok) throw new Error(`${run}/run.json → ${res.status}`);
         data = await res.json();
         traced = data.generations.filter((g) => g.trace);
-        meta.textContent = `${run.split("/").pop()} · population ${data.population} × ${data.n_generations ?? data.generations.length} generations · horizon ${data.horizon} f · defender ${data.defender} · best: gen ${data.best.generation}, ${data.best.chain} hits, ${fmt(data.best.damage)}% (fitness ${fmt(data.best.fitness)}) · ${fmt(data.ms / 1000, 0)} s`;
+        meta.textContent = `${run.split("/").pop()} · population ${data.population} × ${data.n_generations ?? data.generations.length} generations · horizon ${data.horizon} f · defender ${data.defender} · best: gen ${data.best.generation}, ${data.best.chain} moves, ${fmt(data.best.damage)}% (fitness ${fmt(data.best.fitness)}) · ${fmt(data.ms / 1000, 0)} s`;
         document.querySelector("#play-best").disabled = false;
         drawCurve();
         const want = Number(params.get("g"));

@@ -66,15 +66,15 @@ result =
     elite: opts[:elite] || 8, mutation: opts[:mutation] || 0.15, crossover: opts[:crossover] || 0.7, max_hold: opts[:max_hold] || 12,
     on_generation: fn s ->
       bar = String.duplicate("█", min(20, s.best_chain * 2)) |> String.pad_trailing(20, "░")
-      Output.puts("gen #{String.pad_leading(Integer.to_string(s.generation), 3)}  best #{:io_lib.format("~7.1f", [s.best])}  mean #{:io_lib.format("~7.1f", [s.mean])}  chain #{s.best_chain} hits / #{Float.round(s.best_damage, 1)}%  #{bar}  best-so-far #{Float.round(s.best_so_far, 1)}  (#{s.ms} ms)")
+      Output.puts("gen #{String.pad_leading(Integer.to_string(s.generation), 3)}  best #{:io_lib.format("~7.1f", [s.best])}  mean #{:io_lib.format("~7.1f", [s.mean])}  chain #{s.best_chain} moves (#{s.best_hits} hits) / #{Float.round(s.best_damage, 1)}%  #{bar}  best-so-far #{Float.round(s.best_so_far, 1)}  (#{s.ms} ms)")
       if rem(s.generation, trace_every) == 0 or s.generation == 1 do
-        write_trace.(s.elite.states, "gen#{s.generation}.msltrace.json", "gen #{s.generation} elite: #{s.best_chain} hits, #{Float.round(s.best_damage, 1)}% (fitness #{Float.round(s.best, 1)})")
+        write_trace.(s.elite.states, "gen#{s.generation}.msltrace.json", "gen #{s.generation} elite: #{s.best_chain} moves, #{Float.round(s.best_damage, 1)}% (fitness #{Float.round(s.best, 1)})")
       end
     end)
 
 ms = System.monotonic_time(:millisecond) - t0
 best = result.best
-write_trace.(best.states, "best.msltrace.json", "best of run (gen #{best.generation}): #{best.score.chain} hits, #{Float.round(best.score.damage, 1)}%")
+write_trace.(best.states, "best.msltrace.json", "best of run (gen #{best.generation}): #{best.score.chain} moves, #{Float.round(best.score.damage, 1)}%")
 
 File.write!(
   Path.join(out, "run.json"),
@@ -82,10 +82,10 @@ File.write!(
     %{
       population: pop, n_generations: gens, horizon: horizon, stage: stage_id, defender: opts[:policy] || "idle", seed: seed, ms: ms,
       start: %{frame: entry.frame, p1: entry.summary.p1, p2: entry.summary.p2},
-      best: %{generation: best.generation, fitness: best.score.fitness, chain: best.score.chain, damage: best.score.damage, alive: best.score.alive?, genome: Enum.map(best.genome, fn {n, h} -> [n, h] end), trace: "best.msltrace.json"},
+      best: %{generation: best.generation, fitness: best.score.fitness, chain: best.score.chain, hits: best.score.hits, damage: best.score.damage, alive: best.score.alive?, genome: Enum.map(best.genome, fn {n, h} -> [n, h] end), trace: "best.msltrace.json"},
       generations:
         Enum.map(result.generations, fn s ->
-          %{generation: s.generation, best: s.best, mean: s.mean, median: s.median, best_chain: s.best_chain, best_damage: s.best_damage, best_so_far: s.best_so_far, chains: s.chains, ms: s.ms,
+          %{generation: s.generation, best: s.best, mean: s.mean, median: s.median, best_chain: s.best_chain, best_hits: s.best_hits, best_damage: s.best_damage, best_so_far: s.best_so_far, chains: s.chains, ms: s.ms,
             elite_genome: Enum.map(s.elite_genome, fn {n, h} -> [n, h] end),
             trace: if(rem(s.generation, trace_every) == 0 or s.generation == 1, do: "gen#{s.generation}.msltrace.json", else: nil)}
         end)
@@ -94,6 +94,6 @@ File.write!(
   )
 )
 
-Output.success("#{gens} generations × #{pop} in #{Float.round(ms / 1000, 1)} s; best gen #{best.generation}: #{best.score.chain} hits, #{Float.round(best.score.damage, 1)}%, fitness #{Float.round(best.score.fitness, 1)} → #{out}/run.json")
+Output.success("#{gens} generations × #{pop} in #{Float.round(ms / 1000, 1)} s; best gen #{best.generation}: #{best.score.chain} moves (#{best.score.hits} hits), #{Float.round(best.score.damage, 1)}%, fitness #{Float.round(best.score.fitness, 1)} → #{out}/run.json")
 Output.puts("best genome: " <> Enum.map_join(best.genome, " ", fn {n, h} -> "#{n}×#{h}" end))
 Env.stop(sim)
