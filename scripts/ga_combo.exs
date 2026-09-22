@@ -37,6 +37,25 @@ players = [%{character: "fox", costume: 1}, %{character: "fox", costume: 0}]
 # 1. one start state from a batch-1 sim
 {:ok, sim1} = Env.start(:nif, stage: stage, players: players, batch_size: 1, seed: seed)
 [entry] = Drill.build_pool(sim1, 1, seed: opts[:start_seed] || seed, percent: opts[:start_percent] || 0, stage: stage, warm: 30)
+
+# Settle the start: the random walk leaves players mid-animation (run 4 started with P1 in a jump,
+# P2 mid-dash — a quarter of the window was dead time, Bradley 2026-09-22). Hold neutral until
+# both stand in WAIT (action 14) on the ground, then save THAT as the start (cap 240 frames).
+neutral = Drill.neutral()
+{:ok, _} = Env.restore(sim1, 0, entry.blob)
+
+settled =
+  Enum.reduce_while(1..240, nil, fn _, _ ->
+    {:ok, [gs], _} = Env.step(sim1, [[neutral, neutral]])
+    p1 = gs.players[1]
+    p2 = gs.players[2]
+    if p1.action == 14 and p2.action == 14 and p1.on_ground and p2.on_ground, do: {:halt, gs}, else: {:cont, gs}
+  end)
+
+{:ok, settled_blob} = Env.save(sim1, 0)
+walk_frame = entry.frame
+entry = %{entry | blob: settled_blob, frame: settled.frame, summary: %{p1: ExPhil.Eval.ScenarioScan.player_summary(settled.players[1]), p2: ExPhil.Eval.ScenarioScan.player_summary(settled.players[2])}}
+Output.puts("settled start: +#{settled.frame - walk_frame} f → frame #{settled.frame}, p1 action #{settled.players[1].action} p2 action #{settled.players[2].action}, distance #{Float.round(abs(settled.players[1].x - settled.players[2].x), 1)}")
 Env.stop(sim1)
 File.write!(Path.join(out, "start.bin"), entry.blob)
 Output.puts("start: frame #{entry.frame}  p1 #{inspect(entry.summary.p1 |> Map.take([:x, :y, :action, :percent]))}  p2 #{inspect(entry.summary.p2 |> Map.take([:x, :y, :action, :percent]))}")
