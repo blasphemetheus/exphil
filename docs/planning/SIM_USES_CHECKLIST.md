@@ -31,7 +31,7 @@ Legend: ★ = Bradley wants it · ◇ = neutral · ? = needs explaining first
   (sampled inputs or the prior at T=1) → heat map of where the bot dies /
   lands hits / gets hit. "Cool." Cheapest ★: needs only the loop + a plot.
   Evidence: one heat map PNG from a real replay moment.
-- [ ] ★ **Genetic algorithm for the longest combo from 0 %** — evolve input
+- [~] ★ **Genetic algorithm for the longest combo from 0 %** — v0 BUILT 2026-09-22 (`ExPhil.Sim.GA`, `scripts/ga_combo.exs`, `priv/viewer/ga/`); first run `eval_runs/0922_ga/fd_idle_p512_g200` (see HANDOFF_2026-09-22 15:00) — — evolve input
   sequences against a target; fitness = scorer output. "Fucking dope."
   See the GA section below. Evidence: best-of-generation curve + the
   combo replayed in the viewer.
