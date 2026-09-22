@@ -745,7 +745,13 @@ defmodule ExPhil.Agents.Agent do
           action_to_controller(row, state)
         end
 
-      {:reply, {:ok, controllers}, state}
+      # RL_ON_PRIOR R2: the critic is a head on the FROZEN trunk, so a collector needs the
+      # per-env trunk features of this step ([n, d], host copy) next to the controllers.
+      if Keyword.get(opts, :return_features, false) do
+        {:reply, {:ok, controllers, Nx.backend_transfer(features, Nx.BinaryBackend)}, state}
+      else
+        {:reply, {:ok, controllers}, state}
+      end
     rescue
       e -> {:reply, {:error, Exception.message(e)}, state}
     end
