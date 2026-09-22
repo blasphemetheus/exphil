@@ -8,10 +8,12 @@ defmodule ExPhil.Sim.GA do
     search-as-teacher samples, so mutations stay meaningful (change a token,
     change a hold, insert, delete) and crossover splices two programs at a
     shared frame boundary.
-  * **Fitness** (subject = P1 attacker, P2 defender): the longest chain in the
-    rollout by `ExPhil.Eval.AerialChain` hit count (100 per hit), plus damage
-    dealt, minus 500 if P1 dies or leaves the stage, minus the search style
-    penalty (`Search.style_counts/1`) so winners stay human-shaped.
+  * **Fitness** (subject = P1 attacker, P2 defender): damage dealt inside the
+    best `ExPhil.Eval.AerialChain` chain + 20 per MOVE that lands in it
+    (`moves_landed/3`; a multi-hit drill is one move) + 1000 per stock taken,
+    minus 500 if P1 dies or leaves the stage, minus the search style penalty
+    (`Search.style_counts/1`). v0 weighted moves 100:1 over damage and
+    evolved jab pressure against an idle target (run 3, 2026-09-22).
   * **Evaluation**: the whole population is one sim batch — every env restores
     the same start (`Env.upload` once, `Env.restore` per env), then `horizon`
     batched steps. Deterministic given `:seed`.
@@ -141,21 +143,33 @@ defmodule ExPhil.Sim.GA do
     style_penalty = Keyword.get(opts, :style_penalty, %{full_hop: 120.0, grab: 60.0, shield_frame: 2.0})
     frames = Enum.map(states, fn s -> %{frame: s.frame, p1: ScenarioScan.player_summary(s.players[1]), p2: ScenarioScan.player_summary(s.players[2])} end)
     openings = AerialChain.openings(frames, window: length(states))
-    # the longest chain by MOVES that land (a 5-hit drill is one move), not by hitstun entries
-    {chain, hits} =
+    # the best chain = the one dealing the most DAMAGE; moves that land (a 5-hit drill is one move)
+    # are the tiebreaker. v0 weighted moves 100:1 over damage and evolved jab pressure (run 3).
+    by_frame = Map.new(states, &{&1.frame, &1})
+    chain_damage = fn o ->
+      before = Map.get(by_frame, o.frame - 1, hd(states)).players[2].percent
+      after_ = Map.get(by_frame, o.chain_end, List.last(states)).players[2].percent
+      max(0.0, (after_ - before) * 1.0)
+    end
+
+    {chain, hits, chain_dmg} =
       openings
-      |> Enum.map(fn o -> {moves_landed(states, o.frame, o.chain_end), o.hits} end)
-      |> Enum.max_by(&elem(&1, 0), fn -> {0, 0} end)
+      |> Enum.map(fn o -> {moves_landed(states, o.frame, o.chain_end), o.hits, chain_damage.(o)} end)
+      |> Enum.max_by(fn {m, _, d} -> d + 20.0 * m end, fn -> {0, 0, 0.0} end)
 
     aerials = if openings == [], do: 0, else: Enum.max(Enum.map(openings, & &1.connected_aerials))
     last = List.last(states)
     damage = (last.players[2].percent - gs0.players[2].percent) * 1.0
+    stocks_taken = max(0, (gs0.players[2].stock || 0) - (last.players[2].stock || 0))
     p1 = last.players[1]
     alive = p1.stock == gs0.players[1].stock and abs(p1.x) < 90.0
     style = Search.style_counts(states)
     style_cost = style.full_hops * style_penalty.full_hop + style.grabs * style_penalty.grab + style.shield_frames * style_penalty.shield_frame
-    fitness = 100.0 * chain + damage - if(alive, do: 0.0, else: 500.0) - style_cost
-    %{fitness: fitness, chain: chain, hits: hits, aerials: aerials, damage: damage, alive?: alive, style: style, style_cost: style_cost, openings: length(openings)}
+    move_bonus = Keyword.get(opts, :move_bonus, 20.0)
+    kill_bonus = Keyword.get(opts, :kill_bonus, 1000.0)
+    fitness = chain_dmg + move_bonus * chain + kill_bonus * stocks_taken - if(alive, do: 0.0, else: 500.0) - style_cost
+
+    %{fitness: fitness, chain: chain, hits: hits, chain_damage: chain_dmg, aerials: aerials, damage: damage, stocks_taken: stocks_taken, alive?: alive, style: style, style_cost: style_cost, openings: length(openings)}
   end
 
   @doc """
@@ -257,7 +271,7 @@ defmodule ExPhil.Sim.GA do
     {summaries, _, best} =
       Enum.reduce(1..gens, {[], genomes, nil}, fn gen, {acc, genomes, best} ->
         t0 = System.monotonic_time(:millisecond)
-        results = evaluate(sim, state, genomes, defender, horizon, Keyword.take(opts, [:history, :style_penalty]))
+        results = evaluate(sim, state, genomes, defender, horizon, Keyword.take(opts, [:history, :style_penalty, :move_bonus, :kill_bonus]))
         ranked = Enum.sort_by(results, &(-&1.score.fitness))
         elite = hd(ranked)
         best = if best == nil or elite.score.fitness > best.score.fitness, do: Map.put(elite, :generation, gen), else: best
@@ -270,6 +284,8 @@ defmodule ExPhil.Sim.GA do
           median: fits |> Enum.sort() |> Enum.at(div(length(fits), 2)),
           best_chain: elite.score.chain,
           best_hits: elite.score.hits,
+          best_chain_damage: elite.score.chain_damage,
+          best_stocks: elite.score.stocks_taken,
           best_damage: elite.score.damage,
           chains: Enum.frequencies(Enum.map(results, & &1.score.chain)),
           elite: elite,
