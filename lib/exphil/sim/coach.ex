@@ -36,8 +36,8 @@ defmodule ExPhil.Sim.Coach do
   `:on_point` (fn point -> any, progress hook).
 
   Returns `%{points: [...], blunders: [...], divergence, replay, frames}`.
-  Each point: `%{frame, expected, sd, actual, delta, best, lines: %{best, typical, worst}, samples: [values], state}`
-  (each line `%{value, states}`; typical = the median sample).
+  Each point: `%{frame, expected, sd, actual, delta, best, lines: %{best, typical, worst, safe, kill?, death?, nearest?}, samples: [values], state}`
+  (each line `%{value, states, note}`; see `lines/5`).
   """
   def review(path, opts) do
     subject = Keyword.get(opts, :subject, 1)
@@ -75,10 +75,7 @@ defmodule ExPhil.Sim.Coach do
         expected = mean(values)
         actual_states = for f <- save.frame..min(save.frame + horizon, last_frame), by_frame[f], do: by_frame[f]
         actual = if length(actual_states) > 1, do: value(actual_states, subject, opp), else: nil
-        ranked = Enum.zip(rollouts, values) |> Enum.sort_by(&elem(&1, 1))
-        {worst_states, worst_value} = hd(ranked)
-        {best_states, best_value} = List.last(ranked)
-        {typical_states, typical_value} = Enum.at(ranked, div(length(ranked), 2))
+        lines = lines(rollouts, values, actual, subject, opp)
 
         point = %{
           frame: save.frame,
@@ -87,8 +84,8 @@ defmodule ExPhil.Sim.Coach do
           actual: actual,
           delta: actual && actual - expected,
           samples: values,
-          best: %{value: best_value, states: best_states},
-          lines: %{best: %{value: best_value, states: best_states}, typical: %{value: typical_value, states: typical_states}, worst: %{value: worst_value, states: worst_states}},
+          best: lines.best,
+          lines: lines,
           state: save.state,
           diverged?: save.diverged?
         }
@@ -132,6 +129,58 @@ defmodule ExPhil.Sim.Coach do
 
     history |> Enum.reverse() |> Enum.zip() |> Enum.map(&Tuple.to_list/1)
   end
+
+  @line_kinds [:best, :typical, :worst, :kill, :death, :nearest, :safe]
+
+  @doc """
+  Named continuations picked out of the sampled rollouts (each `%{value, states, note}`):
+
+    * `best` / `typical` (median) / `worst` by value
+    * `kill` — the sample that takes the opponent's stock EARLIEST (absent if none does)
+    * `death` — the sample where the subject loses a stock earliest (absent if none does)
+    * `nearest` — the sample whose value is closest to what actually happened
+    * `safe` — the sample that takes the least damage
+  """
+  def lines(rollouts, values, actual, subject, opp) do
+    ranked = Enum.zip(rollouts, values) |> Enum.sort_by(&elem(&1, 1))
+    pick = fn {states, value}, note -> %{value: value, states: states, note: note} end
+    n = length(ranked)
+
+    stock_loss_at = fn states, port ->
+      states
+      |> Enum.chunk_every(2, 1, :discard)
+      |> Enum.find_index(fn [a, b] -> (a.players[port].stock || 0) > (b.players[port].stock || 0) end)
+    end
+
+    earliest = fn port ->
+      Enum.zip(rollouts, values)
+      |> Enum.map(fn r -> {r, stock_loss_at.(elem(r, 0), port)} end)
+      |> Enum.reject(&is_nil(elem(&1, 1)))
+      |> Enum.min_by(&elem(&1, 1), fn -> nil end)
+    end
+
+    damage_taken = fn states ->
+      states |> Enum.chunk_every(2, 1, :discard) |> Enum.reduce(0.0, fn [a, b], t -> t + max(0.0, b.players[subject].percent - a.players[subject].percent) end)
+    end
+
+    base = %{
+      best: pick.(List.last(ranked), "highest value of #{n}"),
+      typical: pick.(Enum.at(ranked, div(n, 2)), "median of #{n}"),
+      worst: pick.(hd(ranked), "lowest value of #{n}"),
+      safe: pick.(Enum.min_by(Enum.zip(rollouts, values), fn {s, _} -> damage_taken.(s) end), "least damage taken")
+    }
+
+    base
+    |> maybe_put(:kill, earliest.(opp), fn {r, at} -> pick.(r, "takes the stock at +#{at} f") end)
+    |> maybe_put(:death, earliest.(subject), fn {r, at} -> pick.(r, "loses the stock at +#{at} f") end)
+    |> maybe_put(:nearest, actual && Enum.min_by(Enum.zip(rollouts, values), fn {_, v} -> abs(v - actual) end), fn r -> pick.(r, "closest to the actual outcome") end)
+  end
+
+  @doc "Line kinds in display order."
+  def line_kinds, do: @line_kinds
+
+  defp maybe_put(map, _key, nil, _f), do: map
+  defp maybe_put(map, key, x, f), do: Map.put(map, key, f.(x))
 
   @doc "Subject-side value of a state sequence: stocks taken − lost + (damage dealt − taken)/100."
   def value(states, subject, opp) do

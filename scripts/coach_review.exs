@@ -61,9 +61,11 @@ if out do
   rows =
     Enum.map(review.points, fn p ->
       files =
-        for {kind, line} <- [{"best", p.lines.best}, {"typical", p.lines.typical}, {"worst", p.lines.worst}], into: %{} do
+        for {kind, line} <- p.lines, into: %{} do
           name = "p#{p.frame}_#{kind}.msltrace.json"
-          Trace.from_game_states(line.states, chars: chars, stage: meta.stage, label: "#{kind} continuation from f#{p.frame} (value #{Float.round(line.value, 2)})") |> Trace.write!(Path.join(out, name))
+          Trace.from_game_states(line.states, chars: chars, stage: meta.stage, label: "#{kind} continuation from f#{p.frame} (value #{Float.round(line.value, 2)}; #{line.note})") |> Trace.write!(Path.join(out, name))
+          {Atom.to_string(kind), %{file: name, value: line.value, note: line.note}}
+        end|> Trace.write!(Path.join(out, name))
           {kind, %{file: name, value: line.value}}
         end
 
@@ -76,6 +78,6 @@ if out do
         subject: Map.take(p.state.players[subject], [:x, :y, :action, :percent, :stock]), opponent: Map.take(p.state.players[Coach.other_port(subject)], [:x, :y, :action, :percent, :stock])}
     end)
 
-  File.write!(Path.join(out, "review.json"), Jason.encode!(%{replay: Path.basename(path), stage: meta.stage, players: Enum.map(meta.players |> Enum.sort_by(& &1.port), &%{port: &1.port, character: &1.character_name, type: &1.player_type}), subject: subject, horizon: review.horizon, every: review.every, samples: review.samples, first_frame: first_frame, last_frame: review.frames, game: "game.msltrace.json", points: rows, blunders: Enum.map(review.blunders, & &1.frame)}, pretty: true))
+  File.write!(Path.join(out, "review.json"), Jason.encode!(%{line_kinds: Coach.line_kinds(), replay: Path.basename(path), stage: meta.stage, players: Enum.map(meta.players |> Enum.sort_by(& &1.port), &%{port: &1.port, character: &1.character_name, type: &1.player_type}), subject: subject, horizon: review.horizon, every: review.every, samples: review.samples, first_frame: first_frame, last_frame: review.frames, game: "game.msltrace.json", points: rows, blunders: Enum.map(review.blunders, & &1.frame)}, pretty: true))
   Output.success("wrote #{out}/review.json, game.msltrace.json + #{4 * length(review.points)} continuation traces")
 end

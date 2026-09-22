@@ -22,7 +22,18 @@
       h1 { margin: 0; font-size: 17px; }
       header .meta { color: var(--muted); }
       header .error { color: var(--blunder); }
-      .top { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 12px; min-height: 360px; }
+      .top { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 280px; gap: 12px; min-height: 360px; }
+      .pane-fig { margin: 0; display: flex; flex-direction: column; min-height: 0; }
+      .pane-fig figcaption { font-size: 12px; margin-bottom: 3px; display: flex; justify-content: space-between; gap: 8px; }
+      .pane-fig figcaption b { text-transform: uppercase; letter-spacing: 0.04em; white-space: nowrap; }
+      .pane-fig figcaption span { color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+      aside h3 { margin: 12px 0 6px; font-size: 13px; }
+      .line-buttons { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
+      .line-buttons button { display: flex; flex-direction: column; align-items: flex-start; padding: 4px 8px; min-width: 76px; }
+      .line-buttons button small { color: var(--muted); font-variant-numeric: tabular-nums; }
+      .line-buttons button.active { background: #20211f; color: #fff; border-color: #20211f; }
+      .line-buttons button.active small { color: #d7d8d2; }
+      .line-buttons button.stale { border-style: dashed; }
       iframe { border: 1px solid var(--line); background: var(--card); width: 100%; height: 100%; display: block; box-sizing: border-box; }
       .main-pane { min-height: 0; }
       aside { border-left: 1px solid var(--line); padding-left: 12px; overflow: auto; min-height: 0; }
@@ -35,8 +46,6 @@
       .tag.good { background: var(--good); }
       .tag.diverged { background: #9da096; }
       .preview { font-weight: normal; color: var(--muted); font-size: 12px; }
-      .lines-nav { margin-top: 10px; }
-      #load-lines { background: #20211f; color: #fff; border-color: #20211f; }
       .nav { display: flex; gap: 6px; margin-bottom: 10px; }
       button { border: 1px solid #9da096; background: #fff; color: inherit; padding: 4px 9px; cursor: pointer; }
       button:disabled { opacity: 0.4; cursor: default; }
@@ -47,12 +56,7 @@
       svg { display: block; width: 100%; height: 150px; }
       .pt { cursor: pointer; }
       .pt:hover circle { r: 5; }
-      .lines { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; height: 260px; }
-      .lines figure { margin: 0; display: flex; flex-direction: column; min-height: 0; }
-      .lines figcaption { font-size: 12px; margin-bottom: 3px; display: flex; justify-content: space-between; }
-      .lines figcaption b { text-transform: uppercase; letter-spacing: 0.04em; }
-      .lines figcaption span { font-variant-numeric: tabular-nums; color: var(--muted); }
-      @media (max-width: 1100px) { .lines { grid-template-columns: repeat(2, minmax(0, 1fr)); height: auto; } .lines iframe { height: 240px; } }
+      @media (max-width: 1100px) { .top { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); } aside { grid-column: 1 / -1; border-left: 0; padding-left: 0; } }
     </style>
   </head>
   <body>
@@ -63,7 +67,8 @@
       </header>
 
       <section class="top">
-        <div class="main-pane"><iframe id="main" src="pane.html?id=main" title="whole game"></iframe></div>
+        <figure class="pane-fig"><figcaption><b>the game</b><span id="cap-main"></span></figcaption><iframe id="main" src="pane.html?id=main" title="whole game"></iframe></figure>
+        <figure class="pane-fig"><figcaption><b id="cap-line-kind">a line</b><span id="cap-line">press a button below to summon one</span></figcaption><iframe id="line" src="pane.html?id=line" title="one continuation from the selected moment"></iframe></figure>
         <aside>
           <div class="nav">
             <button id="prev" type="button" title="previous point (←)">◀</button>
@@ -74,10 +79,9 @@
           <h2 id="pt-title">Hover the eval bar to preview, click to select</h2>
           <dl id="pt-info"></dl>
           <div id="pt-note" class="meta"></div>
-          <div class="nav lines-nav">
-            <button id="load-lines" type="button" disabled>▶ Load &amp; play lines</button>
-            <button id="restart-lines" type="button" title="restart the four continuation panes from their first frame" disabled>↺ restart</button>
-          </div>
+          <h3>Summon a line</h3>
+          <div id="line-buttons" class="line-buttons"></div>
+          <div class="nav"><button id="restart-line" type="button" title="replay the summoned line from its first frame" disabled>↺ replay</button></div>
         </aside>
       </section>
 
@@ -90,13 +94,6 @@
           <span>value = stocks taken − lost + (damage dealt − taken)/100, from the subject's side</span>
         </div>
       </section>
-
-      <section class="lines">
-        <figure><figcaption><b>actual</b><span id="v-actual"></span></figcaption><iframe id="actual" src="pane.html?id=actual" title="actual continuation"></iframe></figure>
-        <figure><figcaption><b>best</b><span id="v-best"></span></figcaption><iframe id="best" src="pane.html?id=best" title="best sampled line"></iframe></figure>
-        <figure><figcaption><b>typical</b><span id="v-typical"></span></figcaption><iframe id="typical" src="pane.html?id=typical" title="median sampled line"></iframe></figure>
-        <figure><figcaption><b>worst</b><span id="v-worst"></span></figcaption><iframe id="worst" src="pane.html?id=worst" title="worst sampled line"></iframe></figure>
-      </section>
     </main>
 
     <script type="module">
@@ -104,7 +101,7 @@
       const run = (params.get("run") || "/runs/191207_v1").replace(/\/$/, "");
       const meta = document.querySelector("#meta");
       const svg = document.querySelector("#evalbar");
-      const panes = Object.fromEntries(["main", "actual", "best", "typical", "worst"].map((id) => [id, document.getElementById(id)]));
+      const panes = Object.fromEntries(["main", "line"].map((id) => [id, document.getElementById(id)]));
       const ready = new Set();
       const queued = {};
       let review = null;
@@ -201,11 +198,19 @@
         svg._x = x;
       }
 
-      const KINDS = ["actual", "best", "typical", "worst"];
-      let linesFor = -1;   // point index whose continuations the four panes currently hold
+      // One line pane. The buttons summon exactly one continuation into it; nothing plays until pressed.
+      const LINE_META = {
+        actual:  { label: "actual",  hint: "what really happened next" },
+        best:    { label: "best",    hint: "the sampled line with the highest value" },
+        typical: { label: "typical", hint: "the median sampled line" },
+        worst:   { label: "worst",   hint: "the sampled line with the lowest value" },
+        kill:    { label: "kill",    hint: "the sample that takes the opponent's stock earliest" },
+        death:   { label: "death",   hint: "the sample where the subject loses a stock earliest" },
+        nearest: { label: "nearest", hint: "the sample whose value is closest to the actual outcome" },
+        safe:    { label: "safe",    hint: "the sample that takes the least damage" },
+      };
+      let held = null;   // { index, kind } currently in the line pane
 
-      // Browsing is cheap: hover previews the card, click/arrow keys select + seek the
-      // main pane. The four continuation panes load only on "Load & play lines".
       function select(i) {
         if (!review || i < 0 || i >= review.points.length) return;
         current = i;
@@ -214,45 +219,45 @@
         // main pane: viewer frame index = Slippi frame − first_frame
         send("main", { seek: p.frame - review.first_frame });
         showCard(p, false);
-        updateLineCaptions();
+        renderLineButtons();
         document.querySelector("#prev").disabled = i === 0;
         document.querySelector("#next").disabled = i === review.points.length - 1;
         history.replaceState(null, "", `?run=${encodeURIComponent(run)}&f=${p.frame}`);
       }
 
-      function loadLines() {
+      function summon(kind) {
         if (current < 0) return;
         const p = review.points[current];
-        for (const kind of KINDS) {
-          const line = p.lines[kind];
-          if (line && line.file) send(kind, { load: `${run}/${line.file}`, label: `${kind} from f${p.frame} (${fmt(line.value)})`, restart: true });
-          else send(kind, { clear: true });
-        }
-        linesFor = current;
-        updateLineCaptions();
-        document.querySelector(".lines").scrollIntoView({ behavior: "smooth", block: "nearest" });
+        const line = p.lines[kind];
+        if (!line || !line.file) return;
+        send("line", { load: `${run}/${line.file}`, label: `${kind} from f${p.frame} (${fmt(line.value)})${line.note ? " · " + line.note : ""}`, restart: true });
+        held = { index: current, kind };
+        renderLineButtons();
       }
 
-      function restartLines() {
-        if (linesFor < 0) return;
-        for (const kind of KINDS) send(kind, { restart: true });
-      }
-
-      function updateLineCaptions() {
+      function renderLineButtons() {
         const p = current >= 0 ? review.points[current] : null;
-        const held = linesFor >= 0 ? review.points[linesFor] : null;
-        for (const kind of KINDS) {
-          const el = document.getElementById(`v-${kind}`);
-          if (!held) el.textContent = "not loaded";
-          else {
-            const v = held.lines[kind]?.value;
-            el.textContent = `f${held.frame} · ${v == null ? "n/a" : fmt(v)}${p && held !== p ? " (stale)" : ""}`;
-          }
+        const box = document.querySelector("#line-buttons");
+        box.replaceChildren();
+        const order = ["actual", ...(review.line_kinds || ["best", "typical", "worst"])];
+        for (const kind of order) {
+          const line = p && p.lines[kind];
+          if (!line || !line.file) continue;
+          const m = LINE_META[kind] || { label: kind, hint: "" };
+          const b = document.createElement("button");
+          b.type = "button";
+          b.title = `${m.hint}${line.note ? " — " + line.note : ""}`;
+          b.innerHTML = `${m.label}<small>${line.value == null ? "n/a" : fmt(line.value)}</small>`;
+          if (held && held.index === current && held.kind === kind) b.classList.add("active");
+          b.addEventListener("click", () => summon(kind));
+          box.append(b);
         }
-        const btn = document.querySelector("#load-lines");
-        btn.disabled = !p;
-        btn.textContent = p ? (held === p ? `↻ reload lines for f${p.frame}` : `▶ Load & play lines for f${p.frame}`) : "▶ Load & play lines";
-        document.querySelector("#restart-lines").disabled = !held;
+        const hp = held ? review.points[held.index] : null;
+        document.querySelector("#cap-line-kind").textContent = hp ? `${held.kind} line` : "a line";
+        document.querySelector("#cap-line").textContent = hp
+          ? `from f${hp.frame} (${fmt(hp.lines[held.kind].value)})${p && hp !== p ? " — stale, pick one for f" + p.frame : ""}`
+          : "press a button to summon one";
+        document.querySelector("#restart-line").disabled = !held;
       }
 
       function showCard(p, preview) {
@@ -278,12 +283,11 @@
       document.querySelector("#next").addEventListener("click", () => select(current + 1));
       document.querySelector("#prev-b").addEventListener("click", () => stepBlunder(-1));
       document.querySelector("#next-b").addEventListener("click", () => stepBlunder(1));
-      document.querySelector("#load-lines").addEventListener("click", loadLines);
-      document.querySelector("#restart-lines").addEventListener("click", restartLines);
+      document.querySelector("#restart-line").addEventListener("click", () => held && send("line", { restart: true }));
       window.addEventListener("keydown", (e) => {
         if (e.key === "ArrowLeft") select(current - 1);
         if (e.key === "ArrowRight") select(current + 1);
-        if (e.key === "Enter") loadLines();
+        const k = ["a","b","t","w","k","d","n","s"].indexOf(e.key); if (k >= 0) summon(["actual","best","typical","worst","kill","death","nearest","safe"][k]);
       });
 
       try {
@@ -294,6 +298,7 @@
         const opp = review.players.find((p) => p.port !== review.subject);
         meta.textContent = `${review.replay} · stage ${review.stage} · subject p${review.subject} ${sub?.character} vs p${opp?.port} ${opp?.character} · every ${review.every} f, horizon ${review.horizon} f, ${review.samples} samples · ${review.points.length} points, ${review.blunders.length} blunders`;
         send("main", { load: `${run}/${review.game}`, label: `whole game · ${review.replay}` });
+        document.querySelector("#cap-main").textContent = review.replay;
         drawBar();
         const want = Number(params.get("f"));
         const i = Number.isFinite(want) && params.get("f") ? review.points.findIndex((p) => p.frame === want) : -1;
