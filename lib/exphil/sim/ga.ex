@@ -208,7 +208,11 @@ defmodule ExPhil.Sim.GA do
       p2 = s.players[2]
       depth = abs(p2.x) - edge
 
-      if depth > 0 and not p2.on_ground and abs(p1.x) < edge and (p1.stock || 0) > 0 do
+      # only counts if P2 was hit within 150 f before this moment (a defender that jumps off on its own is not a setup)
+      hit_recently? =
+        Enum.any?(max(1, i - 150)..i//1, fn j -> elem(arr, j).players[2].percent > elem(arr, j - 1).players[2].percent end)
+
+      if depth > 0 and not p2.on_ground and abs(p1.x) < edge and (p1.stock || 0) > 0 and hit_recently? do
         below = max(0.0, -p2.y * 1.0)
         jumps = p2.jumps_left || 0
         score = 300.0 + min(150.0, depth * 1.0) + min(150.0, below) - 40.0 * jumps
