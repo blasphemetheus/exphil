@@ -53,9 +53,7 @@
       .legend { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 12px; color: var(--muted); margin-top: 4px; }
       .legend i { display: inline-block; width: 14px; height: 3px; vertical-align: middle; margin-right: 4px; }
       .legend .blk { width: 3px; height: 12px; }
-      .legend .tri { width: 0; height: 0; background: none; border-left: 5px solid transparent; border-right: 5px solid transparent; }
-      .legend .tri.up { border-bottom: 8px solid; }
-      .legend .tri.down { border-top: 8px solid; }
+      .legend .glyphs svg { width: 12px; height: 12px; vertical-align: -2px; margin-right: 3px; }
       .bar { border: 1px solid var(--line); background: var(--card); }
       svg { display: block; width: 100%; height: 150px; }
       .pt { cursor: pointer; }
@@ -104,7 +102,7 @@
           <span><i class="blk" style="background: #b8860b"></i>escape (doomed, yet kept the stock)</span>
           <span><i class="blk" style="background: #2e7d32"></i>sealed (band: the prior is sure the stock is yours)</span>
           <span><i class="blk" style="background: #4b4d47"></i>doomed (band: the prior is sure the stock is gone)</span>
-          <span><i class="tri up" style="border-bottom-color: #2e7d32"></i>kill · <i class="tri up" style="border-bottom-color: #7a7c75"></i>opp SD · <i class="tri down" style="border-top-color: #b3261e"></i>death · <i class="tri down" style="border-top-color: #20211f"></i>SD (no hit in the 150 f before dying) — glyphs along the bottom, click to watch</span>
+          <span class="glyphs"><svg viewBox="0 0 12 12"><polygon points="1,11 11,11 6,2" fill="#2e7d32"/></svg>kill · <svg viewBox="0 0 12 12"><polygon points="1,1 11,1 6,10" fill="#b3261e"/></svg>death · <svg viewBox="0 0 12 12"><path d="M2,2 L10,10 M2,10 L10,2" stroke="#20211f" stroke-width="2.2" fill="none"/></svg>SD (no hit in the 150 f before dying) · <svg viewBox="0 0 12 12"><polygon points="6,1 11,6 6,11 1,6" fill="#fff" stroke="#7a7c75" stroke-width="1.6"/></svg>opp SD — along the bottom of the bar, click to watch</span>
           <span>value = stocks taken − lost + (damage dealt − taken)/100, from the subject's side</span>
         </div>
       </section>
@@ -314,9 +312,12 @@
         const el = (tag, attrs = {}, text) => { const n = document.createElementNS("http://www.w3.org/2000/svg", tag); for (const [k, v] of Object.entries(attrs)) n.setAttribute(k, v); if (text != null) n.textContent = text; return n; };
         for (const e of events) {
           const cx = svg._x(e.frame), y0 = svg._y0, m = EVENT[e.kind];
-          const pts = m.up ? `${cx - 5},${y0 - 1} ${cx + 5},${y0 - 1} ${cx},${y0 - 9}` : `${cx - 5},${y0 - 9} ${cx + 5},${y0 - 9} ${cx},${y0 - 1}`;
           const g = el("g", { class: "ev pt" });
-          g.append(el("polygon", { points: pts, fill: m.color, stroke: "#fff", "stroke-width": 0.8 }));
+          const cy = y0 - 5;
+          if (e.kind === "kill") g.append(el("polygon", { points: `${cx - 5},${y0 - 1} ${cx + 5},${y0 - 1} ${cx},${y0 - 9}`, fill: m.color, stroke: "#fff", "stroke-width": 0.8 }));
+          else if (e.kind === "death") g.append(el("polygon", { points: `${cx - 5},${y0 - 9} ${cx + 5},${y0 - 9} ${cx},${y0 - 1}`, fill: m.color, stroke: "#fff", "stroke-width": 0.8 }));
+          else if (e.kind === "sd") g.append(el("path", { d: `M${cx - 4},${cy - 4} L${cx + 4},${cy + 4} M${cx - 4},${cy + 4} L${cx + 4},${cy - 4}`, stroke: m.color, "stroke-width": 2.2, fill: "none", "vector-effect": "non-scaling-stroke" }));
+          else g.append(el("polygon", { points: `${cx},${cy - 5} ${cx + 5},${cy} ${cx},${cy + 5} ${cx - 5},${cy}`, fill: "#fff", stroke: m.color, "stroke-width": 1.6, "vector-effect": "non-scaling-stroke" }));
           g.append(el("title", {}, `${m.text} · f${e.frame} (${secs(e.frame)}) · port ${e.port} at ${Math.round(e.percent)}%${e.gap == null ? " · no hit this stock" : " · last hit " + e.gap + " f earlier"}`));
           g.addEventListener("click", () => jumpToEvent(e));
           svg.append(g);
@@ -487,7 +488,7 @@
           meta.textContent += " · " + (Object.keys(EVENT).filter((k) => c[k]).map((k) => `${c[k]} ${EVENT[k].label}${c[k] > 1 && (k === "kill" || k === "death") ? "s" : ""}`).join(", ") || "no stocks lost");
           send("main", { marks: [
             ...review.points.filter(marked).map((p) => ({ i: p.frame - review.first_frame, label: MARK[mainMark(p)].label, color: MARK[mainMark(p)].color })),
-            ...events.map((e) => ({ i: e.frame - review.first_frame, label: EVENT[e.kind].label, color: EVENT[e.kind].color })),
+            ...events.map((e) => ({ i: e.frame - review.first_frame, label: e.kind === "sd" ? "✕ SD" : e.kind === "oppsd" ? "◇ opp SD" : EVENT[e.kind].label, color: EVENT[e.kind].color })),
           ] });
         }).catch((e) => console.error(e));
         const want = Number(params.get("f"));
