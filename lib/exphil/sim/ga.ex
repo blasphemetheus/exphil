@@ -160,7 +160,9 @@ defmodule ExPhil.Sim.GA do
     aerials = if openings == [], do: 0, else: Enum.max(Enum.map(openings, & &1.connected_aerials))
     last = List.last(states)
     damage = (last.players[2].percent - gs0.players[2].percent) * 1.0
-    stocks_taken = max(0, (gs0.players[2].stock || 0) - (last.players[2].stock || 0))
+    # a stock counts only if P2 was hit within `kill_gap` frames before losing it — a defender that
+    # walks off the edge on its own (the prior does, sometimes) is luck, not a combo
+    stocks_taken = earned_stocks(states, Keyword.get(opts, :kill_gap, 150))
     p1 = last.players[1]
     alive = p1.stock == gs0.players[1].stock and abs(p1.x) < 90.0
     style = Search.style_counts(states)
@@ -170,6 +172,24 @@ defmodule ExPhil.Sim.GA do
     fitness = chain_dmg + move_bonus * chain + kill_bonus * stocks_taken - if(alive, do: 0.0, else: 500.0) - style_cost
 
     %{fitness: fitness, chain: chain, hits: hits, chain_damage: chain_dmg, aerials: aerials, damage: damage, stocks_taken: stocks_taken, alive?: alive, style: style, style_cost: style_cost, openings: length(openings)}
+  end
+
+  @doc "P2 stocks lost that were preceded by a hit (percent rise or hitstun entry) within `gap` frames."
+  def earned_stocks(states, gap) do
+    arr = List.to_tuple(states)
+    n = tuple_size(arr)
+
+    Enum.count(1..(n - 1)//1, fn i ->
+      a = elem(arr, i - 1).players[2]
+      b = elem(arr, i).players[2]
+
+      (b.stock || 0) < (a.stock || 0) and
+        Enum.any?(max(1, i - gap)..(i - 1)//1, fn j ->
+          p = elem(arr, j - 1).players[2]
+          q = elem(arr, j).players[2]
+          q.percent > p.percent or ((q.hitstun_frames_left || 0) > 0 and (p.hitstun_frames_left || 0) == 0)
+        end)
+    end)
   end
 
   @doc """
