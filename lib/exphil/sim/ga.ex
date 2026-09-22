@@ -28,6 +28,7 @@ defmodule ExPhil.Sim.GA do
   alias ExPhil.Sim.{Drill, Env, Search}
 
   @neutral Drill.neutral()
+  @fd_edge 85.5
   @press_macros [:jump, :jump_r, :jump_l, :fair_r, :fair_l, :nair, :uair, :dair, :shine, :lcancel, :grab, :utilt, :dtilt]
 
   @doc "The macro vocabulary as a map name => controller."
@@ -169,9 +170,53 @@ defmodule ExPhil.Sim.GA do
     style_cost = style.full_hops * style_penalty.full_hop + style.grabs * style_penalty.grab + style.shield_frames * style_penalty.shield_frame
     move_bonus = Keyword.get(opts, :move_bonus, 20.0)
     kill_bonus = Keyword.get(opts, :kill_bonus, 1000.0)
-    fitness = chain_dmg + move_bonus * chain + kill_bonus * stocks_taken - if(alive, do: 0.0, else: 500.0) - style_cost
+    # edgeguard setup (Bradley 2026-09-22: "a combo ender that sends them offstage is almost as good as
+    # a kill"): the deepest offstage moment of P2 in the 45 f after the chain ends, while P1 stands on
+    # stage — base + depth beyond the edge + height below it, capped below the kill bonus
+    chain_end = openings |> Enum.map(& &1.chain_end) |> Enum.max(fn -> nil end)
+    edge = edgeguard_setup(states, chain_end, Keyword.get(opts, :edge, @fd_edge))
+    edge_bonus = if stocks_taken > 0, do: 0.0, else: Keyword.get(opts, :edge_bonus, 1.0) * edge.score
+    fitness = chain_dmg + move_bonus * chain + kill_bonus * stocks_taken + edge_bonus - if(alive, do: 0.0, else: 500.0) - style_cost
 
-    %{fitness: fitness, chain: chain, hits: hits, chain_damage: chain_dmg, aerials: aerials, damage: damage, stocks_taken: stocks_taken, alive?: alive, style: style, style_cost: style_cost, openings: length(openings)}
+    %{fitness: fitness, chain: chain, hits: hits, chain_damage: chain_dmg, aerials: aerials, damage: damage, stocks_taken: stocks_taken, edge: edge, alive?: alive, style: style, style_cost: style_cost, openings: length(openings)}
+  end
+
+  @doc "Main-stage edge |x| per stage (Slippi id): FD 32, BF 31, YS 8, DL 28, PS 3, FoD 2."
+  def stage_edge(32), do: 85.5
+  def stage_edge(31), do: 68.4
+  def stage_edge(8), do: 56.0
+  def stage_edge(28), do: 77.3
+  def stage_edge(3), do: 87.75
+  def stage_edge(2), do: 63.35
+  def stage_edge(_), do: @fd_edge
+
+  @doc """
+  Edgeguard-setup score after a chain: over the 45 frames from `chain_end` (or the last 45 frames
+  when there was no chain), the best frame where P2 is airborne beyond the stage edge while P1 is
+  on stage (|x| < edge, on the ground or actionable in the air above it). Score = 300 base +
+  depth beyond the edge (cap 150) + height below the edge (cap 150) − 40 per jump P2 has left;
+  0 when it never happens. Returns `%{score, depth, below, jumps, frame}`.
+  """
+  def edgeguard_setup(states, chain_end, edge) do
+    arr = List.to_tuple(states)
+    n = tuple_size(arr)
+    start = if chain_end, do: Enum.find_index(states, &(&1.frame >= chain_end)) || n - 1, else: max(0, n - 45)
+
+    Enum.reduce(start..min(n - 1, start + 45)//1, %{score: 0.0, depth: 0.0, below: 0.0, jumps: 0, frame: nil}, fn i, best ->
+      s = elem(arr, i)
+      p1 = s.players[1]
+      p2 = s.players[2]
+      depth = abs(p2.x) - edge
+
+      if depth > 0 and not p2.on_ground and abs(p1.x) < edge and (p1.stock || 0) > 0 do
+        below = max(0.0, -p2.y * 1.0)
+        jumps = p2.jumps_left || 0
+        score = 300.0 + min(150.0, depth * 1.0) + min(150.0, below) - 40.0 * jumps
+        if score > best.score, do: %{score: score, depth: depth, below: below, jumps: jumps, frame: s.frame}, else: best
+      else
+        best
+      end
+    end)
   end
 
   @doc "P2 stocks lost that were preceded by a hit (percent rise or hitstun entry) within `gap` frames."
@@ -291,7 +336,7 @@ defmodule ExPhil.Sim.GA do
     {summaries, _, best} =
       Enum.reduce(1..gens, {[], genomes, nil}, fn gen, {acc, genomes, best} ->
         t0 = System.monotonic_time(:millisecond)
-        results = evaluate(sim, state, genomes, defender, horizon, Keyword.take(opts, [:history, :style_penalty, :move_bonus, :kill_bonus]))
+        results = evaluate(sim, state, genomes, defender, horizon, Keyword.take(opts, [:history, :style_penalty, :move_bonus, :kill_bonus, :edge, :edge_bonus, :kill_gap]))
         ranked = Enum.sort_by(results, &(-&1.score.fitness))
         elite = hd(ranked)
         best = if best == nil or elite.score.fitness > best.score.fitness, do: Map.put(elite, :generation, gen), else: best
@@ -306,6 +351,7 @@ defmodule ExPhil.Sim.GA do
           best_hits: elite.score.hits,
           best_chain_damage: elite.score.chain_damage,
           best_stocks: elite.score.stocks_taken,
+          best_edge: elite.score.edge.score,
           best_damage: elite.score.damage,
           chains: Enum.frequencies(Enum.map(results, & &1.score.chain)),
           elite: elite,

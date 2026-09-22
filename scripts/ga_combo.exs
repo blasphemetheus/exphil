@@ -17,7 +17,7 @@ alias ExPhil.Training.Output
 
 {opts, _, _} =
   OptionParser.parse(System.argv(),
-    strict: [move_bonus: :float, kill_bonus: :float, population: :integer, generations: :integer, horizon: :integer, out: :string, policy: :string, seed: :integer, start_seed: :integer, start_percent: :integer, trace_every: :integer, elite: :integer, mutation: :float, crossover: :float, stage: :string, max_hold: :integer]
+    strict: [edge_bonus: :float, move_bonus: :float, kill_bonus: :float, population: :integer, generations: :integer, horizon: :integer, out: :string, policy: :string, seed: :integer, start_seed: :integer, start_percent: :integer, trace_every: :integer, elite: :integer, mutation: :float, crossover: :float, stage: :string, max_hold: :integer]
   )
 
 pop = opts[:population] || 256
@@ -82,11 +82,11 @@ t0 = System.monotonic_time(:millisecond)
 result =
   GA.run(sim, {:id, id},
     population: pop, generations: gens, horizon: horizon, seed: seed, defender: defender, history: entry.history,
-    move_bonus: opts[:move_bonus] || 20.0, kill_bonus: opts[:kill_bonus] || 1000.0,
+    move_bonus: opts[:move_bonus] || 20.0, kill_bonus: opts[:kill_bonus] || 1000.0, edge: GA.stage_edge(stage_id), edge_bonus: opts[:edge_bonus] || 1.0,
     elite: opts[:elite] || 8, mutation: opts[:mutation] || 0.15, crossover: opts[:crossover] || 0.7, max_hold: opts[:max_hold] || 12,
     on_generation: fn s ->
       bar = String.duplicate("█", min(20, s.best_chain * 2)) |> String.pad_trailing(20, "░")
-      Output.puts("gen #{String.pad_leading(Integer.to_string(s.generation), 3)}  best #{:io_lib.format("~7.1f", [s.best])}  mean #{:io_lib.format("~7.1f", [s.mean])}  chain #{s.best_chain} moves (#{s.best_hits} hits) #{Float.round(s.best_chain_damage, 1)}% in-chain / #{Float.round(s.best_damage, 1)}% total#{if s.best_stocks > 0, do: " ★KILL", else: ""}  #{bar}  best-so-far #{Float.round(s.best_so_far, 1)}  (#{s.ms} ms)")
+      Output.puts("gen #{String.pad_leading(Integer.to_string(s.generation), 3)}  best #{:io_lib.format("~7.1f", [s.best])}  mean #{:io_lib.format("~7.1f", [s.mean])}  chain #{s.best_chain} moves (#{s.best_hits} hits) #{Float.round(s.best_chain_damage, 1)}% in-chain / #{Float.round(s.best_damage, 1)}% total#{if s.best_stocks > 0, do: " ★KILL", else: ""}#{if s.best_edge > 0, do: " ⛵edge #{round(s.best_edge)}", else: ""}  #{bar}  best-so-far #{Float.round(s.best_so_far, 1)}  (#{s.ms} ms)")
       if rem(s.generation, trace_every) == 0 or s.generation == 1 do
         write_trace.(s.elite.states, "gen#{s.generation}.msltrace.json", "gen #{s.generation} elite: #{s.best_chain} moves, #{Float.round(s.best_damage, 1)}% (fitness #{Float.round(s.best, 1)})")
       end
@@ -102,10 +102,10 @@ File.write!(
     %{
       population: pop, n_generations: gens, horizon: horizon, stage: stage_id, defender: opts[:policy] || "idle", seed: seed, ms: ms,
       start: %{frame: entry.frame, p1: entry.summary.p1, p2: entry.summary.p2},
-      best: %{generation: best.generation, fitness: best.score.fitness, chain: best.score.chain, hits: best.score.hits, chain_damage: best.score.chain_damage, stocks_taken: best.score.stocks_taken, damage: best.score.damage, alive: best.score.alive?, genome: Enum.map(best.genome, fn {n, h} -> [n, h] end), trace: "best.msltrace.json"},
+      best: %{generation: best.generation, fitness: best.score.fitness, chain: best.score.chain, hits: best.score.hits, chain_damage: best.score.chain_damage, stocks_taken: best.score.stocks_taken, edge: best.score.edge, damage: best.score.damage, alive: best.score.alive?, genome: Enum.map(best.genome, fn {n, h} -> [n, h] end), trace: "best.msltrace.json"},
       generations:
         Enum.map(result.generations, fn s ->
-          %{generation: s.generation, best: s.best, mean: s.mean, median: s.median, best_chain: s.best_chain, best_hits: s.best_hits, best_chain_damage: s.best_chain_damage, best_stocks: s.best_stocks, best_damage: s.best_damage, best_so_far: s.best_so_far, chains: s.chains, ms: s.ms,
+          %{generation: s.generation, best: s.best, mean: s.mean, median: s.median, best_chain: s.best_chain, best_hits: s.best_hits, best_chain_damage: s.best_chain_damage, best_stocks: s.best_stocks, best_edge: s.best_edge, best_damage: s.best_damage, best_so_far: s.best_so_far, chains: s.chains, ms: s.ms,
             elite_genome: Enum.map(s.elite_genome, fn {n, h} -> [n, h] end),
             trace: if(rem(s.generation, trace_every) == 0 or s.generation == 1, do: "gen#{s.generation}.msltrace.json", else: nil)}
         end)
