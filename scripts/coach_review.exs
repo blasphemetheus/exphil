@@ -71,7 +71,7 @@ if out do
       actual_states = for f <- p.frame..min(p.frame + review.horizon, review.frames), by_frame[f], do: to_state.(by_frame[f])
       if length(actual_states) > 1, do: Trace.from_game_states(actual_states, chars: chars, stage: meta.stage, label: "ACTUAL from f#{p.frame} (value #{p.actual && Float.round(p.actual, 2)})") |> Trace.write!(Path.join(out, actual_name))
 
-      %{frame: p.frame, expected: p.expected, sd: p.sd, actual: p.actual, delta: p.delta, samples: p.samples, diverged: p.diverged?, blunder: p.delta != nil and p.delta < -(opts[:blunder] || 0.5),
+      %{frame: p.frame, expected: p.expected, sd: p.sd, actual: p.actual, delta: p.delta, samples: p.samples, diverged: p.diverged?, blunder: not p.diverged? and p.delta != nil and p.delta < -(opts[:blunder] || 0.5),
         lines: Map.put(files, "actual", %{file: actual_name, value: p.actual}),
         subject: Map.take(p.state.players[subject], [:x, :y, :action, :percent, :stock]), opponent: Map.take(p.state.players[Coach.other_port(subject)], [:x, :y, :action, :percent, :stock])}
     end)

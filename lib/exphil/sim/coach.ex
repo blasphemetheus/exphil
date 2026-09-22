@@ -99,7 +99,8 @@ defmodule ExPhil.Sim.Coach do
 
     Env.stop(sim)
 
-    blunders = Enum.filter(points, fn p -> p.delta != nil and p.delta < -blunder end)
+    # points after the seed diverged carry a bogus state (dead players, zero rollouts): never blunders
+    blunders = Enum.filter(points, fn p -> not p.diverged? and p.delta != nil and p.delta < -blunder end)
     %{points: points, blunders: blunders, divergence: seed.divergence, replay: path, frames: last_frame, subject: subject, horizon: horizon, every: every, samples: n}
   end
 

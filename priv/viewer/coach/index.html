@@ -33,6 +33,7 @@
       .tag { display: inline-block; padding: 1px 6px; border-radius: 3px; font-size: 12px; color: #fff; }
       .tag.blunder { background: var(--blunder); }
       .tag.good { background: var(--good); }
+      .tag.diverged { background: #9da096; }
       .preview { font-weight: normal; color: var(--muted); font-size: 12px; }
       .lines-nav { margin-top: 10px; }
       #load-lines { background: #20211f; color: #fff; border-color: #20211f; }
@@ -171,8 +172,14 @@
         svg.append(el("polyline", { points: pts.map((p) => `${x(p.frame)},${y(p.expected)}`).join(" "), fill: "none", stroke: "var(--expected)", "stroke-width": 2, "vector-effect": "non-scaling-stroke" }));
         const withActual = pts.filter((p) => p.actual != null);
         svg.append(el("polyline", { points: withActual.map((p) => `${x(p.frame)},${y(p.actual)}`).join(" "), fill: "none", stroke: "var(--actual)", "stroke-width": 2, "vector-effect": "non-scaling-stroke" }));
+        // region past the seed divergence (points there carry a bogus sim state)
+        const firstDiv = pts.find((p) => p.diverged);
+        if (firstDiv) {
+          svg.append(el("rect", { x: x(firstDiv.frame), y: padT, width: W - padR - x(firstDiv.frame), height: H - padT - padB, fill: "#e9e9e4", opacity: 0.7 }));
+          svg.append(el("text", { x: Math.min(x(firstDiv.frame) + 4, 860), y: H - padB - 4, "font-size": 9, fill: "#6b6d66" }, `seed diverged from f${firstDiv.frame}: rollouts unreliable`));
+        }
         // blunder ticks
-        for (const p of pts.filter((p) => p.blunder)) {
+        for (const p of pts.filter((p) => p.blunder && !p.diverged)) {
           svg.append(el("rect", { x: x(p.frame) - 1.5, y: padT, width: 3, height: H - padT - padB, fill: "var(--blunder)", opacity: 0.5 }));
         }
         // cursor
@@ -182,8 +189,8 @@
         pts.forEach((p, i) => {
           const g = el("g", { class: "pt", "data-i": i });
           g.append(el("rect", { x: x(p.frame) - (W / pts.length) / 2, y: padT, width: W / pts.length, height: H - padT - padB, fill: "transparent" }));
-          g.append(el("circle", { cx: x(p.frame), cy: y(p.expected), r: 3, fill: p.blunder ? "var(--blunder)" : "var(--expected)" }));
-          g.append(el("title", {}, `f${p.frame} (${secs(p.frame)})  expected ${fmt(p.expected)} ±${p.sd.toFixed(2)}  actual ${fmt(p.actual)}${p.blunder ? "  BLUNDER" : ""}`));
+          g.append(el("circle", p.diverged ? { cx: x(p.frame), cy: y(p.expected), r: 3, fill: "#fff", stroke: "#9da096", "stroke-width": 1 } : { cx: x(p.frame), cy: y(p.expected), r: 3, fill: p.blunder ? "var(--blunder)" : "var(--expected)" }));
+          g.append(el("title", {}, `f${p.frame} (${secs(p.frame)})  expected ${fmt(p.expected)} ±${p.sd.toFixed(2)}  actual ${fmt(p.actual)}${p.blunder ? "  BLUNDER" : ""}${p.diverged ? "  (diverged)" : ""}`));
           g.addEventListener("click", () => select(i));
           g.addEventListener("mouseenter", () => { showCard(p, true); hover.setAttribute("x1", x(p.frame)); hover.setAttribute("x2", x(p.frame)); });
           svg.append(g);
@@ -249,7 +256,7 @@
       }
 
       function showCard(p, preview) {
-        const flag = p.blunder ? ` <span class="tag blunder">blunder</span>` : (p.delta != null && p.delta > 0.5 ? ` <span class="tag good">above expectation</span>` : "");
+        const flag = p.diverged ? ` <span class="tag diverged">diverged</span>` : p.blunder ? ` <span class="tag blunder">blunder</span>` : (p.delta != null && p.delta > 0.5 ? ` <span class="tag good">above expectation</span>` : "");
         document.querySelector("#pt-title").innerHTML = `${preview ? '<span class="preview">preview</span> ' : ""}f${p.frame} · ${secs(p.frame)}${flag}`;
         const s = p.subject, o = p.opponent;
         document.querySelector("#pt-info").innerHTML = [
@@ -260,12 +267,12 @@
           ["opponent", `${o.percent.toFixed(0)}% · ${o.stock} stocks · (${o.x.toFixed(0)}, ${o.y.toFixed(0)}) action ${o.action}`],
           ["samples", p.samples.map((v) => fmt(v, 1)).join(" ")],
         ].map(([k, v]) => `<dt>${k}</dt><dd>${v}</dd>`).join("");
-        document.querySelector("#pt-note").textContent = p.diverged ? "⚠ sim diverged from the replay at this seed" : "";
+        document.querySelector("#pt-note").textContent = p.diverged ? "⚠ the seed had already diverged from the replay here: the sim state is not the real game, rollouts are meaningless" : "";
       }
 
       function stepBlunder(dir) {
         const pts = review.points;
-        for (let i = current + dir; i >= 0 && i < pts.length; i += dir) if (pts[i].blunder) return select(i);
+        for (let i = current + dir; i >= 0 && i < pts.length; i += dir) if (pts[i].blunder && !pts[i].diverged) return select(i);
       }
       document.querySelector("#prev").addEventListener("click", () => select(current - 1));
       document.querySelector("#next").addEventListener("click", () => select(current + 1));
@@ -290,7 +297,8 @@
         drawBar();
         const want = Number(params.get("f"));
         const i = Number.isFinite(want) && params.get("f") ? review.points.findIndex((p) => p.frame === want) : -1;
-        select(i >= 0 ? i : (review.points.findIndex((p) => p.blunder) >= 0 ? review.points.findIndex((p) => p.blunder) : 0));
+        const firstBlunder = review.points.findIndex((p) => p.blunder && !p.diverged);
+        select(i >= 0 ? i : (firstBlunder >= 0 ? firstBlunder : 0));
       } catch (error) {
         console.error(error);
         meta.textContent = `failed to load review: ${error.message}`;
