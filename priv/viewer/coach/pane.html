@@ -19,7 +19,7 @@
     </style>
   </head>
   <body>
-    <div id="label" class="label">empty</div>
+    <div id="label" class="label">not loaded</div>
     <div class="pane">
       <slippi-viewer zips-base-url="/tools/viewer/slippi-viewer/public"></slippi-viewer>
     </div>
@@ -66,8 +66,9 @@
           if (loaded) { viewer.pausePlayback(); viewer.setFrame(msg.seek); }
           else pendingSeek = msg.seek;
         }
+        if (msg.restart) { if (loaded) viewer.setFrame(0); else pendingSeek = 0; }   // no pause: the viewer autoplays on load
         if (msg.pause) viewer.pausePlayback();
-        if (msg.clear) { viewer.clear(); loaded = null; setLabel("empty"); }
+        if (msg.clear) { viewer.clear(); loaded = null; setLabel("not loaded"); }
       });
 
       // Report playback position: the element has no frame getter, so read the

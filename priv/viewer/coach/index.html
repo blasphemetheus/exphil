@@ -33,6 +33,9 @@
       .tag { display: inline-block; padding: 1px 6px; border-radius: 3px; font-size: 12px; color: #fff; }
       .tag.blunder { background: var(--blunder); }
       .tag.good { background: var(--good); }
+      .preview { font-weight: normal; color: var(--muted); font-size: 12px; }
+      .lines-nav { margin-top: 10px; }
+      #load-lines { background: #20211f; color: #fff; border-color: #20211f; }
       .nav { display: flex; gap: 6px; margin-bottom: 10px; }
       button { border: 1px solid #9da096; background: #fff; color: inherit; padding: 4px 9px; cursor: pointer; }
       button:disabled { opacity: 0.4; cursor: default; }
@@ -67,9 +70,13 @@
             <button id="prev-b" type="button" title="previous blunder">◀ blunder</button>
             <button id="next-b" type="button" title="next blunder">blunder ▶</button>
           </div>
-          <h2 id="pt-title">Click a point on the eval bar</h2>
+          <h2 id="pt-title">Hover the eval bar to preview, click to select</h2>
           <dl id="pt-info"></dl>
           <div id="pt-note" class="meta"></div>
+          <div class="nav lines-nav">
+            <button id="load-lines" type="button" disabled>▶ Load &amp; play lines</button>
+            <button id="restart-lines" type="button" title="restart the four continuation panes from their first frame" disabled>↺ restart</button>
+          </div>
         </aside>
       </section>
 
@@ -178,11 +185,20 @@
           g.append(el("circle", { cx: x(p.frame), cy: y(p.expected), r: 3, fill: p.blunder ? "var(--blunder)" : "var(--expected)" }));
           g.append(el("title", {}, `f${p.frame} (${secs(p.frame)})  expected ${fmt(p.expected)} ±${p.sd.toFixed(2)}  actual ${fmt(p.actual)}${p.blunder ? "  BLUNDER" : ""}`));
           g.addEventListener("click", () => select(i));
+          g.addEventListener("mouseenter", () => { showCard(p, true); hover.setAttribute("x1", x(p.frame)); hover.setAttribute("x2", x(p.frame)); });
           svg.append(g);
         });
+        const hover = el("line", { id: "hover", x1: -10, x2: -10, y1: padT, y2: H - padB, stroke: "#9da096", "stroke-width": 1, "vector-effect": "non-scaling-stroke", "pointer-events": "none" });
+        svg.append(hover);
+        svg.addEventListener("mouseleave", () => { hover.setAttribute("x1", -10); hover.setAttribute("x2", -10); if (current >= 0) showCard(review.points[current], false); });
         svg._x = x;
       }
 
+      const KINDS = ["actual", "best", "typical", "worst"];
+      let linesFor = -1;   // point index whose continuations the four panes currently hold
+
+      // Browsing is cheap: hover previews the card, click/arrow keys select + seek the
+      // main pane. The four continuation panes load only on "Load & play lines".
       function select(i) {
         if (!review || i < 0 || i >= review.points.length) return;
         current = i;
@@ -190,15 +206,51 @@
         setCursor(p.frame);
         // main pane: viewer frame index = Slippi frame − first_frame
         send("main", { seek: p.frame - review.first_frame });
-        for (const kind of ["actual", "best", "typical", "worst"]) {
+        showCard(p, false);
+        updateLineCaptions();
+        document.querySelector("#prev").disabled = i === 0;
+        document.querySelector("#next").disabled = i === review.points.length - 1;
+        history.replaceState(null, "", `?run=${encodeURIComponent(run)}&f=${p.frame}`);
+      }
+
+      function loadLines() {
+        if (current < 0) return;
+        const p = review.points[current];
+        for (const kind of KINDS) {
           const line = p.lines[kind];
-          const val = line && line.value;
-          document.getElementById(`v-${kind}`).textContent = val == null ? "n/a" : fmt(val);
-          if (line && line.file) send(kind, { load: `${run}/${line.file}`, label: `${kind} from f${p.frame} (${fmt(val)})`, seek: 0 });
+          if (line && line.file) send(kind, { load: `${run}/${line.file}`, label: `${kind} from f${p.frame} (${fmt(line.value)})`, restart: true });
           else send(kind, { clear: true });
         }
+        linesFor = current;
+        updateLineCaptions();
+        document.querySelector(".lines").scrollIntoView({ behavior: "smooth", block: "nearest" });
+      }
+
+      function restartLines() {
+        if (linesFor < 0) return;
+        for (const kind of KINDS) send(kind, { restart: true });
+      }
+
+      function updateLineCaptions() {
+        const p = current >= 0 ? review.points[current] : null;
+        const held = linesFor >= 0 ? review.points[linesFor] : null;
+        for (const kind of KINDS) {
+          const el = document.getElementById(`v-${kind}`);
+          if (!held) el.textContent = "not loaded";
+          else {
+            const v = held.lines[kind]?.value;
+            el.textContent = `f${held.frame} · ${v == null ? "n/a" : fmt(v)}${p && held !== p ? " (stale)" : ""}`;
+          }
+        }
+        const btn = document.querySelector("#load-lines");
+        btn.disabled = !p;
+        btn.textContent = p ? (held === p ? `↻ reload lines for f${p.frame}` : `▶ Load & play lines for f${p.frame}`) : "▶ Load & play lines";
+        document.querySelector("#restart-lines").disabled = !held;
+      }
+
+      function showCard(p, preview) {
         const flag = p.blunder ? ` <span class="tag blunder">blunder</span>` : (p.delta != null && p.delta > 0.5 ? ` <span class="tag good">above expectation</span>` : "");
-        document.querySelector("#pt-title").innerHTML = `f${p.frame} · ${secs(p.frame)}${flag}`;
+        document.querySelector("#pt-title").innerHTML = `${preview ? '<span class="preview">preview</span> ' : ""}f${p.frame} · ${secs(p.frame)}${flag}`;
         const s = p.subject, o = p.opponent;
         document.querySelector("#pt-info").innerHTML = [
           ["expected", `${fmt(p.expected)} ± ${p.sd.toFixed(2)} (n=${p.samples.length})`],
@@ -209,9 +261,6 @@
           ["samples", p.samples.map((v) => fmt(v, 1)).join(" ")],
         ].map(([k, v]) => `<dt>${k}</dt><dd>${v}</dd>`).join("");
         document.querySelector("#pt-note").textContent = p.diverged ? "⚠ sim diverged from the replay at this seed" : "";
-        document.querySelector("#prev").disabled = i === 0;
-        document.querySelector("#next").disabled = i === review.points.length - 1;
-        history.replaceState(null, "", `?run=${encodeURIComponent(run)}&f=${p.frame}`);
       }
 
       function stepBlunder(dir) {
@@ -222,9 +271,12 @@
       document.querySelector("#next").addEventListener("click", () => select(current + 1));
       document.querySelector("#prev-b").addEventListener("click", () => stepBlunder(-1));
       document.querySelector("#next-b").addEventListener("click", () => stepBlunder(1));
+      document.querySelector("#load-lines").addEventListener("click", loadLines);
+      document.querySelector("#restart-lines").addEventListener("click", restartLines);
       window.addEventListener("keydown", (e) => {
         if (e.key === "ArrowLeft") select(current - 1);
         if (e.key === "ArrowRight") select(current + 1);
+        if (e.key === "Enter") loadLines();
       });
 
       try {
