@@ -50,7 +50,7 @@ if out do
   File.mkdir_p!(out)
   {:ok, replay} = ExPhil.Data.Peppi.parse(path)
   by_frame = Map.new(replay.frames, &{&1.frame_number, &1})
-  chars = Enum.map(meta.players |> Enum.sort_by(& &1.port), fn p -> p.character end)
+  chars = Enum.map(meta.players |> Enum.sort_by(& &1.port), fn p -> Trace.char_id(p.character_name) end)
 
   rows =
     Enum.map(review.points, fn p ->
