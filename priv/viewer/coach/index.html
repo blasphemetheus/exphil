@@ -113,7 +113,20 @@
           for (const m of queued[msg.id] || []) panes[msg.id].contentWindow.postMessage(m, "*");
           delete queued[msg.id];
         }
+        // the main pane reports its playback position: move the bar cursor with it
+        if (msg.id === "main" && typeof msg.frame === "number" && review && svg._x) {
+          setCursor(review.first_frame + msg.frame);
+        }
       });
+
+      function setCursor(frame) {
+        const c = document.querySelector("#cursor");
+        if (!c) return;
+        c.setAttribute("x1", svg._x(frame));
+        c.setAttribute("x2", svg._x(frame));
+        const t = document.querySelector("#cursor-time");
+        if (t) { t.setAttribute("x", Math.min(svg._x(frame) + 3, 960)); t.textContent = `f${frame} ${secs(frame)}`; }
+      }
 
       const fmt = (v, d = 2) => (v == null ? "n/a" : (v >= 0 ? "+" : "") + Number(v).toFixed(d));
       const secs = (f) => `${Math.floor(Math.max(0, f) / 60 / 60)}:${String(Math.floor(Math.max(0, f) / 60) % 60).padStart(2, "0")}`;
@@ -157,6 +170,7 @@
         }
         // cursor
         svg.append(el("line", { id: "cursor", x1: -10, x2: -10, y1: padT, y2: H - padB, stroke: "#20211f", "stroke-width": 1.5, "stroke-dasharray": "3 2", "vector-effect": "non-scaling-stroke" }));
+        svg.append(el("text", { id: "cursor-time", x: -10, y: padT + 9, "font-size": 9, fill: "#20211f" }, ""));
         // clickable points
         pts.forEach((p, i) => {
           const g = el("g", { class: "pt", "data-i": i });
@@ -173,8 +187,7 @@
         if (!review || i < 0 || i >= review.points.length) return;
         current = i;
         const p = review.points[i];
-        document.querySelector("#cursor").setAttribute("x1", svg._x(p.frame));
-        document.querySelector("#cursor").setAttribute("x2", svg._x(p.frame));
+        setCursor(p.frame);
         // main pane: viewer frame index = Slippi frame − first_frame
         send("main", { seek: p.frame - review.first_frame });
         for (const kind of ["actual", "best", "typical", "worst"]) {

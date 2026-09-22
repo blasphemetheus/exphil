@@ -70,6 +70,19 @@
         if (msg.clear) { viewer.clear(); loaded = null; setLabel("empty"); }
       });
 
+      // Report playback position: the element has no frame getter, so read the
+      // viewer's own seek slider (shadow DOM) at ~15 Hz and post on change.
+      let lastFrame = null;
+      setInterval(() => {
+        const bar = viewer.shadowRoot && viewer.shadowRoot.querySelector('input[type="range"]');
+        if (!bar || !loaded) return;
+        const f = bar.valueAsNumber;
+        if (Number.isFinite(f) && f !== lastFrame) {
+          lastFrame = f;
+          parent.postMessage({ frame: f, id: paneId }, "*");
+        }
+      }, 66);
+
       if (params.get("trace")) load(params.get("trace"), params.get("label") || undefined);
       parent.postMessage({ paneReady: true, id: paneId }, "*");
     </script>
