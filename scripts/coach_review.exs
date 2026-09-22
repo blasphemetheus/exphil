@@ -65,8 +65,6 @@ if out do
           name = "p#{p.frame}_#{kind}.msltrace.json"
           Trace.from_game_states(line.states, chars: chars, stage: meta.stage, label: "#{kind} continuation from f#{p.frame} (value #{Float.round(line.value, 2)}; #{line.note})") |> Trace.write!(Path.join(out, name))
           {Atom.to_string(kind), %{file: name, value: line.value, note: line.note}}
-        end|> Trace.write!(Path.join(out, name))
-          {kind, %{file: name, value: line.value}}
         end
 
       actual_name = "p#{p.frame}_actual.msltrace.json"
