@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>ExPhil GA — longest combo</title>
+    <!-- Evolution viewer for scripts/ga_combo.exs runs. Open as /ga/?run=/garuns/<run dir>
+         (run.json + gen<N>.msltrace.json + best.msltrace.json). Every viewer is an iframe of
+         the coach pane (/coach/pane.html) driven by postMessage; nothing plays until asked. -->
+    <style>
+      :root {
+        color-scheme: light;
+        font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+        --ink: #20211f; --muted: #4b4d47; --line: #d7d8d2; --bg: #f7f7f4; --card: #fff;
+        --best: #2f6fb3; --mean: #d9822b; --sofar: #2e7d32; --hi: #b3261e;
+      }
+      body { margin: 0; background: var(--bg); color: var(--ink); font-size: 14px; line-height: 1.4; }
+      main { display: grid; gap: 10px; padding: 10px 12px; box-sizing: border-box; }
+      header { display: flex; flex-wrap: wrap; gap: 6px 18px; align-items: baseline; }
+      h1 { margin: 0; font-size: 17px; }
+      .meta { color: var(--muted); }
+      .error { color: var(--hi); }
+      .top { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 12px; min-height: 380px; }
+      .pane-fig { margin: 0; display: flex; flex-direction: column; min-height: 0; }
+      .pane-fig figcaption { font-size: 12px; margin-bottom: 3px; display: flex; justify-content: space-between; gap: 8px; }
+      .pane-fig figcaption b { text-transform: uppercase; letter-spacing: 0.04em; white-space: nowrap; }
+      .pane-fig figcaption span { color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+      iframe { border: 1px solid var(--line); background: var(--card); width: 100%; height: 100%; display: block; box-sizing: border-box; flex: 1; min-height: 0; }
+      .curve { border: 1px solid var(--line); background: var(--card); }
+      svg { display: block; width: 100%; height: 180px; }
+      .legend { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 12px; color: var(--muted); margin: 4px 8px 6px; }
+      .legend i { display: inline-block; width: 14px; height: 3px; vertical-align: middle; margin-right: 4px; }
+      .card { border: 1px solid var(--line); background: var(--card); padding: 8px 10px; }
+      .card h2 { margin: 0 0 6px; font-size: 14px; }
+      .genome { display: flex; flex-wrap: wrap; gap: 3px; }
+      .tok { font-family: ui-monospace, monospace; font-size: 11px; padding: 1px 5px; border: 1px solid var(--line); border-radius: 3px; background: #fff; }
+      .tok.press { background: #e8f0fa; border-color: #b9cde8; }
+      .tok small { color: var(--muted); }
+      .nav { display: flex; flex-wrap: wrap; gap: 6px; margin: 6px 0; align-items: center; }
+      button { border: 1px solid #9da096; background: #fff; color: inherit; padding: 4px 9px; cursor: pointer; }
+      button:disabled { opacity: 0.4; cursor: default; }
+      button.primary { background: #20211f; color: #fff; border-color: #20211f; }
+      .strip { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 8px; }
+      .strip figure { margin: 0; display: flex; flex-direction: column; height: 200px; border: 2px solid transparent; }
+      .strip figure.best { border-color: var(--sofar); }
+      .strip figcaption { font-size: 12px; display: flex; justify-content: space-between; }
+      .strip figcaption span { color: var(--muted); font-variant-numeric: tabular-nums; }
+      .pt { cursor: pointer; }
+      .pt:hover circle { r: 5; }
+      .stat { display: inline-block; margin-right: 14px; font-variant-numeric: tabular-nums; }
+      .stat b { font-weight: 600; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <header>
+        <h1>GA · longest combo</h1>
+        <span id="meta" class="meta">loading…</span>
+      </header>
+
+      <section class="top">
+        <figure class="pane-fig"><figcaption><b id="cap-kind">elite</b><span id="cap-elite">click a generation on the curve, then ▶</span></figcaption><iframe id="elite" src="/coach/pane.html?id=elite" title="the selected generation's elite"></iframe></figure>
+        <div class="card">
+          <h2 id="sel-title">Select a generation</h2>
+          <div id="sel-stats" class="meta"></div>
+          <div class="nav">
+            <button id="play" class="primary" type="button" disabled>▶ play this elite</button>
+            <button id="play-best" type="button" disabled>★ play the best of the run</button>
+            <button id="restart" type="button" disabled>↺ replay</button>
+            <button id="prev" type="button" title="previous traced generation (←)" disabled>◀</button>
+            <button id="next" type="button" title="next traced generation (→)" disabled>▶</button>
+          </div>
+          <h2>Elite genome</h2>
+          <div id="genome" class="genome"></div>
+        </div>
+      </section>
+
+      <section class="curve">
+        <svg id="curve" viewBox="0 0 1000 180" preserveAspectRatio="none"></svg>
+        <div class="legend">
+          <span><i style="background: var(--best)"></i>best fitness of the generation</span>
+          <span><i style="background: var(--mean)"></i>mean of the population</span>
+          <span><i style="background: var(--sofar)"></i>best so far</span>
+          <span>fitness = 100 × chain hits + damage − 500 if the attacker dies − style penalty · dots = generations with a saved elite trace (click)</span>
+        </div>
+      </section>
+
+      <section class="card">
+        <div class="nav">
+          <h2 style="margin:0">Evolution strip</h2>
+          <span class="meta">one pane per traced generation, evenly sampled; nothing loads until you press</span>
+          <button id="load-strip" type="button">load the strip</button>
+          <button id="play-strip" type="button" disabled>▶ play all from the top</button>
+          <label class="meta">panes <input id="strip-n" type="number" min="2" max="40" value="12" style="width: 4em"></label>
+        </div>
+        <div id="strip" class="strip"></div>
+      </section>
+    </main>
+
+    <script type="module">
+      const params = new URLSearchParams(location.search);
+      const run = (params.get("run") || "/garuns/fd_idle_p512_g200").replace(/\/$/, "");
+      const meta = document.querySelector("#meta");
+      const svg = document.querySelector("#curve");
+      const ready = new Set(), queued = {};
+      const panes = { elite: document.getElementById("elite") };
+      let data = null, traced = [], current = -1, playedGen = null;
+
+      function send(id, msg) {
+        const el = panes[id];
+        if (!el) return;
+        if (ready.has(id)) el.contentWindow.postMessage(msg, "*");
+        else (queued[id] ||= []).push(msg);
+      }
+      window.addEventListener("message", (e) => {
+        const m = e.data || {};
+        if (m.paneReady && m.id in panes) {
+          ready.add(m.id);
+          for (const q of queued[m.id] || []) panes[m.id].contentWindow.postMessage(q, "*");
+          delete queued[m.id];
+        }
+      });
+
+      const PRESS = new Set(["jump", "jump_r", "jump_l", "fair_r", "fair_l", "nair", "uair", "dair", "shine", "lcancel", "grab", "utilt", "dtilt"]);
+      const fmt = (v, d = 1) => (v == null ? "n/a" : Number(v).toFixed(d));
+
+      function drawCurve() {
+        const W = 1000, H = 180, padL = 40, padR = 8, padT = 8, padB = 18;
+        const gens = data.generations;
+        const el = (tag, attrs = {}, text) => { const n = document.createElementNS("http://www.w3.org/2000/svg", tag); for (const [k, v] of Object.entries(attrs)) n.setAttribute(k, v); if (text != null) n.textContent = text; return n; };
+        const vals = gens.flatMap((g) => [g.best, g.mean, g.best_so_far]);
+        const vmin = Math.min(...vals), vmax = Math.max(...vals);
+        const x = (g) => padL + ((g - 1) / Math.max(1, gens.length - 1)) * (W - padL - padR);
+        const y = (v) => padT + ((vmax - v) / Math.max(1e-9, vmax - vmin)) * (H - padT - padB);
+        svg.replaceChildren();
+        const step = Math.pow(10, Math.floor(Math.log10(Math.max(1, vmax - vmin)))) / 2;
+        for (let v = Math.ceil(vmin / step) * step; v <= vmax; v += step) {
+          svg.append(el("line", { x1: padL, x2: W - padR, y1: y(v), y2: y(v), stroke: v === 0 ? "#9da096" : "#ebece7", "vector-effect": "non-scaling-stroke" }));
+          svg.append(el("text", { x: padL - 4, y: y(v) + 3, "text-anchor": "end", "font-size": 9, fill: "#4b4d47" }, fmt(v, 0)));
+        }
+        const tick = Math.max(1, Math.round(gens.length / 10));
+        for (let g = 1; g <= gens.length; g += tick) svg.append(el("text", { x: x(g), y: H - 4, "text-anchor": "middle", "font-size": 9, fill: "#4b4d47" }, `g${g}`));
+        const line = (key, color, w) => svg.append(el("polyline", { points: gens.map((g) => `${x(g.generation)},${y(g[key])}`).join(" "), fill: "none", stroke: color, "stroke-width": w, "vector-effect": "non-scaling-stroke" }));
+        line("mean", "var(--mean)", 1.5); line("best", "var(--best)", 1.5); line("best_so_far", "var(--sofar)", 2.5);
+        svg.append(el("line", { id: "cursor", x1: -10, x2: -10, y1: padT, y2: H - padB, stroke: "#20211f", "stroke-dasharray": "3 2", "vector-effect": "non-scaling-stroke" }));
+        for (const g of traced) {
+          const grp = el("g", { class: "pt" });
+          grp.append(el("circle", { cx: x(g.generation), cy: y(g.best), r: 3.5, fill: g.generation === data.best.generation ? "var(--hi)" : "var(--best)", stroke: "#fff", "stroke-width": 0.8 }));
+          grp.append(el("title", {}, `gen ${g.generation} · best ${fmt(g.best)} · chain ${g.best_chain} hits · ${fmt(g.best_damage)}%`));
+          grp.addEventListener("click", () => select(traced.indexOf(g)));
+          svg.append(grp);
+        }
+        svg._x = x;
+      }
+
+      function select(i) {
+        if (i < 0 || i >= traced.length) return;
+        current = i;
+        const g = traced[i];
+        const c = document.querySelector("#cursor"); c.setAttribute("x1", svg._x(g.generation)); c.setAttribute("x2", svg._x(g.generation));
+        document.querySelector("#sel-title").textContent = `Generation ${g.generation}${g.generation === data.best.generation ? " · the best of the run" : ""}`;
+        document.querySelector("#sel-stats").innerHTML = [
+          ["best", fmt(g.best)], ["mean", fmt(g.mean)], ["median", fmt(g.median)], ["chain", `${g.best_chain} hits`], ["damage", `${fmt(g.best_damage)}%`], ["best so far", fmt(g.best_so_far)], ["chains in pop", Object.entries(g.chains || {}).sort((a, b) => a[0] - b[0]).map(([k, v]) => `${k}:${v}`).join(" ")], ["time", `${g.ms} ms`],
+        ].map(([k, v]) => `<span class="stat">${k} <b>${v}</b></span>`).join("");
+        document.querySelector("#genome").replaceChildren(...(g.elite_genome || []).map(([n, h]) => { const s = document.createElement("span"); s.className = "tok" + (PRESS.has(n) ? " press" : ""); s.innerHTML = `${n}<small>×${h}</small>`; return s; }));
+        document.querySelector("#play").disabled = false;
+        document.querySelector("#play").textContent = `▶ play gen ${g.generation}'s elite`;
+        document.querySelector("#prev").disabled = i === 0;
+        document.querySelector("#next").disabled = i === traced.length - 1;
+        history.replaceState(null, "", `?run=${encodeURIComponent(run)}&g=${g.generation}`);
+      }
+
+      function play(gen, file, label) {
+        send("elite", { load: `${run}/${file}`, label, restart: true });
+        playedGen = gen;
+        document.querySelector("#cap-kind").textContent = gen === "best" ? "best of the run" : `gen ${gen} elite`;
+        document.querySelector("#cap-elite").textContent = label;
+        document.querySelector("#restart").disabled = false;
+      }
+
+      document.querySelector("#play").addEventListener("click", () => { const g = traced[current]; play(g.generation, g.trace, `gen ${g.generation}: ${g.best_chain} hits, ${fmt(g.best_damage)}% (fitness ${fmt(g.best)})`); });
+      document.querySelector("#play-best").addEventListener("click", () => play("best", data.best.trace, `best of the run (gen ${data.best.generation}): ${data.best.chain} hits, ${fmt(data.best.damage)}%`));
+      document.querySelector("#restart").addEventListener("click", () => send("elite", { restart: true }));
+      document.querySelector("#prev").addEventListener("click", () => select(current - 1));
+      document.querySelector("#next").addEventListener("click", () => select(current + 1));
+      window.addEventListener("keydown", (e) => { if (e.key === "ArrowLeft") select(current - 1); if (e.key === "ArrowRight") select(current + 1); if (e.key === "Enter") document.querySelector("#play").click(); });
+
+      // the strip: N evenly sampled traced generations, each its own pane; loads on demand
+      document.querySelector("#load-strip").addEventListener("click", () => {
+        const n = Math.max(2, Math.min(40, Number(document.querySelector("#strip-n").value) || 12));
+        const idx = Array.from({ length: Math.min(n, traced.length) }, (_, k) => Math.round((k / Math.max(1, Math.min(n, traced.length) - 1)) * (traced.length - 1)));
+        const picks = [...new Set(idx)].map((k) => traced[k]);
+        const box = document.querySelector("#strip");
+        box.replaceChildren();
+        for (const g of picks) {
+          const id = `strip${g.generation}`;
+          const fig = document.createElement("figure");
+          if (g.generation === data.best.generation) fig.classList.add("best");
+          fig.innerHTML = `<figcaption><b>gen ${g.generation}</b><span>${g.best_chain} hits · ${fmt(g.best_damage)}%</span></figcaption>`;
+          const f = document.createElement("iframe"); f.id = id; f.src = `/coach/pane.html?id=${id}`; f.title = `gen ${g.generation} elite`;
+          fig.append(f); box.append(fig); panes[id] = f;
+          send(id, { load: `${run}/${g.trace}`, label: `gen ${g.generation}: ${g.best_chain} hits, ${fmt(g.best_damage)}%`, restart: true });
+        }
+        document.querySelector("#play-strip").disabled = false;
+      });
+      document.querySelector("#play-strip").addEventListener("click", () => { for (const id of Object.keys(panes)) if (id.startsWith("strip")) send(id, { restart: true }); });
+
+      try {
+        const res = await fetch(`${run}/run.json`);
+        if (!res.ok) throw new Error(`${run}/run.json → ${res.status}`);
+        data = await res.json();
+        traced = data.generations.filter((g) => g.trace);
+        meta.textContent = `${run.split("/").pop()} · population ${data.population} × ${data.n_generations ?? data.generations.length} generations · horizon ${data.horizon} f · defender ${data.defender} · best: gen ${data.best.generation}, ${data.best.chain} hits, ${fmt(data.best.damage)}% (fitness ${fmt(data.best.fitness)}) · ${fmt(data.ms / 1000, 0)} s`;
+        document.querySelector("#play-best").disabled = false;
+        drawCurve();
+        const want = Number(params.get("g"));
+        const i = params.get("g") ? traced.findIndex((g) => g.generation === want) : -1;
+        select(i >= 0 ? i : Math.max(0, traced.findIndex((g) => g.generation === data.best.generation)));
+      } catch (error) {
+        console.error(error);
+        meta.textContent = `failed to load run: ${error.message}`;
+        meta.className = "meta error";
+      }
+    </script>
+  </body>
+</html>
