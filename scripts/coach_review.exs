@@ -51,20 +51,31 @@ if out do
   {:ok, replay} = ExPhil.Data.Peppi.parse(path)
   by_frame = Map.new(replay.frames, &{&1.frame_number, &1})
   chars = Enum.map(meta.players |> Enum.sort_by(& &1.port), fn p -> Trace.char_id(p.character_name) end)
+  to_state = fn fr -> %{frame: fr.frame_number, players: Map.new(fr.players, fn {port, pl} -> {port, Map.merge(pl, %{shield_strength: pl.shield_strength, jumps_left: pl.jumps_left, hitstun_frames_left: round(pl.hitstun_frames_left || 0), action_frame: round(pl.action_frame || 0)})} end)} end
+
+  # the whole game, playable in the viewer (frame index i = Slippi frame first_frame + i)
+  all_states = replay.frames |> Enum.sort_by(& &1.frame_number) |> Enum.map(to_state)
+  first_frame = hd(all_states).frame
+  Trace.from_game_states(all_states, chars: chars, stage: meta.stage, label: "replay #{Path.basename(path)}") |> Trace.write!(Path.join(out, "game.msltrace.json"))
 
   rows =
     Enum.map(review.points, fn p ->
-      %{frame: p.frame, expected: p.expected, sd: p.sd, actual: p.actual, delta: p.delta, best_value: p.best.value, samples: p.samples, diverged: p.diverged?,
+      files =
+        for {kind, line} <- [{"best", p.lines.best}, {"typical", p.lines.typical}, {"worst", p.lines.worst}], into: %{} do
+          name = "p#{p.frame}_#{kind}.msltrace.json"
+          Trace.from_game_states(line.states, chars: chars, stage: meta.stage, label: "#{kind} continuation from f#{p.frame} (value #{Float.round(line.value, 2)})") |> Trace.write!(Path.join(out, name))
+          {kind, %{file: name, value: line.value}}
+        end
+
+      actual_name = "p#{p.frame}_actual.msltrace.json"
+      actual_states = for f <- p.frame..min(p.frame + review.horizon, review.frames), by_frame[f], do: to_state.(by_frame[f])
+      if length(actual_states) > 1, do: Trace.from_game_states(actual_states, chars: chars, stage: meta.stage, label: "ACTUAL from f#{p.frame} (value #{p.actual && Float.round(p.actual, 2)})") |> Trace.write!(Path.join(out, actual_name))
+
+      %{frame: p.frame, expected: p.expected, sd: p.sd, actual: p.actual, delta: p.delta, samples: p.samples, diverged: p.diverged?, blunder: p.delta != nil and p.delta < -(opts[:blunder] || 0.5),
+        lines: Map.put(files, "actual", %{file: actual_name, value: p.actual}),
         subject: Map.take(p.state.players[subject], [:x, :y, :action, :percent, :stock]), opponent: Map.take(p.state.players[Coach.other_port(subject)], [:x, :y, :action, :percent, :stock])}
     end)
 
-  File.write!(Path.join(out, "review.json"), Jason.encode!(%{replay: path, subject: subject, horizon: review.horizon, every: review.every, samples: review.samples, points: rows, blunders: Enum.map(review.blunders, & &1.frame)}, pretty: true))
-
-  for p <- review.blunders do
-    actual = for f <- p.frame..min(p.frame + review.horizon, review.frames), by_frame[f], do: (fr = by_frame[f]; %{frame: f, players: Map.new(fr.players, fn {port, pl} -> {port, Map.merge(pl, %{shield_strength: pl.shield_strength, jumps_left: pl.jumps_left, hitstun_frames_left: round(pl.hitstun_frames_left || 0), action_frame: round(pl.action_frame || 0)})} end)})
-    Trace.from_game_states(actual, chars: chars, stage: meta.stage, label: "ACTUAL from f#{p.frame} (value #{Float.round(p.actual, 2)}, expected #{Float.round(p.expected, 2)})") |> Trace.write!(Path.join(out, "blunder_#{p.frame}_actual.msltrace.json"))
-    Trace.from_game_states(p.best.states, chars: chars, stage: meta.stage, label: "BEST LINE from f#{p.frame} (value #{Float.round(p.best.value, 2)})") |> Trace.write!(Path.join(out, "blunder_#{p.frame}_best.msltrace.json"))
-  end
-
-  Output.success("wrote #{out}/review.json + #{2 * length(review.blunders)} traces")
+  File.write!(Path.join(out, "review.json"), Jason.encode!(%{replay: Path.basename(path), stage: meta.stage, players: Enum.map(meta.players |> Enum.sort_by(& &1.port), &%{port: &1.port, character: &1.character_name, type: &1.player_type}), subject: subject, horizon: review.horizon, every: review.every, samples: review.samples, first_frame: first_frame, last_frame: review.frames, game: "game.msltrace.json", points: rows, blunders: Enum.map(review.blunders, & &1.frame)}, pretty: true))
+  Output.success("wrote #{out}/review.json, game.msltrace.json + #{4 * length(review.points)} continuation traces")
 end

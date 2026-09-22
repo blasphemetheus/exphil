@@ -36,7 +36,8 @@ defmodule ExPhil.Sim.Coach do
   `:on_point` (fn point -> any, progress hook).
 
   Returns `%{points: [...], blunders: [...], divergence, replay, frames}`.
-  Each point: `%{frame, expected, sd, actual, delta, best: %{value, states}, samples: [values], state}`.
+  Each point: `%{frame, expected, sd, actual, delta, best, lines: %{best, typical, worst}, samples: [values], state}`
+  (each line `%{value, states}`; typical = the median sample).
   """
   def review(path, opts) do
     subject = Keyword.get(opts, :subject, 1)
@@ -74,7 +75,10 @@ defmodule ExPhil.Sim.Coach do
         expected = mean(values)
         actual_states = for f <- save.frame..min(save.frame + horizon, last_frame), by_frame[f], do: by_frame[f]
         actual = if length(actual_states) > 1, do: value(actual_states, subject, opp), else: nil
-        {best_states, best_value} = Enum.zip(rollouts, values) |> Enum.max_by(&elem(&1, 1))
+        ranked = Enum.zip(rollouts, values) |> Enum.sort_by(&elem(&1, 1))
+        {worst_states, worst_value} = hd(ranked)
+        {best_states, best_value} = List.last(ranked)
+        {typical_states, typical_value} = Enum.at(ranked, div(length(ranked), 2))
 
         point = %{
           frame: save.frame,
@@ -84,6 +88,7 @@ defmodule ExPhil.Sim.Coach do
           delta: actual && actual - expected,
           samples: values,
           best: %{value: best_value, states: best_states},
+          lines: %{best: %{value: best_value, states: best_states}, typical: %{value: typical_value, states: typical_states}, worst: %{value: worst_value, states: worst_states}},
           state: save.state,
           diverged?: save.diverged?
         }

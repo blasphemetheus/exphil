@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>ExPhil coach review</title>
+    <!-- Static coach page. Open as /coach/?run=/runs/<run dir> where the run dir
+         holds review.json (from scripts/coach_review.exs), game.msltrace.json and
+         the per-point continuation traces. Every viewer is an iframe of pane.html
+         (the slippi-viewer replay store is a module singleton). -->
+    <style>
+      :root {
+        color-scheme: light;
+        font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+        --ink: #20211f; --muted: #4b4d47; --line: #d7d8d2; --bg: #f7f7f4; --card: #fff;
+        --expected: #2f6fb3; --band: rgba(47, 111, 179, 0.16); --actual: #d9822b; --blunder: #b3261e; --good: #2e7d32;
+      }
+      html, body { height: 100%; }
+      body { margin: 0; background: var(--bg); color: var(--ink); font-size: 14px; line-height: 1.4; }
+      main { display: grid; grid-template-rows: auto minmax(0, 1fr) auto auto; gap: 10px; height: 100vh; box-sizing: border-box; padding: 10px 12px; }
+      header { display: flex; flex-wrap: wrap; gap: 6px 18px; align-items: baseline; }
+      h1 { margin: 0; font-size: 17px; }
+      header .meta { color: var(--muted); }
+      header .error { color: var(--blunder); }
+      .top { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 12px; min-height: 0; }
+      iframe { border: 1px solid var(--line); background: var(--card); width: 100%; height: 100%; display: block; box-sizing: border-box; }
+      .main-pane { min-height: 0; }
+      aside { border-left: 1px solid var(--line); padding-left: 12px; overflow: auto; min-height: 0; }
+      aside h2 { margin: 0 0 6px; font-size: 14px; }
+      aside dl { display: grid; grid-template-columns: auto 1fr; gap: 2px 10px; margin: 0 0 10px; }
+      aside dt { color: var(--muted); }
+      aside dd { margin: 0; font-variant-numeric: tabular-nums; }
+      .tag { display: inline-block; padding: 1px 6px; border-radius: 3px; font-size: 12px; color: #fff; }
+      .tag.blunder { background: var(--blunder); }
+      .tag.good { background: var(--good); }
+      .nav { display: flex; gap: 6px; margin-bottom: 10px; }
+      button { border: 1px solid #9da096; background: #fff; color: inherit; padding: 4px 9px; cursor: pointer; }
+      button:disabled { opacity: 0.4; cursor: default; }
+      .legend { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 12px; color: var(--muted); margin-top: 4px; }
+      .legend i { display: inline-block; width: 14px; height: 3px; vertical-align: middle; margin-right: 4px; }
+      .legend .blk { width: 3px; height: 12px; }
+      .bar { border: 1px solid var(--line); background: var(--card); }
+      svg { display: block; width: 100%; height: 150px; }
+      .pt { cursor: pointer; }
+      .pt:hover circle { r: 5; }
+      .lines { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; height: 260px; }
+      .lines figure { margin: 0; display: flex; flex-direction: column; min-height: 0; }
+      .lines figcaption { font-size: 12px; margin-bottom: 3px; display: flex; justify-content: space-between; }
+      .lines figcaption b { text-transform: uppercase; letter-spacing: 0.04em; }
+      .lines figcaption span { font-variant-numeric: tabular-nums; color: var(--muted); }
+      @media (max-width: 1100px) { .lines { grid-template-columns: repeat(2, minmax(0, 1fr)); height: auto; } .lines iframe { height: 240px; } }
+    </style>
+  </head>
+  <body>
+    <main>
+      <header>
+        <h1>Coach review</h1>
+        <span id="meta" class="meta">loading…</span>
+      </header>
+
+      <section class="top">
+        <div class="main-pane"><iframe id="main" src="pane.html?id=main" title="whole game"></iframe></div>
+        <aside>
+          <div class="nav">
+            <button id="prev" type="button" title="previous point (←)">◀</button>
+            <button id="next" type="button" title="next point (→)">▶</button>
+            <button id="prev-b" type="button" title="previous blunder">◀ blunder</button>
+            <button id="next-b" type="button" title="next blunder">blunder ▶</button>
+          </div>
+          <h2 id="pt-title">Click a point on the eval bar</h2>
+          <dl id="pt-info"></dl>
+          <div id="pt-note" class="meta"></div>
+        </aside>
+      </section>
+
+      <section class="bar">
+        <svg id="evalbar" viewBox="0 0 1000 150" preserveAspectRatio="none"></svg>
+        <div class="legend">
+          <span><i style="background: var(--expected)"></i>expected (prior self-play mean, ±1 sd band)</span>
+          <span><i style="background: var(--actual)"></i>actual (the replay's next horizon)</span>
+          <span><i class="blk" style="background: var(--blunder)"></i>blunder (actual − expected below threshold)</span>
+          <span>value = stocks taken − lost + (damage dealt − taken)/100, from the subject's side</span>
+        </div>
+      </section>
+
+      <section class="lines">
+        <figure><figcaption><b>actual</b><span id="v-actual"></span></figcaption><iframe id="actual" src="pane.html?id=actual" title="actual continuation"></iframe></figure>
+        <figure><figcaption><b>best</b><span id="v-best"></span></figcaption><iframe id="best" src="pane.html?id=best" title="best sampled line"></iframe></figure>
+        <figure><figcaption><b>typical</b><span id="v-typical"></span></figcaption><iframe id="typical" src="pane.html?id=typical" title="median sampled line"></iframe></figure>
+        <figure><figcaption><b>worst</b><span id="v-worst"></span></figcaption><iframe id="worst" src="pane.html?id=worst" title="worst sampled line"></iframe></figure>
+      </section>
+    </main>
+
+    <script type="module">
+      const params = new URLSearchParams(location.search);
+      const run = (params.get("run") || "/runs/191207_v1").replace(/\/$/, "");
+      const meta = document.querySelector("#meta");
+      const svg = document.querySelector("#evalbar");
+      const panes = Object.fromEntries(["main", "actual", "best", "typical", "worst"].map((id) => [id, document.getElementById(id)]));
+      const ready = new Set();
+      const queued = {};
+      let review = null;
+      let current = -1;   // index into review.points
+
+      function send(id, msg) {
+        if (ready.has(id)) panes[id].contentWindow.postMessage(msg, "*");
+        else (queued[id] ||= []).push(msg);
+      }
+      window.addEventListener("message", (event) => {
+        const msg = event.data || {};
+        if (msg.paneReady && msg.id in panes) {
+          ready.add(msg.id);
+          for (const m of queued[msg.id] || []) panes[msg.id].contentWindow.postMessage(m, "*");
+          delete queued[msg.id];
+        }
+      });
+
+      const fmt = (v, d = 2) => (v == null ? "n/a" : (v >= 0 ? "+" : "") + Number(v).toFixed(d));
+      const secs = (f) => `${Math.floor(Math.max(0, f) / 60 / 60)}:${String(Math.floor(Math.max(0, f) / 60) % 60).padStart(2, "0")}`;
+
+      function drawBar() {
+        const W = 1000, H = 150, padL = 34, padR = 8, padT = 8, padB = 18;
+        const pts = review.points;
+        const f0 = review.first_frame, f1 = review.last_frame;
+        const vmax = Math.max(1, ...pts.flatMap((p) => [Math.abs(p.expected) + p.sd, Math.abs(p.actual ?? 0)])) * 1.05;
+        const x = (f) => padL + ((f - f0) / (f1 - f0)) * (W - padL - padR);
+        const y = (v) => padT + ((vmax - v) / (2 * vmax)) * (H - padT - padB);
+        const el = (tag, attrs = {}, text) => {
+          const n = document.createElementNS("http://www.w3.org/2000/svg", tag);
+          for (const [k, v] of Object.entries(attrs)) n.setAttribute(k, v);
+          if (text != null) n.textContent = text;
+          return n;
+        };
+        svg.replaceChildren();
+        // zero line + gridlines every ±0.5
+        for (let v = -Math.floor(vmax / 0.5) * 0.5; v <= vmax; v += 0.5) {
+          svg.append(el("line", { x1: padL, x2: W - padR, y1: y(v), y2: y(v), stroke: v === 0 ? "#9da096" : "#ebece7", "stroke-width": 1, "vector-effect": "non-scaling-stroke" }));
+          svg.append(el("text", { x: padL - 4, y: y(v) + 3, "text-anchor": "end", "font-size": 9, fill: "#4b4d47" }, fmt(v, 1)));
+        }
+        // time ticks every 30 s
+        for (let f = 0; f <= f1; f += 1800) {
+          if (f < f0) continue;
+          svg.append(el("line", { x1: x(f), x2: x(f), y1: H - padB, y2: H - padB + 4, stroke: "#9da096", "vector-effect": "non-scaling-stroke" }));
+          svg.append(el("text", { x: x(f), y: H - 4, "text-anchor": "middle", "font-size": 9, fill: "#4b4d47" }, secs(f)));
+        }
+        // ±sd band
+        const up = pts.map((p) => `${x(p.frame)},${y(p.expected + p.sd)}`);
+        const dn = pts.map((p) => `${x(p.frame)},${y(p.expected - p.sd)}`).reverse();
+        svg.append(el("polygon", { points: [...up, ...dn].join(" "), fill: "var(--band)", stroke: "none" }));
+        // expected + actual lines
+        svg.append(el("polyline", { points: pts.map((p) => `${x(p.frame)},${y(p.expected)}`).join(" "), fill: "none", stroke: "var(--expected)", "stroke-width": 2, "vector-effect": "non-scaling-stroke" }));
+        const withActual = pts.filter((p) => p.actual != null);
+        svg.append(el("polyline", { points: withActual.map((p) => `${x(p.frame)},${y(p.actual)}`).join(" "), fill: "none", stroke: "var(--actual)", "stroke-width": 2, "vector-effect": "non-scaling-stroke" }));
+        // blunder ticks
+        for (const p of pts.filter((p) => p.blunder)) {
+          svg.append(el("rect", { x: x(p.frame) - 1.5, y: padT, width: 3, height: H - padT - padB, fill: "var(--blunder)", opacity: 0.5 }));
+        }
+        // cursor
+        svg.append(el("line", { id: "cursor", x1: -10, x2: -10, y1: padT, y2: H - padB, stroke: "#20211f", "stroke-width": 1.5, "stroke-dasharray": "3 2", "vector-effect": "non-scaling-stroke" }));
+        // clickable points
+        pts.forEach((p, i) => {
+          const g = el("g", { class: "pt", "data-i": i });
+          g.append(el("rect", { x: x(p.frame) - (W / pts.length) / 2, y: padT, width: W / pts.length, height: H - padT - padB, fill: "transparent" }));
+          g.append(el("circle", { cx: x(p.frame), cy: y(p.expected), r: 3, fill: p.blunder ? "var(--blunder)" : "var(--expected)" }));
+          g.append(el("title", {}, `f${p.frame} (${secs(p.frame)})  expected ${fmt(p.expected)} ±${p.sd.toFixed(2)}  actual ${fmt(p.actual)}${p.blunder ? "  BLUNDER" : ""}`));
+          g.addEventListener("click", () => select(i));
+          svg.append(g);
+        });
+        svg._x = x;
+      }
+
+      function select(i) {
+        if (!review || i < 0 || i >= review.points.length) return;
+        current = i;
+        const p = review.points[i];
+        document.querySelector("#cursor").setAttribute("x1", svg._x(p.frame));
+        document.querySelector("#cursor").setAttribute("x2", svg._x(p.frame));
+        // main pane: viewer frame index = Slippi frame − first_frame
+        send("main", { seek: p.frame - review.first_frame });
+        for (const kind of ["actual", "best", "typical", "worst"]) {
+          const line = p.lines[kind];
+          const val = line && line.value;
+          document.getElementById(`v-${kind}`).textContent = val == null ? "n/a" : fmt(val);
+          if (line && line.file) send(kind, { load: `${run}/${line.file}`, label: `${kind} from f${p.frame} (${fmt(val)})`, seek: 0 });
+          else send(kind, { clear: true });
+        }
+        const flag = p.blunder ? ` <span class="tag blunder">blunder</span>` : (p.delta != null && p.delta > 0.5 ? ` <span class="tag good">above expectation</span>` : "");
+        document.querySelector("#pt-title").innerHTML = `f${p.frame} · ${secs(p.frame)}${flag}`;
+        const s = p.subject, o = p.opponent;
+        document.querySelector("#pt-info").innerHTML = [
+          ["expected", `${fmt(p.expected)} ± ${p.sd.toFixed(2)} (n=${p.samples.length})`],
+          ["actual", fmt(p.actual)],
+          ["delta", fmt(p.delta)],
+          ["subject", `${s.percent.toFixed(0)}% · ${s.stock} stocks · (${s.x.toFixed(0)}, ${s.y.toFixed(0)}) action ${s.action}`],
+          ["opponent", `${o.percent.toFixed(0)}% · ${o.stock} stocks · (${o.x.toFixed(0)}, ${o.y.toFixed(0)}) action ${o.action}`],
+          ["samples", p.samples.map((v) => fmt(v, 1)).join(" ")],
+        ].map(([k, v]) => `<dt>${k}</dt><dd>${v}</dd>`).join("");
+        document.querySelector("#pt-note").textContent = p.diverged ? "⚠ sim diverged from the replay at this seed" : "";
+        document.querySelector("#prev").disabled = i === 0;
+        document.querySelector("#next").disabled = i === review.points.length - 1;
+        history.replaceState(null, "", `?run=${encodeURIComponent(run)}&f=${p.frame}`);
+      }
+
+      function stepBlunder(dir) {
+        const pts = review.points;
+        for (let i = current + dir; i >= 0 && i < pts.length; i += dir) if (pts[i].blunder) return select(i);
+      }
+      document.querySelector("#prev").addEventListener("click", () => select(current - 1));
+      document.querySelector("#next").addEventListener("click", () => select(current + 1));
+      document.querySelector("#prev-b").addEventListener("click", () => stepBlunder(-1));
+      document.querySelector("#next-b").addEventListener("click", () => stepBlunder(1));
+      window.addEventListener("keydown", (e) => {
+        if (e.key === "ArrowLeft") select(current - 1);
+        if (e.key === "ArrowRight") select(current + 1);
+      });
+
+      try {
+        const res = await fetch(`${run}/review.json`);
+        if (!res.ok) throw new Error(`${run}/review.json → ${res.status}`);
+        review = await res.json();
+        const sub = review.players.find((p) => p.port === review.subject);
+        const opp = review.players.find((p) => p.port !== review.subject);
+        meta.textContent = `${review.replay} · stage ${review.stage} · subject p${review.subject} ${sub?.character} vs p${opp?.port} ${opp?.character} · every ${review.every} f, horizon ${review.horizon} f, ${review.samples} samples · ${review.points.length} points, ${review.blunders.length} blunders`;
+        send("main", { load: `${run}/${review.game}`, label: `whole game · ${review.replay}` });
+        drawBar();
+        const want = Number(params.get("f"));
+        const i = Number.isFinite(want) && params.get("f") ? review.points.findIndex((p) => p.frame === want) : -1;
+        select(i >= 0 ? i : (review.points.findIndex((p) => p.blunder) >= 0 ? review.points.findIndex((p) => p.blunder) : 0));
+      } catch (error) {
+        console.error(error);
+        meta.textContent = `failed to load review: ${error.message}`;
+        meta.className = "meta error";
+      }
+    </script>
+  </body>
+</html>
