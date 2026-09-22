@@ -30,6 +30,7 @@
       const label = document.querySelector("#label");
       let loaded = null;   // url of the trace currently shown
       let pendingSeek = null;
+      let pendingPause = false;
 
       function setLabel(text, isError = false) {
         label.textContent = text;
@@ -47,7 +48,7 @@
           viewer.setReplayData(data);
           loaded = url;
           setLabel(text || trace.label || `${data.frames.length} frames`);
-          if (pendingSeek !== null) { viewer.setFrame(pendingSeek); pendingSeek = null; }
+          if (pendingSeek !== null) { if (pendingPause) viewer.pausePlayback(); viewer.setFrame(pendingSeek); pendingSeek = null; pendingPause = false; }
           parent.postMessage({ paneLoaded: url, frames: data.frames.length, id: paneId }, "*");
         } catch (error) {
           console.error(error);
@@ -64,9 +65,9 @@
         if (msg.load) load(msg.load, msg.label);
         if (typeof msg.seek === "number") {
           if (loaded) { viewer.pausePlayback(); viewer.setFrame(msg.seek); }
-          else pendingSeek = msg.seek;
+          else { pendingSeek = msg.seek; pendingPause = true; }
         }
-        if (msg.restart) { if (loaded) viewer.setFrame(0); else pendingSeek = 0; }   // no pause: the viewer autoplays on load
+        if (msg.restart) { if (loaded) viewer.setFrame(0); else { pendingSeek = 0; pendingPause = false; } }   // no pause: the viewer autoplays on load
         if (msg.pause) viewer.pausePlayback();
         if (msg.clear) { viewer.clear(); loaded = null; setLabel("not loaded"); }
       });
