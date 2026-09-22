@@ -55,6 +55,8 @@
       .bar { border: 1px solid var(--line); background: var(--card); }
       svg { display: block; width: 100%; height: 150px; }
       .pt { cursor: pointer; }
+      rect.tick.live { opacity: 1; animation: pulse 0.9s ease-in-out infinite alternate; }
+      @keyframes pulse { from { opacity: 0.45; } to { opacity: 1; } }
       .pt:hover circle { r: 5; }
       @media (max-width: 1100px) { .top { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); } aside { grid-column: 1 / -1; border-left: 0; padding-left: 0; } }
     </style>
@@ -138,7 +140,9 @@
         }
         // the main pane reports its playback position: move the bar cursor with it
         if (msg.id === "main" && typeof msg.frame === "number" && review && svg._x) {
-          setCursor(review.first_frame + msg.frame);
+          const f = review.first_frame + msg.frame;
+          setCursor(f);
+          watchBlunders(f);
         }
       });
 
@@ -195,7 +199,7 @@
         }
         // blunder ticks
         for (const p of pts.filter((p) => p.blunder && !p.diverged)) {
-          svg.append(el("rect", { x: x(p.frame) - 1.5, y: padT, width: 3, height: H - padT - padB, fill: "var(--blunder)", opacity: 0.5 }));
+          svg.append(el("rect", { class: "tick", "data-frame": p.frame, x: x(p.frame) - 1.5, y: padT, width: 3, height: H - padT - padB, fill: "var(--blunder)", opacity: 0.5 }));
         }
         // cursor
         svg.append(el("line", { id: "cursor", x1: -10, x2: -10, y1: padT, y2: H - padB, stroke: "#20211f", "stroke-width": 1.5, "stroke-dasharray": "3 2", "vector-effect": "non-scaling-stroke" }));
@@ -229,13 +233,31 @@
       };
       let held = null;   // { index, kind } currently in the line pane
 
-      function select(i) {
+      // While the game plays: entering a blunder window raises a banner on the game pane, pulses its
+      // tick on the bar, and selects that moment (without seeking) so its lines are one press away.
+      let inWindow = null;
+      function watchBlunders(f) {
+        // overlapping windows: the most recent blunder wins
+        const p = review.points.filter((q) => q.blunder && !q.diverged && f >= q.frame && f < q.frame + review.horizon).pop() || null;
+        if (p !== inWindow) {
+          inWindow = p;
+          if (p) {
+            send("main", { banner: { text: `BLUNDER · f${p.frame} · ${secs(p.frame)}`, sub: `expected ${fmt(p.expected)} → actual ${fmt(p.actual)}` } });
+            const i = review.points.indexOf(p);
+            if (i !== current) select(i, { seek: false });
+          } else send("main", { banner: null });
+          for (const r of svg.querySelectorAll("rect.tick")) r.classList.toggle("live", p && Number(r.dataset.frame) === p.frame);
+        }
+        document.querySelector("#cap-main").textContent = p ? `${review.replay} · in the blunder window: +${f - p.frame} f of ${review.horizon}` : review.replay;
+      }
+
+      function select(i, opts = {}) {
         if (!review || i < 0 || i >= review.points.length) return;
         current = i;
         const p = review.points[i];
         setCursor(p.frame);
         // main pane: viewer frame index = Slippi frame − first_frame
-        send("main", { seek: p.frame - review.first_frame });
+        if (opts.seek !== false) send("main", { seek: p.frame - review.first_frame });
         showCard(p, false);
         renderLineButtons();
         document.querySelector("#prev").disabled = i === 0;
@@ -329,6 +351,7 @@
         const opp = review.players.find((p) => p.port !== review.subject);
         meta.textContent = `${review.replay} · stage ${review.stage} · subject p${review.subject} ${sub?.character} vs p${opp?.port} ${opp?.character} · every ${review.every} f, horizon ${review.horizon} f, ${review.samples} samples · ${review.points.length} points, ${review.blunders.length} blunders`;
         send("main", { load: `${run}/${review.game}`, label: `whole game · ${review.replay}` });
+        send("main", { marks: review.points.filter((p) => p.blunder && !p.diverged).map((p) => ({ i: p.frame - review.first_frame, label: `f${p.frame}` })) });
         document.querySelector("#cap-main").textContent = review.replay;
         drawBar();
         const want = Number(params.get("f"));

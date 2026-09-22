@@ -14,6 +14,12 @@
       body { margin: 0; background: #f7f7f4; color: #20211f; display: flex; flex-direction: column; }
       .label { font-size: 12px; padding: 3px 8px; color: #4b4d47; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; border-bottom: 1px solid #e3e4de; }
       .label.error { color: #9f1d1d; }
+      .pane { position: relative; }
+      #banner { position: absolute; top: 8px; left: 50%; transform: translateX(-50%); z-index: 5; background: rgba(179, 38, 30, 0.92); color: #fff; font-weight: 600; font-size: 13px; letter-spacing: 0.02em; padding: 5px 12px; border-radius: 4px; pointer-events: none; box-shadow: 0 2px 8px rgba(0,0,0,0.25); white-space: nowrap; }
+      #banner small { font-weight: 400; opacity: 0.9; margin-left: 8px; }
+      body.alert .pane { outline: 3px solid rgba(179, 38, 30, 0.85); outline-offset: -3px; }
+      .mark { position: fixed; z-index: 6; width: 0; height: 0; border-left: 5px solid transparent; border-right: 5px solid transparent; border-top: 8px solid #b3261e; transform: translateX(-50%); pointer-events: none; }
+      .mark::after { content: attr(data-label); position: absolute; left: 50%; bottom: 9px; transform: translateX(-50%); font-size: 9px; color: #b3261e; white-space: nowrap; }
       .pane { flex: 1; min-height: 0; display: flex; align-items: center; justify-content: center; overflow: hidden; }
       slippi-viewer { display: block; aspect-ratio: 730 / 600; width: 100%; max-height: 100%; }
     </style>
@@ -22,6 +28,8 @@
     <div id="label" class="label">not loaded</div>
     <div class="pane">
       <slippi-viewer zips-base-url="/tools/viewer/slippi-viewer/public"></slippi-viewer>
+      <div id="banner" hidden></div>
+      <div id="marks"></div>
     </div>
     <script type="module">
       import { mslTraceToReplayData } from "/tools/viewer/msltrace1.js";
@@ -71,7 +79,25 @@
         if (typeof msg.goto === "number") { if (loaded) viewer.setFrame(msg.goto); else { pendingSeek = msg.goto; pendingPause = false; } }   // seek without pausing
         if (msg.pause) viewer.pausePlayback();
         if (msg.clear) { viewer.clear(); loaded = null; setLabel("not loaded"); }
+        if (msg.marks) { marks = msg.marks; layoutMarks(); }   // [{i, label}] viewer frame indices to flag on the seek bar
+        if ("banner" in msg) {   // {banner: {text, sub} | null}: red overlay while playback is inside a blunder window
+          const b = document.querySelector("#banner");
+          if (msg.banner) { b.innerHTML = `${msg.banner.text}${msg.banner.sub ? "<small>" + msg.banner.sub + "</small>" : ""}`; b.hidden = false; document.body.classList.add("alert"); }
+          else { b.hidden = true; document.body.classList.remove("alert"); }
+        }
       });
+
+      // Red triangles over the viewer's own seek slider (shadow DOM), one per mark; re-laid out on resize/poll.
+      let marks = [];
+      function layoutMarks() {
+        const box = document.querySelector("#marks");
+        const bar = viewer.shadowRoot && viewer.shadowRoot.querySelector('input[type="range"]');
+        if (!bar || !loaded || !marks.length) { box.replaceChildren(); return; }
+        const r = bar.getBoundingClientRect(), max = Number(bar.max) || 1;
+        if (box.children.length !== marks.length) box.replaceChildren(...marks.map(() => Object.assign(document.createElement("div"), { className: "mark" })));
+        marks.forEach((m, k) => { const d = box.children[k]; d.style.left = `${r.left + (m.i / max) * r.width}px`; d.style.top = `${r.top - 8}px`; d.dataset.label = m.label || ""; });
+      }
+      window.addEventListener("resize", layoutMarks);
 
       // Report playback position: the element has no frame getter, so read the
       // viewer's own seek slider (shadow DOM) at ~15 Hz and post on change.
@@ -80,6 +106,7 @@
         const bar = viewer.shadowRoot && viewer.shadowRoot.querySelector('input[type="range"]');
         if (!bar || !loaded) return;
         const f = bar.valueAsNumber;
+        if (marks.length && (f !== lastFrame || !document.querySelector("#marks").children.length)) layoutMarks();
         if (Number.isFinite(f) && f !== lastFrame) {
           lastFrame = f;
           parent.postMessage({ frame: f, id: paneId }, "*");
