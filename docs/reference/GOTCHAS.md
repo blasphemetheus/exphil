@@ -4217,3 +4217,28 @@ as a hidden warm-up, `tools/validation/native.c:1097`). Symptom: entry
 animation one frame "late" (sim −117 = Dolphin −118). `ExPhil.Bridge.SimState`
 maps `frame: frame_id − 1`; with that, a Fox ditto on FD is exact on every
 mapped field from −123 until the first input frame (−39).
+
+**Correction (2026-09-21 evening, replay seeding):** subtracting 1 in the
+mapper was the wrong half of the fix. The sim's C API resets at `frame_id
+= -123` while its own validator resets at `first_row - 1 = -124`
+(`tools/validation/native.c:1097`), and the countdown control unlock is
+keyed on the sim's INTERNAL `frame_id == -40` (`src/runtime/scalar.c`).
+With the API's numbering the unlock fires one Slippi frame late: the
+Fox-vs-Yoshi replay dashed at −40, the sim was still locked. Fix in our
+clone (`~/git/msl-main`, `src/api.c`): reset at −124 like the validator;
+the mapper no longer subtracts. Sim frame ids are Slippi frame ids now.
+
+Three more feeder gaps found the same way (the validator PASSES the same
+local games full-length, so every divergence was ours): (1) the fighter
+needs Slippi's PROCESSED sticks as the `nml_*` lanes next to the raw bytes
+(UCF reads raw, the fighter reads nml), (2) physical L and R separately
+×140 (we sent one merged trigger, R = 0), (3) per-frame RNG: the
+FrameStart seed and the pre-frame player seed (we seeded only game start;
+a hit at 361 landed in the replay, not in the sim), (4) `ucf_cardinals =
+1` (validator default; without it human stick x drifts by 4e-4). And
+the conversions must be FLOAT32: `(int8)(v * 80.0F)` truncates 0.6125×80
+to 49 in f32 but 48 in f64. All in `ExPhil.Sim.Seed.replay_row/2`, fed
+through `msl_batch_step_replay` (our addition to the clone's C API,
+80-byte `MslReplayInput`). Result: two of Bradley's three games bit-exact
+to the end, the third diverges at 4105 = exactly where the sim validator
+fails it.

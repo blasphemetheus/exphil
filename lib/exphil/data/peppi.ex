@@ -146,7 +146,8 @@ defmodule ExPhil.Data.Peppi do
       :fod_platform_right,
       :stadium_event,
       :stadium_type,
-      :whispy_direction
+      :whispy_direction,
+      :frame_seed
     ]
   end
 

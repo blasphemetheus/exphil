@@ -15,6 +15,7 @@ use std::sync::Mutex;
 
 const CONFIG_SIZE: usize = 52;
 const INPUT_SIZE: usize = 32;
+const REPLAY_INPUT_SIZE: usize = 80;
 const OBS_SIZE: usize = 980;
 const TERM_SIZE: usize = 16;
 
@@ -166,6 +167,21 @@ fn observe<'a>(env: Env<'a>, res: ResourceArc<BatchResource>) -> Result<(Binary<
     let mut term = vec![0u8; b.size * TERM_SIZE];
     let code = unsafe { sym::<ObserveFn>(&b.lib, b"msl_batch_observe\0")?(b.ptr, obs.as_mut_ptr(), term.as_mut_ptr()) };
     check(&b.lib, code, "msl_batch_observe")?;
+    Ok((to_binary(env, &obs), to_binary(env, &term)))
+}
+
+/// inputs: batch_size x 80 bytes (raw MslReplayInput: frame seed, fighter seed, flags,
+/// 4 x 16-byte players with raw + nml lanes). Replay-exact step (exphil addition to the sim clone).
+#[rustler::nif(schedule = "DirtyCpu")]
+fn step_replay<'a>(env: Env<'a>, res: ResourceArc<BatchResource>, inputs: Binary) -> Result<(Binary<'a>, Binary<'a>), String> {
+    let b = res.0.lock().unwrap();
+    if inputs.len() != b.size * REPLAY_INPUT_SIZE {
+        return Err(format!("inputs must be {} x {} bytes, got {}", b.size, REPLAY_INPUT_SIZE, inputs.len()));
+    }
+    let mut obs = vec![0u8; b.size * OBS_SIZE];
+    let mut term = vec![0u8; b.size * TERM_SIZE];
+    let code = unsafe { sym::<StepFn>(&b.lib, b"msl_batch_step_replay\0")?(b.ptr, inputs.as_ptr(), obs.as_mut_ptr(), term.as_mut_ptr()) };
+    check(&b.lib, code, "msl_batch_step_replay")?;
     Ok((to_binary(env, &obs), to_binary(env, &term)))
 }
 

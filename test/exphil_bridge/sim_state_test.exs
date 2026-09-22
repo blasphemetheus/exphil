@@ -30,7 +30,7 @@ defmodule ExPhil.Bridge.SimStateTest do
 
   defp fd_row do
     %{
-      "frame_id" => -123, "frame_pre_random_seed" => 0, "stage_id" => 32,
+      "frame_id" => -124, "frame_pre_random_seed" => 0, "stage_id" => 32,
       "num_players" => 2, "viewpoint_player" => 0, "is_teams" => 0,
       "stage" => %{"randall" => %{"exists" => 0}, "fod_platforms" => %{"left" => 0.0, "right" => 0.0}},
       "slots" => [fox_slot(0, -40.0, 1), fox_slot(1, 40.0, 0), empty_slot(), empty_slot()],

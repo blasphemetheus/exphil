@@ -25,7 +25,7 @@ defmodule ExPhil.Bridge.SimBatch.Core do
     "iceclimbers" => 10, "popo" => 10, "nana" => 11, "pikachu" => 12, "samus" => 13, "yoshi" => 14,
     "jigglypuff" => 15, "mewtwo" => 16, "luigi" => 17, "marth" => 18, "zelda" => 19,
     "younglink" => 20, "drmario" => 21, "doc" => 21, "falco" => 22, "pichu" => 23,
-    "gameandwatch" => 24, "gnw" => 24, "ganondorf" => 25, "ganon" => 25, "roy" => 26
+    "gameandwatch" => 24, "gnw" => 24, "mrgamewatch" => 24, "gamewatch" => 24, "ganondorf" => 25, "ganon" => 25, "roy" => 26
   }
   @stages %{"fountain_of_dreams" => 2, "pokemon_stadium" => 3, "yoshis_story" => 8, "dream_land_n64" => 28, "battlefield" => 31, "final_destination" => 32}
 
@@ -44,7 +44,7 @@ defmodule ExPhil.Bridge.SimBatch.Core do
     with true <- File.exists?(lib) || {:error, {:sim_library_missing, lib}},
          {:ok, ref} <- ExPhil.Bridge.SimNif.open(lib, Path.join(root, "data"), n) do
       batch = %__MODULE__{ref: ref, n: n, layouts: layouts!(), own_port: Keyword.get(opts, :own_port, 1), lib: lib, data_root: Path.join(root, "data")}
-      reinit(batch, Map.new(Keyword.take(opts, [:stage, :players, :seed, :stocks, :max_frame, :batch_size])))
+      reinit(batch, Map.new(Keyword.take(opts, [:stage, :players, :seed, :stocks, :max_frame, :batch_size, :ucf_cardinals])))
     else
       {:error, _} = e -> e
       other -> {:error, other}
@@ -84,6 +84,7 @@ defmodule ExPhil.Bridge.SimBatch.Core do
           |> Map.put("num_players", length(players))
           |> Map.put("stocks", req["stocks"] || default["stocks"])
           |> Map.put("max_frame", req["max_frame"] || default["max_frame"])
+          |> Map.put("ucf_cardinals", req["ucf_cardinals"] || default["ucf_cardinals"])
           |> Map.put("players", Enum.map(players, &player_config(&1, default)) ++ List.duplicate(Enum.at(default["players"], 0), 4 - length(players)))
 
         SimRows.encode(b.layouts["match_config"], cfg)
@@ -109,6 +110,26 @@ defmodule ExPhil.Bridge.SimBatch.Core do
       {:ok, frames, terminals, %{b | frames: frames, terminals: terminals}}
     end
   end
+
+  @doc """
+  Replay-exact step: `rows` = one 80-byte `MslReplayInput` binary per env
+  (see `ExPhil.Sim.Seed.replay_row/2`): Slippi frame/fighter RNG seeds plus
+  raw AND processed stick lanes and physical L/R, exactly what the sim's own
+  validator feeds. Requires the exphil `msl_batch_step_replay` entry in the
+  sim clone.
+  """
+  def step_replay(%__MODULE__{} = b, rows) when is_list(rows) do
+    inputs = for row <- rows, into: <<>>, do: replay_row(row)
+
+    with {:ok, {obs, term}} <- ExPhil.Bridge.SimNif.step_replay(b.ref, inputs) do
+      frames = decode_frames(b, obs)
+      terminals = SimRows.decode_rows(b.layouts["terminal"], term, b.n)
+      {:ok, frames, terminals, %{b | frames: frames, terminals: terminals}}
+    end
+  end
+
+  defp replay_row(bin) when is_binary(bin) and byte_size(bin) == 80, do: bin
+  defp replay_row(nil), do: <<0::size(80 * 8)>>
 
   @doc "Re-observe every env without stepping."
   def observe(%__MODULE__{} = b) do
@@ -198,6 +219,8 @@ defmodule ExPhil.Bridge.SimBatch.Core do
   end
 
   defp raw_player(nil), do: <<0::16, 0::8, 0::8, 0::8, 0::8, 0, 0>>
+  # already-raw MslInputPlayer bytes (replay seeding: ExPhil.Sim.Seed)
+  defp raw_player(%{raw: bin}) when is_binary(bin) and byte_size(bin) == 8, do: bin
   defp raw_player(%ControllerState{} = c), do: raw_player(SimState.controller_to_row(c))
 
   defp raw_player(%{} = row) do

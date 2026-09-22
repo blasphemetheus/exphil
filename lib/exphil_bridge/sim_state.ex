@@ -51,12 +51,11 @@ defmodule ExPhil.Bridge.SimState do
     fod = get(stage_block, :fod_platforms) || %{}
 
     %GameState{
-      # Slippi labels the state after k engine ticks as frame -124 + k; the
-      # Python API labels the reset row -123 (its validator seeds a fresh
-      # match at first_frame - 1 and runs row 0 as a hidden warm-up,
-      # tools/validation/native.c:1097). Subtract 1 so sim frames line up
-      # with .slp frames field-for-field (step-3 gate, 2026-09-21).
-      frame: fetch!(row, :frame_id) - 1,
+      # Sim frame ids ARE Slippi frame ids: the exphil sim clone resets at
+      # -124 like the sim's own validator (row0 - 1), so step k publishes
+      # Slippi frame -124 + k and the -40 control unlock lands on the real
+      # frame (GOTCHA #124, corrected 2026-09-21: no offset here anymore).
+      frame: fetch!(row, :frame_id),
       stage: fetch!(row, :stage_id),
       menu_state: @menu_in_game,
       players: players,

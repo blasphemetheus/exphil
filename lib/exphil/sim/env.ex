@@ -31,6 +31,8 @@ defmodule ExPhil.Sim.Env do
   def upload(sim, blob), do: call(sim, :upload, [blob])
   def restore(sim, env, state, opts \\ []), do: call(sim, :restore, [env, state, opts])
   def observe(sim), do: call(sim, :observe, [])
+  @doc "Replay-exact step (NIF backend only): one 80-byte `MslReplayInput` row per env, see `ExPhil.Sim.Seed.replay_row/2`."
+  def step_replay(sim, rows), do: call(sim, :step_replay, [rows])
   def request(sim, req), do: call(sim, :request, [req])
   def stop(sim), do: call(sim, :stop, [])
 

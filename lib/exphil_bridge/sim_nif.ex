@@ -23,6 +23,8 @@ defmodule ExPhil.Bridge.SimNif do
   @doc "inputs = batch_size × 32 bytes (raw MslInput). Returns {observation rows, terminal rows}."
   def step(_batch, _inputs), do: :erlang.nif_error(:nif_not_loaded)
   def observe(_batch), do: :erlang.nif_error(:nif_not_loaded)
+  @doc "inputs = batch_size × 80 bytes (raw MslReplayInput, replay-exact). Returns {observation rows, terminal rows}."
+  def step_replay(_batch, _inputs), do: :erlang.nif_error(:nif_not_loaded)
   def save(_batch, _index), do: :erlang.nif_error(:nif_not_loaded)
   def restore(_batch, _index, _state), do: :erlang.nif_error(:nif_not_loaded)
 end

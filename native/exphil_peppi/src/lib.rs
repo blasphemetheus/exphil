@@ -131,6 +131,8 @@ pub struct GameFrame {
     pub stadium_type: Option<i32>,
     /// Dreamland Whispy blow direction (raw u8 from the 0x40 event)
     pub whispy_direction: Option<i32>,
+    // Slippi FrameStart random seed (the frame-start RNG the sim restores per frame; None pre-3.10)
+    pub frame_seed: Option<i64>,
 }
 
 /// Player metadata from game start
@@ -516,6 +518,7 @@ fn parse_frame(frame: &Frame) -> GameFrame {
         stadium_event,
         stadium_type,
         whispy_direction,
+        frame_seed: frame.start.map(|s| s.random_seed as i64),
     }
 }
 

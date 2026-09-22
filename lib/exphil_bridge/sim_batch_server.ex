@@ -24,6 +24,7 @@ defmodule ExPhil.Bridge.SimBatch do
   def upload(pid, blob), do: GenServer.call(pid, {:upload, blob}, @timeout)
   def restore(pid, env, state, opts \\ []), do: GenServer.call(pid, {:restore, env, state, opts}, @timeout)
   def observe(pid), do: GenServer.call(pid, :observe, @timeout)
+  def step_replay(pid, rows), do: GenServer.call(pid, {:step_replay, rows}, @timeout)
   def request(_pid, _req), do: {:error, :not_supported_on_nif_backend}
   def stop(pid), do: GenServer.stop(pid, :normal)
 
@@ -40,6 +41,13 @@ defmodule ExPhil.Bridge.SimBatch do
 
   def handle_call({:step, controllers}, _from, b) do
     case Core.step(b, controllers) do
+      {:ok, frames, terminals, b2} -> {:reply, {:ok, frames, terminals}, b2}
+      {:error, reason} -> {:reply, {:error, reason}, b}
+    end
+  end
+
+  def handle_call({:step_replay, rows}, _from, b) do
+    case Core.step_replay(b, rows) do
       {:ok, frames, terminals, b2} -> {:reply, {:ok, frames, terminals}, b2}
       {:error, reason} -> {:reply, {:error, reason}, b}
     end

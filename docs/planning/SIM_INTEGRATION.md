@@ -90,6 +90,7 @@ batch API (NIF) when throughput demands it.
 | 2026-09-21 | 6 curriculum env v0 | **DONE** | `ExPhil.Sim.Drill` (play-derived pool with history, batched rollouts, `Opening` scorer); baselines: prior vs self 200 starts opening 0.68 / conversion 0.20; 1,000-start run in the overnight chain |
 | 2026-09-21 | 7 search-as-teacher v0 | **DONE (tooling)** | `ExPhil.Sim.Search` random shooting, batched; oracle vs idle 10 × 64: converting candidate on 0.80 of starts; 1,000-start + prior-defender runs in the overnight chain; labels written |
 | 2026-09-21 | 10a binary rows | **DONE (branch)** | see above; merge after the chain |
+| 2026-09-21 | 12 replay seeding (coach "load the game") | **DONE — BIT-EXACT** | `ExPhil.Sim.Seed` + `scripts/seed_replay.exs`: seed the sim at any frame of a real .slp by exact input replay through `msl_batch_step_replay` (our C-API addition in the clone: raw + processed stick lanes, physical L/R, FrameStart + fighter RNG seeds, ucf_cardinals). Bradley's 3 local games: 2 exact to the end, 1 exact to 4105 (= the sim validator's own failure point). 1,834 frames/s; savestate + 30-frame history + viewer trace written. GOTCHA #124 corrected (clone resets at −124). |
 | 2026-09-21 | 11 human lane | blocked | waiting on the sim's declared scene profile |
 
 ## Base and build recipe (decided 2026-09-21: `main` is the base)
