@@ -32,7 +32,10 @@ defmodule ExPhil.Sim.Seed do
   `:backend` (:nif — the only backend with the replay-exact step),
   `:tolerance` (position tolerance, default 0.0 = bit-exact floats).
 
-  Returns `{:ok, %{sim, blob, state_id, frame, divergence, history, summary, players, stage}}`.
+  `:frames` (list of extra Slippi frames to save along the way; each becomes an
+  entry in `saves`: `%{frame, blob, state_id, history, state, diverged?}`).
+
+  Returns `{:ok, %{sim, blob, state_id, frame, divergence, history, saves, summary, players, stage}}`.
   """
   def from_replay(path, opts \\ []) do
     target = Keyword.get(opts, :frame, 0)
@@ -51,23 +54,37 @@ defmodule ExPhil.Sim.Seed do
       frames = Enum.filter(frames, &(&1.frame_number <= target))
       {:ok, [gs0]} = Env.frames(sim)
 
-      {history, divergence, gs} =
-        Enum.reduce_while(frames, {[], nil, gs0}, fn f, {hist, div, gs} ->
+      # savestates wanted along the way (coach review): every frame in :frames, plus the target
+      wanted = MapSet.new(Keyword.get(opts, :frames, []) ++ [target])
+
+      {history, divergence, gs, saves} =
+        Enum.reduce_while(frames, {[], nil, gs0, []}, fn f, {hist, div, gs, saves} ->
           t = f.frame_number
           row = replay_row(f, port_ids)
 
           case Env.step_replay(sim, [row]) do
             {:ok, [next], _} ->
               div = div || mismatch(next, by_frame[t], port_ids, tol)
-              hist = Enum.take([gs | hist], warm)
-              if next.frame >= target, do: {:halt, {hist, div, next}}, else: {:cont, {hist, div, next}}
+              hist = Enum.take([{gs, row} | hist], warm)
+
+              saves =
+                if MapSet.member?(wanted, next.frame) do
+                  {:ok, blob, sid} = Env.save(sim, 0, keep: true)
+                  [%{frame: next.frame, blob: blob, state_id: sid, history: hist |> Enum.reverse() |> Enum.map(&elem(&1, 0)), state: next, diverged?: div != nil} | saves]
+                else
+                  saves
+                end
+
+              if next.frame >= target, do: {:halt, {hist, div, next, saves}}, else: {:cont, {hist, div, next, saves}}
 
             {:error, reason} ->
-              {:halt, {hist, div || {t, :step_error, reason}, gs}}
+              {:halt, {hist, div || {t, :step_error, reason}, gs, saves}}
           end
         end)
 
-      {:ok, blob, sid} = Env.save(sim, 0, keep: true)
+      last = List.first(saves) || (fn -> {:ok, blob, sid} = Env.save(sim, 0, keep: true); %{frame: gs.frame, blob: blob, state_id: sid} end).()
+      blob = last.blob
+      sid = last.state_id
 
       {:ok,
        %{
@@ -76,7 +93,8 @@ defmodule ExPhil.Sim.Seed do
          state_id: sid,
          frame: gs.frame,
          divergence: divergence,
-         history: Enum.reverse(history),
+         history: history |> Enum.reverse() |> Enum.map(&elem(&1, 0)),
+         saves: Enum.reverse(saves),
          summary: %{p1: gs.players[1] && Map.take(gs.players[1], [:x, :y, :action, :percent, :stock]), p2: gs.players[2] && Map.take(gs.players[2], [:x, :y, :action, :percent, :stock])},
          players: players,
          stage: meta.stage
