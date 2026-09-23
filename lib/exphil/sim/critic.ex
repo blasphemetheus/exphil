@@ -160,7 +160,7 @@ defmodule ExPhil.Sim.Critic do
       model: model,
       ev: explained_variance(pred_t, yt),
       ev_train: explained_variance(pred_tr, y),
-      mse: Nx.mean(Nx.pow(pred_t - yt, 2)) |> Nx.to_number(),
+      mse: Nx.mean(Nx.pow(Nx.subtract(pred_t, yt), 2)) |> Nx.to_number(),
       baseline_mse: Nx.variance(yt) |> Nx.to_number(),
       history: Enum.reverse(history)
     }

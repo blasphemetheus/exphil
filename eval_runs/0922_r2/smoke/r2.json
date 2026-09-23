@@ -1,0 +1,24 @@
+{
+  "history": [
+    {
+      "epoch": 1,
+      "ev_test": -7.665913671725294
+    },
+    {
+      "epoch": 2,
+      "ev_test": -6.784935191864954
+    }
+  ],
+  "d": 512,
+  "policy": "checkpoints/fox_v3_1_step8_mix4/model_best_policy.bin",
+  "envs": 8,
+  "frames": 300,
+  "rounds": 2,
+  "gamma": 0.995,
+  "ms": 19385,
+  "verdict": "R2 NOT PASSED (EV ≤ 0.3)",
+  "ev": -6.784935191864954,
+  "ev_train": -4.880600143228484,
+  "mse": 0.3269292414188385,
+  "baseline_mse": 0.00331036071293056
+}

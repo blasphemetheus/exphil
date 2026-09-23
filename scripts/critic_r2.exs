@@ -63,7 +63,8 @@ ms = System.monotonic_time(:millisecond) - t0
 verdict = if fit.ev > 0.3, do: "R2 PASSED (EV > 0.3)", else: "R2 NOT PASSED (EV ≤ 0.3)"
 Output.puts("held-out explained variance #{Float.round(fit.ev, 3)} (train #{Float.round(fit.ev_train, 3)}); MSE #{Float.round(fit.mse, 4)} vs mean-baseline #{Float.round(fit.baseline_mse, 4)} → #{verdict}")
 
-File.write!(Path.join(out, "critic.bin"), Nx.serialize(%{params: ExPhil.Training.PPO.to_binary_backend(fit.params), d: hd(data).d, hidden: opts[:hidden] || 256, gamma: gamma, policy: policy}))
+# term_to_binary, not Nx.serialize: the file also carries the config (policy path, sizes).
+File.write!(Path.join(out, "critic.bin"), :erlang.term_to_binary(%{params: ExPhil.Training.PPO.to_binary_backend(fit.params), d: hd(data).d, hidden: opts[:hidden] || 256, gamma: gamma, policy: policy}))
 File.write!(Path.join(out, "r2.json"), Jason.encode!(%{ev: fit.ev, ev_train: fit.ev_train, mse: fit.mse, baseline_mse: fit.baseline_mse, history: fit.history, envs: n, frames: frames, rounds: rounds, gamma: gamma, d: hd(data).d, policy: policy, ms: ms, verdict: verdict}, pretty: true))
 Output.success("#{verdict} → #{out}/r2.json (#{Float.round(ms / 1000, 1)} s)")
 Env.stop(sim)

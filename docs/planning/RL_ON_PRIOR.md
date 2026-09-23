@@ -111,6 +111,7 @@ recipe is character-agnostic, the priors are not.
 | --- | --- | --- | --- |
 | 2026-09-20 | — | Doc written | Prior = V3.1-ep3; sim gate 8/8 exact on bot-vs-CPU; PPO code unvalidated (PPO_STATUS 07-23); nothing on this ladder run yet |
 | 2026-09-20 | R0 | not started | Waiting on: sim Python API surface + arithmetic-profile declaration from the sim sessions |
+| 2026-09-23 | R2 | smoke passed | `critic_r2.exs` smoke (8 envs × 300 f × 2 rounds, prior `fox_v3_1_step8_mix4`) runs end to end after two first-run fixes: `Critic.fit` MSE used Kernel `-` on tensors (now `Nx.subtract`), and `critic.bin` is `:erlang.term_to_binary` (Nx.serialize rejects the config strings). Smoke EV is meaningless (4 optimizer steps; 1 stock event). Refit of the smoke data at 60 epochs × batch 128: train EV 0.76, held-out −0.26 (return variance 0.003) — the fit learns; the gate needs the full-size run (`exphil-r2-v1`, 64 envs × 1800 f × 4 rounds). |
 
 ## Addendum 2026-09-21 — starting point and the curriculum-env route (Bradley)
 
