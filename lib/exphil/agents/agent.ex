@@ -411,6 +411,17 @@ defmodule ExPhil.Agents.Agent do
   registries) are part of the server's pool key and cannot change here.
   Re-runs the untrained-delay-id guard when delay_id changes.
   """
+  @doc """
+  Replace the autoregressive HEAD params in place (RL_ON_PRIOR R3): `head` is a
+  map of `"ar_*" => %{"kernel" => tensor, ...}` as produced by head-only PPO.
+  The trunk and every other layer keep the params the agent loaded, so the
+  sampling path picks the new heads up on its next call with no reload.
+  """
+  @spec put_head_params(GenServer.server(), map()) :: :ok | {:error, term()}
+  def put_head_params(agent, head) when is_map(head) do
+    GenServer.call(agent, {:put_head_params, head}, 60_000)
+  end
+
   @spec reconfigure(GenServer.server(), keyword()) :: :ok | {:error, term()}
   def reconfigure(agent, opts) do
     GenServer.call(agent, {:reconfigure, opts})
@@ -745,12 +756,23 @@ defmodule ExPhil.Agents.Agent do
           action_to_controller(row, state)
         end
 
-      # RL_ON_PRIOR R2: the critic is a head on the FROZEN trunk, so a collector needs the
-      # per-env trunk features of this step ([n, d], host copy) next to the controllers.
-      if Keyword.get(opts, :return_features, false) do
-        {:reply, {:ok, controllers, Nx.backend_transfer(features, Nx.BinaryBackend)}, state}
-      else
-        {:reply, {:ok, controllers}, state}
+      # RL_ON_PRIOR R2/R3: the critic and the head-only PPO both live on the FROZEN trunk, so a
+      # collector needs this step's trunk features ([n, d]) and, for PPO, the sampled bucket
+      # indices that the controllers were built from (log-probs are recomputed from those).
+      cond do
+        Keyword.get(opts, :return_sample, false) ->
+          sample = %{
+            features: Nx.backend_transfer(features, Nx.BinaryBackend),
+            action: Map.new(host, fn {k, t} -> {k, t} end)
+          }
+
+          {:reply, {:ok, controllers, sample}, state}
+
+        Keyword.get(opts, :return_features, false) ->
+          {:reply, {:ok, controllers, Nx.backend_transfer(features, Nx.BinaryBackend)}, state}
+
+        true ->
+          {:reply, {:ok, controllers}, state}
       end
     rescue
       e -> {:reply, {:error, Exception.message(e)}, state}
@@ -953,6 +975,27 @@ defmodule ExPhil.Agents.Agent do
   ]
 
   @impl true
+  def handle_call({:put_head_params, head}, _from, state) do
+    try do
+      keys = Map.keys(head)
+
+      unless Enum.all?(keys, &(is_binary(&1) and String.starts_with?(&1, "ar_"))) do
+        raise ArgumentError, "put_head_params takes only ar_* layers, got #{inspect(Enum.take(keys, 4))}"
+      end
+
+      params =
+        case state.policy_params do
+          %Axon.ModelState{data: d} = ms -> %{ms | data: Map.merge(d, head)}
+          %{data: d} = m when is_map(d) -> %{m | data: Map.merge(d, head)}
+          m when is_map(m) -> Map.merge(m, head)
+        end
+
+      {:reply, :ok, %{state | policy_params: params}}
+    rescue
+      e -> {:reply, {:error, Exception.message(e)}, state}
+    end
+  end
+
   def handle_call({:reconfigure, opts}, _from, state) do
     unknown = Keyword.keys(opts) -- @tunable_opts
 

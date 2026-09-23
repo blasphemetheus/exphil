@@ -106,22 +106,33 @@ defmodule ExPhil.Sim.Critic do
   end
 
   @doc """
-  Fit `features [N, d] → value` with a 2-layer MLP (Adam, MSE) on `train`
-  and report held-out explained variance. `train`/`test` are `{x, y}`.
-  Options: `:hidden` (256), `:epochs` (20), `:batch` (1024), `:lr` (1e-3).
-  Returns `%{params, model, ev, ev_train, mse, baseline_mse, history}`.
+  Fit `features [N, d] → value`; `fit/3` validates and tests on the same set
+  (kept for the smoke path). Prefer `fit/4`: `val` selects the epoch (early
+  stopping), `test` is only ever measured, so the reported EV is honest.
   """
-  def fit({x, y}, {xt, yt}, opts \\ []) do
+  def fit(train, test, opts \\ []), do: fit(train, test, test, opts)
+
+  @doc """
+  Fit with an explicit validation split. Options: `:hidden` (256), `:epochs`
+  (20), `:batch` (1024), `:lr` (1e-3), `:weight_decay` (0 → Adam, else AdamW),
+  `:dropout` (0). Returns `%{params, model, ev, ev_val, ev_train, best_epoch,
+  mse, baseline_mse, history}` where `params` are the best-validation epoch's.
+  """
+  def fit({x, y}, {xv, yv}, {xt, yt}, opts) do
     hidden = Keyword.get(opts, :hidden, 256)
     epochs = Keyword.get(opts, :epochs, 20)
     batch = Keyword.get(opts, :batch, 1024)
     lr = Keyword.get(opts, :lr, 1.0e-3)
+    wd = Keyword.get(opts, :weight_decay, 0.0)
+    dropout = Keyword.get(opts, :dropout, 0.0)
     d = Nx.axis_size(x, 1)
 
     model =
       Axon.input("features", shape: {nil, d})
       |> Axon.dense(hidden, activation: :relu, name: "v1")
+      |> then(&if(dropout > 0.0, do: Axon.dropout(&1, rate: dropout), else: &1))
       |> Axon.dense(hidden, activation: :relu, name: "v2")
+      |> then(&if(dropout > 0.0, do: Axon.dropout(&1, rate: dropout), else: &1))
       |> Axon.dense(1, name: "value")
 
     {_init_fn, predict_fn} = Axon.build(model, mode: :inference)
@@ -139,19 +150,31 @@ defmodule ExPhil.Sim.Critic do
       end)
     end
 
-    {params, history} =
-      Enum.reduce(1..epochs, {nil, []}, fn ep, {params, hist} ->
-        loop = Axon.Loop.trainer(model, :mean_squared_error, Polaris.Optimizers.adam(learning_rate: lr), log: 0)
+    optimizer =
+      if wd > 0.0,
+        do: Polaris.Optimizers.adamw(learning_rate: lr, decay: wd),
+        else: Polaris.Optimizers.adam(learning_rate: lr)
+
+    # keep the best-validation epoch's params: the 09-23 run peaked at epoch 1
+    # (EV 0.24) and decayed to 0.04 by epoch 60 — training EV 0.91 was memorization
+    {_last, best, history} =
+      Enum.reduce(1..epochs, {nil, nil, []}, fn ep, {params, best, hist} ->
+        loop = Axon.Loop.trainer(model, :mean_squared_error, optimizer, log: 0)
         state = Axon.Loop.run(loop, batches.(), params || Axon.ModelState.empty(), epochs: 1, compiler: EXLA)
-        params = case state do
-          %Axon.ModelState{} -> state
-          %{model_state: ms} -> ms
-          %{step_state: %{model_state: ms}} -> ms
-        end
-        ev_t = explained_variance(predict_fn.(params, %{"features" => xt}) |> Nx.squeeze(axes: [1]), yt)
-        {params, [%{epoch: ep, ev_test: ev_t} | hist]}
+
+        params =
+          case state do
+            %Axon.ModelState{} -> state
+            %{model_state: ms} -> ms
+            %{step_state: %{model_state: ms}} -> ms
+          end
+
+        ev_v = explained_variance(predict_fn.(params, %{"features" => xv}) |> Nx.squeeze(axes: [1]), yv)
+        best = if best == nil or ev_v > elem(best, 1), do: {params, ev_v, ep}, else: best
+        {params, best, [%{epoch: ep, ev_val: ev_v} | hist]}
       end)
 
+    {params, ev_val, best_epoch} = best
     pred_t = predict_fn.(params, %{"features" => xt}) |> Nx.squeeze(axes: [1])
     pred_tr = predict_fn.(params, %{"features" => x}) |> Nx.squeeze(axes: [1])
 
@@ -159,6 +182,8 @@ defmodule ExPhil.Sim.Critic do
       params: params,
       model: model,
       ev: explained_variance(pred_t, yt),
+      ev_val: ev_val,
+      best_epoch: best_epoch,
       ev_train: explained_variance(pred_tr, y),
       mse: Nx.mean(Nx.pow(Nx.subtract(pred_t, yt), 2)) |> Nx.to_number(),
       baseline_mse: Nx.variance(yt) |> Nx.to_number(),
