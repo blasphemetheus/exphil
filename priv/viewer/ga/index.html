@@ -59,7 +59,7 @@
       </header>
 
       <section class="top">
-        <figure class="pane-fig"><figcaption><b id="cap-kind">elite</b><span id="cap-elite">click a generation on the curve, then ▶</span></figcaption><iframe id="elite" src="/coach/pane.html?id=elite" title="the selected generation's elite"></iframe></figure>
+        <figure class="pane-fig"><figcaption><b id="cap-kind">elite</b><span id="cap-elite">click a generation on the curve to play its elite</span></figcaption><iframe id="elite" src="/coach/pane.html?id=elite" title="the selected generation's elite"></iframe></figure>
         <div class="card">
           <h2 id="sel-title">Select a generation</h2>
           <div id="sel-stats" class="meta"></div>
@@ -72,6 +72,17 @@
           </div>
           <h2>Elite genome</h2>
           <div id="genome" class="genome"></div>
+          <h2>Stock outcome (your call)</h2>
+          <div id="label-bar" class="nav">
+            <button type="button" data-label="kill" title="K">K kill · could never get back</button>
+            <button type="button" data-label="edgeguard" title="E">E edgeguard setup · could have got back, died</button>
+            <button type="button" data-label="sd" title="S">S SD · no real hit, went off on their own</button>
+            <button type="button" data-label="survived" title="V">V survived · no stock lost</button>
+            <button type="button" data-label="unsure" title="U">U unsure</button>
+            <button type="button" data-label="" title="Backspace">clear</button>
+            <button id="export-labels" type="button">⇩ export labels.json</button>
+            <span id="label-count" class="meta"></span>
+          </div>
         </div>
       </section>
 
@@ -104,7 +115,7 @@
       const svg = document.querySelector("#curve");
       const ready = new Set(), queued = {};
       const panes = { elite: document.getElementById("elite") };
-      let data = null, traced = [], current = -1, playedGen = null;
+      let data = null, traced = [], current = -1, playedGen = null, playedFile = null;
 
       function send(id, msg) {
         const el = panes[id];
@@ -145,15 +156,18 @@
         svg.append(el("line", { id: "cursor", x1: -10, x2: -10, y1: padT, y2: H - padB, stroke: "#20211f", "stroke-dasharray": "3 2", "vector-effect": "non-scaling-stroke" }));
         for (const g of traced) {
           const grp = el("g", { class: "pt" });
-          grp.append(el("circle", { cx: x(g.generation), cy: y(g.best), r: 3.5, fill: g.generation === data.best.generation ? "var(--hi)" : "var(--best)", stroke: "#fff", "stroke-width": 0.8 }));
+          grp.append(el("circle", { "data-trace": g.trace, cx: x(g.generation), cy: y(g.best), r: 3.5, fill: g.generation === data.best.generation ? "var(--hi)" : "var(--best)", stroke: "#fff", "stroke-width": 0.8 }));
           grp.append(el("title", {}, `gen ${g.generation} · best ${fmt(g.best)} · chain ${g.best_chain} moves · ${fmt(g.best_damage)}%`));
           grp.addEventListener("click", () => select(traced.indexOf(g)));
           svg.append(grp);
         }
         svg._x = x;
+        paintLabels();
       }
 
-      function select(i) {
+      // Selecting a generation (dot, prev/next, arrow keys) plays its elite right away;
+      // the initial URL selection only fills the panel.
+      function select(i, { autoplay = true } = {}) {
         if (i < 0 || i >= traced.length) return;
         current = i;
         const g = traced[i];
@@ -168,16 +182,51 @@
         document.querySelector("#prev").disabled = i === 0;
         document.querySelector("#next").disabled = i === traced.length - 1;
         history.replaceState(null, "", `?run=${encodeURIComponent(run)}&g=${g.generation}`);
+        if (autoplay) document.querySelector("#play").click();
       }
 
       function play(gen, file, label) {
         send("elite", { load: `${run}/${file}`, label, restart: true });
-        playedGen = gen;
+        playedGen = gen; playedFile = file; showLabel();
         document.querySelector("#cap-kind").textContent = gen === "best" ? "best of the run" : `gen ${gen} elite`;
         document.querySelector("#cap-elite").textContent = label;
         document.querySelector("#restart").disabled = false;
       }
 
+      // Human stock-outcome labels for the played elite, keyed by run + trace file.
+      // Stored in localStorage; "export" writes labels.json for scripts/stock_outcome_eval.exs.
+      const LABEL_KEYS = { k: "kill", e: "edgeguard", s: "sd", v: "survived", u: "unsure" };
+      const LABEL_COLOR = { kill: "#b42318", edgeguard: "#b54708", sd: "#175cd3", survived: "#027a48", unsure: "#6941c6" };
+      const labelStore = `ga-labels:${run}`;
+      const labels = JSON.parse(localStorage.getItem(labelStore) || "{}");
+      function saveLabels() { localStorage.setItem(labelStore, JSON.stringify(labels)); paintLabels(); }
+      function setLabel(file, value) {
+        if (!file) return;
+        if (value) labels[file] = { label: value, at: new Date().toISOString() }; else delete labels[file];
+        saveLabels(); showLabel();
+      }
+      function showLabel() {
+        const cur = playedFile ? labels[playedFile]?.label : null;
+        for (const b of document.querySelectorAll("#label-bar button[data-label]")) b.classList.toggle("primary", b.dataset.label === (cur || ""));
+        document.querySelector("#label-count").textContent = `${Object.keys(labels).length} of ${traced.length + (data?.best?.trace ? 1 : 0)} clips labelled` + (cur ? ` · this clip: ${cur}` : playedFile ? " · this clip: unlabelled" : "");
+      }
+      function paintLabels() {
+        for (const c of svg.querySelectorAll("circle[data-trace]")) {
+          const l = labels[c.dataset.trace]?.label;
+          c.setAttribute("stroke", l ? LABEL_COLOR[l] : "#fff"); c.setAttribute("stroke-width", l ? 2.5 : 0.8);
+        }
+      }
+      document.querySelector("#label-bar").addEventListener("click", (e) => { const b = e.target.closest("button[data-label]"); if (b) setLabel(playedFile, b.dataset.label); });
+      document.querySelector("#export-labels").addEventListener("click", () => {
+        const blob = new Blob([JSON.stringify({ run, exported: new Date().toISOString(), labels }, null, 1)], { type: "application/json" });
+        const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = "labels.json"; a.click(); URL.revokeObjectURL(a.href);
+      });
+      window.addEventListener("keydown", (e) => {
+        if (e.target instanceof Element && e.target.matches("input, textarea")) return;
+        const k = e.key.toLowerCase();
+        if (k in LABEL_KEYS) setLabel(playedFile, LABEL_KEYS[k]);
+        if (e.key === "Backspace") setLabel(playedFile, "");
+      });
       document.querySelector("#play").addEventListener("click", () => { const g = traced[current]; play(g.generation, g.trace, `gen ${g.generation}: ${g.best_chain} moves, ${fmt(g.best_damage)}% (fitness ${fmt(g.best)})`); });
       document.querySelector("#play-best").addEventListener("click", () => play("best", data.best.trace, `best of the run (gen ${data.best.generation}): ${data.best.chain} moves, ${fmt(data.best.damage)}%`));
       document.querySelector("#restart").addEventListener("click", () => send("elite", { restart: true }));
@@ -217,7 +266,7 @@
         const i = params.get("g") ? traced.findIndex((g) => g.generation === want) : -1;
         // default: the first traced generation that reached the run's best fitness (the best gen itself may not be traced)
         const atBest = traced.findIndex((g) => g.best >= data.best.fitness - 1e-6);
-        select(i >= 0 ? i : (atBest >= 0 ? atBest : traced.length - 1));
+        select(i >= 0 ? i : (atBest >= 0 ? atBest : traced.length - 1), { autoplay: false });
       } catch (error) {
         console.error(error);
         meta.textContent = `failed to load run: ${error.message}`;

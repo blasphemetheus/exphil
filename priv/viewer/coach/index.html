@@ -102,7 +102,7 @@
           <span><i class="blk" style="background: #b8860b"></i>escape (doomed, yet kept the stock)</span>
           <span><i class="blk" style="background: #2e7d32"></i>sealed (band: the prior is sure the stock is yours)</span>
           <span><i class="blk" style="background: #4b4d47"></i>doomed (band: the prior is sure the stock is gone)</span>
-          <span class="glyphs"><svg viewBox="0 0 12 12"><polygon points="1,11 11,11 6,2" fill="#2e7d32"/></svg>kill · <svg viewBox="0 0 12 12"><polygon points="1,1 11,1 6,10" fill="#b3261e"/></svg>death · <svg viewBox="0 0 12 12"><path d="M2,2 L10,10 M2,10 L10,2" stroke="#20211f" stroke-width="2.2" fill="none"/></svg>SD (no hit in the 150 f before dying) · <svg viewBox="0 0 12 12"><polygon points="6,1 11,6 6,11 1,6" fill="#fff" stroke="#7a7c75" stroke-width="1.6"/></svg>opp SD — along the bottom of the bar, click to watch</span>
+          <span class="glyphs"><svg viewBox="0 0 12 12"><polygon points="1,11 11,11 6,2" fill="#2e7d32"/></svg>kill · <svg viewBox="0 0 12 12"><polygon points="1,1 11,1 6,10" fill="#b3261e"/></svg>death · <svg viewBox="0 0 12 12"><path d="M2,2 L10,10 M2,10 L10,2" stroke="#20211f" stroke-width="2.2" fill="none"/></svg>SD (no earning hit, or had an option back and still died) · <svg viewBox="0 0 12 12"><polygon points="6,1 11,6 6,11 1,6" fill="#fff" stroke="#7a7c75" stroke-width="1.6"/></svg>opp SD — along the bottom of the bar, click to watch</span>
           <span>value = stocks taken − lost + (damage dealt − taken)/100, from the subject's side</span>
         </div>
       </section>
@@ -198,36 +198,58 @@
         }
       }
       // Stock events from the real game (the whole-game trace): a stock lost by either player.
-      //   kill   – the opponent lost a stock after taking a hit (subject's kill)
-      //   death  – the subject lost a stock after taking a hit
-      //   sd     – the subject lost a stock with no damage taken in the previous SD_GAP frames (self-destruct)
-      //   oppsd  – the opponent self-destructed
+      // Rule (2026-09-23, matches Bradley's 52 hand labels in eval_runs/0922_ga/labels_v2_prior.json
+      // and scripts/stock_outcome_eval.exs): the last hit earns the stock only if it landed while the
+      // victim was still in reach of the stage AND the victim was never actionable again before dying.
+      // A victim that got an option back — on stage, at the lip, or offstage within up-B reach — and
+      // still died chose its own exit: SD. The situation at the decision point is kept for the tooltip
+      // (slide-off = left the edge actionable; launched = first actionable already offstage).
+      //   kill   – the opponent's stock, earned by the subject's hit
+      //   death  – the subject's stock, earned by the opponent's hit
+      //   sd     – the subject lost a stock on its own
+      //   oppsd  – the opponent lost a stock on its own
       const EVENT = {
         kill:  { label: "kill",   text: "KILL",          color: "#2e7d32", up: true },
         death: { label: "death",  text: "DEATH",         color: "#b3261e", up: false },
         sd:    { label: "SD",     text: "SELF-DESTRUCT", color: "#20211f", up: false },
         oppsd: { label: "opp SD", text: "OPPONENT SD",   color: "#7a7c75", up: true },
       };
-      const SD_GAP = 150;   // frames without damage before a death → self-destruct
+      const SD_GAP = 150;   // frames without a hit before a death → self-destruct
+      const STAGE_EDGE = { 32: 85.5, 31: 68.4, 8: 56.0, 28: 77.3, 3: 87.75, 2: 63.35 };
       let events = [];
       async function findStockEvents() {
         const g = await replayOf(review.game);
         const frames = g.frames;
         const subj = review.subject - 1;   // trace players are in port order
+        const edge = STAGE_EDGE[review.stage] || 85.5;
+        const st = (i, k) => frames[i] && frames[i].players[k] && frames[i].players[k].state;
+        const onStage = (s) => s.yPosition >= 0 && Math.abs(s.xPosition) < edge;
+        const inReach = (s) => onStage(s) || (Math.abs(s.xPosition) <= edge + 45 && s.yPosition >= -70);
+        const actionable = (s) => (s.hitstunRemaining || 0) === 0 && s.actionStateId > 10;
         const out = [];
         for (let i = 1; i < frames.length; i++) {
           for (let k = 0; k < Math.min(frames[i].players.length, frames[i - 1].players.length); k++) {
-            const a = frames[i - 1].players[k] && frames[i - 1].players[k].state, b = frames[i].players[k] && frames[i].players[k].state;
+            const a = st(i - 1, k), b = st(i, k);
             if (!a || !b || !(b.stocksRemaining < a.stocksRemaining)) continue;
             // walk back through this stock for the last frame that took damage
             let lastHit = null;
-            for (let j = i - 1; j > 0 && frames[j].players[k] && frames[j].players[k].state.stocksRemaining === a.stocksRemaining; j--) {
-              const sj = frames[j].players[k].state, sp = frames[j - 1].players[k] && frames[j - 1].players[k].state;
-              if (sp && (sj.percent > sp.percent || (sj.isInHitstun && !sp.isInHitstun))) { lastHit = j; break; }
+            for (let j = i - 1; j > 0 && st(j, k) && st(j, k).stocksRemaining === a.stocksRemaining; j--) {
+              const sp = st(j - 1, k);
+              if (sp && st(j, k).percent > sp.percent) { lastHit = j; break; }
             }
-            const selfDestruct = lastHit === null || i - lastHit > SD_GAP;
-            const kind = k === subj ? (selfDestruct ? "sd" : "death") : (selfDestruct ? "oppsd" : "kill");
-            out.push({ frame: review.first_frame + i, kind, port: k + 1, percent: a.percent, gap: lastHit === null ? null : i - lastHit });
+            let situation = "none", firstAct = null, lip = null;
+            if (lastHit !== null) {
+              for (let j = lastHit + 1; j < i; j++) {
+                const s = st(j, k), p = st(j - 1, k);
+                if (!s || !p) continue;
+                if (firstAct === null && actionable(s)) firstAct = j;
+                if (lip === null && onStage(p) && p.yPosition <= 0.01 && s.yPosition > 0.01 && Math.abs(s.xPosition) >= edge - 6 && actionable(s)) lip = j;
+              }
+              situation = lip !== null ? "slide-off" : firstAct === null ? "none" : onStage(st(firstAct, k)) ? "on stage" : "launched";
+            }
+            const earned = lastHit !== null && i - lastHit <= SD_GAP && inReach(st(lastHit - 1, k)) && firstAct === null;
+            const kind = k === subj ? (earned ? "death" : "sd") : (earned ? "kill" : "oppsd");
+            out.push({ frame: review.first_frame + i, kind, port: k + 1, percent: a.percent, gap: lastHit === null ? null : i - lastHit, situation });
           }
         }
         events = out;
@@ -318,7 +340,7 @@
           else if (e.kind === "death") g.append(el("polygon", { points: `${cx - 5},${y0 - 9} ${cx + 5},${y0 - 9} ${cx},${y0 - 1}`, fill: m.color, stroke: "#fff", "stroke-width": 0.8 }));
           else if (e.kind === "sd") g.append(el("path", { d: `M${cx - 4},${cy - 4} L${cx + 4},${cy + 4} M${cx - 4},${cy + 4} L${cx + 4},${cy - 4}`, stroke: m.color, "stroke-width": 2.2, fill: "none", "vector-effect": "non-scaling-stroke" }));
           else g.append(el("polygon", { points: `${cx},${cy - 5} ${cx + 5},${cy} ${cx},${cy + 5} ${cx - 5},${cy}`, fill: "#fff", stroke: m.color, "stroke-width": 1.6, "vector-effect": "non-scaling-stroke" }));
-          g.append(el("title", {}, `${m.text} · f${e.frame} (${secs(e.frame)}) · port ${e.port} at ${Math.round(e.percent)}%${e.gap == null ? " · no hit this stock" : " · last hit " + e.gap + " f earlier"}`));
+          g.append(el("title", {}, `${m.text} · f${e.frame} (${secs(e.frame)}) · port ${e.port} at ${Math.round(e.percent)}%${e.gap == null ? " · no hit this stock" : " · last hit " + e.gap + " f earlier"}${e.situation && e.situation !== "none" ? " · " + e.situation : ""}`));
           g.addEventListener("click", () => jumpToEvent(e));
           svg.append(g);
         }

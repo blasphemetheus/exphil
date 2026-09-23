@@ -1,0 +1,172 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Stock outcomes · label by hand</title>
+    <!-- One card per traced elite of one or more GA runs (?run=/garuns/a,/garuns/b). Each card is a
+         coach pane (iframe) that loads when scrolled into view; click a card (or press its play) to
+         make it current, then K/E/S/V/U label it and type a comment. Labels live in localStorage and
+         "export" writes labels.json for scripts/stock_outcome_eval.exs (keys are "<run>/<file>"). -->
+    <style>
+      :root { --ink: #20211f; --muted: #6b6d67; --line: #e4e5df; --kill: #b42318; --edgeguard: #b54708; --slideoff: #7a5af5; --sd: #175cd3; --survived: #027a48; --unsure: #6941c6; }
+      body { margin: 0; font: 14px/1.4 system-ui, sans-serif; color: var(--ink); background: #f7f7f4; }
+      header { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; padding: 10px 16px; border-bottom: 1px solid var(--line); background: #fff; position: sticky; top: 0; z-index: 2; }
+      header h1 { font-size: 16px; margin: 0; }
+      .meta { color: var(--muted); font-size: 12px; }
+      button { font: inherit; padding: 4px 10px; border: 1px solid var(--line); border-radius: 6px; background: #fff; cursor: pointer; }
+      button.on { color: #fff; border-color: transparent; }
+      .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(420px, 1fr)); gap: 14px; padding: 14px 16px; }
+      .card { border: 1px solid var(--line); border-radius: 8px; background: #fff; display: flex; flex-direction: column; overflow: hidden; }
+      .card.current { outline: 2px solid var(--ink); }
+      .card iframe { width: 100%; aspect-ratio: 730 / 660; border: 0; background: #eceee8; }
+      .card .cap { display: flex; justify-content: space-between; gap: 8px; padding: 6px 10px; font-size: 12px; border-top: 1px solid var(--line); }
+      .card .cap b { font-weight: 600; }
+      .labels { display: flex; flex-wrap: wrap; gap: 6px; padding: 6px 10px; }
+      .card textarea { margin: 0 10px 10px; min-height: 3.2em; font: inherit; border: 1px solid var(--line); border-radius: 6px; padding: 6px; resize: vertical; }
+      .badge { display: inline-block; padding: 1px 7px; border-radius: 10px; color: #fff; font-size: 11px; }
+      kbd { font: 11px ui-monospace, monospace; padding: 0 4px; border: 1px solid var(--line); border-radius: 4px; background: #f3f3ef; }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1>Stock outcomes · label by hand</h1>
+      <span class="meta">click a card to make it current, then <kbd>K</kbd> kill · <kbd>E</kbd> edgeguard setup · <kbd>O</kbd> slide-off · <kbd>S</kbd> SD · <kbd>V</kbd> survived · <kbd>U</kbd> unsure · <kbd>Backspace</kbd> clear · <kbd>←</kbd>/<kbd>→</kbd> move · <kbd>R</kbd> replay</span>
+      <button id="export" type="button">⇩ export labels.json</button>
+      <label class="meta">import <input id="import" type="file" accept="application/json" /></label>
+      <span id="count" class="meta">loading…</span>
+    </header>
+    <main id="grid" class="grid"></main>
+    <script type="module">
+      const params = new URLSearchParams(location.search);
+      const runs = (params.get("run") || "/garuns/v2_prior_p0,/garuns/v2_prior_p60").split(",").map((r) => r.trim().replace(/\/$/, "")).filter(Boolean);
+      const LABELS = [["kill", "K", "kill · could never get back"], ["edgeguard", "E", "edgeguard setup · could have got back, died"], ["slideoff", "O", "slide-off · left the edge actionable, limited options, got read"], ["sd", "S", "SD · went off on their own"], ["survived", "V", "survived"], ["unsure", "U", "unsure"]];
+      const KEY = Object.fromEntries(LABELS.map(([l, k]) => [k.toLowerCase(), l]));
+      const store = "stock-outcome-labels";
+      const labels = JSON.parse(localStorage.getItem(store) || "{}");
+      const grid = document.querySelector("#grid");
+      const cards = [];   // {key, run, file, el, frame, ready, loaded}
+      let current = -1;
+
+      function save() { localStorage.setItem(store, JSON.stringify(labels)); }
+      function entry(key) { return labels[key] || {}; }
+      function setLabel(card, label) {
+        const e = entry(card.key);
+        if (label) { e.label = label; e.at = new Date().toISOString(); } else { delete e.label; }
+        if (e.label || e.comment) labels[card.key] = e; else delete labels[card.key];
+        save(); paint(card); count();
+      }
+      function setComment(card, text) {
+        const e = entry(card.key);
+        if (text.trim()) e.comment = text; else delete e.comment;
+        if (e.label || e.comment) labels[card.key] = e; else delete labels[card.key];
+        save(); count();
+      }
+      function paint(card) {
+        const l = entry(card.key).label;
+        for (const b of card.el.querySelectorAll("button[data-label]")) {
+          const on = b.dataset.label === l;
+          b.classList.toggle("on", on); b.style.background = on ? `var(--${l})` : "";
+        }
+        const badge = card.el.querySelector(".badge");
+        badge.textContent = l || "unlabelled"; badge.style.background = l ? `var(--${l})` : "#9da096";
+      }
+      function count() {
+        const n = cards.filter((c) => entry(c.key).label).length;
+        const m = cards.filter((c) => entry(c.key).comment).length;
+        document.querySelector("#count").textContent = `${n} of ${cards.length} labelled · ${m} with comments`;
+      }
+      function send(card, msg) {
+        if (!card.ready) { (card.queue ||= []).push(msg); return; }
+        card.frame.contentWindow.postMessage(msg, "*");
+      }
+      function load(card) {
+        if (card.loaded) return;
+        card.loaded = true;
+        send(card, { load: `${card.run}/${card.file}`, label: card.title, restart: true });
+      }
+      function setCurrent(i, { scroll = false } = {}) {
+        if (i < 0 || i >= cards.length) return;
+        cards[current]?.el.classList.remove("current");
+        current = i;
+        const card = cards[i];
+        card.el.classList.add("current");
+        if (scroll) card.el.scrollIntoView({ block: "nearest", behavior: "smooth" });
+        load(card);
+      }
+      window.addEventListener("message", (e) => {
+        const m = e.data || {};
+        if (m.paneKey) { const i = cards.findIndex((c) => c.id === m.id); if (i >= 0) { setCurrent(i); handleKey(m.paneKey); } }
+        if (m.paneReady) {
+          const card = cards.find((c) => c.id === m.id);
+          if (!card) return;
+          card.ready = true;
+          for (const q of card.queue || []) card.frame.contentWindow.postMessage(q, "*");
+          card.queue = [];
+        }
+      });
+      function handleKey(key) {
+        const k = key.toLowerCase();
+        if (current >= 0 && k in KEY) setLabel(cards[current], KEY[k]);
+        else if (current >= 0 && key === "Backspace") setLabel(cards[current], null);
+        else if (key === "ArrowRight") setCurrent(current + 1, { scroll: true });
+        else if (key === "ArrowLeft") setCurrent(current - 1, { scroll: true });
+        else if (current >= 0 && k === "r") send(cards[current], { restart: true });
+      }
+      window.addEventListener("keydown", (e) => {
+        if (e.target instanceof Element && e.target.matches("input, textarea")) return;
+        handleKey(e.key);
+        if (e.key.toLowerCase() in KEY || e.key === "Backspace") e.preventDefault();
+      });
+      // Clicking inside a pane focuses its iframe: treat that as picking the card, and take the
+      // keys the pane forwards (pane.html posts {paneKey, id}).
+      window.addEventListener("blur", () => setTimeout(() => { const i = cards.findIndex((c) => c.frame === document.activeElement); if (i >= 0) setCurrent(i); }, 0));
+      document.querySelector("#export").addEventListener("click", () => {
+        const blob = new Blob([JSON.stringify({ runs, exported: new Date().toISOString(), labels }, null, 1)], { type: "application/json" });
+        const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = "labels.json"; a.click(); URL.revokeObjectURL(a.href);
+      });
+      document.querySelector("#import").addEventListener("change", async (e) => {
+        const file = e.target.files[0]; if (!file) return;
+        const parsed = JSON.parse(await file.text());
+        Object.assign(labels, parsed.labels || {}); save(); cards.forEach(paint); count();
+      });
+
+      const observer = new IntersectionObserver((entries) => { for (const en of entries) if (en.isIntersecting) load(cards.find((c) => c.el === en.target)); }, { rootMargin: "200px" });
+
+      for (const run of runs) {
+        let data;
+        try {
+          const res = await fetch(`${run}/run.json`);
+          if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
+          data = await res.json();
+        } catch (error) {
+          document.querySelector("#count").textContent = `failed to load ${run}: ${error.message}`;
+          continue;
+        }
+        const clips = data.generations.filter((g) => g.trace).map((g) => ({ file: g.trace, title: `gen ${g.generation}: ${g.best_chain} moves, ${Number(g.best_damage).toFixed(1)}% (fitness ${Number(g.best).toFixed(0)})` }));
+        if (data.best?.trace) clips.push({ file: data.best.trace, title: `best of the run (gen ${data.best.generation}): ${data.best.chain} moves, ${Number(data.best.damage).toFixed(1)}%` });
+        for (const clip of clips) {
+          const i = cards.length;
+          const id = `c${i}`;
+          const el = document.createElement("article");
+          el.className = "card";
+          el.innerHTML = `
+            <iframe src="/coach/pane.html?id=${id}" title="${run}/${clip.file}"></iframe>
+            <div class="cap"><span><b>${run.split("/").pop()}</b> · ${clip.file.replace(".msltrace.json", "")} · ${clip.title}</span><span class="badge"></span></div>
+            <div class="labels">${LABELS.map(([l, k, t]) => `<button type="button" data-label="${l}" title="${t}"><kbd>${k}</kbd> ${t}</button>`).join("")}<button type="button" data-label="" title="clear">clear</button><button type="button" data-replay="1">↺</button></div>
+            <textarea placeholder="what happened, if it needs explaining or implementing"></textarea>`;
+          const card = { id, key: `${run}/${clip.file}`, run, file: clip.file, title: clip.title, el, frame: el.querySelector("iframe"), ready: false, loaded: false };
+          cards.push(card);
+          el.addEventListener("click", (e) => { setCurrent(i); const b = e.target.closest("button"); if (!b) return; if (b.dataset.replay) send(card, { restart: true }); else if ("label" in b.dataset) setLabel(card, b.dataset.label || null); });
+          const ta = el.querySelector("textarea");
+          ta.value = entry(card.key).comment || "";
+          ta.addEventListener("input", () => setComment(card, ta.value));
+          ta.addEventListener("focus", () => setCurrent(i));
+          grid.append(el);
+          paint(card);
+          observer.observe(el);
+        }
+      }
+      count();
+    </script>
+  </body>
+</html>

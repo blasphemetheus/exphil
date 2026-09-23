@@ -39,6 +39,7 @@
       let loaded = null;   // url of the trace currently shown
       let pendingSeek = null;
       let pendingPause = false;
+      let loadSeq = 0;     // a newer load request cancels the display of older fetches
 
       function setLabel(text, isError = false) {
         label.textContent = text;
@@ -47,11 +48,15 @@
 
       async function load(url, text) {
         if (loaded === url) { setLabel(text || label.textContent); viewer.setFrame(0); return; }   // re-press = restart from the top
+        const seq = ++loadSeq;
+        // Stop the clip on screen at once so the switch is visible while the next one fetches.
+        if (loaded && typeof viewer.pausePlayback === "function") viewer.pausePlayback();
         setLabel(`loading ${url.split("/").pop()}…`);
         try {
           const res = await fetch(url);
           if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
           const trace = await res.json();
+          if (seq !== loadSeq) return;   // superseded by a later click
           const data = mslTraceToReplayData(trace);
           viewer.setReplayData(data);
           loaded = url;
@@ -59,6 +64,7 @@
           if (pendingSeek !== null) { if (pendingPause) viewer.pausePlayback(); viewer.setFrame(pendingSeek); pendingSeek = null; pendingPause = false; }
           parent.postMessage({ paneLoaded: url, frames: data.frames.length, id: paneId }, "*");
         } catch (error) {
+          if (seq !== loadSeq) return;
           console.error(error);
           loaded = null;
           setLabel(`failed: ${error.message}`, true);
@@ -113,6 +119,7 @@
         }
       }, 66);
 
+      window.addEventListener("keydown", (e) => { if (!(e.target instanceof Element && e.target.matches("input, textarea"))) parent.postMessage({ paneKey: e.key, id: paneId }, "*"); });   // let the parent page label / step with the keyboard
       if (params.get("trace")) load(params.get("trace"), params.get("label") || undefined);
       parent.postMessage({ paneReady: true, id: paneId }, "*");
     </script>
