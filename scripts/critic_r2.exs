@@ -57,7 +57,7 @@ flat = fn ds -> {Nx.concatenate(Enum.map(ds, &Nx.reshape(&1.features, {:auto, &1
 Output.puts("train #{Nx.axis_size(train_x, 0)} states (d=#{hd(data).d}), held-out #{Nx.axis_size(test_x, 0)}; return mean #{Float.round(Nx.mean(train_y) |> Nx.to_number(), 3)} sd #{Float.round(Nx.standard_deviation(train_y) |> Nx.to_number(), 3)}")
 
 fit = Critic.fit({train_x, train_y}, {test_x, test_y}, epochs: opts[:epochs] || 20, hidden: opts[:hidden] || 256)
-for h <- fit.history, do: Output.puts("  epoch #{h.epoch}: held-out EV #{Float.round(h.ev_test, 3)}")
+for h <- fit.history, do: Output.puts("  epoch #{h.epoch}: validation EV #{Float.round(h.ev_val, 3)}")
 
 ms = System.monotonic_time(:millisecond) - t0
 verdict = if fit.ev > 0.3, do: "R2 PASSED (EV > 0.3)", else: "R2 NOT PASSED (EV ≤ 0.3)"
