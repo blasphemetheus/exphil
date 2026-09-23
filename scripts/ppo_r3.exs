@@ -67,8 +67,9 @@ prior_map = PPO.head_params(policy)
 d = Nx.axis_size(prior_map["ar_residual_proj"]["kernel"], 0)
 model = PPO.head_model(d)
 {_init, predict_fn} = Axon.build(model, mode: :inference)
-prior_params = PPO.as_model_state(prior_map)
-theta = PPO.as_model_state(prior_map)
+# params travel as plain maps (see PPO.predict/3)
+prior_params = PPO.to_backend(prior_map)
+theta = PPO.to_backend(prior_map)
 
 {opt_init, opt_update} = Polaris.Optimizers.adam(learning_rate: lr)
 opt_state = opt_init.(theta)
@@ -92,7 +93,7 @@ vmodel =
 vparams =
   case Map.get(critic_cfg, :params) do
     nil -> vinit.(Nx.template({1, d}, :f32), Axon.ModelState.empty())
-    p -> p
+    p -> PPO.to_backend(p)
   end
 
 {vopt_init, vopt_update} = Polaris.Optimizers.adam(learning_rate: opts[:vf_lr] || 3.0e-4)
@@ -108,13 +109,13 @@ log = []
     ti = System.monotonic_time(:millisecond)
     {:ok, _} = Env.reinit(sim, %{stage: stage, players: players, length: 256, seed: seed * 1000 + iter})
     roll = PPO.collect(sim, actor, opponent, n, frames)
-    flat = PPO.flatten(roll)
+    flat = PPO.flatten(roll) |> PPO.to_backend()
     total = n * frames
 
     # values, GAE, normalized advantages
     values_flat = vpredict.(vparams, %{"features" => flat.features}) |> Nx.squeeze(axes: [1])
     values = Nx.reshape(values_flat, {n, frames})
-    {adv, returns} = PPO.gae(roll.rewards, values, roll.dones, gamma, lambda)
+    {adv, returns} = PPO.gae(PPO.to_backend(roll.rewards), values, PPO.to_backend(roll.dones), gamma, lambda)
     adv_flat = Nx.reshape(adv, {total})
     adv_norm = Nx.divide(Nx.subtract(adv_flat, Nx.mean(adv_flat)), Nx.add(Nx.standard_deviation(adv_flat), 1.0e-8))
     ret_flat = Nx.reshape(returns, {total})
@@ -167,7 +168,7 @@ log = []
       end)
 
     # push the trained head into the actor so the next rollout is on-policy
-    :ok = Agent.put_head_params(actor, theta.data)
+    :ok = Agent.put_head_params(actor, theta)
 
     m = Enum.reduce(ms_acc, %{}, fn m, acc -> Map.merge(acc, m, fn _k, a, b -> a + b end) end)
     cnt = max(1, length(ms_acc))
@@ -190,7 +191,7 @@ log = []
 
     if rem(iter, save_every) == 0 or iter == iters do
       File.write!(Path.join(out, "head_iter#{iter}.bin"), :erlang.term_to_binary(%{
-        ar: ExPhil.Training.PPO.to_binary_backend(theta.data), iter: iter, policy: policy, d: d
+        ar: ExPhil.Training.PPO.to_binary_backend(theta), iter: iter, policy: policy, d: d
       }))
       File.write!(Path.join(out, "log.json"), Jason.encode!(%{config: %{envs: n, frames: frames, iters: iters, lr: lr, gamma: gamma, lambda: lambda, policy: policy}, log: Enum.reverse(log)}, pretty: true))
     end

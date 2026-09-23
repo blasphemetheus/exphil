@@ -72,6 +72,31 @@ defmodule ExPhil.Sim.PPO do
   def as_model_state(map), do: Axon.ModelState.new(map)
 
   @doc """
+  Run the head on a PLAIN params map. `Axon.ModelState` carries a `:parameters`
+  field full of `nil`s, and jit converts every argument through
+  `Nx.LazyContainer`, which rejects them — so params travel as a bare map and
+  become a ModelState only inside the graph.
+  """
+  def predict(predict_fn, params, inputs) do
+    predict_fn.(Axon.ModelState.new(params), inputs)
+  end
+
+  @doc """
+  Copy every tensor in a params map / ModelState / batch onto one backend
+  (default EXLA). Checkpoints are stored on `Nx.BinaryBackend` and the agent
+  hands features back the same way, so without this the first `value_and_grad`
+  mixes `EXLA.Backend` with `Nx.Defn.Expr` (GOTCHA #3) and Axon refuses to
+  compile the head.
+  """
+  def to_backend(x, backend \\ EXLA.Backend)
+  def to_backend(%Axon.ModelState{} = ms, b), do: %{ms | data: to_backend(ms.data, b)}
+  def to_backend(%Nx.Tensor{} = t, b), do: Nx.backend_copy(t, b)
+  def to_backend(m, b) when is_map(m) and not is_struct(m), do: Map.new(m, fn {k, v} -> {k, to_backend(v, b)} end)
+  def to_backend(l, b) when is_list(l), do: Enum.map(l, &to_backend(&1, b))
+  def to_backend(t, b) when is_tuple(t), do: t |> Tuple.to_list() |> Enum.map(&to_backend(&1, b)) |> List.to_tuple()
+  def to_backend(other, _b), do: other
+
+  @doc """
   Build the teacher-forced input map for a batch: trunk features plus the
   stored action as conditioning (`buttons` multi-hot f32, axes as indices).
   """
@@ -267,27 +292,35 @@ defmodule ExPhil.Sim.PPO do
     kl_coef = Keyword.get(opts, :kl_coef, 0.05)
     ent_coef = Keyword.get(opts, :ent_coef, 0.001)
 
-    loss_fn = fn p ->
-      logits = predict_fn.(p, tf_inputs(batch.features, batch.action))
-      logp_new = logp(logits, batch.action)
-      ratio = Nx.exp(Nx.subtract(logp_new, batch.logp_old))
-      adv = batch.advantages
-      s1 = Nx.multiply(ratio, adv)
-      s2 = Nx.multiply(Nx.clip(ratio, 1.0 - clip, 1.0 + clip), adv)
-      pg = Nx.negate(Nx.mean(Nx.min(s1, s2)))
-      kl_term = Nx.mean(kl(batch.prior_logits, logits))
-      ent = Nx.mean(entropy(logits))
-      total = Nx.add(pg, Nx.subtract(Nx.multiply(kl_coef, kl_term), Nx.multiply(ent_coef, ent)))
-      {total, {pg, kl_term, ent, ratio}}
-    end
+    # Everything the loss touches must be traced together: params arrive as
+    # Nx.Defn.Expr while the batch is a concrete EXLA tensor, and mixing the two
+    # inside one op is GOTCHA #3. jit over (params, batch) makes both Expr.
+    grad_fn =
+      Nx.Defn.jit(fn p, b ->
+        loss_fn = fn pp ->
+          logits = predict(predict_fn, pp, tf_inputs(b.features, b.action))
+          logp_new = logp(logits, b.action)
+          ratio = Nx.exp(Nx.subtract(logp_new, b.logp_old))
+          adv = b.advantages
+          s1 = Nx.multiply(ratio, adv)
+          s2 = Nx.multiply(Nx.clip(ratio, 1.0 - clip, 1.0 + clip), adv)
+          pg = Nx.negate(Nx.mean(Nx.min(s1, s2)))
+          kl_term = Nx.mean(kl(b.prior_logits, logits))
+          ent = Nx.mean(entropy(logits))
+          total = Nx.add(pg, Nx.subtract(Nx.multiply(kl_coef, kl_term), Nx.multiply(ent_coef, ent)))
+          {total, {pg, kl_term, ent, Nx.mean(Nx.as_type(Nx.greater(Nx.abs(Nx.subtract(ratio, 1.0)), clip), :f32))}}
+        end
 
-    {{total, {pg, kl_term, ent, ratio}}, grads} =
-      Nx.Defn.value_and_grad(params, loss_fn, fn {t, _aux} -> t end)
+        {{total, aux}, grads} = Nx.Defn.value_and_grad(p, loss_fn, fn {t, _aux} -> t end)
+        {grads, total, aux}
+      end)
+
+    check_tensors!(batch)
+    check_tensors!(params, "params")
+    {grads, total, {pg, kl_term, ent, clipped}} = grad_fn.(params, batch)
 
     {updates, opt_state} = update_fn.(grads, opt_state, params)
     params = Polaris.Updates.apply_updates(params, updates)
-
-    clipped = Nx.mean(Nx.as_type(Nx.greater(Nx.abs(Nx.subtract(ratio, 1.0)), clip), :f32))
 
     {params, opt_state,
      %{
@@ -299,8 +332,27 @@ defmodule ExPhil.Sim.PPO do
      }}
   end
 
+  # jit turns every argument into a lazy param; one nil anywhere in the batch
+  # surfaces as "Nx.LazyContainer not implemented for type Atom", which says
+  # nothing about where it came from. Name the path instead.
+  def check_tensors!(batch, path \\ "batch")
+
+  def check_tensors!(%Nx.Tensor{}, _path), do: :ok
+
+  def check_tensors!(m, path) when is_map(m) and not is_struct(m) do
+    Enum.each(m, fn {k, v} -> check_tensors!(v, "#{path}.#{k}") end)
+  end
+
+  def check_tensors!(t, path) when is_tuple(t) do
+    t |> Tuple.to_list() |> Enum.with_index() |> Enum.each(fn {v, i} -> check_tensors!(v, "#{path}[#{i}]") end)
+  end
+
+  def check_tensors!(other, path) do
+    raise ArgumentError, "PPO batch #{path} is #{inspect(other)}, expected a tensor"
+  end
+
   @doc "Precompute the conditional logits of a params set on stored (features, action)."
-  def logits_of(predict_fn, params, features, action), do: predict_fn.(params, tf_inputs(features, action))
+  def logits_of(predict_fn, params, features, action), do: predict(predict_fn, params, tf_inputs(features, action))
 
   @doc "Flatten `[n, T, ...]` rollout tensors to `[n*T, ...]`."
   def flatten(roll) do
