@@ -254,4 +254,66 @@ defmodule ExPhil.Sim.PPO do
       {:error, other} -> raise "batch reset failed: #{inspect(other)}"
     end
   end
+
+  # ------------------------------------------------------------------- update
+
+  @doc """
+  One PPO gradient step on the head params. `batch` carries `:features`,
+  `:action`, `:advantages`, `:logp_old` and `:prior_logits` (all `[m, ...]`).
+  Returns `{params, opt_state, metrics}`.
+  """
+  def update_step(predict_fn, params, opt_state, update_fn, batch, opts) do
+    clip = Keyword.get(opts, :clip, 0.2)
+    kl_coef = Keyword.get(opts, :kl_coef, 0.05)
+    ent_coef = Keyword.get(opts, :ent_coef, 0.001)
+
+    loss_fn = fn p ->
+      logits = predict_fn.(p, tf_inputs(batch.features, batch.action))
+      logp_new = logp(logits, batch.action)
+      ratio = Nx.exp(Nx.subtract(logp_new, batch.logp_old))
+      adv = batch.advantages
+      s1 = Nx.multiply(ratio, adv)
+      s2 = Nx.multiply(Nx.clip(ratio, 1.0 - clip, 1.0 + clip), adv)
+      pg = Nx.negate(Nx.mean(Nx.min(s1, s2)))
+      kl_term = Nx.mean(kl(batch.prior_logits, logits))
+      ent = Nx.mean(entropy(logits))
+      total = Nx.add(pg, Nx.subtract(Nx.multiply(kl_coef, kl_term), Nx.multiply(ent_coef, ent)))
+      {total, {pg, kl_term, ent, ratio}}
+    end
+
+    {{total, {pg, kl_term, ent, ratio}}, grads} =
+      Nx.Defn.value_and_grad(params, loss_fn, fn {t, _aux} -> t end)
+
+    {updates, opt_state} = update_fn.(grads, opt_state, params)
+    params = Polaris.Updates.apply_updates(params, updates)
+
+    clipped = Nx.mean(Nx.as_type(Nx.greater(Nx.abs(Nx.subtract(ratio, 1.0)), clip), :f32))
+
+    {params, opt_state,
+     %{
+       loss: Nx.to_number(total),
+       pg: Nx.to_number(pg),
+       kl: Nx.to_number(kl_term),
+       entropy: Nx.to_number(ent),
+       clip_frac: Nx.to_number(clipped)
+     }}
+  end
+
+  @doc "Precompute the conditional logits of a params set on stored (features, action)."
+  def logits_of(predict_fn, params, features, action), do: predict_fn.(params, tf_inputs(features, action))
+
+  @doc "Flatten `[n, T, ...]` rollout tensors to `[n*T, ...]`."
+  def flatten(roll) do
+    n = roll.n
+    t = roll.frames
+
+    %{
+      features: Nx.reshape(roll.features, {n * t, roll.d}),
+      action:
+        Map.new(roll.action, fn
+          {:buttons, v} -> {:buttons, Nx.reshape(v, {n * t, 8})}
+          {k, v} -> {k, Nx.reshape(v, {n * t})}
+        end)
+    }
+  end
 end

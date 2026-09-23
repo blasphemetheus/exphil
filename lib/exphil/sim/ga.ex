@@ -163,7 +163,7 @@ defmodule ExPhil.Sim.GA do
     damage = (last.players[2].percent - gs0.players[2].percent) * 1.0
     # a stock counts only if P2 was hit within `kill_gap` frames before losing it — a defender that
     # walks off the edge on its own (the prior does, sometimes) is luck, not a combo
-    stocks_taken = earned_stocks(states, Keyword.get(opts, :kill_gap, 150))
+    stocks_taken = earned_stocks(states, Keyword.get(opts, :kill_gap, 150), Keyword.get(opts, :edge, @fd_edge))
     p1 = last.players[1]
     alive = p1.stock == gs0.players[1].stock and abs(p1.x) < 90.0
     style = Search.style_counts(states)
@@ -224,21 +224,34 @@ defmodule ExPhil.Sim.GA do
   end
 
   @doc "P2 stocks lost that were preceded by a hit (percent rise or hitstun entry) within `gap` frames."
-  def earned_stocks(states, gap) do
+  def earned_stocks(states, gap, edge \\ @fd_edge) do
     arr = List.to_tuple(states)
     n = tuple_size(arr)
+    p2 = fn i -> elem(arr, i).players[2] end
+    hits = Enum.filter(1..(n - 1)//1, fn i -> p2.(i).percent > p2.(i - 1).percent end)
+    deaths = Enum.filter(1..(n - 1)//1, fn i -> (p2.(i).stock || 0) < (p2.(i - 1).stock || 0) end)
 
-    Enum.count(1..(n - 1)//1, fn i ->
-      a = elem(arr, i - 1).players[2]
-      b = elem(arr, i).players[2]
+    Enum.count(deaths, fn death ->
+      last_hit = hits |> Enum.filter(&(&1 < death)) |> List.last()
 
-      (b.stock || 0) < (a.stock || 0) and
-        Enum.any?(max(1, i - gap)..(i - 1)//1, fn j ->
-          p = elem(arr, j - 1).players[2]
-          q = elem(arr, j).players[2]
-          q.percent > p.percent or ((q.hitstun_frames_left || 0) > 0 and (p.hitstun_frames_left || 0) == 0)
-        end)
+      cond do
+        last_hit == nil or death - last_hit > gap -> false
+        not in_reach?(p2.(last_hit - 1), edge) -> false
+        # never actionable between the hit and the death = the hit killed;
+        # any actionable frame means the victim had a choice and lost the stock itself
+        true ->
+          not Enum.any?((last_hit + 1)..(death - 1)//1, fn i ->
+            p = p2.(i)
+            (p.hitstun_frames_left || 0) == 0 and (p.action || 0) > 10
+          end)
+      end
     end)
+  end
+
+  # "could still act on the stage or near it" — a hit landed on someone already
+  # far below the edge changes nothing, so it earns no credit
+  defp in_reach?(p, edge) do
+    (p.y >= 0.0 and abs(p.x) < edge) or (abs(p.x) <= edge + 45.0 and p.y >= -70.0)
   end
 
   @doc """
