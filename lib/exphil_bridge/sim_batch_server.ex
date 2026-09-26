@@ -28,6 +28,12 @@ defmodule ExPhil.Bridge.SimBatch do
   def request(_pid, _req), do: {:error, :not_supported_on_nif_backend}
   def stop(pid), do: GenServer.stop(pid, :normal)
 
+  # Name→id lookups, so a launcher can validate `--character`/`--stage` before
+  # it boots a batch. These are pure; they take no pid.
+  defdelegate characters(), to: Core
+  defdelegate character_id(c), to: Core
+  defdelegate stage_id(s), to: Core
+
   @impl true
   def init(opts) do
     case Core.start(opts) do

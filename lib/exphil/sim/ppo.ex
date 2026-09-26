@@ -204,8 +204,12 @@ defmodule ExPhil.Sim.PPO do
     {:ok, _, _} = Env.observe(sim)
     for a <- [actor, opponent], do: ensure_batch(a, n)
     {:ok, gs0s} = Env.frames(sim)
+    starts = for i <- 0..(n - 1), into: %{} do
+      {:ok, blob} = Env.save(sim, i)
+      {i, blob}
+    end
 
-    {acc, _} =
+    {acc, last_states} =
       Enum.reduce(1..frames, {[], gs0s}, fn t, {acc, states} ->
         {:ok, c1s, sample} = Agent.batch_get_controllers(actor, Enum.map(states, &%{&1 | own_port: 1}), player_port: 1, return_sample: true)
         {:ok, c2s} = Agent.batch_get_controllers(opponent, Enum.map(states, &%{&1 | own_port: 2}), player_port: 2)
@@ -214,6 +218,15 @@ defmodule ExPhil.Sim.PPO do
           {:ok, nexts, terms} ->
             rewards = Enum.zip_with(states, nexts, &ExPhil.Sim.Critic.reward/2)
             dones = Enum.map(terms, fn term -> if((term["done"] || 0) == 1, do: 1, else: 0) end)
+            finished = dones |> Enum.with_index() |> Enum.filter(fn {d, _} -> d == 1 end) |> Enum.map(&elem(&1, 1))
+            nexts = if finished == [] do
+              nexts
+            else
+              for i <- finished, do: {:ok, _} = Env.restore(sim, i, starts[i])
+              for a <- [actor, opponent], do: :ok = Agent.batch_reset_rows(a, finished)
+              {:ok, reset_states} = Env.frames(sim)
+              reset_states
+            end
             on_frame.(t)
             {[{sample, rewards, dones} | acc], nexts}
 
@@ -223,6 +236,10 @@ defmodule ExPhil.Sim.PPO do
       end)
 
     steps = Enum.reverse(acc)
+    # This observation is used only for V(s_T); the next collection resets
+    # recurrent state along with the sim. A time limit is not a terminal.
+    {:ok, _, bootstrap_features} = Agent.batch_get_controllers(actor,
+      Enum.map(last_states, &%{&1 | own_port: 1}), player_port: 1, return_features: true)
 
     features = steps |> Enum.map(fn {s, _, _} -> s.features end) |> Nx.stack() |> Nx.transpose(axes: [1, 0, 2])
 
@@ -234,6 +251,7 @@ defmodule ExPhil.Sim.PPO do
 
     %{
       features: features,
+      bootstrap_features: bootstrap_features,
       action: action,
       rewards: steps |> Enum.map(fn {_, r, _} -> r end) |> Nx.tensor(type: :f32) |> Nx.transpose(),
       dones: steps |> Enum.map(fn {_, _, d} -> d end) |> Nx.tensor(type: :u8) |> Nx.transpose(),
@@ -248,8 +266,9 @@ defmodule ExPhil.Sim.PPO do
   defp squeeze_row(t, _), do: Nx.reshape(t, {:auto})
 
   @doc "GAE(λ) advantages and returns from `[n, T]` rewards/values/dones."
-  def gae(rewards, values, dones, gamma, lambda) do
+  def gae(rewards, values, dones, gamma, lambda, bootstrap \\ nil) do
     t = Nx.axis_size(rewards, 1)
+    bootstrap = bootstrap || Nx.broadcast(0.0, {Nx.axis_size(rewards, 0)})
 
     {adv_rev, _} =
       Enum.reduce((t - 1)..0//-1, {[], Nx.broadcast(0.0, {Nx.axis_size(rewards, 0)})}, fn i, {acc, carry} ->
@@ -260,7 +279,7 @@ defmodule ExPhil.Sim.PPO do
 
         v_next =
           if i == t - 1,
-            do: Nx.broadcast(0.0, Nx.shape(v)),
+            do: bootstrap,
             else: Nx.slice_along_axis(values, i + 1, 1, axis: 1) |> Nx.squeeze(axes: [1])
 
         delta = Nx.add(r, Nx.subtract(Nx.multiply(Nx.multiply(gamma, v_next), not_done), v))
@@ -320,7 +339,7 @@ defmodule ExPhil.Sim.PPO do
     {grads, total, {pg, kl_term, ent, clipped}} = grad_fn.(params, batch)
 
     {updates, opt_state} = update_fn.(grads, opt_state, params)
-    params = Polaris.Updates.apply_updates(params, updates)
+    params = apply_updates(params, updates)
 
     {params, opt_state,
      %{
@@ -330,6 +349,11 @@ defmodule ExPhil.Sim.PPO do
        entropy: Nx.to_number(ent),
        clip_frac: Nx.to_number(clipped)
      }}
+  end
+
+  @doc "Apply Polaris updates inside a trace, keeping its default nil state out of the JIT arguments."
+  def apply_updates(params, updates) do
+    Nx.Defn.jit(fn p, u -> Polaris.Updates.apply_updates(p, u) end).(params, updates)
   end
 
   # jit turns every argument into a lazy param; one nil anywhere in the batch

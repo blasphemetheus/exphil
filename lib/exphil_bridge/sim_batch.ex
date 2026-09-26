@@ -189,13 +189,26 @@ defmodule ExPhil.Bridge.SimBatch.Core do
     path |> File.read!() |> Jason.decode!()
   end
 
-  defp stage_id(s) when is_integer(s), do: s
-  defp stage_id(s) when is_binary(s), do: Map.fetch!(@stages, String.downcase(s))
-  defp stage_id(s) when is_atom(s), do: stage_id(Atom.to_string(s))
+  @doc "Stage name -> Melee stage id (the same ids replays use)."
+  def stage_id(s) when is_integer(s), do: s
+  def stage_id(s) when is_binary(s), do: Map.fetch!(@stages, String.downcase(s))
+  def stage_id(s) when is_atom(s), do: stage_id(Atom.to_string(s))
 
-  defp character_id(c) when is_integer(c), do: c
-  defp character_id(c) when is_atom(c), do: character_id(Atom.to_string(c))
-  defp character_id(c) when is_binary(c), do: Map.fetch!(@characters, c |> String.downcase() |> String.replace(~r/[^a-z0-9]/, ""))
+  @doc "Character name -> simulator-internal id. Note these are the SIM's ids (Mewtwo 16), not the replay/CSS ids (Mewtwo 10)."
+  def characters, do: @characters
+
+  @doc "Normalize a character name/id to the simulator-internal id. Raises on an unknown name."
+  def character_id(c) when is_integer(c), do: c
+  def character_id(c) when is_atom(c), do: character_id(Atom.to_string(c))
+
+  def character_id(c) when is_binary(c) do
+    key = c |> String.downcase() |> String.replace(~r/[^a-z0-9]/, "")
+
+    case Map.fetch(@characters, key) do
+      {:ok, id} -> id
+      :error -> raise ArgumentError, "unknown character #{inspect(c)}; known: #{@characters |> Map.keys() |> Enum.sort() |> Enum.join(", ")}"
+    end
+  end
 
   defp player_config(p, default) do
     p = Map.new(p, fn {k, v} -> {to_string(k), v} end)

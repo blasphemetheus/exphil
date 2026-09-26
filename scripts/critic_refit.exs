@@ -28,6 +28,14 @@ rounds =
     %{features: m.features, returns: m.returns}
   end)
 
+# Carry the collection's character/policy forward, so a critic can never be
+# reused on a different character's features without the mismatch being visible.
+provenance =
+  case File.read(Path.join(dir, "critic.bin")) do
+    {:ok, bin} -> bin |> :erlang.binary_to_term() |> Map.take([:character, :stage, :policy, :gamma])
+    _ -> %{}
+  end
+
 n_rounds = length(rounds)
 if n_rounds < 3, do: raise("need >= 3 rounds for train/val/test, found #{n_rounds}")
 d = Nx.axis_size(hd(rounds).features, 2)
@@ -104,7 +112,7 @@ Output.puts(verdict)
 File.write!(Path.join(out, "critic_best.bin"), :erlang.term_to_binary(%{
   params: ExPhil.Training.PPO.to_binary_backend(best.fit.params),
   d: d, hidden: best.hidden, dropout: best.dropout, stride: best.stride, ev: best.ev, source: dir
-}))
+} |> Map.merge(provenance)))
 
 File.write!(Path.join(out, "refit.json"), Jason.encode!(%{
   data: dir, feature_dim: d, epochs: epochs, verdict: verdict,

@@ -13,7 +13,7 @@ alias ExPhil.Agents.Agent
 alias ExPhil.Sim.{Critic, Env}
 alias ExPhil.Training.Output
 
-{opts, _, _} = OptionParser.parse(System.argv(), strict: [policy: :string, envs: :integer, frames: :integer, rounds: :integer, gamma: :float, out: :string, epochs: :integer, hidden: :integer, stage: :string, seed: :integer])
+{opts, _, _} = OptionParser.parse(System.argv(), strict: [policy: :string, envs: :integer, frames: :integer, rounds: :integer, gamma: :float, out: :string, epochs: :integer, hidden: :integer, stage: :string, seed: :integer, character: :string])
 policy = opts[:policy] || raise("--policy required")
 n = opts[:envs] || 64
 frames = opts[:frames] || 1800
@@ -24,9 +24,12 @@ stage = opts[:stage] || "final_destination"
 File.mkdir_p!(out)
 
 Output.banner("R2 — critic on the frozen trunk")
-Output.config([{"Policy", policy}, {"Envs", n}, {"Frames", frames}, {"Rounds", rounds}, {"Gamma", gamma}, {"Stage", stage}, {"Out", out}])
+character = opts[:character] || "fox"
+_ = ExPhil.Bridge.SimBatch.character_id(character)
 
-players = [%{character: "fox", costume: 1}, %{character: "fox", costume: 0}]
+Output.config([{"Policy", policy}, {"Envs", n}, {"Frames", frames}, {"Rounds", rounds}, {"Gamma", gamma}, {"Stage", stage}, {"Character (ditto)", character}, {"Out", out}])
+
+players = [%{character: character, costume: 1}, %{character: character, costume: 0}]
 {:ok, sim} = Env.start(:nif, stage: stage, players: players, batch_size: n, seed: opts[:seed] || 11)
 
 agent_opts = [policy_path: policy, deterministic: false, temperature: 1.0, af_convention: :parsed, frame_delay: 0, harness: :sync_runner, reaction_delay: 0, stateful_step: true]
@@ -64,7 +67,7 @@ verdict = if fit.ev > 0.3, do: "R2 PASSED (EV > 0.3)", else: "R2 NOT PASSED (EV 
 Output.puts("held-out explained variance #{Float.round(fit.ev, 3)} (train #{Float.round(fit.ev_train, 3)}); MSE #{Float.round(fit.mse, 4)} vs mean-baseline #{Float.round(fit.baseline_mse, 4)} → #{verdict}")
 
 # term_to_binary, not Nx.serialize: the file also carries the config (policy path, sizes).
-File.write!(Path.join(out, "critic.bin"), :erlang.term_to_binary(%{params: ExPhil.Training.PPO.to_binary_backend(fit.params), d: hd(data).d, hidden: opts[:hidden] || 256, gamma: gamma, policy: policy}))
-File.write!(Path.join(out, "r2.json"), Jason.encode!(%{ev: fit.ev, ev_train: fit.ev_train, mse: fit.mse, baseline_mse: fit.baseline_mse, history: fit.history, envs: n, frames: frames, rounds: rounds, gamma: gamma, d: hd(data).d, policy: policy, ms: ms, verdict: verdict}, pretty: true))
+File.write!(Path.join(out, "critic.bin"), :erlang.term_to_binary(%{params: ExPhil.Training.PPO.to_binary_backend(fit.params), d: hd(data).d, hidden: opts[:hidden] || 256, gamma: gamma, policy: policy, character: character, stage: stage}))
+File.write!(Path.join(out, "r2.json"), Jason.encode!(%{ev: fit.ev, ev_train: fit.ev_train, mse: fit.mse, baseline_mse: fit.baseline_mse, history: fit.history, envs: n, frames: frames, rounds: rounds, gamma: gamma, d: hd(data).d, policy: policy, character: character, stage: stage, ms: ms, verdict: verdict}, pretty: true))
 Output.success("#{verdict} → #{out}/r2.json (#{Float.round(ms / 1000, 1)} s)")
 Env.stop(sim)

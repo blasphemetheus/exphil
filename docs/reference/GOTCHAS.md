@@ -4242,3 +4242,160 @@ through `msl_batch_step_replay` (our addition to the clone's C API,
 80-byte `MslReplayInput`). Result: two of Bradley's three games bit-exact
 to the end, the third diverges at 4105 = exactly where the sim validator
 fails it.
+
+## #125 — `ExPhil.Bridge.SimBatch` is the GenServer; the tables live in `SimBatch.Core` (2026-09-24)
+
+`lib/exphil_bridge/sim_batch.ex` defines **`ExPhil.Bridge.SimBatch.Core`**
+(the C-API implementation, the `@characters` / `@stages` maps, `character_id/1`,
+`stage_id/1`). `lib/exphil_bridge/sim_batch_server.ex` defines
+**`ExPhil.Bridge.SimBatch`**, the GenServer that `ExPhil.Sim.Env` addresses.
+The file name and the module name do not match, in both directions.
+
+Symptom: you add `def character_id/1` to `sim_batch.ex`, `mix compile` says
+`Generated exphil app`, and the call site dies with
+`function ExPhil.Bridge.SimBatch.character_id/1 is undefined or private`.
+Nothing is stale — the function exists, on the other module.
+
+Fix: put pure lookups on `Core` and `defdelegate` them from `SimBatch`, so both
+names work (done 2026-09-24 for `characters/0`, `character_id/1`, `stage_id/1`).
+
+## #126 — Sim `char_id` IS the game's internal fighter kind; there is no CSS-id conversion on this path (2026-09-24)
+
+Recurring worry in handoffs: "the simulator's internal Mewtwo id 16 differs from
+the replay/CSS id 10, prefer name-mapping APIs." The first half is a real
+distinction but it does **not** apply to the sim boundary.
+`lib/exphil_bridge/sim_state.ex` (moduledoc, and `character_id/1` at line 117)
+documents that the sim's `char_id` is the game's INTERNAL fighter kind — the
+same space the frame parser and `Embeddings.Player` use — so **the mapping is
+the identity**: Fox 1, Mewtwo 16, on both sides. The external/CSS space (where
+Mewtwo is 10) never enters sim rollouts. Verified 2026-09-24 with
+`scripts/sim_character_check.exs`: a Mewtwo ditto reports character 16 on both
+ports, which is exactly what the imitation corpus trained on.
+
+Corollary, and the more expensive half of the lesson: `state.players[p].character`
+is a plain **integer**, not an atom (`player.ex` uses it directly as an
+embedding index). An admission probe that asserts an atom fails a correct sim.
+A wrong assertion is indistinguishable from a wrong system until you check the
+representation.
+
+## #127 — Reaction-0 checkpoints cannot play on the ASYNC runner at all (2026-09-25)
+
+The v3-default / `--label-delay 0` / sim-PPO line trains at **reaction 0**
+(`scripts/ppo_r3.exs` builds its agents with `reaction_delay: 0`). The async
+runner's decision hop makes its floor **reaction 1**, so it refuses outright:
+
+```
+❌ async_runner cannot play reaction delay 0: its floor is latency 2 (reaction 1);
+   pass --reaction-delay 1 (one slower than trained) or train at >= 1
+```
+
+`--reaction-delay 1` clears the error, but it deploys **one frame slower than
+the policy was trained**, which the standing law forbids ("never deploy at an
+untrained delay-id"). Use the **sync** runner `scripts/play_dolphin.exs`, which
+hits reaction 0 exactly (DEPLOY_KNOBS) and takes the same flags.
+
+Why this is not cosmetic: the first Mewtwo PPO result is a 69 % reduction in
+DEATHS — survival and recovery timing. An off-rung test is the single most
+likely way to manufacture a false negative and wrongly conclude a real sim gain
+did not transfer.
+
+## #128 — Policy checkpoints fail `:safe` deserialization; the warning is inherited, not a corruption (2026-09-25)
+
+Loading a policy prints:
+
+```
+[warning] <path> contains terms rejected by :safe deserialization (likely an
+older export); falling back to unrestricted load.
+```
+
+Verified 2026-09-25: **the imitation checkpoint written by `train.exs` fails
+`:erlang.binary_to_term(bin, [:safe])` too** (`mewtwo_il_v1_20260924/model_best_policy.bin`),
+so a PPO export produced by `scripts/ppo_export_policy.exs` inherits the warning
+rather than introducing it. The unrestricted fallback loads correctly and the
+merged head is verifiably present. Do not go hunting a corruption in the export
+path on the strength of this warning; if it is ever worth silencing, the fix
+belongs in the checkpoint WRITER.
+
+## #129 — BPTT checkpoints require `--stateful-step` at play time, and say so (2026-09-25)
+
+A policy trained with `--bptt --unroll 80` declares execution contract
+`bptt_gru_f32_v1`, and `ExPhil.Networks.Policy.ExecutionContract.validate_inference!/2`
+refuses to load it without stateful-step:
+
+```
+** (ArgumentError) BPTT GRU v1 requires stateful-step inference
+```
+
+Fix: add `--stateful-step` to the play command (`lib/exphil/cli.ex` defines it,
+default false). The GRU carries hidden state across frames, so stateless
+inference would reset that memory every frame and quietly play a DIFFERENT
+policy — the guard exists because that failure is invisible in-game. It is also
+the mode every sim measurement uses (`ppo_r3.exs` sets `stateful_step: true`),
+so the flag is what makes a live test comparable to the sim numbers.
+
+The contract is symmetric: `windowed_gru_f32_v1` checkpoints are refused WITH
+`--stateful-step`. It is a per-checkpoint setting, not a global default. Related:
+#118 (BPTT exports were historically not playable at all).
+
+## #130 — The play scripts' usage examples name paths that do not exist here (2026-09-25)
+
+`scripts/play_dolphin.exs` and `play_dolphin_async.exs` both show
+`--dolphin ~/.local/share/Slippi\ Launcher/netplay --iso ~/Games/SSBM.iso` in
+their docstrings. **Neither path exists on `nixos_slanka`**; copying them yields
+`❌ Failed to initialize Dolphin: {:invalid_dolphin_path, ...}`.
+
+The live values (already in `docs/guides/DOLPHIN.md`, which is the source of truth):
+
+| thing | value |
+| --- | --- |
+| Dolphin | `$HOME/.config/Slippi Launcher/netplay-beta-nixos` — holds `Slippi_Netplay_Mainline-x86_64.AppImage` |
+| ISO | `$HOME/isos/melee.iso` — NTSC 1.02, md5 `0e63d4223b01d9aba596259dc155a174` |
+
+Also present: `netplay` (older `Slippi_Online-x86_64.AppImage`) and
+`netplay-beta`. libmelee's `console.py` matches on the executable name inside
+the folder passed as `--dolphin`, so the folder must contain the build you mean.
+
+Lesson, and it is the DEPLOY_KNOBS rule generalized: **copy launch invocations
+from `DOLPHIN.md` / `DEPLOY_KNOBS.md`, never from a script's own docstring** —
+the docstrings are stale and nothing tests them. Fixing the docstrings would be
+a kindness to the next person.
+
+## Fox Mamba profiling: backend assembly and streaming validation (2026-09-25)
+
+Single-state embedding performs many tiny eager tensor operations. With an
+EXLA default backend, GPU launches cost ~4.5ms; BinaryBackend assembly plus
+one transfer cost ~0.15ms with identical values on 100 checked frames. Agent's
+embed_game_state now scopes BinaryBackend and restores/transfers to the caller
+backend. Full Mamba Agent median improved ~9.7ms to ~5.6ms; model-only latency
+would have hidden this bottleneck. See FOX_MAMBA_PROFILE_2026-09-25.md.
+
+Generic streaming validation is BPTT-only. For windowed streaming, val_batches
+is nil and Validation copies train_loss into val_loss. Never call that a
+held-out result. The Fox Mamba campaign explicitly reserves disjoint games
+and supplies val_batches; its split.json is the provenance record.
+
+EDIFICE_FUSED_CUSTOM_CALL=1 is not inherited by every devenv launch. Verify
+dispatch, not only the environment: final 512-wide Mamba profile recorded
+selective_scan custom calls and reduced median batch time 59.4ms to 28.6ms.
+
+## Mamba native allocation failure and recovery (2026-09-25)
+
+The fused selective-scan backward kernel needs a 640 MiB CUDA workspace at
+batch 128 / expanded hidden 1024 / window 80 / state 16. Its allocation is
+outside EXLA's reserved pool. Both native wrappers formerly ignored allocation
+failure and launched with an invalid pointer; the Edifice source now checks
+allocation, launch, and cleanup errors. `scripts/native/test_mamba.py` includes
+fault injection that fails on the old implementation. Low-level CUDA errors
+can surface later at an unrelated transfer, so do not infer the offending
+operation from the asynchronous traceback alone.
+
+Reserve workspace and other applications' VRAM when setting the EXLA fraction.
+Ollama loaded independently during a reproduction; its memory use is a
+confounder, not proof of the original crash cause. A two-chunk checked-kernel
+replay passed 1879 steps at fraction 0.45. Long-run gates remain necessary.
+
+Recovery saves must start before the first update, not after 25000 updates.
+The Fox driver now saves initial/first-update state and rotates two 500-update
+snapshots. Checkpoint configuration can contain tensors too (e.g. button
+weights); recursively copy them to BinaryBackend along with weights/optimizer.
+See `docs/planning/FOX_MAMBA_CRASH_REGRESSIONS.md` for tests and limitations.

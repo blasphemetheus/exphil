@@ -2,7 +2,22 @@
 
 This document outlines the current state of model metadata tracking and planned improvements for training provenance.
 
-**Last Updated:** 2026-01-24
+**Last Updated:** 2026-09-23
+
+## Recent bot inventory
+
+See [RECENT_BOTS.md](RECENT_BOTS.md) for the recent bot families and saved
+versions, and [RECENT_BOTS.json](RECENT_BOTS.json) for the portable metadata
+snapshot. The live `checkpoints/registry.json` now contains 839 entries:
+74 preserved legacy records and 765 backfilled records covering 767 artifacts.
+
+The backfill separates character, architecture (for example GRU), and training
+method (imitation, search distillation, PPO). It records content hashes, file
+aliases, documented parent links, and evaluation evidence. PPO head checkpoints
+and training-only ancestors are distinguished from playable policy exports.
+Unknown lineage remains explicit; dates derived from file mtimes are labeled.
+The older sections below describe the original tracking system and remaining
+provenance ideas, rather than claiming every old run has complete metadata.
 
 ---
 
