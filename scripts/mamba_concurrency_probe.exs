@@ -15,8 +15,21 @@ trainer = %{restored | config: cfg}
 batch = capture |> Path.join("batch.bin") |> File.read!() |> :erlang.binary_to_term()
 paths = "checkpoints/fox_mamba_v1_20260925/split.json" |> File.read!() |> Jason.decode!()
 path = hd(paths["train"])
-{:ok, replay} = Peppi.parse(path)
-states = replay |> Peppi.to_training_frames() |> Enum.take(1000) |> Enum.map(& &1.game_state)
+# Mirror Streaming.parse_chunk: the subject is the Fox port (the corpus has
+# games on ports 2/4 — hard-coding 1/2 yields ZERO frames and a {0, 264}
+# embed, 2026-09-26), the opponent is the other occupied port, remapped to
+# %{1 => subject, 2 => opponent} as the embedding expects.
+{:ok, meta} = Peppi.metadata(path)
+fox_port = (Enum.find(meta.players, &(&1.character_name == "Fox")) || hd(meta.players)).port
+opp_port = (Enum.find(meta.players, &(&1.port != fox_port)) || %{port: if(fox_port == 1, do: 2, else: 1)}).port
+{:ok, replay} = Peppi.parse(path, player_port: fox_port)
+states =
+  replay
+  |> Peppi.to_training_frames(player_port: fox_port, opponent_port: opp_port, remap_ports: true)
+  |> Enum.take(1000)
+  |> Enum.map(& &1.game_state)
+if states == [], do: raise("no training frames from #{path} (ports #{fox_port}/#{opp_port})")
+Output.puts("Replay #{Path.basename(path)}: subject port #{fox_port}, opponent #{opp_port}, #{length(states)} states")
 embed_cfg = ExPhil.Embeddings.config_for_source([stage_internals: true], Peppi.provides())
 Output.puts("Warmup full training step before starting concurrent embedding")
 {trainer, metrics} = Imitation.train_step(trainer, batch, nil)

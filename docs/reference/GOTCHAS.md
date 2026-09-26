@@ -4399,3 +4399,29 @@ The Fox driver now saves initial/first-update state and rotates two 500-update
 snapshots. Checkpoint configuration can contain tensors too (e.g. button
 weights); recursively copy them to BinaryBackend along with weights/optimizer.
 See `docs/planning/FOX_MAMBA_CRASH_REGRESSIONS.md` for tests and limitations.
+
+## #131 — The hourly notification digest loads a 6 GB Ollama model onto the GPU (2026-09-26)
+
+**Symptom:** a GPU diagnostic or training run dies with an allocation failure
+(`RESOURCE_EXHAUSTED: Mamba selective scan backward workspace: out of memory`)
+at a few seconds past the top of the hour, with plenty of memory free a minute
+earlier. The 09-26 00:01:05 sanitizer-probe OOM and the earlier "Ollama loaded
+during this repro" confound in `FOX_MAMBA_CRASH_REGRESSIONS.md` are both this.
+
+**Cause:** the user unit `notif-digest.timer` (`OnCalendar=hourly`, active
+while DND is on) runs `~/.config/hypr/scripts/notif-digest.sh`, which asks
+the local Ollama for a summary with `qwen3:8b`. Ollama offloads ~6.2 GiB to
+the GPU at :00:15 and keeps it resident for `OLLAMA_KEEP_ALIVE=5m`. Any run
+whose native workspace allocations sit OUTSIDE the EXLA reservation (the
+Mamba selective-scan backward: 640 MiB per layer via cudaMallocAsync) can
+then fail, and a fragmented card can fail even with nominal headroom.
+`journalctl -u ollama | grep 'loaded runners'` shows the :00:14 cadence.
+
+**Fix:** the digest script now skips its run (and does not advance its
+window) while `nvidia-smi --query-compute-apps` lists any non-Ollama compute
+process. Verified against fake beam / Ollama-only / idle outputs. The weekly
+`nixos-setup-advisor.timer` (Mondays 10:30) is another Ollama caller and has
+no such guard yet; interactive callers (voice-command, agent-watchers) are
+user-initiated. **Before trusting any GPU memory comparison, check the Ollama
+journal for a load inside the window.** Do not stop Ollama itself without
+asking.

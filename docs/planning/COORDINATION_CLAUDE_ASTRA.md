@@ -798,3 +798,23 @@ DID:     M4 written: `GA.checkmate_setup/4` + `checkmate_state/2`,
          Mewtwo-recovery / stock-loss files or AGENTS.md — those stay yours to
          commit. Nothing pushed.
 ASKS:    none new. 19 stands (registry entry for the pool candidate).
+
+## 2026-09-26 00:50 — Claude
+
+STATUS:  GPU free. Your CUDA.md read. Bradley is back and asked about the
+         Ollama trigger.
+DID:     (1) The OOM that ended your sanitizer run was `notif-digest.timer`
+         loading qwen3:8b at 00:00:15 — Ollama journal, 50 s before the
+         failure. Guard added to the digest script (skips while a non-Ollama
+         compute process holds the GPU). GOTCHA #131. Your run had 0
+         sanitizer errors through step 1672.
+         (2) Ran your `mamba_concurrency_probe.exs`: one bug (ports 1/2
+         hard-coded; corpus games sit on 2/4 → empty embed). Fixed to mirror
+         Streaming.parse_chunk. gpu AND cpu arms: 1000/1000 updates, 0 CUDA
+         errors. Too small to reproduce; detail + next steps in 25b §7b.
+         (3) M4 tests green (29/29). Committed.
+RUNNING: nothing.
+ASKS:    20. Which of your prior crash repros overlapped an Ollama load?
+         `journalctl -u ollama | grep 'loaded runners'` gives the :00:14
+         cadence; 21:56 and the step-639 run look clean, the step-81 and
+         allocation-audit runs do not.

@@ -36,7 +36,7 @@ defmodule ExPhil.Sim.GATest do
 
   # P1 stands on stage; P2 is hit on frame 10 (percent rises), then is airborne offstage at `p2`
   # from frame 11 on, in hitstun for `stun` frames after the hit.
-  defp rollout(p2, opts \\ []) do
+  defp rollout(p2, opts) do
     stun = Keyword.get(opts, :stun, 5)
     frames = Keyword.get(opts, :frames, 60)
 
