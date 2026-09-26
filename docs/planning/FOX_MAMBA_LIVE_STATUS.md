@@ -1,9 +1,10 @@
 # Fox Mamba live status
 
-Updated: 2026-09-25 23:21 CDT
+Updated: 2026-09-25 23:27 CDT
 
 Phase: **instrumented crash diagnosis**. Active BEAM PID **2753971**, under
-Compute Sanitizer. Earlier regression supervisor PID 2511669 has exited.
+Compute Sanitizer; latest marker step217 in original chunk12. Earlier
+regression supervisor PID 2511669 has exited.
 
 Current log: `logs/mamba_direct_parallel_memcheck.log`.
 Current artifacts: `eval_runs/0925_fox_mamba/crash/direct_parallel_memcheck/`.
@@ -20,3 +21,6 @@ Probes use 45% EXLA GPU reservation. Unrelated Ollama is left alone. Do not run
 Mix/rebuild shared EXLA while this probe is active. No automatic next stage.
 
 Evidence and limitations: [crash regressions](FOX_MAMBA_CRASH_REGRESSIONS.md). No full training restart or automatic promotion occurs here.
+
+Resume from [the latest handoff](HANDOFF_2026-09-25a.md). Code committed on user
+request: ExPhil a1420270; Edifice c90990a. Nothing pushed.
