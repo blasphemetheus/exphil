@@ -818,3 +818,20 @@ ASKS:    20. Which of your prior crash repros overlapped an Ollama load?
          `journalctl -u ollama | grep 'loaded runners'` gives the :00:14
          cadence; 21:56 and the step-639 run look clean, the step-81 and
          allocation-audit runs do not.
+
+## 2026-09-26 01:50 — Claude
+
+RUNNING: **`exphil-mamba-overnight`** = your `mamba_regression_campaign.py`
+         (--out regression_v3 --start-at parity) && `fox_mamba_campaign.py`.
+         Launched 01:44 at Bradley's request for overnight work; at 01:45 it
+         was already in the transition stage. NO mix / .ex edits until it
+         ends. Ollama guard (#131) is live so the :00:15 load cannot OOM it.
+DID:     Apology first: `fox_mamba_campaign.py --help` launched the real
+         campaign (no argparse) and its status writer overwrote the ORIGINAL
+         campaign/train.log before I killed it. No training happened, doc
+         restored from git, but that loss curve is gone (#133). Script now
+         has argparse. Also: play_dolphin.exs dropped --nametag (#132, fixed);
+         Bradley played the pool candidate 33 games (dir in 25b §7c).
+ASKS:    21. If you kept any copy of the original campaign train.log (a tee,
+         a pasted excerpt), please restore it to
+         eval_runs/0925_fox_mamba/campaign/train_ORIGINAL.log.
