@@ -11,9 +11,14 @@ defmodule ExPhil.Sim.GA do
   * **Fitness** (subject = P1 attacker, P2 defender): damage dealt inside the
     best `ExPhil.Eval.AerialChain` chain + 20 per MOVE that lands in it
     (`moves_landed/3`; a multi-hit drill is one move) + 1000 per stock taken,
-    minus 500 if P1 dies or leaves the stage, minus the search style penalty
-    (`Search.style_counts/1`). v0 weighted moves 100:1 over damage and
-    evolved jab pressure against an idle target (run 3, 2026-09-22).
+    + the edgeguard-setup score (`edgeguard_setup/3`, max 600) when no stock
+    fell, raised to `checkmate_bonus` (800) when the static
+    `ExPhil.Melee.Checkmate` model says P2 cannot recover at its first
+    actionable frame offstage (`checkmate_setup/4`, 2026-09-25; the setup
+    term never stacks past the kill bonus), minus 500 if P1 dies or leaves
+    the stage, minus the search style penalty (`Search.style_counts/1`). v0
+    weighted moves 100:1 over damage and evolved jab pressure against an
+    idle target (run 3, 2026-09-22).
   * **Evaluation**: the whole population is one sim batch — every env restores
     the same start (`Env.upload` once, `Env.restore` per env), then `horizon`
     batched steps. Deterministic given `:seed`.
@@ -25,6 +30,7 @@ defmodule ExPhil.Sim.GA do
 
   alias ExPhil.Agents.Agent
   alias ExPhil.Eval.{AerialChain, ScenarioScan}
+  alias ExPhil.Melee.Checkmate
   alias ExPhil.Sim.{Drill, Env, Search}
 
   @neutral Drill.neutral()
@@ -174,11 +180,30 @@ defmodule ExPhil.Sim.GA do
     # a kill"): the deepest offstage moment of P2 in the 45 f after the chain ends, while P1 stands on
     # stage — base + depth beyond the edge + height below it, capped below the kill bonus
     chain_end = openings |> Enum.map(& &1.chain_end) |> Enum.max(fn -> nil end)
-    edge = edgeguard_setup(states, chain_end, Keyword.get(opts, :edge, @fd_edge))
-    edge_bonus = if stocks_taken > 0, do: 0.0, else: Keyword.get(opts, :edge_bonus, 1.0) * edge.score
-    fitness = chain_dmg + move_bonus * chain + kill_bonus * stocks_taken + edge_bonus - if(alive, do: 0.0, else: 500.0) - style_cost
+    edge_x = Keyword.get(opts, :edge, @fd_edge)
+    edge = edgeguard_setup(states, chain_end, edge_x)
+    edge_bonus = Keyword.get(opts, :edge_bonus, 1.0) * edge.score
+    # static checkmate (M4, 2026-09-25): at P2's first actionable frame offstage after the chain, does
+    # any recovery still reach the stage? A "no" is a kill unless the attacker helps, so it lifts the
+    # setup term to `checkmate_bonus` (800, below the kill bonus) — it replaces the edge score rather
+    # than stacking on it. `checkmate_bonus: 0.0` skips the evaluation.
+    checkmate_bonus = Keyword.get(opts, :checkmate_bonus, 800.0)
 
-    %{fitness: fitness, chain: chain, hits: hits, chain_damage: chain_dmg, aerials: aerials, damage: damage, stocks_taken: stocks_taken, edge: edge, alive?: alive, style: style, style_cost: style_cost, openings: length(openings)}
+    checkmate =
+      if checkmate_bonus > 0.0,
+        do: checkmate_setup(states, chain_end, edge_x, Keyword.get(opts, :stage, 32)),
+        else: %{checkmate?: false, frame: nil, outcome: nil, state: nil}
+
+    setup_bonus =
+      cond do
+        stocks_taken > 0 -> 0.0
+        checkmate.checkmate? -> max(edge_bonus, checkmate_bonus)
+        true -> edge_bonus
+      end
+
+    fitness = chain_dmg + move_bonus * chain + kill_bonus * stocks_taken + setup_bonus - if(alive, do: 0.0, else: 500.0) - style_cost
+
+    %{fitness: fitness, chain: chain, hits: hits, chain_damage: chain_dmg, aerials: aerials, damage: damage, stocks_taken: stocks_taken, edge: edge, checkmate: checkmate, alive?: alive, style: style, style_cost: style_cost, openings: length(openings)}
   end
 
   @doc "Main-stage edge |x| per stage (Slippi id): FD 32, BF 31, YS 8, DL 28, PS 3, FoD 2."
@@ -221,6 +246,63 @@ defmodule ExPhil.Sim.GA do
         best
       end
     end)
+  end
+
+  @doc """
+  Static checkmate after a chain: at P2's FIRST actionable frame in the 45 frames from `chain_end`
+  (or the last 45 frames when there was no chain) that is offstage (|x| > `edge` or below the stage),
+  airborne, out of hitstun and preceded by a hit within 150 frames, ask `ExPhil.Melee.Checkmate`
+  whether any recovery still reaches a ledge, the stage or a platform. One evaluation per rollout,
+  at the decision frame the model is calibrated for (hitstun, DI and teching come before it); later
+  frames are the defender's own choices, not the setup. Resources default to "all still available"
+  (the sim state does not record a spent side-B / up-B / air dodge), which is the conservative side:
+  fewer checkmates called, never more. Fox-only, like the model.
+
+  Returns `%{checkmate?, frame, outcome, state}`; `frame: nil` when no such frame occurred.
+  """
+  def checkmate_setup(states, chain_end, edge, stage) do
+    arr = List.to_tuple(states)
+    n = tuple_size(arr)
+    start = if chain_end, do: Enum.find_index(states, &(&1.frame >= chain_end)) || n - 1, else: max(0, n - 45)
+    none = %{checkmate?: false, frame: nil, outcome: nil, state: nil}
+
+    Enum.find_value(start..min(n - 1, start + 45)//1, none, fn i ->
+      s = elem(arr, i)
+      p2 = s.players[2]
+      offstage? = abs(p2.x) > edge or p2.y < 0.0
+      actionable? = (p2.hitstun_frames_left || 0) == 0 and not p2.on_ground
+
+      hit_recently? =
+        Enum.any?(max(1, i - 150)..i//1, fn j -> elem(arr, j).players[2].percent > elem(arr, j - 1).players[2].percent end)
+
+      if offstage? and actionable? and hit_recently? do
+        st = checkmate_state(p2, stage)
+        r = Checkmate.analyze(st)
+        %{checkmate?: r.checkmate?, frame: s.frame, outcome: r.outcome, state: st}
+      end
+    end)
+  end
+
+  @doc """
+  The `ExPhil.Melee.Checkmate` state for a sim/replay player: self and knockback velocities kept
+  separate as the game keeps them (`speed_air_x_self`/`speed_y_self` vs `speed_x_attack`/
+  `speed_y_attack`), jumps left, and facing when the state carries a real one (otherwise the model
+  assumes facing the stage).
+  """
+  def checkmate_state(p, stage) do
+    facing = if Map.get(p, :facing) in [1, -1], do: Map.get(p, :facing)
+
+    %{
+      stage: stage,
+      x: p.x * 1.0,
+      y: p.y * 1.0,
+      vx: (Map.get(p, :speed_air_x_self) || 0.0) * 1.0,
+      vy: (Map.get(p, :speed_y_self) || 0.0) * 1.0,
+      kb_vx: (Map.get(p, :speed_x_attack) || 0.0) * 1.0,
+      kb_vy: (Map.get(p, :speed_y_attack) || 0.0) * 1.0,
+      jumps_left: Map.get(p, :jumps_left) || 0,
+      facing: facing
+    }
   end
 
   @doc "P2 stocks lost that were preceded by a hit (percent rise or hitstun entry) within `gap` frames."
@@ -353,7 +435,7 @@ defmodule ExPhil.Sim.GA do
     {summaries, _, best} =
       Enum.reduce(1..gens, {[], genomes, nil}, fn gen, {acc, genomes, best} ->
         t0 = System.monotonic_time(:millisecond)
-        results = evaluate(sim, state, genomes, defender, horizon, Keyword.take(opts, [:history, :style_penalty, :move_bonus, :kill_bonus, :edge, :edge_bonus, :kill_gap]))
+        results = evaluate(sim, state, genomes, defender, horizon, Keyword.take(opts, [:history, :style_penalty, :move_bonus, :kill_bonus, :edge, :edge_bonus, :kill_gap, :stage, :checkmate_bonus]))
         ranked = Enum.sort_by(results, &(-&1.score.fitness))
         elite = hd(ranked)
         best = if best == nil or elite.score.fitness > best.score.fitness, do: Map.put(elite, :generation, gen), else: best
@@ -369,6 +451,7 @@ defmodule ExPhil.Sim.GA do
           best_chain_damage: elite.score.chain_damage,
           best_stocks: elite.score.stocks_taken,
           best_edge: elite.score.edge.score,
+          best_checkmate: elite.score.checkmate.checkmate?,
           best_damage: elite.score.damage,
           chains: Enum.frequencies(Enum.map(results, & &1.score.chain)),
           elite: elite,

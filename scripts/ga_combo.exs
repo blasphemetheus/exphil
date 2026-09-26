@@ -17,7 +17,7 @@ alias ExPhil.Training.Output
 
 {opts, _, _} =
   OptionParser.parse(System.argv(),
-    strict: [edge_bonus: :float, move_bonus: :float, kill_bonus: :float, population: :integer, generations: :integer, horizon: :integer, out: :string, policy: :string, seed: :integer, start_seed: :integer, start_percent: :integer, trace_every: :integer, elite: :integer, mutation: :float, crossover: :float, stage: :string, max_hold: :integer]
+    strict: [edge_bonus: :float, checkmate_bonus: :float, move_bonus: :float, kill_bonus: :float, population: :integer, generations: :integer, horizon: :integer, out: :string, policy: :string, seed: :integer, start_seed: :integer, start_percent: :integer, trace_every: :integer, elite: :integer, mutation: :float, crossover: :float, stage: :string, max_hold: :integer]
   )
 
 pop = opts[:population] || 256
@@ -83,10 +83,11 @@ result =
   GA.run(sim, {:id, id},
     population: pop, generations: gens, horizon: horizon, seed: seed, defender: defender, history: entry.history,
     move_bonus: opts[:move_bonus] || 20.0, kill_bonus: opts[:kill_bonus] || 1000.0, edge: GA.stage_edge(stage_id), edge_bonus: opts[:edge_bonus] || 1.0,
+    stage: stage_id, checkmate_bonus: opts[:checkmate_bonus] || 800.0,
     elite: opts[:elite] || 8, mutation: opts[:mutation] || 0.15, crossover: opts[:crossover] || 0.7, max_hold: opts[:max_hold] || 12,
     on_generation: fn s ->
       bar = String.duplicate("█", min(20, s.best_chain * 2)) |> String.pad_trailing(20, "░")
-      Output.puts("gen #{String.pad_leading(Integer.to_string(s.generation), 3)}  best #{:io_lib.format("~7.1f", [s.best])}  mean #{:io_lib.format("~7.1f", [s.mean])}  chain #{s.best_chain} moves (#{s.best_hits} hits) #{Float.round(s.best_chain_damage, 1)}% in-chain / #{Float.round(s.best_damage, 1)}% total#{if s.best_stocks > 0, do: " ★KILL", else: ""}#{if s.best_edge > 0, do: " ⛵edge #{round(s.best_edge)}", else: ""}  #{bar}  best-so-far #{Float.round(s.best_so_far, 1)}  (#{s.ms} ms)")
+      Output.puts("gen #{String.pad_leading(Integer.to_string(s.generation), 3)}  best #{:io_lib.format("~7.1f", [s.best])}  mean #{:io_lib.format("~7.1f", [s.mean])}  chain #{s.best_chain} moves (#{s.best_hits} hits) #{Float.round(s.best_chain_damage, 1)}% in-chain / #{Float.round(s.best_damage, 1)}% total#{if s.best_stocks > 0, do: " ★KILL", else: ""}#{if s.best_edge > 0, do: " ⛵edge #{round(s.best_edge)}", else: ""}#{if s.best_checkmate, do: " ♔MATE", else: ""}  #{bar}  best-so-far #{Float.round(s.best_so_far, 1)}  (#{s.ms} ms)")
       if rem(s.generation, trace_every) == 0 or s.generation == 1 do
         write_trace.(s.elite.states, "gen#{s.generation}.msltrace.json", "gen #{s.generation} elite: #{s.best_chain} moves, #{Float.round(s.best_damage, 1)}% (fitness #{Float.round(s.best, 1)})")
       end
