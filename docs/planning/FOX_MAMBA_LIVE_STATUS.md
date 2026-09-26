@@ -24,3 +24,10 @@ Evidence and limitations: [crash regressions](FOX_MAMBA_CRASH_REGRESSIONS.md). N
 
 Resume from [the latest handoff](HANDOFF_2026-09-25a.md). Code committed on user
 request: ExPhil a1420270; Edifice c90990a. Nothing pushed.
+
+23:39 CDT: user requested `CUDA.md` as Claude's completion signal. Durable
+watcher `exphil-cuda-report.service`, PID2969609, observes both diagnostic
+process identities and atomically creates `/home/blewf/git/exphil/CUDA.md`
+after they exit. The file intentionally does not exist yet. It will include
+final sanitizer evidence, completion status, prior findings and remaining
+uncertainty. Watcher regression tests: 4 passed. No follow-up training starts.
