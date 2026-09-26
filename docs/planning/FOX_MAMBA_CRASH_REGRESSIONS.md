@@ -1,0 +1,141 @@
+# Fox Mamba crash investigation and regression gates
+
+Updated 2026-09-25, Codex. Full campaign remains stopped after its CUDA crash.
+
+## Confirmed defect
+
+Edifice's `native/cuda/fused_selective_scan_backward.cu` ignored the return
+value of `cudaMallocAsync`. At the training shape (batch 128, expanded hidden
+1024, window 80, state 16), each backward scan requests 640 MiB outside EXLA's
+reserved pool. A failed allocation still launched a kernel with an invalid
+workspace. Both the standalone wrapper and EXLA FFI handler now check it.
+Launch and cleanup errors are also returned explicitly.
+
+The host fault-injection regression failed before the fix: allocation returned
+error 2, but one kernel launched and the wrapper returned success. After the
+fix, the allocation error is returned without launching or freeing anything.
+
+This establishes a real bug and a plausible mechanism for the original Xid31
+invalid write. It does **not yet prove** that allocation failure caused the
+original failure around update 11001. The later original-chunks replay caught
+a 640 MiB allocation failure, but Ollama independently loaded a 6.2 GiB model
+during that reproduction. Leave that unrelated service alone.
+
+An attempted XLA FFI ScratchAllocator replacement failed at both 70% and 45%
+GPU reservation and was removed. Its failure is not evidence of GPU OOM; the
+underlying API error was hidden by that experiment. The retained implementation
+uses checked CUDA allocation. The lower reservation is a diagnostic setting,
+not an established optimal production setting.
+
+## Recovery defects and protections
+
+The original first periodic save at 25000 updates lost all progress on the
+11001-update crash. The Fox driver now saves before training, after update 1,
+and every 500 updates into two rotating recovery slots. These preserve weights
+and optimizer state; they do **not** restore the shuffled data cursor.
+
+Saved config tensors were also left on EXLA even though parameters/optimizer
+were converted to BinaryBackend. Configuration is now converted recursively;
+the GPU regression checks direct and nested tensors. This avoids persisting
+process-local GPU handles in recovery artifacts.
+
+## Repeatable checks
+
+Only run Mix with no GPU training/probe active (shared EXLA library).
+
+```bash
+devenv shell -- mix test \
+  test/exphil/training/callbacks/rolling_checkpoint_test.exs \
+  test/exphil/training/callbacks/checkpoint_callback_test.exs \
+  test/exphil/training/checkpoint_roundtrip_test.exs \
+  test/exphil/training/checkpoint_config_backend_test.exs --include gpu
+
+devenv shell -- python3 scripts/native/test_mamba.py
+# Optional: MAMBA_MEMCHECK=/path/to/compute-sanitizer for full-size memcheck.
+```
+
+Native tests build standalone binaries in a temporary directory, without
+replacing the shared EXLA library. They inject allocation/launch/free errors,
+check analytic gradient agreement and finite outputs at small, uneven-thread,
+and full training shapes, and optionally run Compute Sanitizer memcheck.
+
+Saved-batch probes avoid reparsing: `scripts/mamba_crash_probe.exs`.
+Real original-chunk transition probes: `scripts/mamba_crash_stream.exs`.
+Both save pre-step state and input artifacts for offline diagnosis.
+The chunk probe rotates paired captures every 100 updates and records exact
+file lists, original chunk index, batch index, and shuffle seed.
+
+## Evidence so far
+
+- Original kernel standalone full-shape memcheck: zero errors, analytic
+  gradient check passed (`logs/mamba_native_memcheck.log`).
+- Thirty saved-batch shapes (128 down to 99): passed before kernel fix
+  (`logs/mamba_crash_shapes_audit.log`). This does not reproduce long-run pressure.
+- Recovery callback plus existing callback tests: 12 passed initially;
+  expanded checkpoint suite including GPU configuration serialization: **18 passed**
+  (`regression/unit.log`).
+- Native fault injection, four shape/gradient cases, and full-size memcheck:
+  **3 tests passed, zero sanitizer errors** (`regression/native.log`).
+- Original-chunks 12–13 with checked allocation and 45% reservation:
+  `logs/mamba_crash_chunks12_13_guard.log`: **1879 updates passed**.
+- Full-size unfused reference at 45% reservation needs a 14.95 GiB allocation
+  and fails cleanly with OOM. Numerical parity uses batch 64 for both paths;
+  native memcheck and streaming endurance retain production batch 128.
+- Numerical parity at batch64/window80/hidden512: sampled features after six
+  training steps agree exactly (max absolute error 0). Fused median update
+  14.897 ms vs unfused 28.915 ms. See `regression_v2/parity.json` and profiles.
+- Still required: more than 11001 updates across repeated chunk transitions before
+  treating the full-corpus run as ready.
+
+Current fail-fast supervisor: `scripts/mamba_regression_campaign.py`, systemd
+user unit `exphil-mamba-regressions-v2`. The live markdown and
+`eval_runs/0925_fox_mamba/regression_v2/status.json` record its current stage,
+child PID, log, and exit status. Unit/native passes are in the preceding
+`regression/` directory; v2 resumes at numerical parity. No full-corpus training
+starts automatically. GPU usage is sampled every two seconds in
+`regression/gpu_memory.csv` (30-minute bounded monitor).
+
+## Second transition run failed — allocation guard is not the complete fix
+
+At 23:12:43 the repeated parallel original-chunks 12–13 test failed at update
+639 with Xid31 invalid WRITE, despite the allocation guard and about 14 GiB
+free GPU memory. `regression_v2/transition_failed` is the final supervisor
+state; the endurance stage never started. This rejects the simple explanation
+that all observed failures were unchecked OOM. The native guard remains a
+valid independently tested fix.
+
+Pre-update 600 weights/optimizer and batch were preserved and copied to
+`crash/step600/`; repeating that saved batch for 1000 further updates passed
+(`logs/mamba_step600_repeat.log`). This does not rule out a specific later
+batch, but strengthens the concurrent-preparation hypothesis.
+
+At 23:15, full-pipeline Compute Sanitizer memcheck is running with
+`--target-processes application-only --track-stream-ordered-races all`;
+log `logs/mamba_parallel_memcheck.log`, artifacts `crash/parallel_memcheck/`.
+The application-only setting avoids the earlier `erl_child_setup` failure
+caused by tracking Erlang's child processes. No other training run is active.
+
+Recovery callback now also rejects non-`.axon` paths before training, avoiding
+an unsupported suffix silently overwriting the primary checkpoint. Its five
+targeted tests passed (four prior tests plus this new regression).
+
+23:17 correction: the full-pipeline sanitizer **disabled itself** with
+`CUDA initialized before the Sanitizer`; that run is NOT a valid memory-check
+pass. It reproduced the illegal write at update 81. Testing
+`CUDA_LAUNCH_BLOCKING=1` on the same parallel chunks next
+(`logs/mamba_parallel_blocking.log`). Saved-batch replay remained stable.
+
+23:20: synchronous launch test passed all 1879 updates. Directly launching
+`beam.smp` under Compute Sanitizer (with BINDIR/ROOTDIR set), instead of the
+Mix shell wrapper, successfully attaches the checker. Helper:
+`scripts/mamba_sanitizer_direct.py`. It uses captured BEAM arguments in
+`crash/beam_argv.json`; recapture after changing the devenv Erlang installation.
+Two saved-batch updates completed under instrumentation; the reported errors
+were XLA `cuModuleGetGlobal_v2` missing-symbol API returns, not invalid memory
+accesses. The full parallel replay is now instrumented with API-return
+reporting disabled and stream-ordered allocation race tracking enabled:
+`logs/mamba_direct_parallel_memcheck.log`. Memory errors still fail the run.
+
+Original campaign log/split remain intact under
+`eval_runs/0925_fox_mamba/campaign/` and
+`checkpoints/fox_mamba_v1_20260925/split.json`.

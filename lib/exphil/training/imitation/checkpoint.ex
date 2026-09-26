@@ -53,7 +53,10 @@ defmodule ExPhil.Training.Imitation.Checkpointing do
     checkpoint = %{
       policy_params: to_binary_backend(trainer.policy_params),
       optimizer_state: to_binary_backend(trainer.optimizer_state),
-      config: Map.merge(trainer.config, ExPhil.Networks.Policy.ExecutionContract.training(trainer.config)),
+      config:
+        trainer.config
+        |> Map.merge(ExPhil.Networks.Policy.ExecutionContract.training(trainer.config))
+        |> to_binary_backend(),
       step: trainer.step,
       metrics: trainer.metrics
     }

@@ -1,0 +1,22 @@
+# Fox Mamba live status
+
+Updated: 2026-09-25 23:21 CDT
+
+Phase: **instrumented crash diagnosis**. Active BEAM PID **2753971**, under
+Compute Sanitizer. Earlier regression supervisor PID 2511669 has exited.
+
+Current log: `logs/mamba_direct_parallel_memcheck.log`.
+Current artifacts: `eval_runs/0925_fox_mamba/crash/direct_parallel_memcheck/`.
+GPU telemetry: `eval_runs/0925_fox_mamba/regression/gpu_memory.csv`.
+
+Full-corpus campaign remains stopped. Checkpoint tests, native fault injection,
+native memcheck, and fused/fallback parity passed. The repeated asynchronous
+two-chunk gate crashed with ample free memory; the 16-chunk gate never started.
+The allocation guard fixes a real bug but does not resolve this remaining race.
+Saved-batch 1000-step replay passed. Synchronous CUDA two-chunk replay passed
+1879 updates. The current run instruments the asynchronous pipeline directly.
+
+Probes use 45% EXLA GPU reservation. Unrelated Ollama is left alone. Do not run
+Mix/rebuild shared EXLA while this probe is active. No automatic next stage.
+
+Evidence and limitations: [crash regressions](FOX_MAMBA_CRASH_REGRESSIONS.md). No full training restart or automatic promotion occurs here.

@@ -2278,7 +2278,15 @@ defmodule ExPhil.Agents.Agent do
 
   defp embed_game_state(game_state, player_port, state) do
     {opts, prev_controller, game_state} = embed_inputs(game_state, state)
-    Embeddings.Game.embed(game_state, prev_controller, player_port, opts)
+    # Tiny scalar/one-hot pieces otherwise launch dozens of eager GPU ops.
+    # Assemble on the host, then transfer the finished vector once. Keep
+    # the caller's backend for the policy and restore it after assembly.
+    backend = Nx.default_backend()
+
+    Nx.with_default_backend(Nx.BinaryBackend, fn ->
+      Embeddings.Game.embed(game_state, prev_controller, player_port, opts)
+    end)
+    |> Nx.backend_transfer(backend)
   end
 
   # The embedding options the agent's config implies (name id, AF
