@@ -139,3 +139,57 @@ reporting disabled and stream-ordered allocation race tracking enabled:
 Original campaign log/split remain intact under
 `eval_runs/0925_fox_mamba/campaign/` and
 `checkpoints/fox_mamba_v1_20260925/split.json`.
+
+## Root cause found and fixed — workspace pool churn under concurrent eager XLA work (2026-09-26)
+
+**Reproducer.** `scripts/mamba_race_probe.exs CAPTURE OUT MODE STEPS [CHUNK]`
+trains from the step-600 capture on one saved batch while a background Task
+runs the real 64-game chunk preparation in a loop (continuous overlap instead
+of the transition's ~35 s window). Mode bisect, 6000 steps each, fraction 0.45:
+
+| background work | result |
+| --- | --- |
+| none | pass |
+| parse_only (CPU parse, no Nx) | pass, 231 loops |
+| cpu (parse + `Streaming.create_dataset` on BinaryBackend) | pass, 8 loops |
+| real (parse + eager GPU embedding, the pipeline) | **crash 2/3** — steps 4098, 172; pass |
+| real + `--xla_gpu_enable_command_buffer=` | **crash 2/2** — steps 4498, 172 (command buffers ruled out) |
+| real, workspace fix (below) | **pass 3/3** |
+
+Every crash: Xid 31, `MMU Fault: ENGINE GRAPHICS GPC7 GPCCLIENT_T1_3 …
+FAULT_PDE ACCESS_TYPE_VIRT_WRITE`, at `0x3_26018000` (the 01:45 transition
+crash: `0x3_26000000`) — a write to an unmapped page at a stable address,
+from the BEAM's own scheduler thread. The second run of a page-cached batch
+died at step 172 in both the baseline and the command-buffer control, so the
+race is near-deterministic once the corpus is in page cache.
+
+**Cause.** `fused_selective_scan_backward` allocated its `[B,H,T,S]` f32
+workspace (640 MiB at production shape) with `cudaMallocAsync` and released
+it with `cudaFreeAsync` on the compute stream on EVERY call — two layers, so
+1.3 GB mapped and unmapped through the driver's stream-ordered pool per
+training step. That pool unmaps freed pages at the next synchronization
+point. Training alone rarely synchronizes; the pipeline's background chunk
+embedding on another host thread synchronizes constantly (host transfers),
+and a kernel still writing the workspace faulted on a page the pool had
+released. Whether the driver's in-use tracking is wrong or an ordering rule
+is being violated is NOT yet established (experiments below); the mechanism
+— unmap-on-sync of the per-call workspace — is.
+
+**Fix** (Edifice `native/cuda/fused_selective_scan_backward.cu`):
+`selective_scan_backward_workspace/3` — one grow-only `cudaMalloc` buffer per
+device behind a mutex, reused in stream order for the life of the process;
+growth frees the old buffer with `cudaFreeAsync` (stream-ordered, so an
+in-flight kernel is safe). Both the NIF launcher and the FFI handler use it.
+No per-step pool traffic remains. Native suite: allocation-failure harness
+rewritten for the new contract (failure → no launch; launch error
+propagates; same size reuses; larger frees once + allocates once; failed
+growth free propagates), gradient shapes 1×1×1 … 128×80×1024 pass.
+
+**Still to establish (fast, ~1 h, old code path):** (1) pool release
+threshold unlimited alone; (2) opportunistic cross-stream reuse off alone;
+(3) a standalone two-thread C++ reproducer (fault ⇒ driver, clean ⇒ an
+XLA-side ordering interaction); (4) driver A/B if (3) faults.
+
+Evidence: `logs/mamba_race_{real,none,parse_only,cpu,h2_cmdbuf,h1_fix}_*.log`,
+`eval_runs/0925_fox_mamba/crash/race_*/`, `journalctl -k | grep Xid`
+(11:50:42, 11:51:04, 12:11:xx, 12:12:xx), `logs/mamba_native_tests_0926.log`.

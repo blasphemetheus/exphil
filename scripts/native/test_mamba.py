@@ -23,7 +23,9 @@ class MambaNativeTest(unittest.TestCase):
         common = ["nvcc", "-O2", "-lineinfo", "-arch=sm_120", f"-I{CUDA}"]
         cls.allocation = cls.directory / "allocation"
         cls.scan = cls.directory / "scan"
-        wraps = ["cudaMallocAsync", "cudaMemsetAsync", "cudaLaunchKernel",
+        # cudaMalloc/cudaGetDevice: the workspace is a cached grow-only
+        # cudaMalloc buffer since 2026-09-26 (cudaFreeAsync only on growth).
+        wraps = ["cudaGetDevice", "cudaMalloc", "cudaMemsetAsync", "cudaLaunchKernel",
                  "cudaFreeAsync", "cudaGetLastError"]
         subprocess.run(common + [str(ROOT / "scripts/native/mamba_alloc_failure_test.cu"),
             str(CUDA / "fused_selective_scan_backward.cu")]

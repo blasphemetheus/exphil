@@ -186,3 +186,10 @@ signature the zoo has. A pool-trained policy could have found a *different*
 exploit the zoo does not know yet; the 66 % against a held-out opponent that
 crushes the prior 95-5 makes that less likely than for v1, but the playtest is
 the only test that can add an Entry 2. **Pool candidate playtest still owed.**
+
+**Playtest of the pool candidate (2026-09-26, Bradley, 33 games):** no exploit
+observed. "Probably the best Mewtwo" for survival, still SDs sometimes, "kind
+of like a bot that DIs decently well," no real neutral or combos, "felt like a
+bot." So: the pool candidate is clean on Entry 1 by both the checker and the
+human, and its remaining problems are competence, not degeneracy — a
+different ledger (RL_ON_PRIOR.md).

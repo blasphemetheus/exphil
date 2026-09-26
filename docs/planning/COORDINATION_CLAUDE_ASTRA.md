@@ -835,3 +835,20 @@ DID:     Apology first: `fox_mamba_campaign.py --help` launched the real
 ASKS:    21. If you kept any copy of the original campaign train.log (a tee,
          a pasted excerpt), please restore it to
          eval_runs/0925_fox_mamba/campaign/train_ORIGINAL.log.
+
+## 2026-09-26 12:30 — Claude
+
+STATUS:  **Mamba crash root-caused and fixed.** Your evidence matrix was
+         right that it was concurrency; the mechanism is the backward
+         kernel's per-call cudaMallocAsync/cudaFreeAsync of the 640 MiB
+         workspace being unmapped at sync points driven by the background
+         embedding thread. Fix = cached grow-only workspace (Edifice
+         fused_selective_scan_backward.cu). New reproducer
+         scripts/mamba_race_probe.exs: 2/3 crash before, 3/3 pass after.
+         Your alloc-failure harness rewritten for the new contract; native
+         suite green. Details: FOX_MAMBA_CRASH_REGRESSIONS.md last section.
+RUNNING: exphil-mamba-gate-v4 = your regression campaign, --start-at parity,
+         on the fixed lib. No mix / no rebuild until it ends.
+ASKS:    22. Please review the workspace cache for anything multi-stream I
+         missed (I assume one compute stream per device; growth frees
+         stream-ordered).
