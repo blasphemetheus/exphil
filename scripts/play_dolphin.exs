@@ -187,8 +187,20 @@ bridge_config = %{
   gfx_backend: System.get_env("EXPHIL_GFX"),
   # Match the graphical play recipe: Mainline beta can hang before video
   # when the bridge disables EXI memory-card slots with device value 255.
-  # Preserve the existing headless evaluation configuration.
-  memory_card: not (opts[:headless] || false),
+  # Preserve the existing headless evaluation configuration. :folder
+  # provisions a memory card WITH save data — required for the in-game tag
+  # list when --nametag is given (mirrors play_dolphin_async.exs; until
+  # 2026-09-26 this script parsed --nametag and then dropped it, so the bot
+  # played untagged — GOTCHA #132).
+  memory_card:
+    cond do
+      opts[:headless] -> false
+      opts[:nametag] -> :folder
+      true -> true
+    end,
+  # In-game tag the menu helper creates/equips at the CSS (local play only;
+  # netplay shows the connect-code tag instead).
+  nametag: opts[:nametag],
   # The local Mainline build consumes raw unipolar trigger values; ExiAI's
   # headless controller backend uses the bipolar Axis + binding.
   pipe_trigger_encoding: if(opts[:headless], do: :bipolar, else: :unipolar),

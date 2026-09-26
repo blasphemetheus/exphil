@@ -4425,3 +4425,33 @@ no such guard yet; interactive callers (voice-command, agent-watchers) are
 user-initiated. **Before trusting any GPU memory comparison, check the Ollama
 journal for a load inside the window.** Do not stop Ollama itself without
 asking.
+
+## #132 — `play_dolphin.exs` accepted `--nametag` and silently dropped it (2026-09-26)
+
+**Symptom:** the sync play script is launched with `--nametag EXPH` (as the
+09-25 handoffs prescribe) and the bot plays untagged. No warning: the flag is
+in the shared CLI's `:dolphin` group, so it parses, but only
+`play_dolphin_async.exs` ever copied it into the bridge config — and the
+sync script is the mandatory one for reaction-0 checkpoints (#127).
+
+**Fix:** `play_dolphin.exs` now passes `nametag:` and `memory_card: :folder`
+(the tag list needs memory-card save data) exactly as the async script does.
+Lesson, again (#108): a flag that parses is not a flag that is wired — grep
+the script for the option name, not just the CLI group.
+
+## #133 — `fox_mamba_campaign.py` has no argument parsing; ANY invocation starts training (2026-09-26)
+
+**Symptom:** `python3 scripts/fox_mamba_campaign.py --help` launched the
+real train phase (01:39). Its status writer overwrote
+`eval_runs/0925_fox_mamba/campaign/{train.log,status.json,train_command.json}`
+and `docs/planning/FOX_MAMBA_LIVE_STATUS.md` within seconds. The run was
+killed at "Finding replays" (no training, no checkpoint, split.json
+untouched); the doc came back from git; **the original 21:36 campaign's
+train.log — the loss curve up to the Xid 31 crash — is gone.** Its facts
+survive in `HANDOFF_2026-09-25a.md` §4.1 and `FOX_MAMBA_CRASH_REGRESSIONS.md`.
+
+**Fix:** the script now runs `argparse` (no options) so `--help` prints its
+docstring and anything else errors out. Rule: never probe an unfamiliar
+supervisor with `--help`; read its head first. Also `pkill -f <script>` from a
+Bash tool call whose own command line contains that name kills the calling
+shell.

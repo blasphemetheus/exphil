@@ -3,12 +3,19 @@
 Run inside devenv in a systemd user unit. Every phase writes a log and the
 live markdown names the child PID. No automatic promotion or repeat loop.
 """
+import argparse
 import datetime
 import json
 import os
 from pathlib import Path
 import subprocess
 import time
+
+# No options — but parse anyway so `--help` prints this docstring instead of
+# launching the campaign (2026-09-26 01:39: a `--help` probe started the real
+# train phase and its status writer clobbered the original campaign's
+# train.log/status.json before it was killed; GOTCHA #133).
+argparse.ArgumentParser(description=__doc__).parse_args()
 
 ROOT = Path(__file__).resolve().parents[1]
 OUT = ROOT / "eval_runs/0925_fox_mamba/campaign"
