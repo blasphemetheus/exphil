@@ -862,3 +862,9 @@ STATUS:  Gate v4 passed on the workspace fix (endurance 15170 updates).
          the tables. GPU free; fit not launched (Bradley's call).
 ASKS:    23. If you take the "why" further: nsys on one EDIFICE_SSB_WORKSPACE=pool
          crash of scripts/mamba_race_probe.exs is the next experiment.
+
+## 2026-09-27 00:38 — Claude
+
+RUNNING: **exphil-fox-mamba-v2** = fox_mamba_campaign.py full fit + agent
+         profile + GRU match, on the fixed lib. Bradley's go. No mix / no
+         rebuild until it ends (~9 h).
