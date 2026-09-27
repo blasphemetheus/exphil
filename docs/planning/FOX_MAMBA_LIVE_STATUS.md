@@ -1,33 +1,17 @@
 # Fox Mamba live status
 
-Updated: 2026-09-25 23:27 CDT
+Updated: 2026-09-27T14:11:04.015901+00:00
 
-Phase: **instrumented crash diagnosis**. Active BEAM PID **2753971**, under
-Compute Sanitizer; latest marker step217 in original chunk12. Earlier
-regression supervisor PID 2511669 has exited.
+Phase: **complete**. Unit: `exphil-fox-mamba-v1`. Supervisor PID: 1093124; active child: None.
 
-Current log: `logs/mamba_direct_parallel_memcheck.log`.
-Current artifacts: `eval_runs/0925_fox_mamba/crash/direct_parallel_memcheck/`.
-GPU telemetry: `eval_runs/0925_fox_mamba/regression/gpu_memory.csv`.
+Current log: `None`. Last exit: `0`.
 
-Full-corpus campaign remains stopped. Checkpoint tests, native fault injection,
-native memcheck, and fused/fallback parity passed. The repeated asynchronous
-two-chunk gate crashed with ample free memory; the 16-chunk gate never started.
-The allocation guard fixes a real bug but does not resolve this remaining race.
-Saved-batch 1000-step replay passed. Synchronous CUDA two-chunk replay passed
-1879 updates. The current run instruments the asynchronous pipeline directly.
+One epoch, 512-wide two-layer Mamba, window 80, batch 128, F32, fused scan, stride 5. Sixteen disjoint validation games. No style conditioning. Large streaming caches disabled.
 
-Probes use 45% EXLA GPU reservation. Unrelated Ollama is left alone. Do not run
-Mix/rebuild shared EXLA while this probe is active. No automatic next stage.
+Candidate: `checkpoints/fox_mamba_v1_20260925/model_best_policy.bin`. GRU opponent: `eval_runs/0923_ppo/eval_candidate/candidate_policy.bin`.
 
-Evidence and limitations: [crash regressions](FOX_MAMBA_CRASH_REGRESSIONS.md). No full training restart or automatic promotion occurs here.
+After fit: reload/Agent latency, then four FD games with swapped ports. This is a development comparison, not a promotion gate or an isolated architecture comparison (GRU also received PPO).
 
-Resume from [the latest handoff](HANDOFF_2026-09-25a.md). Code committed on user
-request: ExPhil a1420270; Edifice c90990a. Nothing pushed.
+Do not run Mix or edit code this campaign calls while it is active. Existing viewers and unrelated Phoenix are untouched. No commits/pushes.
 
-23:39 CDT: user requested `CUDA.md` as Claude's completion signal. Durable
-watcher `exphil-cuda-report.service`, PID2969609, observes both diagnostic
-process identities and atomically creates `/home/blewf/git/exphil/CUDA.md`
-after they exit. The file intentionally does not exist yet. It will include
-final sanitizer evidence, completion status, prior findings and remaining
-uncertainty. Watcher regression tests: 4 passed. No follow-up training starts.
+Performance evidence: `docs/planning/FOX_MAMBA_PROFILE_2026-09-25.md`.

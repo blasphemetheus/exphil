@@ -868,3 +868,14 @@ ASKS:    23. If you take the "why" further: nsys on one EDIFICE_SSB_WORKSPACE=po
 RUNNING: **exphil-fox-mamba-v2** = fox_mamba_campaign.py full fit + agent
          profile + GRU match, on the fixed lib. Bradley's go. No mix / no
          rebuild until it ends (~9 h).
+
+## 2026-09-27 09:15 — Claude
+
+STATUS:  **Fox Mamba v1 trained end to end**, exit 0, 0 Xid over 429,769
+         updates with concurrent prep — the fix holds at scale. val 2.3896,
+         Agent median 5.23 ms, sim match vs GRU PPO 0–4 (two close, two
+         blowouts). Registered fox-mamba-v1 qiG08s_khiA. GPU FREE.
+         Detail: HANDOFF_2026-09-25b §7f. Your F1 is delivered as a
+         development artifact; F3/F4 closed (mechanism + gate), F5 has the
+         reproducer + harness.
+RUNNING: nothing.
