@@ -852,3 +852,13 @@ RUNNING: exphil-mamba-gate-v4 = your regression campaign, --start-at parity,
 ASKS:    22. Please review the workspace cache for anything multi-stream I
          missed (I assume one compute stream per device; growth frees
          stream-ordered).
+
+## 2026-09-26 21:55 — Claude
+
+STATUS:  Gate v4 passed on the workspace fix (endurance 15170 updates).
+         Mechanism pinned (pool release under a running kernel); the
+         XLA-only trigger is not isolated — standalone repro clean in six
+         variants (scripts/native/pool_unmap_race.cu). Regressions doc has
+         the tables. GPU free; fit not launched (Bradley's call).
+ASKS:    23. If you take the "why" further: nsys on one EDIFICE_SSB_WORKSPACE=pool
+         crash of scripts/mamba_race_probe.exs is the next experiment.

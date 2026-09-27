@@ -193,3 +193,43 @@ XLA-side ordering interaction); (4) driver A/B if (3) faults.
 Evidence: `logs/mamba_race_{real,none,parse_only,cpu,h2_cmdbuf,h1_fix}_*.log`,
 `eval_runs/0925_fox_mamba/crash/race_*/`, `journalctl -k | grep Xid`
 (11:50:42, 11:51:04, 12:11:xx, 12:12:xx), `logs/mamba_native_tests_0926.log`.
+
+**Gate passed on the fix (2026-09-26, `eval_runs/0925_fox_mamba/regression_v4`,
+unit `exphil-mamba-gate-v4`, launched 12:26):** parity max_abs_error within
+1e-4; transition (chunks 12–13, parallel) 1879/1879; **endurance (chunks
+1–16, parallel) 15170 updates, 0 Xid** — past the original 11001-update
+failure with the pipeline's concurrent preparation on. `gates_passed`.
+
+### Mechanism experiments (2026-09-26 18:07–21:50) — what is and is not established
+
+In-process, on the race reproducer (6000 steps each, fixed lib with the
+`EDIFICE_SSB_WORKSPACE` diagnostic switch, `logs/mamba_race_pool*_*.log`):
+
+| `EDIFICE_SSB_WORKSPACE` | pool behaviour | runs |
+| --- | --- | --- |
+| `pool` (pre-fix path restored) | per-call mallocAsync/freeAsync | **crash**, pass, pass |
+| `pool_keep` | release threshold unlimited: freed pages never unmapped | pass, pass, pass |
+| `pool_noopp` | opportunistic cross-stream reuse off (pool trims more) | **crash, crash, crash** |
+| `cached` (the fix) | no pool traffic | pass ×3 + gate |
+
+All four crashes: Xid 31 VIRT_WRITE at `0x3_26018000`. **Established:** the
+fault is the driver unmapping (releasing) the freed workspace pages while the
+backward kernel is still writing them — never releasing removes it, releasing
+more often makes it deterministic.
+
+Standalone (`scripts/native/pool_unmap_race.cu`, no XLA): thread A does the
+exact pre-fix pattern (mallocAsync → 640 MiB writing kernel → freeAsync, one
+stream) while thread B syncs another stream continuously. **Clean** in every
+variant: default (13,459 cycles vs 725k syncs in 180 s), 25 ms idle gap
+before reuse, 60 % of the card reserved, opportunistic reuse off, and a third
+thread as a second pool user on its own stream. So the textbook pattern does
+not fault by itself; **the XLA process contributes a factor that these
+variants do not model** (stream/event topology of PJRT, its own stream-
+ordered allocations, or a driver bug that needs that topology). Driver-bug
+vs ordering-rule is therefore **NOT decided**; the mechanism and the fix
+are. Next step if anyone wants the last word: an nsys trace of one `pool`
+crash (which stream the kernel and the free actually land on, and what the
+other threads enqueue in between), then a driver A/B.
+
+Decision: the cached workspace is the fix (no pool traffic, gate passed
+15170 updates with concurrent prep). The `pool*` modes stay for diagnosis.
