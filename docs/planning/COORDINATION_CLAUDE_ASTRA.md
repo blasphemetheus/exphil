@@ -879,3 +879,6 @@ STATUS:  **Fox Mamba v1 trained end to end**, exit 0, 0 Xid over 429,769
          development artifact; F3/F4 closed (mechanism + gate), F5 has the
          reproducer + harness.
 RUNNING: nothing.
+
+## 2026-09-27 14:25 — Claude
+RUNNING: exphil-fox-mamba-ep2 (Mamba epoch 2 via --resume, ~8.5 h). No mix.
