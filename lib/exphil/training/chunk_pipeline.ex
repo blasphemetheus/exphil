@@ -92,6 +92,16 @@ defmodule ExPhil.Training.ChunkPipeline do
     cache_embeddings = Keyword.get(opts, :cache_embeddings, false)
     cache_dir = Keyword.get(opts, :cache_dir, "cache/embeddings")
     embed_config = Keyword.get(opts, :embed_config)
+    # Stop/restart support (2026-09-27): when `progress_path` is given, a JSON
+    # marker {chunk, of, started_at} is written the moment a chunk is handed
+    # to the trainer, with `chunk` = `chunk_offset` + local index — the
+    # ABSOLUTE chunk number of the epoch even after a driver has dropped
+    # already-trained chunks on resume. A resume restores the newest rolling
+    # checkpoint (<= 500 updates old) and restarts at this chunk, so at most
+    # a few hundred updates of one chunk are repeated; the data cursor is
+    # otherwise exact at chunk granularity.
+    progress_path = Keyword.get(opts, :progress_path)
+    chunk_offset = Keyword.get(opts, :chunk_offset, 0)
     total_chunks = length(file_chunks)
 
     # Build preparation options
@@ -101,7 +111,10 @@ defmodule ExPhil.Training.ChunkPipeline do
       show_progress: show_progress,
       cache_embeddings: cache_embeddings,
       cache_dir: cache_dir,
-      embed_config: embed_config
+      embed_config: embed_config,
+      progress_path: progress_path,
+      chunk_offset: chunk_offset,
+      total_absolute: chunk_offset + total_chunks
     }
 
     Stream.resource(
@@ -147,6 +160,7 @@ defmodule ExPhil.Training.ChunkPipeline do
               end
 
             new_state = {new_tasks, new_remaining, total, p_opts}
+            record_progress(p_opts, chunk_idx)
             {[{dataset, chunk_idx, errors}], new_state}
         end
       end,
@@ -176,6 +190,33 @@ defmodule ExPhil.Training.ChunkPipeline do
   - Additional options passed to `Data.batched/2` or `Data.batched_sequences/2`
   """
   @spec stream_batches([[String.t()]], keyword()) :: Enumerable.t()
+  # The chunk about to be trained on, as an absolute epoch index. Written
+  # atomically (tmp + rename) so a kill mid-write leaves the old marker.
+  @doc false
+  def record_progress(%{progress_path: nil}, _idx), do: :ok
+
+  def record_progress(%{progress_path: path, chunk_offset: offset, total_absolute: total}, idx) do
+    marker = %{chunk: offset + idx, of: total, started_at: DateTime.to_iso8601(DateTime.utc_now())}
+    tmp = path <> ".tmp"
+    File.mkdir_p!(Path.dirname(path))
+    File.write!(tmp, Jason.encode!(marker))
+    File.rename!(tmp, path)
+    :ok
+  end
+
+  @doc """
+  Read a progress marker written by `stream_prepared_chunks/2`. Returns
+  `{:ok, %{chunk: n, of: total}}` or `:none`.
+  """
+  def read_progress(path) do
+    with {:ok, bin} <- File.read(path),
+         {:ok, %{"chunk" => c, "of" => t}} <- Jason.decode(bin) do
+      {:ok, %{chunk: c, of: t}}
+    else
+      _ -> :none
+    end
+  end
+
   def stream_batches(file_chunks, opts \\ []) do
     batch_size = Keyword.fetch!(opts, :batch_size)
     temporal = Keyword.get(opts, :temporal, false)
@@ -191,7 +232,9 @@ defmodule ExPhil.Training.ChunkPipeline do
         :show_progress,
         :cache_embeddings,
         :cache_dir,
-        :embed_config
+        :embed_config,
+        :progress_path,
+        :chunk_offset
       ])
 
     # Additional batch options
@@ -205,6 +248,8 @@ defmodule ExPhil.Training.ChunkPipeline do
         :cache_embeddings,
         :cache_dir,
         :embed_config,
+        :progress_path,
+        :chunk_offset,
         :batch_size,
         :temporal
       ])

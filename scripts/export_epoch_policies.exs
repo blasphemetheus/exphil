@@ -45,7 +45,12 @@ for path <- paths do
     %{policy_params: policy_params, config: config} =
       path |> File.read!() |> :erlang.binary_to_term()
 
-    embed_config = ExPhil.Embeddings.config(Map.to_list(config))
+    # Source-aware (2026-09-27, GOTCHA #134): `Embeddings.config/1` from the raw
+    # training config re-enables the projectile block (296 dims) that a
+    # Peppi-sourced run never had (264); the live Agent then fails its first
+    # dense layer. Build it the way the pipeline did.
+    embed_config =
+      ExPhil.Embeddings.config_for_source(Map.to_list(config), ExPhil.Data.Peppi.provides())
 
     trainer = %{policy_params: policy_params, config: config, embed_config: embed_config}
 

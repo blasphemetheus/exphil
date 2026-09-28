@@ -60,6 +60,11 @@ defmodule ExPhil.Training.Pipeline do
     :file_chunks,
     :streaming_chunk_opts,
     :streaming_dataset_opts,
+    # Stop/restart (2026-09-27): where ChunkPipeline writes the "chunk in
+    # progress" marker, and how many chunks a resuming driver already dropped
+    # from :file_chunks (so the marker stays an absolute epoch index).
+    :progress_path,
+    :chunk_offset,
 
     # Augmentation
     :augment_fn,
@@ -1165,7 +1170,9 @@ defmodule ExPhil.Training.Pipeline do
             chunk_opts: chunk_opts,
             dataset_opts: dataset_opts,
             cache_embeddings: false,
-            embed_config: pipeline.embed_config
+            embed_config: pipeline.embed_config,
+            progress_path: pipeline.progress_path,
+            chunk_offset: pipeline.chunk_offset || 0
           )
           |> Stream.flat_map(fn {chunk_dataset, _idx, _errors} ->
             ExPhil.Training.TrajectoryCursors.batch_stream(chunk_dataset, cursor_opts)
@@ -1225,7 +1232,9 @@ defmodule ExPhil.Training.Pipeline do
             dataset_opts: dataset_opts,
             temporal: ropts[:temporal],
             cache_embeddings: ropts[:cache_streaming] || false,
-            embed_config: pipeline.embed_config
+            embed_config: pipeline.embed_config,
+            progress_path: pipeline.progress_path,
+            chunk_offset: pipeline.chunk_offset || 0
           ] ++ seq_batch_opts
         )
       else

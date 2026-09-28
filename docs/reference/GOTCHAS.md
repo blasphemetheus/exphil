@@ -4455,3 +4455,23 @@ docstring and anything else errors out. Rule: never probe an unfamiliar
 supervisor with `--help`; read its head first. Also `pkill -f <script>` from a
 Bash tool call whose own command line contains that name kills the calling
 shell.
+
+## #134 — Exporting a policy from a trainer `.axon` with `Embeddings.config/1` re-enables projectiles (296 ≠ 264) (2026-09-27)
+
+**Symptom:** a policy exported by hand from a rolling/trainer checkpoint
+(`%{policy_params, config}` → `Embeddings.config(Map.to_list(config))` →
+`Checkpointing.export_policy/2`) loads, then the live Agent dies in JIT
+warmup: `dot/zip … dimension 2 of left-side (296) does not equal dimension
+0 of right-side (264)`. The driver's own `_best_policy.bin` is fine.
+
+**Cause:** the raw training config still says `with_projectiles: true`; the
+pipeline built its embedding with `Embeddings.config_for_source(opts,
+Peppi.provides())`, which DISABLES the projectile block because the replay
+parser provides none (INVARIANTS item 4). Rebuilding from the raw config
+skips that step, so the exported canary/config is 296 wide while the params
+are 264 wide. (Guard #6 in export_policy did not catch it.)
+
+**Fix:** always rebuild with `config_for_source(Map.to_list(config),
+Peppi.provides())`; `scripts/export_epoch_policies.exs` now does. Playable
+check: `Checkpoint.load_policy/1` succeeding is NOT enough — the width
+mismatch only shows at the first live forward pass.

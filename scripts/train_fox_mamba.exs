@@ -30,14 +30,56 @@ val_batches = val_dataset |> Data.batched_sequences(batch_size: opts[:batch_size
   window_size: opts[:window_size], stride: opts[:window_size], lazy: true,
   shuffle: false, drop_last: false, gpu: false, neutral_weight: 1.0) |> Enum.to_list()
 if val_batches == [], do: raise("empty validation holdout")
+# ---- stop / restart (2026-09-27) -------------------------------------------
+# `--resume PATH` accepts a trainer .axon OR a checkpoint DIRECTORY; a
+# directory resolves to its newest rolling/primary .axon. When the directory
+# also holds progress.json (written by ChunkPipeline each time a chunk is
+# handed to the trainer), the chunks before the one in progress are dropped,
+# so the run continues where it stopped (the in-progress chunk is redone;
+# the rolling checkpoint is <= 500 updates behind the kill, so that is the
+# only repeated work). Stop with `systemctl --user stop <unit>` at any time.
+# A resumed run finishes the CURRENT epoch; start the next epoch as a fresh
+# `--resume <dir-of-finished-epoch>/model.axon` into a new --checkpoint dir.
+all_chunks = Streaming.chunk_files(train_files, opts[:stream_chunk_size])
+progress_path = Path.join(dir, "progress.json")
+
+resume_path =
+  case opts[:resume] do
+    nil -> nil
+    p ->
+      if File.dir?(p) do
+        candidates = Path.wildcard(Path.join(p, "model_resume_*.axon")) ++ [Path.join(p, "model.axon")]
+        candidates
+        |> Enum.filter(&File.regular?/1)
+        |> Enum.max_by(&File.stat!(&1).mtime, fn -> raise("no .axon checkpoint in #{p}") end)
+      else
+        p
+      end
+  end
+
+skip =
+  case {resume_path, ExPhil.Training.ChunkPipeline.read_progress(progress_path)} do
+    {nil, _} -> 0
+    {_, {:ok, %{chunk: c, of: t}}} when t == length(all_chunks) and c > 1 -> c - 1
+    {_, {:ok, %{of: t}}} when t != length(all_chunks) ->
+      Output.warning("progress.json is for a #{t}-chunk epoch, this run has #{length(all_chunks)} — ignoring it")
+      0
+    _ -> 0
+  end
+
+if skip > 0, do: Output.puts("Resuming at chunk #{skip + 1}/#{length(all_chunks)} (#{skip} chunks already trained this epoch)")
+if resume_path, do: Output.puts("Resuming trainer state from #{resume_path}")
+
 pipeline = %{pipeline | replay_files: train_files,
-  file_chunks: Streaming.chunk_files(train_files, opts[:stream_chunk_size]),
+  file_chunks: Enum.drop(all_chunks, skip),
+  progress_path: progress_path,
+  chunk_offset: skip,
   val_batches: val_batches,
-  estimated_batches: max(1, round(pipeline.estimated_batches * length(train_files) / length(files)))}
+  estimated_batches: max(1, round(pipeline.estimated_batches * (length(train_files) - skip * opts[:stream_chunk_size]) / length(files)))}
 trainer = Trainer.new(pipeline, opts)
 Output.puts("Parameters: #{Trainer.param_count(trainer)}; validation batches: #{length(val_batches)}")
-trainer = if opts[:resume] do
-  {:ok, restored} = Trainer.resume(trainer, opts[:resume])
+trainer = if resume_path do
+  {:ok, restored} = Trainer.resume(trainer, resume_path)
   restored
 else
   trainer
@@ -53,6 +95,8 @@ callbacks = [
   {EarlyStopping, [patience: opts[:patience] || 3]}
 ]
 {:ok, state} = Trainer.fit(trainer, pipeline, callbacks: callbacks)
+# The epoch is complete: a later --resume of this directory must not skip chunks.
+File.rm(progress_path)
 if !opts[:no_register] do
   {:ok, entry} = ExPhil.Training.Registry.register(%{
     name: opts[:name] || "fox-mamba-v1",
