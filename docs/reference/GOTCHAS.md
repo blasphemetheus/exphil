@@ -4496,3 +4496,17 @@ streamed → all have `use_prev_action: false` in fact as well as in config.
 carries frame i-1's controller; game-start frame is zeros; width unchanged).
 Rule: a flag that only warns is a flag that silently does nothing — read the
 first 60 lines of any new run's log before walking away.
+
+## #136 — `mix test` does not build `_build/dev`; a `mix run --no-compile` launch right after runs STALE lib code (2026-09-30)
+
+**Symptom:** lib edits verified by `mix test` (green), then a unit launched
+with `mix run --no-compile --no-deps-check` behaves as if the edits never
+happened (the prev-action run printed the OLD "not wired" warning after
+the wire was in and tested). `mix test` compiles `_build/test`; the launch
+uses `_build/dev`.
+
+**Fix:** run `devenv shell -- mix compile` (dev) after lib edits and
+BEFORE any `--no-compile` launch, or drop `--no-compile` for the first run
+(only when no other beam is alive — a compile swaps EXLA's NIF under any
+live training). Check the first 60 lines of the new log for the line the
+edit was supposed to change.
