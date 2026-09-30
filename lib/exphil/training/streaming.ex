@@ -296,6 +296,14 @@ defmodule ExPhil.Training.Streaming do
     # - On-the-fly: embedding computed every batch (CPU-bound, slow)
     precompute = Keyword.get(opts, :precompute, true)
     show_progress = Keyword.get(opts, :show_progress, false)
+    # prev-action channel (2026-09-30): forwarded to precompute so streamed
+    # chunks fill the slot exactly like the standard pipeline (frame i-1's
+    # controller, nil at game boundaries, per-frame dropout).
+    embed_opts = [
+      show_progress: show_progress,
+      use_prev_action: Keyword.get(opts, :use_prev_action, false),
+      prev_action_dropout: Keyword.get(opts, :prev_action_dropout, 0.0)
+    ]
 
     # Build from_frames options with embed_config and player_registry if provided
     from_frames_opts = []
@@ -322,7 +330,7 @@ defmodule ExPhil.Training.Streaming do
         # one last-frame per sequence and sliced windows off a too-short
         # tensor) and finished by writing :sequence_embeddings — a field the
         # Data struct doesn't have. It could never have completed a chunk.
-        embedded_dataset = Data.precompute_frame_embeddings(dataset, show_progress: show_progress)
+        embedded_dataset = Data.precompute_frame_embeddings(dataset, embed_opts)
         gpu_embeddings = Nx.backend_transfer(embedded_dataset.embedded_frames, EXLA.Backend)
 
         %{
@@ -337,7 +345,7 @@ defmodule ExPhil.Training.Streaming do
         }
       else
         # For single-frame: just precompute frame embeddings
-        embedded_dataset = Data.precompute_frame_embeddings(dataset, show_progress: show_progress)
+        embedded_dataset = Data.precompute_frame_embeddings(dataset, embed_opts)
         # Transfer to GPU for fast Nx.take during batching
         gpu_embeddings = Nx.backend_transfer(embedded_dataset.embedded_frames, EXLA.Backend)
         %{embedded_dataset | embedded_frames: gpu_embeddings}

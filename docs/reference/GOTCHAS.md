@@ -4475,3 +4475,24 @@ are 264 wide. (Guard #6 in export_policy did not catch it.)
 Peppi.provides())`; `scripts/export_epoch_policies.exs` now does. Playable
 check: `Checkpoint.load_policy/1` succeeding is NOT enough — the width
 mismatch only shows at the first live forward pass.
+
+## #135 — `--prev-action` was a no-op on the streaming pipeline (2026-09-30)
+
+**Symptom:** a streaming run with `--prev-action` logs a one-line warning
+("not wired into the streaming pipeline yet — the channel will be ZEROS"),
+then trains normally with the SAME parameter count as without the flag.
+The 13-dim previous-controller slot is always present in the layout, so
+nothing else changes shape; the slot is simply zeros. fox-mamba-v2-prevact's
+first launch ran 1000 updates like this before the warning was read.
+
+**Cause:** `Pipeline.build_pipeline/4` (streaming) never put
+`use_prev_action`/`prev_action_dropout` into `streaming_dataset_opts`, and
+`Streaming.create_dataset/2` called `Data.precompute_frame_embeddings/2`
+without them. Every Fox checkpoint to date (Mamba, V3.1 GRU, PPO prior) was
+streamed → all have `use_prev_action: false` in fact as well as in config.
+
+**Fix:** both wired; the warning is now an "ON (dropout P)" line.
+`test/exphil/training/streaming_prev_action_test.exs` pins it (frame i
+carries frame i-1's controller; game-start frame is zeros; width unchanged).
+Rule: a flag that only warns is a flag that silently does nothing — read the
+first 60 lines of any new run's log before walking away.

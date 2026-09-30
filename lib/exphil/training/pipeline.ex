@@ -382,12 +382,13 @@ defmodule ExPhil.Training.Pipeline do
     # Streaming mode — don't load data upfront
     Output.step(2, 4, "Setting up streaming pipeline")
 
+    # --prev-action is wired into streaming since 2026-09-30 (the flag rides
+    # streaming_dataset_opts into Streaming.create_dataset). Before that the
+    # channel was silently zeros in streamed chunks: fox-mamba-v2-prevact's
+    # first launch trained 1000 updates with an empty slot before the
+    # warning was noticed.
     if opts[:use_prev_action] do
-      Output.warning(
-        "--prev-action is not wired into the streaming pipeline yet — " <>
-          "the prev-action channel will be ZEROS in streamed chunks. " <>
-          "Use the standard (non-streaming) pipeline for prev-action training."
-      )
+      Output.puts("  prev-action channel ON (dropout #{opts[:prev_action_dropout] || 0.0})")
     end
 
     chunk_size = opts[:stream_chunk_size]
@@ -542,7 +543,11 @@ defmodule ExPhil.Training.Pipeline do
         :player_port, :dual_port, :label_delay, :skip_errors, :show_errors, :port_map
       ]) ++ [subject_character: subject_character, tag_map: tag_map],
       streaming_dataset_opts: Keyword.take(opts, [
-        :temporal, :window_size, :stride, :precompute, :lazy_sequences
+        :temporal, :window_size, :stride, :precompute, :lazy_sequences,
+        # prev-action channel (2026-09-30): Streaming.create_dataset hands
+        # these to Data.precompute_frame_embeddings, which fills the 13-dim
+        # slot from each frame's predecessor (nil at game boundaries).
+        :use_prev_action, :prev_action_dropout
       ]) ++ [embed_config: embed_config, player_registry: player_registry],
       val_batches: bptt_val_batches,
       character_weights: nil,
