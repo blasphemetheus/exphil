@@ -233,3 +233,30 @@ other threads enqueue in between), then a driver A/B.
 
 Decision: the cached workspace is the fix (no pool traffic, gate passed
 15170 updates with concurrent prep). The `pool*` modes stay for diagnosis.
+
+### Tools ready for the last question (2026-09-30, run when the GPU is next free)
+
+1. **`scripts/native/pool_unmap_race_v2.cu`** — standalone, PJRT topology: the
+   workspace kernels AND a thread of small "eager" kernels share one compute
+   stream; host transfers wait on compute-stream events, sync on a D2H
+   stream, and the compute stream waits on the H2D event (PJRT's transfer
+   pattern); 45 % held reservation as the BFC stand-in. Fault ⇒ driver bug
+   with a portable reproducer; clean ⇒ the factor is inside XLA's allocator
+   interaction. Build: `nvcc -O2 -arch=sm_120 … -o pool_unmap_race_v2`;
+   run 180 s each: default; `180 640 0 0` (reuse off, the in-process
+   deterministic-crash setting); `180 640 1` (release threshold unlimited,
+   must be clean).
+2. **`scripts/mamba_nsys_direct.py`** — the race reproducer under Nsight
+   Systems with `EDIFICE_SSB_WORKSPACE=pool` (crashes in minutes). Needs
+   `nix shell nixpkgs#cudaPackages.nsight_systems`; direct-BEAM launch as the
+   sanitizer used. Read the report for the stream of each
+   `fused_selective_scan_backward_kernel` and `cudaFreeAsync`, and what the
+   embedding thread enqueued between them.
+3. **Driver A/B**: `~/dotfiles/configuration.nix` pins
+   `hardware.nvidia.package = …nvidiaPackages.beta` (595.45.04 today). Swap
+   to `.production`, `sudo nixos-rebuild switch --flake ~/dotfiles#nixos_slanka`,
+   reboot, rerun the in-process `pool_noopp` triple (3/3 crash on beta). A
+   pass on production = driver regression; report upstream with (1).
+
+Order: (1) three runs, ~10 min; (2) only if (1) is clean; (3) only if (1)
+faults or Bradley wants the upstream report airtight.
