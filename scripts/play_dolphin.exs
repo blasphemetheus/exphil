@@ -114,6 +114,9 @@ Output.step(1, 5, "Loading agent")
     deterministic: opts[:deterministic],
     temperature: opts[:temperature],
     af_convention: if(opts[:live_af], do: :libmelee, else: :parsed),
+    # Diagnostic (2026-10-01): feed zeros to the prev-action channel live.
+    # Parsed by the :dolphin CLI group but never passed here before.
+    ablate_prev_action: opts[:ablate_prev_action] || false,
     frame_delay: opts[:frame_delay],
     # INVARIANTS item 12: the physical rung, resolved above (the sync
     # synchronous pipeline applies the decision on the next frame).
