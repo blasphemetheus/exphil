@@ -706,7 +706,7 @@ defmodule ExPhil.Agents.Agent do
     # nil = zeros, as at a game start).
     case batch_preconditions(state) do
       {:ok, :stateful} ->
-        trunk = init_trunk_state(state.trunk_step_params, state.embed_config, state.backbone, n)
+        trunk = fresh_trunk_state(state, n)
 
         {:reply, :ok,
          %{state | batch: %{n: n, mode: :stateful, trunk_state: trunk, cold: true, last_controllers: List.duplicate(nil, n)}}}
@@ -730,7 +730,7 @@ defmodule ExPhil.Agents.Agent do
 
   def handle_call({:batch_reset_rows, rows}, _from, %{batch: %{n: n} = b} = state) do
     b = %{b | last_controllers: b.last_controllers |> Enum.with_index() |> Enum.map(fn {c, i} -> if i in rows, do: nil, else: c end)}
-    fresh = init_trunk_state(state.trunk_step_params, state.embed_config, state.backbone, n)
+    fresh = fresh_trunk_state(state, n)
     mask = Nx.tensor(Enum.map(0..(n - 1), fn i -> if i in rows, do: 1, else: 0 end), type: :u8)
 
     trunk =
@@ -838,7 +838,7 @@ defmodule ExPhil.Agents.Agent do
     # by test/exphil/networks/stateful_step_equivalence_test.exs)
     new_trunk_state =
       if state.trunk_state != nil do
-        init_trunk_state(state.trunk_step_params, state.embed_config, state.backbone)
+        fresh_trunk_state(state, 1)
       else
         nil
       end
@@ -890,7 +890,7 @@ defmodule ExPhil.Agents.Agent do
           frame = Nx.reshape(dummy_embedded, {1, Nx.size(dummy_embedded)})
 
           {features, _new_trunk_state} =
-            trunk_step_fn().(state.trunk_step_params, state.trunk_state, frame)
+            trunk_step_fn(state.backbone).(state.trunk_step_params, state.trunk_state, frame)
 
           stage_t = stage.("trunk_step", stage_t)
 
@@ -1528,7 +1528,7 @@ defmodule ExPhil.Agents.Agent do
     trunk_state =
       if state.trunk_cold and not (state.bptt == true) do
         Enum.reduce(1..max(state.window_size - 1, 0)//1, state.trunk_state, fn _, st ->
-          {_out, st} = trunk_step_fn().(state.trunk_step_params, st, frame)
+          {_out, st} = trunk_step_fn(state.backbone).(state.trunk_step_params, st, frame)
           st
         end)
       else
@@ -1536,7 +1536,7 @@ defmodule ExPhil.Agents.Agent do
       end
 
     buffer = Enum.take([frame | state.step_frame_buffer], max(state.window_size - 1, 1))
-    {features, new_trunk_state} = trunk_step_fn().(state.trunk_step_params, trunk_state, frame)
+    {features, new_trunk_state} = trunk_step_fn(state.backbone).(state.trunk_step_params, trunk_state, frame)
 
     {features,
      %{
@@ -1833,7 +1833,7 @@ defmodule ExPhil.Agents.Agent do
     trunk_state =
       if state.trunk_cold and not (state.bptt == true) do
         Enum.reduce(1..max(state.window_size - 1, 0)//1, state.trunk_state, fn _, st ->
-          {_out, st} = trunk_step_fn().(state.trunk_step_params, st, frame)
+          {_out, st} = trunk_step_fn(state.backbone).(state.trunk_step_params, st, frame)
           st
         end)
       else
@@ -1855,12 +1855,12 @@ defmodule ExPhil.Agents.Agent do
 
     trunk_state =
       if resync? do
-        fresh = init_trunk_state(state.trunk_step_params, state.embed_config, state.backbone)
+        fresh = fresh_trunk_state(state, 1)
 
         state.step_frame_buffer
         |> Enum.reverse()
         |> Enum.reduce(fresh, fn f, st ->
-          {_out, st} = trunk_step_fn().(state.trunk_step_params, st, f)
+          {_out, st} = trunk_step_fn(state.backbone).(state.trunk_step_params, st, f)
           st
         end)
       else
@@ -1868,7 +1868,7 @@ defmodule ExPhil.Agents.Agent do
       end
 
     {features, new_trunk_state} =
-      trunk_step_fn().(state.trunk_step_params, trunk_state, frame)
+      trunk_step_fn(state.backbone).(state.trunk_step_params, trunk_state, frame)
 
     # Steering hook (same seam as the windowed path's steer_project layer):
     # project alpha of the features' component along the steering direction
@@ -1915,17 +1915,24 @@ defmodule ExPhil.Agents.Agent do
   # JIT-compiled Edifice.Recurrent.step/3 — cached in :persistent_term by
   # Edifice.Stateful.jit_step (same hygiene as Sampling.jitted/2). Falls back
   # to the eager step when EXLA isn't loaded (e.g. BinaryBackend tests).
-  defp trunk_step_fn do
+  defp trunk_step_fn(backbone) do
+    module = stateful_module(backbone)
+
     if Code.ensure_loaded?(EXLA) do
-      Edifice.Stateful.jit_step(
-        Edifice.Recurrent,
-        EXLA,
-        xla_exec_cache("trunk_step", Edifice.Recurrent)
-      )
+      Edifice.Stateful.jit_step(module, EXLA, xla_exec_cache("trunk_step", module))
     else
-      &Edifice.Recurrent.step/3
+      &module.step/3
     end
   end
+
+  # Edifice.Stateful implementation per backbone. Mamba joined 2026-10-01
+  # (carried SSM state + conv ring buffer: O(1)/frame instead of re-running
+  # the whole window). NOTE: a WINDOWED-trained Mamba saw at most window_size
+  # frames from a zero state; carrying state indefinitely is outside that
+  # regime unless :stateful_resync bounds it or the policy was trained with
+  # carried state.
+  defp stateful_module(:mamba), do: Edifice.SSM.Mamba
+  defp stateful_module(_recurrent), do: Edifice.Recurrent
 
   # Persistent XLA executable cache (JIT_WARMUP.md step 1) — see
   # ExPhil.Training.Utils.xla_exec_cache/2.
@@ -1937,12 +1944,15 @@ defmodule ExPhil.Agents.Agent do
   # gru_1_input_proj, gru_1_fused_scan). Passing only the trunk subset keeps
   # the head params out of the JIT trace.
   defp trunk_step_params(params, cell_type) do
-    prefix = "#{cell_type}_"
+    # Mamba: "input_projection" + every "mamba_block_*" layer (norm, in_proj,
+    # depthwise conv, ssm projections, out_proj).
+    {prefix, extra} =
+      if cell_type == :mamba, do: {"mamba_block_", "input_projection"}, else: {"#{cell_type}_", "input_ln"}
 
     params
     |> raw_policy_params()
     |> Map.filter(fn {k, _v} ->
-      is_binary(k) and (k == "input_ln" or String.starts_with?(k, prefix))
+      is_binary(k) and (k == extra or String.starts_with?(k, prefix))
     end)
   end
 
@@ -2026,7 +2036,20 @@ defmodule ExPhil.Agents.Agent do
     :ok
   end
 
-  defp init_trunk_state(trunk_params, embed_config, cell_type, batch_size \\ 1) do
+  defp init_trunk_state(trunk_params, embed_config, cell_type, batch_size \\ 1)
+
+  defp init_trunk_state(trunk_params, embed_config, :mamba, batch_size) do
+    Edifice.SSM.Mamba.init_state(trunk_params,
+      batch_size: batch_size,
+      hidden_size: embed_config[:hidden_size] || 256,
+      num_layers: embed_config[:num_layers] || 2,
+      state_size: embed_config[:state_size] || 16,
+      expand_factor: embed_config[:expand_factor] || 2,
+      conv_size: embed_config[:conv_size] || 4
+    )
+  end
+
+  defp init_trunk_state(trunk_params, embed_config, cell_type, batch_size) do
     Edifice.Recurrent.init_state(trunk_params,
       batch_size: batch_size,
       hidden_size: embed_config[:hidden_size] || 256,
@@ -2034,6 +2057,19 @@ defmodule ExPhil.Agents.Agent do
       cell_type: cell_type
     )
   end
+
+  # A fresh trunk state for n rows. The Mamba initial state is all zeros with
+  # shapes fixed by the checkpoint, so it is derived from the live state
+  # (the SSM dims are not in state.embed_config).
+  defp fresh_trunk_state(%{backbone: :mamba, trunk_state: %{} = live}, n) do
+    Map.new(live, fn {k, v} ->
+      shape = v |> Nx.shape() |> put_elem(0, n)
+      {k, Nx.broadcast(Nx.tensor(0.0, type: Nx.type(v)), shape)}
+    end)
+  end
+
+  defp fresh_trunk_state(state, n),
+    do: init_trunk_state(state.trunk_step_params, state.embed_config, state.backbone, n)
 
   # ---- batched sim path helpers --------------------------------------------
 
@@ -2113,14 +2149,14 @@ defmodule ExPhil.Agents.Agent do
     trunk =
       if b.cold and not (state.bptt == true) do
         Enum.reduce(1..max(state.window_size - 1, 0)//1, b.trunk_state, fn _, st ->
-          {_out, st} = trunk_step_fn().(state.trunk_step_params, st, frames)
+          {_out, st} = trunk_step_fn(state.backbone).(state.trunk_step_params, st, frames)
           st
         end)
       else
         b.trunk_state
       end
 
-    {features, new_trunk} = trunk_step_fn().(state.trunk_step_params, trunk, frames)
+    {features, new_trunk} = trunk_step_fn(state.backbone).(state.trunk_step_params, trunk, frames)
     {features, %{state | batch: %{b | trunk_state: new_trunk, cold: false}}}
   end
 
@@ -2938,10 +2974,10 @@ defmodule ExPhil.Agents.Agent do
         not state.stateful_step ->
           {nil, nil, nil, params}
 
-        not (temporal and backbone in [:gru, :lstm]) ->
+        not (temporal and backbone in [:gru, :lstm, :mamba]) ->
           Logger.warning(
             "[Agent] stateful_step requested but backbone #{inspect(backbone)} " <>
-              "doesn't support the Edifice.Stateful step path (GRU/LSTM only) — " <>
+              "doesn't support the Edifice.Stateful step path (GRU/LSTM/Mamba only) — " <>
               "falling back to windowed inference"
           )
 
@@ -3002,7 +3038,10 @@ defmodule ExPhil.Agents.Agent do
               trunk_params,
               %{
                 hidden_size: hidden_size,
-                num_layers: Map.get(config, :num_layers, 2)
+                num_layers: Map.get(config, :num_layers, 2),
+                state_size: Map.get(config, :state_size, 16),
+                expand_factor: Map.get(config, :expand_factor, 2),
+                conv_size: Map.get(config, :conv_size, 4)
               },
               backbone
             )

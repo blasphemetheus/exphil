@@ -130,3 +130,85 @@ Gate for the experiment queue, per variant: offline press-edge ratios
 (flicker) AND closed-loop SD/min + damage/min + neutral share (freezing),
 plus the recovery drill. A variant must beat v1-style baselines on flicker
 without losing on the closed-loop numbers.
+
+## Queue item 1 result (15:20) — per-frame prev-action dropout does not fix freezing
+
+MinGRU 256×2, 3000-file slice, same split + seed; unit `exphil-coh-queue1`,
+outputs `eval_runs/1001_queue/<name>/`. Offline rows feed the policy its OWN
+previous output; closed loop = 32 envs × 1800 frames vs idle; drill = 36 × 8.
+
+| | base (no channel) | prev, dropout 0 | prev, dropout 0.15 | prev, dropout 0.5 | expert |
+| --- | --- | --- | --- | --- | --- |
+| val loss (teacher-forced for prev) | 2.43 | 1.04 | 1.14 | 1.44 | |
+| A press edges / min | 100 | 15.5 | 14.8 | 8.7 | 13.2 |
+| R press edges / min | 247 | 28.6 | 24.7 | 6.2 | 8.3 |
+| change recall | 0.238 | 0.289 | 0.267 | 0.029 | |
+| hold agreement | 0.627 | 0.573 | 0.530 | 0.029 | |
+| closed loop: damage dealt / min | **56.8** | 10.5 | 20.4 | 0.5 | |
+| closed loop: kills / min | 1.06 | 0.13 | 0.19 | 0.0 | |
+| closed loop: SD / min | 1.25 | 1.13 | 1.13 | 0.06 (does not move) | |
+| closed loop: output repeats previous | 0.29 | 0.62 | 0.62 | 0.83 | 0.76 |
+| recovery drill: recovered | **0.278** | 0.167 | 0.146 | 0.104 | |
+| recovery drill: cases never recovered | 5/36 | 19/36 | 19/36 | 25/36 | |
+
+Channel zeroed at inference (`coherence_ablate.json`): dropout 0.15 → neutral
+0.94; dropout 0.5 → neutral 0.81, A edges 53/min.
+
+Reading:
+- **The testbed is faithful.** MinGRU reproduces the Mamba pair: the channel
+  brings press edges to expert rates and costs 3–5× damage and ~40 % of
+  recoveries. Experiments here should transfer.
+- **Change recall barely moves (0.24 → 0.29).** The channel does not teach
+  WHEN to change input; it teaches "repeat what I just did", which is right
+  on 76 % of frames. Flicker and freezing are the same missing skill under
+  two samplers: without the channel each frame is sampled afresh (too many
+  edges); with it the policy copies (too few decisions).
+- **Per-frame dropout is the wrong tool for a recurrent model.** The mask is
+  drawn independently per frame (`data.ex` `slot_at`), so within an 80-frame
+  window the model still sees its previous input on most frames and can
+  carry it across the gaps in its recurrent state. It never has to act
+  without the channel — which is why a dropout-trained model idles when the
+  channel is zeroed for a whole window (0.81–0.94 neutral), and why raising
+  the rate did not help. To train "play without it" the mask must cover the
+  whole window (per-sequence dropout).
+- Dropout 0.5 with the channel on latches a non-neutral held input (neutral
+  0.005, hold agreement 0.03). Mechanism not established; it is a
+  self-feedback effect (teacher-forced val is a normal 1.44).
+
+Consequences for the queue: drop "heavier dropout". Remaining candidates,
+each tied to the diagnosis above:
+1. per-WINDOW channel dropout (p≈0.3–0.5): the policy must be competent
+   both with and without the channel; tests whether the copy shortcut is
+   what crowds out the state-driven behaviour.
+2. scheduled sampling (feed the model's own sampled previous output during
+   training): attacks the train/play mismatch directly; streaming wiring to
+   verify first.
+3. press-event target, no channel: makes "when to change" the thing the
+   loss scores.
+4. joint button categorical, control.
+
+## Carried-state Mamba inference (15:25)
+
+`stateful_step: true` now works for Mamba (single + batched paths):
+`Edifice.SSM.Mamba.step/3` carries the SSM state and a conv ring buffer per
+layer instead of re-running the 80-frame window. On Mamba v1 ep2 (trained
+WINDOWED, never saw more than 80 frames from a zero state):
+
+| | windowed | carried |
+| --- | --- | --- |
+| argmax controller agreement vs windowed, frames 0–79 / 80–299 / 300–1499 | — | 0.988 / 1.000 / 0.993 |
+| single-agent median latency | 2.23 ms | 0.92 ms |
+| closed loop 32 envs × 3600: SD / min | 1.28 | 1.28 |
+| damage dealt / min | 77.0 | 79.1 |
+| kills / min | 1.44 | 1.91 |
+| batched step | 17 ms | 14 ms |
+
+The windowed-trained model tolerates unbounded carried state: its effective
+memory is shorter than the window, so the two modes compute nearly the same
+function. Carried inference is therefore safe to use today (2.4× cheaper per
+frame); `--stateful-resync` is not needed. It also means carried-state
+TRAINING (fused scan kernel taking/returning state, contiguous chunks) would
+only pay off if the model learns to use context beyond 80 frames — a
+capacity bet, not a prerequisite. Not started. Test:
+`test/exphil/agents/agent_stateful_mamba_test.exs`; outputs
+`eval_runs/1001_carried/`.

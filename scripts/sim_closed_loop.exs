@@ -7,7 +7,7 @@
 #
 #   mix run scripts/sim_closed_loop.exs --policy P --label L [--opponent idle|POLICY]
 #     [--envs 32] [--frames 3600] [--seed 1001] [--stage final_destination]
-#     [--ablate-prev-action] [--out FILE.json]
+#     [--ablate-prev-action] [--stateful-step] [--out FILE.json]
 #
 # Reports (port 1, pooled over envs):
 #   sd_per_min        stocks lost with no hit taken in the previous 90 frames
@@ -24,7 +24,8 @@ alias ExPhil.Training.{Checkpoint, Output}
 {opts, _, bad} =
   OptionParser.parse(System.argv(),
     strict: [policy: :string, label: :string, opponent: :string, envs: :integer, frames: :integer,
-             seed: :integer, stage: :string, ablate_prev_action: :boolean, out: :string])
+             seed: :integer, stage: :string, ablate_prev_action: :boolean, out: :string,
+             stateful_step: :boolean, stateful_resync: :integer])
 if bad != [], do: raise("invalid options: #{inspect(bad)}")
 
 policy = opts[:policy] || raise("--policy required")
@@ -42,7 +43,7 @@ start_agent = fn path, extra ->
   {:ok, agent} =
     Agent.start_link([policy_path: path, deterministic: false, temperature: 1.0, af_convention: :parsed,
       frame_delay: 0, reaction_delay: 0, harness: :sync_runner,
-      stateful_step: contract.recurrent_state == :carried_zero] ++ extra)
+      stateful_step: Keyword.get(extra, :stateful_step) || contract.recurrent_state == :carried_zero] ++ Keyword.delete(extra, :stateful_step))
   {:ok, _} = Agent.warmup(agent)
   :ok = Agent.batch_init(agent, n)
   agent
@@ -50,7 +51,11 @@ end
 
 Output.banner("Closed-loop sim rollout: #{label}")
 Output.config([{"Policy", policy}, {"Opponent", opts[:opponent] || "idle"}, {"Envs", n}, {"Frames/env", frames}, {"Stage", stage}])
-actor = start_agent.(policy, ablate_prev_action: opts[:ablate_prev_action] || false)
+# --stateful-step forces carried-state inference (O(1)/frame) for a policy whose
+# training contract is windowed — e.g. Mamba (2026-10-01); --stateful-resync K
+# rebuilds the state from the last window every K frames (single path only).
+actor = start_agent.(policy, [ablate_prev_action: opts[:ablate_prev_action] || false, stateful_step: opts[:stateful_step] || false] ++
+  if(opts[:stateful_resync], do: [stateful_resync: opts[:stateful_resync]], else: []))
 opponent = case opts[:opponent] do
   nil -> :idle
   "idle" -> :idle
