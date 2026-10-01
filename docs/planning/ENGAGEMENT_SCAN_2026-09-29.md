@@ -113,3 +113,26 @@ Next, cheapest first:
    training at delay with its own unroll.
 3. The joint button categorical remains the alternative that removes
    flicker WITHOUT a feedback channel.
+
+### 10-01 ablation result (`--ablate-prev-action`, 4 games, 5.4 min) — did NOT restore v1
+
+`eval_runs/fox_mamba_live_v2prevact_ablate_20261001_121721`. Bradley: "there
+was a multi jab. It didn't fix the problems."
+
+| | v2 ablated | v2 with channel | v1 ep2 | expert |
+| --- | --- | --- | --- | --- |
+| fully neutral controller share | **0.835** | 0.37 | 0.25 | 0.28 |
+| input == previous frame | 0.79 | 0.73 | 0.34 | 0.67 |
+| SD / min | 1.1 | 4.5 | 1.05 | 0.32 |
+| jab1 / min | **3.66** | 0 | 0.59 | 1.04 |
+| jab2 / min | **1.83** | 0 | 0.39 | 0 |
+| A re-presses per jab1 | 0.34 | – | 1.0 | 0 |
+| initiative share | 0.435 | 0.33 | 0.585 | 0.623 |
+
+Zeros in the slot do not give "v1": the model idles 83 % of frames and jabs
+3.5× the expert rate, with MORE jab-2s per minute than v1. It leans on the
+channel so heavily that neither mode plays. SDs fall 4.5 → 1.1/min without
+the feedback, consistent with the freeze being the feedback loop, but n is
+small. Correction to the 09-30 note: a joint button categorical fixes
+cross-BUTTON independence within a frame, not flicker across TIME; it was
+overclaimed as a flicker fix.
