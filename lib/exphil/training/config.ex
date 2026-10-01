@@ -1587,6 +1587,7 @@ defmodule ExPhil.Training.Config do
       # (exposure-bias mitigation: live the model eats its own outputs, which
       # drift from ground truth — dropout stops it over-relying on the channel)
       prev_action_dropout: 0.0,
+      prev_action_dropout_block: 1,
       # Scheduled sampling (exposure bias): fraction of samples whose LAST
       # window position's prev-action slice is replaced by the model's own
       # decoded prediction (ExPhil.Training.ScheduledSampling). Requires
@@ -2612,6 +2613,7 @@ defmodule ExPhil.Training.Config do
       focal_loss: opts[:focal_loss],
       use_prev_action: opts[:use_prev_action],
       prev_action_dropout: opts[:prev_action_dropout],
+      prev_action_dropout_block: opts[:prev_action_dropout_block],
       scheduled_sampling: opts[:scheduled_sampling],
       ss_ramp: opts[:ss_ramp],
       action_delay: opts[:action_delay],

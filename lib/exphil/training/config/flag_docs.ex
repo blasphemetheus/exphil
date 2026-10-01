@@ -157,6 +157,7 @@ defmodule ExPhil.Training.Config.FlagDocs do
     "--preset" => "Training preset (quick, standard, full, mewtwo)",
     "--prev-action" => "Condition on previous frame's controller (training embeds frame i-1's inputs; live agent feeds back its own outputs). Enables frame-precise input sequences (dash dance, multishine). Regime is stored in the policy config — old checkpoints keep zeros. Not yet wired for --streaming.",
     "--prev-action-dropout" => "Zero the prev-action channel on fraction P of training frames (exposure-bias mitigation: live, the model feeds back its own outputs, which drift from teacher-forced ground truth). Try 0.1–0.3 with --prev-action. Mask is baked into the embedding cache entry — use --no-cache for a fresh mask.",
+    "--prev-action-dropout-block" => "Draw the prev-action dropout mask once per run of N consecutive frames instead of per frame (N > window makes whole windows channel-less; per-frame masking never does for a recurrent model)",
     "--probe-basin" => "Per-epoch basin mental rollout + (multishine script) fixture margins to `<out>.basin_probe.jsonl`; `--no-probe-basin` disables",
     "--probe-entries" => "Dead-seed replays as auto-detected absorbed probe entries",
     "--profile" => "Enable timing profiler (report at end)",

@@ -363,6 +363,7 @@ defmodule ExPhil.Training.Config.Parser do
     {"--prev-action", :use_prev_action, :flag},
     {"--no-prev-action", :use_prev_action, :neg_flag},
     {"--prev-action-dropout", :prev_action_dropout, :float},
+    {"--prev-action-dropout-block", :prev_action_dropout_block, :int},
     {"--scheduled-sampling", :scheduled_sampling, :float},
     {"--ss-ramp", :ss_ramp, :int},
     {"--mix-frames", :mix_frames, :string},

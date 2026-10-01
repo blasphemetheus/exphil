@@ -41,3 +41,18 @@ grep RESULT "$out/closed_loop.log" | sed 's/^\[[0-9:]*\] //'
 $run scripts/recovery_drill.exs --policy "$policy" --label "$name" --out "$out/recovery.json" > "$out/recovery.log" 2>&1
 grep RESULT "$out/recovery.log" | sed 's/^\[[0-9:]*\] //'
 echo "DONE $name"
+
+# ABLATE_TOO=1: repeat the closed-loop evals with the prev-action channel
+# zeroed at inference (is the policy competent WITHOUT the channel?).
+if [ "${ABLATE_TOO:-0}" = 1 ]; then
+  $run scripts/offline_input_coherence.exs --policy "$policy" --label "${name}_ablate" --games 3 \
+    --split "$ckpt/split.json" --ablate-prev-action --out "$out/coherence_ablate.json" > "$out/coherence_ablate.log" 2>&1
+  grep RESULT "$out/coherence_ablate.log" | sed 's/^\[[0-9:]*\] //'
+  $run scripts/sim_closed_loop.exs --policy "$policy" --label "${name}_ablate" --envs 32 --frames 1800 \
+    --ablate-prev-action --out "$out/closed_loop_ablate.json" > "$out/closed_loop_ablate.log" 2>&1
+  grep RESULT "$out/closed_loop_ablate.log" | sed 's/^\[[0-9:]*\] //'
+  $run scripts/recovery_drill.exs --policy "$policy" --label "${name}_ablate" --ablate-prev-action \
+    --out "$out/recovery_ablate.json" > "$out/recovery_ablate.log" 2>&1
+  grep RESULT "$out/recovery_ablate.log" | sed 's/^\[[0-9:]*\] //'
+  echo "DONE ${name}_ablate"
+fi

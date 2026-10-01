@@ -302,7 +302,8 @@ defmodule ExPhil.Training.Streaming do
     embed_opts = [
       show_progress: show_progress,
       use_prev_action: Keyword.get(opts, :use_prev_action, false),
-      prev_action_dropout: Keyword.get(opts, :prev_action_dropout, 0.0)
+      prev_action_dropout: Keyword.get(opts, :prev_action_dropout, 0.0),
+      prev_action_dropout_block: Keyword.get(opts, :prev_action_dropout_block, 1)
     ]
 
     # Build from_frames options with embed_config and player_registry if provided

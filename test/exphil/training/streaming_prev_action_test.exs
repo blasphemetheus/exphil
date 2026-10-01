@@ -59,6 +59,26 @@ defmodule ExPhil.Training.StreamingPrevActionTest do
     assert changed >= 1 and changed <= 13, "only the 13-dim controller slot may differ, got #{changed}"
   end
 
+  test "block dropout masks whole runs of frames, not scattered ones" do
+    # Every frame holds A, so an unmasked frame i >= 1 always differs from the
+    # channel-off embedding. With block 10 each block is all-masked or
+    # all-visible; per-frame masking would mix them inside a block.
+    frames = for i <- 0..199, do: frame(frame: i, button_a: true)
+    off = embed(frames, use_prev_action: false)
+
+    on =
+      embed(frames, use_prev_action: true, prev_action_dropout: 0.5, prev_action_dropout_block: 10)
+
+    masked = Enum.zip_with(on, off, &(&1 == &2))
+
+    blocks =
+      masked |> Enum.drop(1) |> Enum.with_index(1) |> Enum.group_by(fn {_, i} -> div(i, 10) end, &elem(&1, 0))
+
+    assert Enum.all?(blocks, fn {_b, ms} -> length(Enum.uniq(ms)) == 1 end)
+    kinds = blocks |> Map.values() |> Enum.map(&hd/1) |> Enum.uniq() |> Enum.sort()
+    assert kinds == [false, true], "20 blocks at p=0.5 should contain both masked and visible blocks"
+  end
+
   test "the flag defaults to off in streaming, matching the pre-wire behaviour" do
     frames = [frame(frame: 0, button_a: true), frame(frame: 1)]
     assert embed(frames, []) == embed(frames, use_prev_action: false)

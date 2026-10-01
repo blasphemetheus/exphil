@@ -1480,6 +1480,25 @@ defmodule ExPhil.Training.Data do
     embed_config = dataset.embed_config
     use_prev_action = Keyword.get(opts, :use_prev_action, false)
     prev_action_dropout = Keyword.get(opts, :prev_action_dropout, 0.0)
+    # Block dropout (2026-10-01): with block > 1 the mask is drawn once per
+    # run of `block` consecutive frames instead of per frame. Per-frame
+    # masking never removes the channel from a RECURRENT model's view — it
+    # still sees its previous input on most frames of a window and carries
+    # it across the gaps — so a per-frame-dropout policy idles when the
+    # channel is absent. Blocks longer than the window produce windows with
+    # no channel at all.
+    prev_action_dropout_block = max(Keyword.get(opts, :prev_action_dropout_block, 1) || 1, 1)
+    dropout_seed = :rand.uniform(1_000_000_000)
+
+    dropped? = fn i ->
+      prev_action_dropout > 0.0 and
+        if prev_action_dropout_block > 1 do
+          :erlang.phash2({dropout_seed, div(i, prev_action_dropout_block)}, 1_000_000) <
+            prev_action_dropout * 1_000_000
+        else
+          :rand.uniform() < prev_action_dropout
+        end
+    end
 
     # Previous-action channel: frame i sees frame i-1's controller, nil at
     # replay boundaries (detected by frame-number discontinuity — the frames
@@ -1544,8 +1563,7 @@ defmodule ExPhil.Training.Data do
                 end
             end
 
-          if raw != nil and prev_action_dropout > 0.0 and
-               :rand.uniform() < prev_action_dropout do
+          if raw != nil and dropped?.(i) do
             nil
           else
             raw
@@ -1798,6 +1816,7 @@ defmodule ExPhil.Training.Data do
           frame_count: dataset.size,
           use_prev_action: Keyword.get(opts, :use_prev_action, false),
           prev_action_dropout: Keyword.get(opts, :prev_action_dropout, 0.0),
+          prev_action_dropout_block: Keyword.get(opts, :prev_action_dropout_block, 1),
           mix_frames: Keyword.get(opts, :mix_frames)
         )
 

@@ -882,3 +882,9 @@ RUNNING: nothing.
 
 ## 2026-09-27 14:25 — Claude
 RUNNING: exphil-fox-mamba-ep2 (Mamba epoch 2 via --resume, ~8.5 h). No mix.
+
+### 2026-10-01 15:40 — Claude
+- Agent: carried-state Mamba inference (`stateful_step: true`, single + batched) — a04f4f56. Windowed-trained Mamba v1 is equivalent carried vs windowed in closed loop; 2.4× cheaper per frame.
+- Training data: `--prev-action-dropout-block N` (block mask instead of per-frame). Touches `data.ex`, `streaming.ex`, `pipeline.ex`, `embedding_cache.ex`, config parser/defaults.
+- GPU: unit `exphil-coh-queue2` running until ~16:15. No mix until it ends.
+- Finding for anyone using `--prev-action-dropout`: per-frame dropout does not make a recurrent policy robust to a missing channel (see INPUT_COHERENCE_2026-10-01.md).
