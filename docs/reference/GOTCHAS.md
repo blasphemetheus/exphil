@@ -4510,3 +4510,21 @@ BEFORE any `--no-compile` launch, or drop `--no-compile` for the first run
 (only when no other beam is alive — a compile swaps EXLA's NIF under any
 live training). Check the first 60 lines of the new log for the line the
 edit was supposed to change.
+
+## #137 — `Sim.Seed.from_replay` silently diverges on non-validated matchups/stages (2026-10-01)
+
+**Symptom:** cases mined from held-out replays (Fox vs Marth / Falco, PS and
+BF) and seeded with `Seed.from_replay(path, frame:, frames:)` are not the
+replay's states: at the saved frame the sim's Fox is tens of units away,
+on a different stock, or already dead, while `divergence` is nil and each
+save says `diverged?: false`. Only very early frames matched. Found because
+replaying the EXPERT's recorded inputs from those "recoverable" states
+recovered 10 %.
+
+**Rule:** before trusting any replay-seeded state, compare
+`save.state.players[port]` position/stock with the Peppi frame at the same
+frame number and drop mismatches; the bit-exact claim (09-21) holds for the
+configuration it was validated on, not the whole corpus. Until fixed, build
+sim drills from states captured inside the sim (`recovery_drill.exs --build`).
+Always include a control that must score ~100 % (expert replay) or ~0 %
+(neutral) — it is what exposed this.

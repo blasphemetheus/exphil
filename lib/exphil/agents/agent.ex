@@ -701,17 +701,35 @@ defmodule ExPhil.Agents.Agent do
   # ---- batched sim path -----------------------------------------------------
 
   def handle_call({:batch_init, n}, _from, state) do
+    # `last_controllers`: per-row controller emitted on the previous step, fed
+    # to the prev-action channel for policies trained with it (2026-10-01;
+    # nil = zeros, as at a game start).
     case batch_preconditions(state) do
-      :ok ->
+      {:ok, :stateful} ->
         trunk = init_trunk_state(state.trunk_step_params, state.embed_config, state.backbone, n)
-        {:reply, :ok, %{state | batch: %{n: n, trunk_state: trunk, cold: true}}}
+
+        {:reply, :ok,
+         %{state | batch: %{n: n, mode: :stateful, trunk_state: trunk, cold: true, last_controllers: List.duplicate(nil, n)}}}
+
+      {:ok, :window} ->
+        # Windowed policies (Mamba, MinGRU, ...): a rolling {n, window, dim}
+        # tensor; a cold row's window is its first frame repeated, exactly
+        # like the single path's pad_sequence.
+        {:reply, :ok,
+         %{state | batch: %{n: n, mode: :window, window: nil, cold_rows: MapSet.new(0..(n - 1)), last_controllers: List.duplicate(nil, n)}}}
 
       {:error, _} = e ->
         {:reply, e, state}
     end
   end
 
+  def handle_call({:batch_reset_rows, rows}, _from, %{batch: %{mode: :window} = b} = state) do
+    last = b.last_controllers |> Enum.with_index() |> Enum.map(fn {c, i} -> if i in rows, do: nil, else: c end)
+    {:reply, :ok, %{state | batch: %{b | cold_rows: MapSet.union(b.cold_rows, MapSet.new(rows)), last_controllers: last}}}
+  end
+
   def handle_call({:batch_reset_rows, rows}, _from, %{batch: %{n: n} = b} = state) do
+    b = %{b | last_controllers: b.last_controllers |> Enum.with_index() |> Enum.map(fn {c, i} -> if i in rows, do: nil, else: c end)}
     fresh = init_trunk_state(state.trunk_step_params, state.embed_config, state.backbone, n)
     mask = Nx.tensor(Enum.map(0..(n - 1), fn i -> if i in rows, do: 1, else: 0 end), type: :u8)
 
@@ -733,6 +751,16 @@ defmodule ExPhil.Agents.Agent do
   def handle_call({:batch_observe, game_states, opts}, _from, %{batch: %{}} = state) do
     try do
       {_features, state} = batch_trunk_step(state, game_states, opts)
+
+      # `controllers:` (one per row) stands in for what the policy would have
+      # emitted — warms the prev-action channel with RECORDED history, like
+      # the single path's observe/4.
+      state =
+        case Keyword.get(opts, :controllers) do
+          cs when is_list(cs) and state.use_prev_action -> %{state | batch: %{state.batch | last_controllers: cs}}
+          _ -> state
+        end
+
       {:reply, :ok, state}
     rescue
       e -> {:reply, {:error, Exception.message(e)}, state}
@@ -755,6 +783,12 @@ defmodule ExPhil.Agents.Agent do
           row = Map.new(host, fn {k, t} -> {k, Nx.slice_along_axis(t, i, 1, axis: 0)} end)
           action_to_controller(row, state)
         end
+
+      # prev-action channel: each row sees its own emitted controller next step
+      state =
+        if state.use_prev_action,
+          do: %{state | batch: %{state.batch | last_controllers: controllers}},
+          else: state
 
       # RL_ON_PRIOR R2/R3: the critic and the head-only PPO both live on the FROZEN trunk, so a
       # collector needs this step's trunk features ([n, d]) and, for PPO, the sampled bucket
@@ -2005,12 +2039,62 @@ defmodule ExPhil.Agents.Agent do
 
   defp batch_preconditions(state) do
     cond do
-      not (state.temporal and state.trunk_state != nil) -> {:error, :batch_needs_stateful_step_policy}
+      not state.temporal -> {:error, :batch_needs_temporal_policy}
       state.head != :autoregressive -> {:error, :batch_needs_autoregressive_head}
-      state.use_prev_action -> {:error, :batch_prev_action_channel_unsupported}
       queue_depth(state) > 1 -> {:error, :batch_queue_depth_unsupported}
-      true -> :ok
+      # carried-state (stateful-step) policies: one trunk step per frame
+      state.trunk_state != nil -> {:ok, :stateful}
+      # windowed policies (2026-10-01): rolling {n, window, dim} tensor through
+      # the same predict_fn the single path uses
+      is_function(state.predict_fn) -> {:ok, :window}
+      true -> {:error, :batch_needs_predict_fn}
     end
+  end
+
+  # One batched embedding call for all rows, with the single path's options.
+  # Policies trained with the prev-action channel get each row's own previous
+  # controller (nil -> zeros at a row's first frame); `use_prev_action` is
+  # already false under --ablate-prev-action, which leaves the slot zeros.
+  defp batch_embed(%{batch: b} = state, game_states, opts) do
+    port = effective_port(hd(game_states), opts)
+    {embed_opts, _prev, _} = embed_inputs(hd(game_states), state)
+
+    embed_opts =
+      if state.use_prev_action, do: embed_opts ++ [prev_controllers: b.last_controllers], else: embed_opts
+
+    game_states =
+      if zero_projectiles?(state.embed_config), do: Enum.map(game_states, &%{&1 | projectiles: []}), else: game_states
+
+    Embeddings.Game.embed_states_fast(game_states, port, embed_opts)
+  end
+
+  # Windowed batch step: push each row's frame into its rolling window (cold
+  # rows restart with the frame repeated across the window, matching
+  # pad_sequence/2) and run the trunk once on {n, window, dim}.
+  defp batch_trunk_step(%{batch: %{n: n, mode: :window} = b} = state, game_states, opts) do
+    if length(game_states) != n, do: raise(ArgumentError, "batch expects #{n} game states, got #{length(game_states)}")
+
+    frames = batch_embed(state, game_states, opts)
+    w = state.window_size
+    newest = Nx.new_axis(frames, 1)
+    tiled = Nx.tile(newest, [1, w, 1])
+
+    window =
+      cond do
+        b.window == nil ->
+          tiled
+
+        MapSet.size(b.cold_rows) == 0 ->
+          Nx.concatenate([Nx.slice_along_axis(b.window, 1, w - 1, axis: 1), newest], axis: 1)
+
+        true ->
+          shifted = Nx.concatenate([Nx.slice_along_axis(b.window, 1, w - 1, axis: 1), newest], axis: 1)
+          mask = Nx.tensor(Enum.map(0..(n - 1), fn i -> if i in b.cold_rows, do: 1, else: 0 end), type: :u8)
+          Nx.select(Nx.broadcast(Nx.reshape(mask, {n, 1, 1}), Nx.shape(shifted)), tiled, shifted)
+      end
+
+    features = state.predict_fn.(Utils.ensure_model_state(state.policy_params), window)
+    {features, %{state | batch: %{b | window: window, cold_rows: MapSet.new()}}}
   end
 
   # Embed every row with the agent's own config, stack to {n, dim}, run ONE
@@ -2024,13 +2108,7 @@ defmodule ExPhil.Agents.Agent do
     # batch) with the same options the single path derives — the per-row
     # embed was the O(n) cost that made batch 128 take 666 ms (profile
     # 2026-09-21 03:01), not the network.
-    port = effective_port(hd(game_states), opts)
-    {embed_opts, _prev, _} = embed_inputs(hd(game_states), state)
-
-    game_states =
-      if zero_projectiles?(state.embed_config), do: Enum.map(game_states, &%{&1 | projectiles: []}), else: game_states
-
-    frames = Embeddings.Game.embed_states_fast(game_states, port, embed_opts)
+    frames = batch_embed(state, game_states, opts)
 
     trunk =
       if b.cold and not (state.bptt == true) do

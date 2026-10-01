@@ -68,3 +68,65 @@ for freezing before anything is ported to the Mamba.
 3. press-event (edge) target without a feedback channel.
 4. joint button categorical — expected NOT to fix temporal flicker; include
    as a control for that claim.
+
+## Closed-loop evals (same day) — the freeze is now measurable without a human
+
+### Batched agent path (`lib/exphil/agents/agent.ex`)
+`batch_init/2` now accepts WINDOWED policies (rolling `{n, window, dim}`
+tensor through the same `predict_fn`; cold rows tile their first frame like
+`pad_sequence`) and the PREV-ACTION channel (per-row last emitted
+controller; `batch_observe(..., controllers: [...])` warms it from recorded
+history). Previously the batch path was carried-state GRU only and rejected
+prev-action. Parity, deterministic, 150 frames: single path == batch row
+150/150 for Mamba v1 and for v2 with the channel.
+
+### `scripts/sim_closed_loop.exs` — policy drives port 1 in the NIF sim, 32 envs × 1800 frames vs an idle opponent (~35 s)
+
+| | Mamba v1 | Mamba v2 prev-action | v2 ablated | MinGRU smoke | (live, Bradley) |
+| --- | --- | --- | --- | --- | --- |
+| SD / min | 1.25 | **3.75** | 0.44 | 0.44 | v1 1.05 · v2 4.5 · ablate 1.1 |
+| damage dealt / min | 75.6 | **13.9** | 4.6 | 85.6 | |
+| kills / min | 1.31 | 0.25 | 0.0 | 0.0 | |
+| neutral controller share | 0.40 | 0.54 | **0.96** | 0.33 | v1 0.25 · v2 0.37 · ablate 0.84 |
+| output repeats previous | 0.49 | 0.77 | 0.95 | 0.15 | |
+| self-inflicted offstage → back | 0.77 | 0.56 | 0.70 | 0.88 | |
+
+It reproduces all three live observations: v1 plays and SDs about once a
+minute; v2 SDs 3× as often and barely fights; v2-with-zeros stands still.
+This is the eval the offline scoreboard could not be.
+
+### `scripts/recovery_drill.exs` — 36 offstage starts, 8 trials each, neutral opponent
+
+Starts are captured in the sim (v1 vs v1; port 1 leaving hitstun airborne and
+offstage; kept only if `ExPhil.Melee.Checkmate` says recoverable), with the
+previous 79 states + inputs to warm the window and the prev-action channel.
+
+| | recovered | cases never recovered |
+| --- | --- | --- |
+| neutral controller (floor) | 0.139 | 31/36 |
+| Mamba v1 ep2 | **0.267** | 12/36 |
+| Mamba v2 prev-action | 0.174 | 16/36 |
+| v2 ablated | 0.115 | 27/36 |
+| MinGRU smoke | 0.156 | 18/36 |
+
+Ordering matches (v1 > v2 > ablated ≈ doing nothing), and the absolute
+level is the bigger finding: **the best imitation policy recovers about a
+quarter of positions the static model calls recoverable.** Caveats: the
+Checkmate "recoverable" label means a plan exists, not that it is easy; no
+expert baseline here (see next); 36 cases.
+
+Two harness bugs caught on the way, both by a validity control: (1) the
+first drill mined cases from held-out replays and seeded them with
+`Sim.Seed.from_replay` — replaying the EXPERT's own inputs recovered 10 %,
+because the seeded sim state was not the replay's state on Fox-vs-Marth /
+Falco games on PS/BF (positions differ by tens of units by frame ~900;
+`divergence` reports nil). Replay seeding is NOT bit-exact outside the
+configuration it was validated on — GOTCHA #137. (2) deaths were missed
+when judged by the stock field alone (a dead Fox on the respawn platform
+scored as "timeout", then "recovered" once it stepped off) — outcome rule
+now includes death/rebirth action states 0–13.
+
+Gate for the experiment queue, per variant: offline press-edge ratios
+(flicker) AND closed-loop SD/min + damage/min + neutral share (freezing),
+plus the recovery drill. A variant must beat v1-style baselines on flicker
+without losing on the closed-loop numbers.
