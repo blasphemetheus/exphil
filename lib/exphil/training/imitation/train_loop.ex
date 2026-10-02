@@ -140,7 +140,19 @@ defmodule ExPhil.Training.Imitation.TrainLoop do
   defp maybe_scheduled_sample(%{ss_fn: nil}, batch), do: batch
 
   defp maybe_scheduled_sample(trainer, %{states: states} = batch) do
-    p = trainer.config[:ss_p_current] || trainer.config[:scheduled_sampling] || 0.0
+    target = trainer.config[:ss_p_current] || trainer.config[:scheduled_sampling] || 0.0
+
+    # Step ramp (the "schedule"): 0 until ss_ramp_start, then linear to the
+    # target over ss_ramp_steps training steps. Unset = flat rate (legacy).
+    p =
+      case trainer.config[:ss_ramp_steps] do
+        n when is_integer(n) and n > 0 ->
+          start = trainer.config[:ss_ramp_start] || 0
+          target * min(1.0, max(0.0, (trainer.step - start) / n))
+
+        _ ->
+          target
+      end
 
     if p <= 0.0 do
       batch

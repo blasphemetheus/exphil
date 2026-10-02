@@ -367,6 +367,9 @@ These options apply to multiple new architectures:
 | `--label-smoothing X` | 0.1 | Label smoothing (prevents overconfidence) |
 | `--focal-loss` | false | Enable focal loss for rare actions |
 | `--prev-action` | false | Condition on previous frame's controller (training embeds frame i-1's inputs; live agent feeds back its own outputs). Enables frame-precise input sequences (dash dance, multishine). Regime is stored in the policy config — old checkpoints keep zeros. Not yet wired for --streaming. |
+| `--ss-steps K` | 1 | AR-head scheduled sampling: trailing window positions regenerated from the model's own SAMPLED inputs, oldest first |
+| `--ss-ramp-start N` | unset | Training step at which the scheduled-sampling rate starts rising from 0 |
+| `--ss-ramp-steps N` | unset | Steps over which the rate rises linearly to `--scheduled-sampling` (unset = flat rate from step 0) |
 | `--button-events` | false | Press/release event button head (16 logits selected by the previous button state; trunk sees the prev-action slot zeroed). Requires `--prev-action`, `--head autoregressive`, temporal |
 | `--stick-events` | false | Hold-or-change stick heads (K change logits + 1 hold logit per axis, collapsed by the previous bucket; trunk sees the prev-action slot zeroed). Requires `--prev-action`, `--head autoregressive`, temporal |
 | `--prev-action-dropout P` | 0.0 | Zero the prev-action channel on fraction P of training frames (exposure-bias mitigation: live, the model feeds back its own outputs, which drift from teacher-forced ground truth). Try 0.1–0.3 with --prev-action. Mask is baked into the embedding cache entry — use --no-cache for a fresh mask. |
@@ -1592,6 +1595,9 @@ Regenerate: `mix run -e 'ExPhil.Training.Config.FlagDocs.write!()'`.
 | `--focal-loss` | flag | `true` | Enable focal loss for rare actions |
 | `--prev-action` | flag | `false` | Condition on previous frame's controller (training embeds frame i-1's inputs; live agent feeds back its own outputs). Enables frame-precise input sequences (dash dance, multishine). Regime is stored in the policy config — old checkpoints keep zeros. Not yet wired for --streaming. |
 | `--no-prev-action` | neg flag | `false` | _(undocumented)_ |
+| `--ss-steps` | int | `1` | Trailing window positions regenerated from the model's own sampled inputs (AR head) |
+| `--ss-ramp-start` | int | unset | Step at which the scheduled-sampling rate starts rising |
+| `--ss-ramp-steps` | int | unset | Steps over which the rate rises linearly to the target |
 | `--button-events` | flag | `false` | Press/release event button head; requires `--prev-action` and the autoregressive head |
 | `--stick-events` | flag | `false` | Hold-or-change stick heads; requires `--prev-action` and the autoregressive head |
 | `--prev-action-dropout` | float | `0.0` | Zero the prev-action channel on fraction P of training frames (exposure-bias mitigation: live, the model feeds back its own outputs, which drift from teacher-forced ground truth). Try 0.1–0.3 with --prev-action. Mask is baked into the embedding cache entry — use --no-cache for a fresh mask. |

@@ -153,11 +153,12 @@ defmodule ExPhil.Training.Imitation.Loss do
     temporal = lc.temporal
 
     if head == :autoregressive and
-         ((config[:distill_weight] || 0.0) > 0 or probe_reg_weight > 0 or
-            (config[:scheduled_sampling] || 0.0) > 0.0) do
+         ((config[:distill_weight] || 0.0) > 0 or probe_reg_weight > 0) do
+      # scheduled_sampling IS supported since 2026-10-02: it only rewrites the
+      # input states before the loss (ScheduledSampling.build_autoregressive/2)
       raise ArgumentError,
-            "head: :autoregressive is not yet supported together with distill_weight, " <>
-              "probe_reg_weight, or scheduled_sampling"
+            "head: :autoregressive is not yet supported together with distill_weight " <>
+              "or probe_reg_weight"
     end
 
     loss_opts = LossConfig.to_loss_opts(lc)

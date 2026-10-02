@@ -541,7 +541,15 @@ defmodule ExPhil.Training.Imitation do
                   "zeroed there is no conditioning to self-sample"
         end
 
-        ScheduledSampling.build(predict_fn, config)
+        if head == :autoregressive do
+          if config[:button_events] || config[:stick_events] do
+            raise ArgumentError, "scheduled_sampling is not combined with event heads (the trunk sees no prev-action there)"
+          end
+
+          ScheduledSampling.build_autoregressive(ProbeRegularizer.build_trunk_fn(config), config)
+        else
+          ScheduledSampling.build(predict_fn, config)
+        end
       end
 
     loss_config =

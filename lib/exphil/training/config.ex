@@ -1597,6 +1597,11 @@ defmodule ExPhil.Training.Config do
       # ss_ramp epochs by the drill loop; the main pipeline applies P flat.
       scheduled_sampling: 0.0,
       ss_ramp: 10,
+      # AR-head scheduled sampling: trailing window positions regenerated
+      # from the model's own samples, and the per-STEP ramp of the rate
+      ss_steps: 1,
+      ss_ramp_start: nil,
+      ss_ramp_steps: nil,
       # Curriculum mixing: comma/glob list of drill .frames exports
       # (scripts/export_drill_frames.exs) concatenated into training
       mix_frames: nil,
@@ -2620,6 +2625,9 @@ defmodule ExPhil.Training.Config do
       prev_action_dropout_block: opts[:prev_action_dropout_block],
       scheduled_sampling: opts[:scheduled_sampling],
       ss_ramp: opts[:ss_ramp],
+      ss_steps: opts[:ss_steps],
+      ss_ramp_start: opts[:ss_ramp_start],
+      ss_ramp_steps: opts[:ss_ramp_steps],
       action_delay: opts[:action_delay],
       focal_gamma: opts[:focal_gamma],
       button_weight: opts[:button_weight],
