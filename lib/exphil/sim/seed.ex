@@ -30,7 +30,9 @@ defmodule ExPhil.Sim.Seed do
   @doc """
   Options: `:frame` (target Slippi frame, default 0), `:warm` (30),
   `:backend` (:nif — the only backend with the replay-exact step),
-  `:tolerance` (position tolerance, default 0.0 = bit-exact floats).
+  `:tolerance` (position tolerance, default 0.0 = bit-exact floats),
+  `:ucf_cardinals` (0 | 1 | :auto by replay version), `:late_hit_records`
+  (true | false | :auto by replay version).
 
   `:frames` (list of extra Slippi frames to save along the way; each becomes an
   entry in `saves`: `%{frame, blob, state_id, history, state, diverged?}`).
@@ -45,14 +47,65 @@ defmodule ExPhil.Sim.Seed do
     with {:ok, meta} <- Peppi.metadata(path),
          {:ok, replay} <- Peppi.parse(path) do
       ports = meta.players |> Enum.sort_by(& &1.port)
-      players = Enum.map(ports, fn p -> %{character: String.downcase(p.character_name || "fox") |> String.replace(~r/[^a-z0-9]/, ""), costume: p.costume || 0} end)
       port_ids = Enum.map(ports, & &1.port)
+      first_frame = Enum.min_by(replay.frames, & &1.frame_number)
 
-      {:ok, sim} = Env.start(Keyword.get(opts, :backend, :nif), stage: meta.stage, players: players, batch_size: 1, seed: meta.random_seed || 0, ucf_cardinals: Keyword.get(opts, :ucf_cardinals, 1))
+      # The REAL controller port and starting facing go to the sim, exactly as
+      # its validator builds the match (native.c: facing_and_port from the
+      # replay's port and first-frame direction). Ports decide things in
+      # Melee (entry, priority, per-port lanes); until 2026-10-02 this left
+      # both on AUTO (port = slot, slot 1 faces right), which is only correct
+      # for a game played on ports 1+2 — every other port pair drifted off
+      # the replay within a few hundred frames (GOTCHA #137).
+      players =
+        Enum.map(ports, fn p ->
+          facing =
+            case first_frame.players[p.port] do
+              %{facing: f} when is_number(f) -> if f > 0, do: 1, else: -1
+              %{facing: true} -> 1
+              %{facing: false} -> -1
+              _ -> 0
+            end
+
+          %{
+            character: String.downcase(p.character_name || "fox") |> String.replace(~r/[^a-z0-9]/, ""),
+            costume: p.costume || 0,
+            controller_port: p.port - 1,
+            facing: facing
+          }
+        end)
+
+      version = slippi_version(path)
+
+      # UCF "1.0 cardinals" postdates every replay in the 2019-23 ranked
+      # corpus (Slippi 1.7.1 .. 3.15.0): with it on, the first walk/dash of
+      # those games is ~0.01-0.03 units off and the game drifts from there;
+      # with it off the same games are exact for hundreds of frames or to the
+      # end (58-game version survey, 2026-10-02). Bradley's current local
+      # Dolphin games are exact with it ON. :auto picks by replay version.
+      ucf =
+        case Keyword.get(opts, :ucf_cardinals, :auto) do
+          :auto -> if version != nil and version <= {3, 15, 0}, do: 0, else: 1
+          n -> n
+        end
+
+      {:ok, sim} = Env.start(Keyword.get(opts, :backend, :nif), stage: meta.stage, players: players, batch_size: 1, seed: meta.random_seed || 0, ucf_cardinals: ucf)
       frames = replay.frames |> Enum.sort_by(& &1.frame_number)
       by_frame = Map.new(frames, &{&1.frame_number, &1})
       frames = Enum.filter(frames, &(&1.frame_number <= target))
       {:ok, [gs0]} = Env.frames(sim)
+
+      # Old replays (seen on Slippi 1.7.1 .. 3.3.0, not on 3.7.0+; most of the
+      # ranked corpus is 2.0.1) write a hit's damage and hitstun action into
+      # the post-frame record ONE FRAME LATE: the sim shows the hit on frame
+      # t, the replay on t + 1, and they agree again from there (positions
+      # never differ). For those replays action/percent may match either this
+      # frame's record or the next one's.
+      late_ok =
+        case Keyword.get(opts, :late_hit_records, :auto) do
+          :auto -> version != nil and version < {3, 7, 0}
+          other -> other
+        end
 
       # savestates wanted along the way (coach review): every frame in :frames, plus the target
       wanted = MapSet.new(Keyword.get(opts, :frames, []) ++ [target])
@@ -64,7 +117,7 @@ defmodule ExPhil.Sim.Seed do
 
           case Env.step_replay(sim, [row]) do
             {:ok, [next], _} ->
-              div = div || mismatch(next, by_frame[t], port_ids, tol)
+              div = div || mismatch(next, by_frame[t], if(late_ok, do: by_frame[t + 1]), port_ids, tol)
               hist = Enum.take([{gs, row} | hist], warm)
 
               saves =
@@ -97,8 +150,24 @@ defmodule ExPhil.Sim.Seed do
          saves: Enum.reverse(saves),
          summary: %{p1: gs.players[1] && Map.take(gs.players[1], [:x, :y, :action, :percent, :stock]), p2: gs.players[2] && Map.take(gs.players[2], [:x, :y, :action, :percent, :stock])},
          players: players,
-         stage: meta.stage
+         stage: meta.stage,
+         version: version,
+         ucf_cardinals: ucf
        }}
+    end
+  end
+
+  @doc "Slippi version `{major, minor, patch}` from the Game Start event, or nil."
+  def slippi_version(path) do
+    with {:ok, f} <- File.open(path, [:read, :binary]),
+         b when is_binary(b) <- IO.binread(f, 4096),
+         :ok <- File.close(f),
+         <<_::binary-size(15), 0x35, size, rest::binary>> <- b,
+         skip = size - 1,
+         <<_::binary-size(skip), 0x36, major, minor, patch, _::binary>> <- rest do
+      {major, minor, patch}
+    else
+      _ -> nil
     end
   end
 
@@ -173,7 +242,7 @@ defmodule ExPhil.Sim.Seed do
   end
 
   # First mismatching field between the sim's post-frame and the replay's.
-  defp mismatch(_gs, nil, _ports, _tol), do: nil
+  defp mismatch(_gs, nil, _next, _ports, _tol), do: nil
 
   # The sim keys its players by SLOT (1, 2, … in ascending replay-port order —
   # the order replay_row/2 lays the lanes out in); the replay keys them by the
@@ -181,18 +250,21 @@ defmodule ExPhil.Sim.Seed do
   # the real port, so on any game not played on ports 1+2 the lookup was nil,
   # the comparison was skipped and `divergence` stayed nil on games that had
   # drifted by tens of units (GOTCHA #137).
-  defp mismatch(gs, rf, ports, tol) do
+  defp mismatch(gs, rf, rf_next, ports, tol) do
     ports
     |> Enum.with_index(1)
     |> Enum.find_value(fn {port, slot} ->
       sp = gs.players[slot]
       rp = rf.players[port]
+      late = rf_next && rf_next.players[port]
+      late_hit? = is_map(late) and is_map(sp) and sp.action == late.action and abs(sp.percent - late.percent) <= 0.01
 
       cond do
         rp == nil -> nil
         sp == nil -> {rf.frame_number, port, :missing_sim_player, slot, nil}
         abs(sp.x - rp.x) > tol -> {rf.frame_number, port, :x, rp.x, sp.x}
         abs(sp.y - rp.y) > tol -> {rf.frame_number, port, :y, rp.y, sp.y}
+        late_hit? -> nil
         sp.action != rp.action -> {rf.frame_number, port, :action, rp.action, sp.action}
         abs(sp.percent - rp.percent) > 0.01 -> {rf.frame_number, port, :percent, rp.percent, sp.percent}
         true -> nil
