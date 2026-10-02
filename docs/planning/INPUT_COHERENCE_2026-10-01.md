@@ -499,6 +499,26 @@ corpora are floor-built; the default is unchanged.
    test of scheduled sampling. If it still flickers, explanation 1 stands
    and the next candidate is change-frame (keyframe) loss weighting.
 
+### Queue 6 item 1 (14:44): the format tell is real for L/R, absent for the face buttons
+
+P(down | down), teacher-forced, raw channel → channel quantized to the live
+grid (expert: A 0.81, L 0.93, R 0.91):
+
+| | A | L | R | total loss |
+| --- | --- | --- | --- | --- |
+| prev_d00 | 0.84 → 0.85 | 0.95 → 0.91 | 0.86 → 0.86 | 1.23 → 1.27 |
+| ss25_k4 | 0.65 → 0.64 | 0.91 → 0.69 | 0.87 → 0.45 | 1.38 → 1.49 |
+| ss50_k4 | 0.75 → 0.75 | 0.92 → 0.75 | 0.92 → 0.56 | 1.52 → 1.61 |
+| ss100_k4 | 0.42 → 0.41 | 0.66 → 0.58 | 0.68 → 0.46 | 2.15 → 2.19 |
+
+The scheduled-sampling models stop trusting a held L/R the moment the
+shoulder slot looks like the live one (the plain channel model does not
+care), so explanation 2 is confirmed for the shoulder buttons. For A/B/X/Y
+the distrust is already there on the teacher's raw values (0.65 vs 0.84)
+and does not change with format: that part is explanation 1, the objective
+itself. Prediction for `ss50_k4_q`: L/R holds improve, face buttons still
+flicker.
+
 ## Replay seeding (10-02) — three causes on our side, fixed (49970218)
 
 1. Controller port and starting facing were never sent to the sim (AUTO:
