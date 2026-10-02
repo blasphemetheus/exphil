@@ -295,3 +295,100 @@ Reading:
 Not a fix on its own. Open question it raises: give the sticks the same
 treatment (head-level previous stick → hold/change hazard) vs scheduled
 sampling on the full channel.
+
+## Eval suite v2 (10-02) — distance from the EXPERT, with noise bars
+
+Until now every eval compared variants with each other. New instruments, all
+committed, all run by `scripts/coherence_experiment.sh` (`EVALS="coherence
+closed_loop recovery calibration fidelity"`, default all):
+
+| Instrument | Script / module | Answers |
+| --- | --- | --- |
+| Expert reference | `scripts/expert_reference.exs` → `eval_runs/1002_fidelity/expert_fd.json` | `ExPhil.Eval.PlayStats` over 150 expert Fox games on FD (390 min), plus split-half distances = noise floor |
+| Fidelity scorecard | `scripts/fidelity_scorecard.exs` | policy plays ITSELF in the sim (32 envs × 3600 frames × 3 seeds); same PlayStats; total-variation distance per histogram + rates vs expert |
+| Technique rates | inside the scorecard | L-cancel rate (landing-lag modes), short-hop share (jump-peak modes), tech rate, wavedashes, dashes |
+| Calibration | `ExPhil.Eval.Calibration`, `CALIBRATE_ONLY=1 scripts/train_fox_mamba.exs … --resume` | teacher-forced: button ECE, per-head loss, P(down \| previous state) model vs expert |
+| Change events ±k | `offline_input_coherence.exs` | press / release / stick-zone events recalled within ±0/2/5 frames, and precision |
+| Noise bars | 4 runs of closed loop + recovery; 3 seeds of the scorecard | which differences are real |
+
+Caveat on the reference: expert games are Fox vs human opponents of many
+characters; the sim is a Fox ditto against the same policy. Own-input and
+own-movement distributions transfer; damage/kill rates depend on the opponent.
+
+### Noise bars on the old evals (mean ± sd, n = 4)
+
+| | base | event buttons | prev-action d0 |
+| --- | --- | --- | --- |
+| recovery drill | 0.272 ± 0.024 | 0.290 ± 0.038 | 0.157 ± 0.014 |
+| vs idle: damage / min | 61.6 ± 11.7 | 20.9 ± 2.7 | 9.5 ± 2.7 |
+| vs idle: SD / min | 1.14 ± 0.27 | 3.27 ± 0.32 | 1.08 ± 0.23 |
+
+So: base vs event-buttons recovery is NOT a real difference (earlier "best
+yet 0.309" was noise); prev-action's recovery deficit and all three damage
+levels are real; event-buttons' extra SDs are real.
+
+### Fidelity scorecard (self-play, 3 seeds; expert split-half floor in brackets)
+
+| | base | event buttons | prev-action d0 | expert |
+| --- | --- | --- | --- | --- |
+| **fidelity distance** (mean of 7) | 0.360 ± 0.011 | **0.225 ± 0.002** | 0.243 ± 0.006 | [≈0.03] |
+| button hold lengths | 0.840 | 0.246 | 0.311 | [0.045] |
+| stick dwell | 0.279 | 0.282 | **0.087** | [0.014] |
+| action-state mix | 0.351 | 0.285 | 0.305 | [0.014] |
+| position | 0.225 | 0.125 | 0.136 | [0.012] |
+| landing lag | 0.237 | 0.333 | 0.567 | [0.071] |
+| jump peak | 0.435 | 0.171 | 0.143 | [0.040] |
+| input repeats previous | 0.24 | 0.33 | 0.65 | 0.76 |
+| SD / min | 0.83 ± 0.15 | 2.34 ± 0.33 | 2.54 ± 0.04 | 0.44 |
+| offstage return rate | 0.83 | 0.75 | 0.71 | 0.89 |
+| damage dealt / min | 108 ± 7 | 63 ± 5 | 29 ± 5 | 133 (vs humans) |
+| L-cancel rate | 0.76 | 0.57 | 0.28 | 0.83 |
+| short-hop share | 0.44 | 0.42 | 0.45 | 0.41 |
+| tech rate | 0.03 | 0.11 | 0.13 | 0.45 |
+| wavedashes / min | 2.8 | 2.2 | 3.2 | 4.6 |
+| dashes / min | 22.6 | 27.4 | 39.2 | 40.5 |
+| A presses / min | 201 | 22.5 | 12.8 | 22.0 |
+
+### Calibration and loss by head (teacher-forced, 18,795 held-out samples)
+
+| | base | event buttons | prev-action d0 |
+| --- | --- | --- | --- |
+| total | 3.02 | 2.50 | 1.23 |
+| buttons (8) | 0.82 | 0.28 | 0.27 |
+| main stick x + y | 1.87 | 1.89 | 0.77 |
+| c-stick + shoulder | 0.33 | 0.33 | 0.19 |
+| worst button ECE | 0.023 | 0.005 | 0.006 |
+| main_x accuracy | 0.62 | 0.62 | 0.88 |
+
+P(down | previous state), event model vs expert: up→down 0.006 vs 0.005 (A),
+down→down 0.88 vs 0.81 (A), 0.91 vs 0.91 (R) — the hazards are right.
+
+### Change events (offline, model's own feedback), recall / precision
+
+| | base | event buttons | prev-action d0 |
+| --- | --- | --- | --- |
+| press ±0 | 0.05 / 0.01 | 0.02 / 0.02 | 0.01 / 0.01 |
+| press ±5 | 0.72 / 0.13 | 0.16 / 0.14 | 0.12 / 0.09 |
+| stick ±5 | 0.79 / 0.20 | 0.78 / 0.19 | 0.23 / 0.17 |
+
+### What the suite says
+
+1. **Everything is calibrated; the rates are right.** Worst button ECE 0.005
+   for the event head. The remaining error is not "wrong probabilities".
+2. **The event button head captures the WHOLE button benefit of the
+   previous-action channel** (button loss 0.28 vs 0.27) with nothing in the
+   trunk. What the channel still buys is the sticks: main-stick loss 0.77
+   vs 1.89. That is the case for the hold-or-change stick head (queue 4).
+3. **Timing precision is ~0.13 at ±5 frames for every variant.** base's high
+   press recall is just pressing constantly. No variant knows WHEN better
+   than another; an unknown share of this is the human floor.
+4. **Fidelity ranks event-buttons best overall (0.225), base worst (0.360)**,
+   noise ≈0.01 — yet base deals the most damage and SDs least. "Looks like
+   the expert" and "does well in the sim" are different axes; both columns
+   are needed.
+5. **Technique**: short-hop share is expert-like everywhere (0.42–0.45 vs
+   0.41). L-cancel falls as inputs get stickier (0.76 → 0.57 → 0.28 vs 0.83).
+   Tech rate is far below expert in all (0.03–0.13 vs 0.45).
+6. **Why event-buttons SDs more (hypothesis with one piece of evidence):** it
+   spends 12.5 % of frames in dodge/roll states vs the expert's 2.1 %, and
+   presses R 28/min vs 19; an air dodge offstage is a death. Not yet tested.
