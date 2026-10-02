@@ -21,7 +21,7 @@ train_args=(--backbone min_gru --stage-internals --hidden-sizes 256,256
   --batch-size 128 --precision f32 --window-size 80 --stride 5 --dropout 0.0 --learning-rate 0.0005
   --replays replays/erickfm_ranked/v2_filtered --train-character fox --select-character-port
   --max-files "${MAX_FILES:-3000}" --stream-chunk-size 64 --no-cache-streaming --label-delay 0 --epochs 1
-  --seed 905 --head autoregressive --save-best --save-every-batches 25000 --label-smoothing 0.0
+  --seed "${SEED:-905}" --head autoregressive --save-best --save-every-batches 25000 --label-smoothing 0.0
   --no-focal-loss --button-pos-weight 1,1,1,1,1,1,1,1 --action-oversample 1.0 --entropy-weight 0.0
   --neutral-weight 1.0 --stick-edge-weight 1.0 --name "coh-$name" --no-register --no-cache
   --checkpoint "$ckpt/model.axon" "$@")

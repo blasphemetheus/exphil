@@ -519,6 +519,55 @@ and does not change with format: that part is explanation 1, the objective
 itself. Prediction for `ss50_k4_q`: L/R holds improve, face buttons still
 flicker.
 
+### Queue 6 items 2–4 (15:55)
+
+| | base | base_rn | prev_d00 | prev_q | ss50_k4 | ss50_k4_q | expert |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| teacher-forced loss | 3.02 | 3.10 | 1.23 | 1.22 | 1.52 | 1.55 | |
+| input repeat share (self-play) | 0.27 | 0.24 | 0.65 | 0.71 | 0.28 | 0.28 | 0.76 |
+| A presses/min (self-play) | 201 | 147 | 12.8 | 27.8 | 98.8 | 95.8 | 22.0 |
+| vs idle damage/min | 61.6 ± 11.7 | 16.6 | 9.5 ± 2.7 | 33.5 | 17.9 | 68.0 | |
+| vs idle SD/min | 1.14 ± 0.27 | 3.13 | 1.08 ± 0.23 | 1.13 | 0.75 | 1.00 | |
+| recovery drill | 0.272 ± 0.024 | 0.302 | 0.157 ± 0.014 | 0.153 | 0.201 | 0.253 | |
+| recovery left / right side | 0.26 / 0.38 | 0.30 / 0.34 | | | | | |
+| fidelity distance | 0.360 | 0.344 | 0.243 | 0.264 | 0.337 | 0.341 | |
+| self-play damage/min | 108 | 85 | 29 | 29 | 46 | 55 | 133 |
+| self-play SD/min | 0.83 | 0.99 | 2.54 | 2.14 | 2.95 | 0.77 | 0.44 |
+| L-cancel | 0.76 | 0.77 | 0.28 | 0.24 | 0.76 | 0.74 | 0.83 |
+
+- **Scheduled sampling is out.** On the live-format channel (the fair test)
+  it flickers exactly as before: repeat share 0.28, A 96/min, and even
+  teacher-forced it under-holds every button (A 0.69, L 0.79, R 0.78 vs
+  expert 0.81 / 0.93 / 0.91). My prediction that L/R holds would recover
+  was wrong. Removing the format tell did not change the outcome, so the
+  cause is the objective (explanation 1): the target is never conditioned
+  on the model's own sampled input, so the model learns to discount it.
+- **`prev_q` = `prev_d00`.** Training on the live format is the correct
+  parity but does not change how the channel model plays (passive, SDs,
+  recovery 0.15, L-cancel 0.24). The freeze is not a format artifact.
+- **`base_rn` is inconclusive.** Left/right recovery gap narrowed (0.12 →
+  0.05, weak: 4 right-side cases), but vs idle it is far worse (damage 16.6,
+  SD 3.1). The ± figures in every table are repeat EVALUATIONS of one
+  trained model; training-seed variance has never been measured, so a
+  single-run difference of this size cannot be read. Queue 7 measures it.
+
+## Queue 7 (launched 15:58, after the Mamba fidelity runs; ~2 h) — `scripts/coherence_queue7.sh`
+
+1. `base_s906`, `base_s907`: the base recipe with two other training seeds
+   (`SEED=`). Gives the spread every single-run comparison must clear.
+2. `prev_q_tw4`, `prev_q_tw16`: change-frame loss weighting (`--transition-weight`,
+   already wired on this path: frames whose target differs from the previous
+   frame get weight max(1, X)) on the live-format channel model.
+   Why it might work (copycat problem, de Haan 2019; Wen 2021): with the
+   previous input visible, 76 % of frames are solved by copying, so the
+   loss barely rewards learning WHEN to change from the game state. Unlike
+   scheduled sampling this keeps every target conditioned on a real
+   history. Pass: repeat share stays ≥ 0.6 and A presses within 2× of
+   expert, AND recovery ≥ 0.25, self-play damage ≥ 85, L-cancel ≥ 0.7,
+   change-event precision at ±5 above 0.13. Known risk: over-weighting
+   change frames makes the model change too often (calibration will show
+   P(down | down) falling below expert).
+
 ## Replay seeding (10-02) — three causes on our side, fixed (49970218)
 
 1. Controller port and starting facing were never sent to the sim (AUTO:
