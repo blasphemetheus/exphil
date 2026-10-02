@@ -1584,6 +1584,7 @@ defmodule ExPhil.Training.Config do
       focal_loss: true,
       use_prev_action: false,
       button_events: false,
+      stick_events: false,
       # Fraction of frames whose prev-action channel is zeroed during training
       # (exposure-bias mitigation: live the model eats its own outputs, which
       # drift from ground truth — dropout stops it over-relying on the channel)
@@ -2614,6 +2615,7 @@ defmodule ExPhil.Training.Config do
       focal_loss: opts[:focal_loss],
       use_prev_action: opts[:use_prev_action],
       button_events: opts[:button_events],
+      stick_events: opts[:stick_events],
       prev_action_dropout: opts[:prev_action_dropout],
       prev_action_dropout_block: opts[:prev_action_dropout_block],
       scheduled_sampling: opts[:scheduled_sampling],

@@ -175,13 +175,22 @@ defmodule ExPhil.Sim.Seed do
   # First mismatching field between the sim's post-frame and the replay's.
   defp mismatch(_gs, nil, _ports, _tol), do: nil
 
+  # The sim keys its players by SLOT (1, 2, … in ascending replay-port order —
+  # the order replay_row/2 lays the lanes out in); the replay keys them by the
+  # real controller port. Until 2026-10-02 this looked the sim player up by
+  # the real port, so on any game not played on ports 1+2 the lookup was nil,
+  # the comparison was skipped and `divergence` stayed nil on games that had
+  # drifted by tens of units (GOTCHA #137).
   defp mismatch(gs, rf, ports, tol) do
-    Enum.find_value(ports, fn port ->
-      sp = gs.players[port]
+    ports
+    |> Enum.with_index(1)
+    |> Enum.find_value(fn {port, slot} ->
+      sp = gs.players[slot]
       rp = rf.players[port]
 
       cond do
-        sp == nil or rp == nil -> nil
+        rp == nil -> nil
+        sp == nil -> {rf.frame_number, port, :missing_sim_player, slot, nil}
         abs(sp.x - rp.x) > tol -> {rf.frame_number, port, :x, rp.x, sp.x}
         abs(sp.y - rp.y) > tol -> {rf.frame_number, port, :y, rp.y, sp.y}
         sp.action != rp.action -> {rf.frame_number, port, :action, rp.action, sp.action}

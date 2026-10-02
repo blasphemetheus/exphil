@@ -156,6 +156,7 @@ defmodule ExPhil.Training.Config.FlagDocs do
     "--prefetch-buffer" => "Number of batches to prefetch",
     "--preset" => "Training preset (quick, standard, full, mewtwo)",
     "--button-events" => "Press/release event button head: 16 logits (press-if-up, release-if-down) selected by the previous button state; the trunk sees the prev-action slot zeroed. Requires --prev-action, --head autoregressive, temporal",
+    "--stick-events" => "Hold-or-change stick heads: each stick axis emits K change logits + 1 hold logit, collapsed by the previous bucket; the trunk sees the prev-action slot zeroed. Requires --prev-action, --head autoregressive, temporal",
     "--prev-action" => "Condition on previous frame's controller (training embeds frame i-1's inputs; live agent feeds back its own outputs). Enables frame-precise input sequences (dash dance, multishine). Regime is stored in the policy config — old checkpoints keep zeros. Not yet wired for --streaming.",
     "--prev-action-dropout" => "Zero the prev-action channel on fraction P of training frames (exposure-bias mitigation: live, the model feeds back its own outputs, which drift from teacher-forced ground truth). Try 0.1–0.3 with --prev-action. Mask is baked into the embedding cache entry — use --no-cache for a fresh mask.",
     "--prev-action-dropout-block" => "Draw the prev-action dropout mask once per run of N consecutive frames instead of per frame (N > window makes whole windows channel-less; per-frame masking never does for a recurrent model)",

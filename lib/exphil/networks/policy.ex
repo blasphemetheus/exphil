@@ -274,7 +274,8 @@ defmodule ExPhil.Networks.Policy do
         Heads.build_autoregressive_head(backbone,
           axis_buckets: axis_buckets,
           shoulder_buckets: shoulder_buckets,
-          button_events_prev: if(opts[:button_events], do: button_events_prev_node())
+          button_events_prev: if(opts[:button_events], do: button_events_prev_node()),
+          stick_events_prev: if(opts[:stick_events], do: Axon.input("prev_sticks", shape: {nil, 4}))
         )
 
       other ->

@@ -175,8 +175,12 @@ defmodule ExPhil.Networks.Policy.Heads do
     # the PREVIOUS frame's button states, or nil for the plain state head.
     button_events_prev = Keyword.get(opts, :button_events_prev)
 
-    if button_events_prev && per_timestep do
-      raise ArgumentError, "button_events is not supported with per_timestep (BPTT) heads"
+    # Hold-or-change stick heads (2026-10-02): an Axon node {batch, 4} (s64)
+    # with the PREVIOUS frame's bucket for main_x, main_y, c_x, c_y, or nil.
+    stick_events_prev = Keyword.get(opts, :stick_events_prev)
+
+    if (button_events_prev || stick_events_prev) && per_timestep do
+      raise ArgumentError, "button/stick events are not supported with per_timestep (BPTT) heads"
     end
 
     axis_size = axis_buckets + 1
@@ -223,6 +227,28 @@ defmodule ExPhil.Networks.Policy.Heads do
       |> Axon.dense(out_size, name: "#{prefix}_logits")
     end
 
+    # A stick axis with hold-or-change: K change logits + 1 hold logit,
+    # collapsed to K log-probabilities given the previous bucket (column j).
+    stick_component = fn r, out_size, prefix, j ->
+      case stick_events_prev do
+        nil ->
+          component.(r, out_size, prefix)
+
+        prev ->
+          raw = component.(r, out_size + 1, prefix)
+
+          Axon.layer(
+            fn raw, prev, _opts ->
+              col = prev |> Nx.slice_along_axis(j, 1, axis: 1) |> Nx.squeeze(axes: [1])
+              collapse_hold_change(raw, col)
+            end,
+            [raw, prev],
+            name: "#{prefix}_hold_change",
+            op_name: :hold_change
+          )
+      end
+    end
+
     # buttons <- r0
     buttons =
       case button_events_prev do
@@ -241,19 +267,19 @@ defmodule ExPhil.Networks.Policy.Heads do
     r1 = Axon.add(r0, embed_buttons, name: "ar_r1")
 
     # main_x <- r1 (conditioned on buttons)
-    main_x = component.(r1, axis_size, "ar_main_x")
+    main_x = stick_component.(r1, axis_size, "ar_main_x", 0)
     r2 = Axon.add(r1, embed_cat.(tf_main_x, axis_size, "ar_main_x_embed"), name: "ar_r2")
 
     # main_y <- r2 (conditioned on buttons + main_x)
-    main_y = component.(r2, axis_size, "ar_main_y")
+    main_y = stick_component.(r2, axis_size, "ar_main_y", 1)
     r3 = Axon.add(r2, embed_cat.(tf_main_y, axis_size, "ar_main_y_embed"), name: "ar_r3")
 
     # c_x <- r3
-    c_x = component.(r3, axis_size, "ar_c_x")
+    c_x = stick_component.(r3, axis_size, "ar_c_x", 2)
     r4 = Axon.add(r3, embed_cat.(tf_c_x, axis_size, "ar_c_x_embed"), name: "ar_r4")
 
     # c_y <- r4
-    c_y = component.(r4, axis_size, "ar_c_y")
+    c_y = stick_component.(r4, axis_size, "ar_c_y", 3)
     r5 = Axon.add(r4, embed_cat.(tf_c_y, axis_size, "ar_c_y_embed"), name: "ar_r5")
 
     # shoulder <- r5 (conditioned on everything; nothing conditions on it)
@@ -287,6 +313,36 @@ defmodule ExPhil.Networks.Policy.Heads do
     # predicate, so a {1, 8} prev would not broadcast over tiled rows
     held = Nx.as_type(Nx.greater(prev, 0.5), Nx.type(raw))
     Nx.subtract(Nx.multiply(Nx.subtract(1, held), press), Nx.multiply(held, release))
+  end
+
+  @doc """
+  Collapse hold-or-change stick logits into ordinary bucket log-probabilities.
+
+  `raw` is `{batch, K + 1}`: K "change" logits over the buckets and one
+  "hold" logit. `prev` is `{batch}` (or `{1}`, broadcast): the bucket held
+  on the previous frame. With h = sigmoid(hold):
+
+      p(bucket) = h * [bucket == prev] + (1 - h) * softmax(change)[bucket]
+
+  returned as log-probabilities `{batch, K}`, so the usual cross-entropy and
+  the usual categorical sampler apply unchanged. Staying on the previous
+  bucket is one explicit decision instead of a coincidence of two
+  independent per-frame draws; the previous bucket only selects where the
+  hold mass lands and is never an input to the trunk.
+  """
+  @spec collapse_hold_change(Nx.Tensor.t(), Nx.Tensor.t()) :: Nx.Tensor.t()
+  def collapse_hold_change(raw, prev) do
+    k = Nx.axis_size(raw, -1) - 1
+    change = Nx.slice_along_axis(raw, 0, k, axis: -1)
+    hold = Nx.slice_along_axis(raw, k, 1, axis: -1)
+    log_sig = fn x -> Nx.subtract(Nx.min(x, 0), Nx.log1p(Nx.exp(Nx.negate(Nx.abs(x))))) end
+
+    log_h = log_sig.(hold)
+    a = Nx.add(log_sig.(Nx.negate(hold)), Nx.subtract(change, Nx.logsumexp(change, axes: [-1], keep_axes: true)))
+    both = Nx.add(Nx.max(a, log_h), Nx.log1p(Nx.exp(Nx.negate(Nx.abs(Nx.subtract(a, log_h))))))
+
+    at_prev = Nx.equal(Nx.iota({1, k}), Nx.new_axis(prev, -1)) |> Nx.as_type(Nx.type(raw))
+    Nx.add(Nx.multiply(at_prev, both), Nx.multiply(Nx.subtract(1, at_prev), a))
   end
 
   @doc """

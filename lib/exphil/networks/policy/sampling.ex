@@ -425,9 +425,28 @@ defmodule ExPhil.Networks.Policy.Sampling do
   # supplies the previous frame's button states; they ride in the head map
   # so every fused kernel sees them without a signature change.
   defp put_event_prev(head, opts) do
-    case Keyword.get(opts, :event_prev_buttons) do
-      %Nx.Tensor{} = prev -> Map.put(head, "ar_event_prev", %{"value" => Nx.as_type(prev, :f32)})
+    head =
+      case Keyword.get(opts, :event_prev_buttons) do
+        %Nx.Tensor{} = prev -> Map.put(head, "ar_event_prev", %{"value" => Nx.as_type(prev, :f32)})
+        _ -> head
+      end
+
+    case Keyword.get(opts, :event_prev_sticks) do
+      %Nx.Tensor{} = prev -> Map.put(head, "ar_event_prev_sticks", %{"value" => Nx.as_type(prev, :s64)})
       _ -> head
+    end
+  end
+
+  # Hold-or-change stick heads (Heads.collapse_hold_change/2): column j of
+  # the previous buckets ({rows, 4}: main_x, main_y, c_x, c_y).
+  deftransformp ar_stick_logits(raw, head, j) do
+    case head do
+      %{"ar_event_prev_sticks" => %{"value" => prev}} ->
+        col = prev |> Nx.slice_along_axis(j, 1, axis: 1) |> Nx.squeeze(axes: [1])
+        ExPhil.Networks.Policy.Heads.collapse_hold_change(raw, col)
+
+      _ ->
+        raw
     end
   end
 
@@ -509,19 +528,19 @@ defmodule ExPhil.Networks.Policy.Sampling do
   defnp ar_stage2_stochastic(head, r0, buttons_f32, b_l, key, {_t_b, t_mx, t_my, t_cx, t_cy, t_sh}) do
     r1 = r0 + Nx.dot(buttons_f32, head["ar_buttons_embed"]["kernel"])
 
-    mx_l = ar_component(r1, head["ar_main_x_hidden"], head["ar_main_x_logits"])
+    mx_l = ar_component(r1, head["ar_main_x_hidden"], head["ar_main_x_logits"]) |> ar_stick_logits(head, 0)
     {mx, key} = gumbel_argmax(mx_l, key, t_mx)
     r2 = r1 + Nx.take(head["ar_main_x_embed"]["kernel"], mx)
 
-    my_l = ar_component(r2, head["ar_main_y_hidden"], head["ar_main_y_logits"])
+    my_l = ar_component(r2, head["ar_main_y_hidden"], head["ar_main_y_logits"]) |> ar_stick_logits(head, 1)
     {my, key} = gumbel_argmax(my_l, key, t_my)
     r3 = r2 + Nx.take(head["ar_main_y_embed"]["kernel"], my)
 
-    cx_l = ar_component(r3, head["ar_c_x_hidden"], head["ar_c_x_logits"])
+    cx_l = ar_component(r3, head["ar_c_x_hidden"], head["ar_c_x_logits"]) |> ar_stick_logits(head, 2)
     {cx, key} = gumbel_argmax(cx_l, key, t_cx)
     r4 = r3 + Nx.take(head["ar_c_x_embed"]["kernel"], cx)
 
-    cy_l = ar_component(r4, head["ar_c_y_hidden"], head["ar_c_y_logits"])
+    cy_l = ar_component(r4, head["ar_c_y_hidden"], head["ar_c_y_logits"]) |> ar_stick_logits(head, 3)
     {cy, key} = gumbel_argmax(cy_l, key, t_cy)
     r5 = r4 + Nx.take(head["ar_c_y_embed"]["kernel"], cy)
 
@@ -535,19 +554,19 @@ defmodule ExPhil.Networks.Policy.Sampling do
   defnp ar_stage2_deterministic(head, r0, buttons_f32, b_l) do
     r1 = r0 + Nx.dot(buttons_f32, head["ar_buttons_embed"]["kernel"])
 
-    mx_l = ar_component(r1, head["ar_main_x_hidden"], head["ar_main_x_logits"])
+    mx_l = ar_component(r1, head["ar_main_x_hidden"], head["ar_main_x_logits"]) |> ar_stick_logits(head, 0)
     mx = Nx.argmax(mx_l, axis: -1)
     r2 = r1 + Nx.take(head["ar_main_x_embed"]["kernel"], mx)
 
-    my_l = ar_component(r2, head["ar_main_y_hidden"], head["ar_main_y_logits"])
+    my_l = ar_component(r2, head["ar_main_y_hidden"], head["ar_main_y_logits"]) |> ar_stick_logits(head, 1)
     my = Nx.argmax(my_l, axis: -1)
     r3 = r2 + Nx.take(head["ar_main_y_embed"]["kernel"], my)
 
-    cx_l = ar_component(r3, head["ar_c_x_hidden"], head["ar_c_x_logits"])
+    cx_l = ar_component(r3, head["ar_c_x_hidden"], head["ar_c_x_logits"]) |> ar_stick_logits(head, 2)
     cx = Nx.argmax(cx_l, axis: -1)
     r4 = r3 + Nx.take(head["ar_c_x_embed"]["kernel"], cx)
 
-    cy_l = ar_component(r4, head["ar_c_y_hidden"], head["ar_c_y_logits"])
+    cy_l = ar_component(r4, head["ar_c_y_hidden"], head["ar_c_y_logits"]) |> ar_stick_logits(head, 3)
     cy = Nx.argmax(cy_l, axis: -1)
     r5 = r4 + Nx.take(head["ar_c_y_embed"]["kernel"], cy)
 

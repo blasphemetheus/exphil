@@ -281,11 +281,12 @@ defmodule ExPhil.Training.Imitation do
     # Press/release event button head (2026-10-02): the head reads the
     # previous buttons from the prev-action slot; the trunk sees it zeroed.
     config =
-      if config[:button_events] do
+      if config[:button_events] || config[:stick_events] do
         unless config.temporal and head == :autoregressive and config[:use_prev_action] and
-                 not (config[:bptt] || false) do
+                 not (config[:bptt] || false) and config[:kmeans_centers] == nil do
           raise ArgumentError,
-                "button_events requires temporal: true, head: :autoregressive, use_prev_action: true and no bptt"
+                "button_events / stick_events require temporal: true, head: :autoregressive, " <>
+                  "use_prev_action: true, uniform stick buckets and no bptt"
         end
 
         [offset, 13] = ExPhil.Interp.Attribution.prev_action_dim_range(config: embed_config)
@@ -315,6 +316,7 @@ defmodule ExPhil.Training.Imitation do
           recurrent_state: Map.get(config, :recurrent_state, :legacy_random),
           head: head,
           button_events: config[:button_events] || false,
+          stick_events: config[:stick_events] || false,
           prev_action_offset: config[:prev_action_offset],
           embed_size: embed_size,
           backbone: config.backbone,
@@ -428,6 +430,9 @@ defmodule ExPhil.Training.Imitation do
             if config[:button_events],
               do: Map.put(t, "prev_buttons", Nx.template({1, 8}, init_precision)),
               else: t
+          end)
+          |> then(fn t ->
+            if config[:stick_events], do: Map.put(t, "prev_sticks", Nx.template({1, 4}, :s64)), else: t
           end)
 
         true ->

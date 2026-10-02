@@ -440,37 +440,70 @@ defmodule ExPhil.Training.Imitation.Loss do
     |> Map.put(state_key, states)
   end
 
-  # Press/release event button head: `states` {batch, window, embed} carry
-  # the prev-action slot at `offset`. The head gets the LAST position's 8
-  # previous button states as "prev_buttons"; the trunk gets the whole 13-dim
-  # slot zeroed at every position, so it cannot copy the previous input.
-  def policy_forward_inputs({:autoregressive, {:button_events, offset}}, true, states, actions) do
-    prev =
+  # Event heads (press/release buttons, hold-or-change sticks): `states`
+  # {batch, window, embed} carry the prev-action slot at `offset` (8 buttons,
+  # main x/y and c x/y in [-1, 1], shoulder). The heads get the LAST
+  # position's previous buttons ("prev_buttons") and/or previous stick
+  # buckets ("prev_sticks", the same floor(x * buckets) rule as the targets);
+  # the trunk gets the whole 13-dim slot zeroed at every position, so it
+  # cannot copy the previous input.
+  def policy_forward_inputs({:autoregressive, {:events, ev}}, true, states, actions) do
+    offset = ev.offset
+
+    last =
       states
       |> Nx.slice_along_axis(Nx.axis_size(states, 1) - 1, 1, axis: 1)
       |> Nx.squeeze(axes: [1])
-      |> Nx.slice_along_axis(offset, 8, axis: 1)
 
     idx = Nx.iota({Nx.axis_size(states, 2)})
     keep = Nx.logical_or(Nx.less(idx, offset), Nx.greater_equal(idx, offset + 13))
     masked = Nx.multiply(states, Nx.as_type(keep, Nx.type(states)))
 
-    ExPhil.Networks.Policy.Heads.tf_inputs(actions)
-    |> Map.put("state_sequence", masked)
-    |> Map.put("prev_buttons", prev)
+    inputs = ExPhil.Networks.Policy.Heads.tf_inputs(actions) |> Map.put("state_sequence", masked)
+
+    inputs =
+      if ev.buttons,
+        do: Map.put(inputs, "prev_buttons", Nx.slice_along_axis(last, offset, 8, axis: 1)),
+        else: inputs
+
+    if ev.sticks do
+      buckets =
+        last
+        |> Nx.slice_along_axis(offset + 8, 4, axis: 1)
+        |> Nx.as_type(:f32)
+        |> Nx.divide(2.0)
+        |> Nx.add(0.5)
+        |> Nx.multiply(ev.axis_buckets)
+        |> Nx.floor()
+        |> Nx.clip(0, ev.axis_buckets - 1)
+        |> Nx.as_type(:s64)
+
+      Map.put(inputs, "prev_sticks", buckets)
+    else
+      inputs
+    end
   end
 
   @doc """
   The head tag to hand `policy_forward_inputs/4` for a trainer config:
-  `{:autoregressive, {:button_events, offset}}` for the press/release event
-  head, otherwise the plain head atom.
+  `{:autoregressive, {:events, %{...}}}` for the event heads
+  (`button_events` / `stick_events`), otherwise the plain head atom.
   """
   def forward_head(config) do
     head = config[:head] || :independent
 
-    if config[:button_events],
-      do: {head, {:button_events, config[:prev_action_offset]}},
-      else: head
+    if config[:button_events] || config[:stick_events] do
+      {head,
+       {:events,
+        %{
+          offset: config[:prev_action_offset],
+          buttons: config[:button_events] == true,
+          sticks: config[:stick_events] == true,
+          axis_buckets: config[:axis_buckets] || 16
+        }}}
+    else
+      head
+    end
   end
 
   # Diffusion: MSE noise prediction loss

@@ -420,6 +420,7 @@ defmodule ExPhil.Training.Imitation.Checkpointing do
         # Press/release event button head: the agent must mask the slot in
         # the trunk and hand the previous buttons to the sampler
         button_events: trainer.config[:button_events] || false,
+        stick_events: trainer.config[:stick_events] || false,
         prev_action_offset: trainer.config[:prev_action_offset],
         # Queue-as-input layout (2026-07-31): the live agent must rebuild
         # the exact channel layout (K committed-action slots + delay

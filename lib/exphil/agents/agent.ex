@@ -77,6 +77,7 @@ defmodule ExPhil.Agents.Agent do
     # Press/release event button head (2026-10-02): sampler needs the
     # previous emitted buttons
     :button_events,
+    :stick_events,
     # Queue-as-input (2026-07-31): ring buffer of the agent's own K most
     # recent emitted controllers (newest first) + the declared delay this
     # session plays at. Populated only for policies whose embed config has
@@ -2081,16 +2082,39 @@ defmodule ExPhil.Agents.Agent do
 
   # Press/release event button head: hand the sampler the previous emitted
   # buttons ({rows, 8}; nil controller = all up), in the embedding's order.
-  defp event_prev_opts(sample_opts, %{button_events: true}, controllers) do
-    prev =
-      controllers
-      |> ExPhil.Embeddings.Controller.embed_continuous_batch()
-      |> Nx.slice_along_axis(0, 8, axis: 1)
+  defp event_prev_opts(sample_opts, state, controllers) do
+    sample_opts =
+      if state.button_events == true do
+        prev =
+          controllers
+          |> ExPhil.Embeddings.Controller.embed_continuous_batch()
+          |> Nx.slice_along_axis(0, 8, axis: 1)
 
-    Keyword.put(sample_opts, :event_prev_buttons, prev)
+        Keyword.put(sample_opts, :event_prev_buttons, prev)
+      else
+        sample_opts
+      end
+
+    if state.stick_events == true do
+      # previous stick buckets, the targets' rule: floor(x * buckets), capped
+      n = (state.embed_config || %{})[:axis_buckets] || 16
+      bucket = fn v -> min(floor(v * n), n - 1) end
+
+      rows =
+        Enum.map(controllers, fn
+          nil -> List.duplicate(bucket.(0.5), 4)
+          c -> [bucket.(c.main_stick.x), bucket.(c.main_stick.y), bucket.(c.c_stick.x), bucket.(c.c_stick.y)]
+        end)
+
+      Keyword.put(sample_opts, :event_prev_sticks, Nx.tensor(rows, type: :s64))
+    else
+      sample_opts
+    end
   end
 
-  defp event_prev_opts(sample_opts, _state, _controllers), do: sample_opts
+  # Event-head policies (press/release buttons, hold-or-change sticks) keep
+  # the prev-action slot zeroed for the trunk.
+  defp event_heads?(state), do: state.button_events == true or state.stick_events == true
 
   # ---- batched sim path helpers --------------------------------------------
 
@@ -2117,7 +2141,7 @@ defmodule ExPhil.Agents.Agent do
     {embed_opts, _prev, _} = embed_inputs(hd(game_states), state)
 
     embed_opts =
-      if state.use_prev_action and not (state.button_events == true),
+      if state.use_prev_action and not event_heads?(state),
         do: embed_opts ++ [prev_controllers: b.last_controllers],
         else: embed_opts
 
@@ -2441,7 +2465,7 @@ defmodule ExPhil.Agents.Agent do
     # Event-head policies keep the slot zeroed for the trunk; the sampler
     # gets the previous buttons instead (event_prev_opts/3).
     prev_controller =
-      if state.use_prev_action and not (state.button_events == true), do: state.last_controller, else: nil
+      if state.use_prev_action and not event_heads?(state), do: state.last_controller, else: nil
     opts = [name_id: state.style_id || 0]
 
     # af_convention: :live normalizes the bridge's action_frame into the
@@ -3092,6 +3116,7 @@ defmodule ExPhil.Agents.Agent do
         window_size: window_size,
         use_prev_action: use_prev_action,
         button_events: Map.get(config, :button_events, false) == true,
+        stick_events: Map.get(config, :stick_events, false) == true,
         last_controller: nil,
         controller_queue: [],
         # Reset frame buffer when loading new policy
