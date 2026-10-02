@@ -212,3 +212,44 @@ only pay off if the model learns to use context beyond 80 frames — a
 capacity bet, not a prerequisite. Not started. Test:
 `test/exphil/agents/agent_stateful_mamba_test.exs`; outputs
 `eval_runs/1001_carried/`.
+
+## Queue 2 result (10-01 16:16) — block dropout gives two policies in one, not a fix
+
+MinGRU, prev-action with dropout drawn per 240-frame block
+(`--prev-action-dropout-block 240`), each scored with the channel on and
+with it zeroed at inference. Unit `exphil-coh-queue2`, 42 min, clean exit.
+
+| | base (queue 1) | blk 0.3, channel on | blk 0.3, zeroed | blk 0.5, channel on | blk 0.5, zeroed | expert |
+| --- | --- | --- | --- | --- | --- | --- |
+| val loss | 2.43 | 1.56 | | 1.81 | | |
+| A press edges / min | 100 | 21.2 | 114 | 13.2 | 92.7 | 13.2 |
+| R press edges / min | 247 | 28.9 | 228 | 42.0 | 227 | 8.3 |
+| change recall | 0.238 | 0.271 | 0.283 | 0.300 | 0.271 | |
+| damage dealt / min | 56.8 | 22.0 | 29.8 | 17.7 | 29.9 | |
+| kills / min | 1.06 | 0.25 | 0.25 | 0.38 | 0.56 | |
+| SD / min | 1.25 | 1.06 | 0.69 | 1.25 | 0.69 | |
+| output repeats previous | 0.29 | 0.69 | 0.28 | 0.65 | 0.31 | 0.76 |
+| recovery drill | 0.278 | 0.174 | 0.233 | 0.194 | 0.267 | |
+
+Reading:
+- Block dropout did what per-frame dropout could not: with the channel
+  zeroed the policy now PLAYS (neutral 0.29–0.45, not 0.81–0.94) and
+  recovers like the base model (0.23–0.27).
+- But it did not merge the two behaviours. With the channel on it is the
+  prev-action policy again (edges at expert rate, damage 18–22, recovery
+  0.17–0.19); with it off it is the base policy again (5–10× edges). One set
+  of weights holds both modes and the channel selects between them.
+- So the low-damage mode is not caused by the channel crowding out
+  state-driven skill during training — the skill is there (zeroed rows). It
+  is caused by what the policy does when it SEES its own last input: it
+  defers to it. That is an inference-time feedback effect, which
+  input-side masking cannot reach.
+- Change recall is 0.27–0.30 in all six columns, as in queue 1. No variant
+  so far has moved the thing that would fix both symptoms.
+- The zeroed rows deal about half the base model's damage (30 vs 57); the
+  capacity is shared between two modes.
+
+Dropout on the input (per frame or per block) is closed as a fix. What is
+left attacks either the feedback itself (scheduled sampling: train on own
+sampled outputs) or the objective (press-event target: score the decision
+to change).
