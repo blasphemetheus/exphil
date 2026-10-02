@@ -86,6 +86,31 @@ trainer = if resume_path do
 else
   trainer
 end
+# CALIBRATE_ONLY=1 (with --resume <dir>/model_best.axon and the run's own
+# flags): no training — teacher-forced calibration + per-head loss on the
+# held-out games (dense stride), written to <dir>/calibration.json
+# (override with CALIBRATE_OUT). 2026-10-02.
+if System.get_env("CALIBRATE_ONLY") == "1" do
+  cal_batches = Data.batched_sequences(val_dataset, batch_size: opts[:batch_size],
+    window_size: opts[:window_size], stride: 8, lazy: true, shuffle: false, drop_last: false,
+    gpu: false, neutral_weight: 1.0)
+  cal = ExPhil.Eval.Calibration.run(trainer, cal_batches)
+  out = System.get_env("CALIBRATE_OUT") || Path.join(dir, "calibration.json")
+  File.write!(out, Jason.encode!(cal, pretty: true))
+  Output.puts("RESULT calibration samples=#{cal.samples} loss_by_head=#{inspect(cal.loss_by_head)}")
+  Output.puts("RESULT calibration button ECE " <> Enum.map_join(~w(a b x y z l r), "  ", fn b ->
+    v = cal.buttons[b]; "#{b} #{v.ece} (p #{v.model_mean_p} vs rate #{v.expert_rate})" end))
+  Output.puts("RESULT calibration sticks " <> Enum.map_join(cal.categorical, "  ", fn {k, v} ->
+    "#{k} acc #{v.accuracy} conf #{v.mean_confidence} ece #{v.ece}" end))
+  if cal.buttons_given_previous do
+    Output.puts("RESULT calibration P(down|prev) model:expert " <> Enum.map_join(~w(a b x y l r), "  ", fn b ->
+      c = cal.buttons_given_previous[b]
+      f = fn nil -> "-"; m -> "#{m.model_p_down}:#{m.expert_rate_down}" end
+      "#{b} up #{f.(c.prev_up)} down #{f.(c.prev_down)}" end))
+  end
+  Output.success("wrote #{out}")
+  System.halt(0)
+end
 callbacks = [
   {RollingCheckpoint, [checkpoint_path: opts[:checkpoint], every: 500]},
   {GracefulShutdown, [checkpoint_path: opts[:checkpoint]]},

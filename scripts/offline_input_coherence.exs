@@ -106,6 +106,52 @@ acc =
       jab_exp_a_edges: a.jab_exp_a_edges + a_edges_in.(exp)}
   end)
 
+# ---- change events with a timing window (2026-10-02) ---------------------------
+# Same-frame change recall is harsh on a stochastic expert: a press one frame
+# early scores as a miss. Here every input CHANGE is an event — press(button),
+# release(button), or the main stick entering a new zone (neutral + 8
+# directions) — and an expert event at frame t is recalled at tolerance k if
+# the model has the SAME event within t±k. Precision is the mirror: model
+# events that some expert event explains.
+zone = fn c ->
+  dx = c.main_stick.x - 0.5
+  dy = c.main_stick.y - 0.5
+  if :math.sqrt(dx * dx + dy * dy) < 0.14, do: :n, else: round(:math.atan2(dy, dx) / (:math.pi() / 4))
+end
+events = fn ctrls ->
+  ctrls
+  |> Enum.chunk_every(2, 1, :discard)
+  |> Enum.with_index(1)
+  |> Enum.flat_map(fn {[p, q], t} ->
+    bs = Enum.zip([buttons, bt.(p), bt.(q)]) |> Enum.flat_map(fn
+      {b, false, true} -> [{{:press, b}, t}]
+      {b, true, false} -> [{{:release, b}, t}]
+      _ -> []
+    end)
+    zq = zone.(q)
+    if zone.(p) != zq, do: [{{:stick, zq}, t} | bs], else: bs
+  end)
+end
+kind = fn {{k, _}, _} -> k end
+match = fn evs, other, k ->
+  set = MapSet.new(other)
+  Enum.group_by(evs, kind) |> Map.new(fn {kd, es} ->
+    {kd, {Enum.count(es, fn {ty, t} -> Enum.any?(-k..k, &MapSet.member?(set, {ty, t + &1})) end), length(es)}}
+  end)
+end
+window_scores =
+  for k <- [0, 2, 5], into: %{} do
+    {rec, prec} =
+      Enum.reduce(games, {%{}, %{}}, fn {frames, outs, _port}, {ra, pa} ->
+        e = events.(Enum.map(frames, & &1.controller))
+        m = events.(outs)
+        add = fn a, b -> Map.merge(a, b, fn _, {x1, y1}, {x2, y2} -> {x1 + x2, y1 + y2} end) end
+        {add.(ra, match.(e, m, k)), add.(pa, match.(m, e, k))}
+      end)
+    rr = fn m, kd -> case m[kd] do {h, n} when n > 0 -> Float.round(h / n, 3); _ -> nil end end
+    {"k#{k}", Map.new([:press, :release, :stick], fn kd -> {kd, %{recall: rr.(rec, kd), precision: rr.(prec, kd)}} end)}
+  end
+
 minutes = acc.n / 3600
 r = fn x, d -> if d == 0, do: nil, else: Float.round(x / d, 3) end
 names = ~w(A B X Y Z L R)
@@ -115,6 +161,7 @@ result = %{
     %{model: Float.round(m / minutes, 2), expert: Float.round(e / minutes, 2), ratio: r.(m, e)} end))),
   change_recall: r.(acc.change_hit, acc.change), hold_agreement: r.(acc.hold_hit, acc.hold),
   change_frames: acc.change,
+  change_events: window_scores,
   repeat_prev: %{model: r.(acc.same_prev, acc.n), expert: r.(acc.exp_same_prev, acc.n)},
   neutral_share: %{model: r.(acc.neutral, acc.n), expert: r.(acc.exp_neutral, acc.n)},
   jab1: %{episodes: acc.jab_eps, model_a_edges_per_ep: r.(acc.jab_model_a_edges, acc.jab_eps),
@@ -131,3 +178,7 @@ Output.puts("RESULT #{label}: frames=#{acc.n} change_recall=#{result.change_reca
 Output.puts("RESULT #{label} press edges/min model:expert  " <>
   Enum.map_join(names, "  ", fn b -> e = result.press_edges_per_min[b]; "#{b} #{e.model}:#{e.expert}" end))
 Output.puts("RESULT #{label} jab1 episodes=#{acc.jab_eps} A-edges/episode model=#{result.jab1.model_a_edges_per_ep} expert=#{result.jab1.expert_a_edges_per_ep}")
+Output.puts("RESULT #{label} change events recall/precision  " <>
+  Enum.map_join(["k0", "k2", "k5"], "  |  ", fn k ->
+    "±#{String.trim_leading(k, "k")}: " <> Enum.map_join([:press, :release, :stick], " ", fn kd ->
+      v = window_scores[k][kd]; "#{kd} #{inspect(v.recall)}/#{inspect(v.precision)}" end) end))
