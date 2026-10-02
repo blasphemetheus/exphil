@@ -253,3 +253,45 @@ Dropout on the input (per frame or per block) is closed as a fix. What is
 left attacks either the feedback itself (scheduled sampling: train on own
 sampled outputs) or the objective (press-event target: score the decision
 to change).
+
+## Queue 3 result (10-02 11:19) — press/release event button head: flicker fixed without a trunk channel, closed loop mixed
+
+`--button-events` (6ec9fd9f): the AR button head emits 16 logits (press-if-up,
+release-if-down); the previous button state selects per button
+(`Heads.collapse_button_events/2`), so the usual BCE trains hazards and the
+usual sampler draws them. The previous buttons reach ONLY the head; the trunk
+sees the prev-action slot zeroed (training: `Loss.policy_forward_inputs/4`
+event clause; agent: embeds without the channel, hands the sampler its last
+buttons). Sticks are unchanged (no feedback, sampled per frame). MinGRU,
+same slice/seed, unit `exphil-coh-queue3`.
+
+| | base | prev-action d0 | **event head** | expert |
+| --- | --- | --- | --- | --- |
+| val loss | 2.43 | 1.04 (teacher-forced) | 2.30 | |
+| A / B / R press edges per min | 100 / 70 / 247 | 15.5 / 22.9 / 28.6 | 18.9 / 16.9 / 29.5 | 13.2 / 11.0 / 8.3 |
+| change recall | 0.238 | 0.289 | 0.284 | |
+| output repeats previous (offline) | 0.20 | 0.65 | 0.28 | 0.76 |
+| damage dealt / min | 56.8 | 10.5 | 23.7 | |
+| kills / min | 1.06 | 0.13 | 0.31 | |
+| SD / min | 1.25 | 1.13 | **2.81** | |
+| offstage episodes / min | 5.5 | 7.7 | **9.9** | |
+| recovery drill | 0.278 | 0.167 | **0.309** | |
+| drill cases never recovered | 5/36 | 19/36 | 12/36 | |
+
+Reading:
+- Button flicker is fixed with NO previous-action input to the trunk: press
+  edges are in the expert band on every button (R still 3.5×). So expert
+  press rates do not require the trunk to see its own input — a head-level
+  connection is enough. This is the part of slippi-ai's design (each head
+  component sees its own previous value) that matters for buttons.
+- Recovery drill is the best of any variant (0.309).
+- Free play got worse than base: damage 24 vs 57, and it leaves the stage
+  almost twice as often and self-destructs 2.3× as often. Mechanism NOT
+  established. Sticks still change nearly every frame (repeat 0.28 vs expert
+  0.76), so the model now pairs coherent button holds with incoherent sticks;
+  whether that mismatch is the cause is a hypothesis, not a finding.
+- Change recall is 0.28 again.
+
+Not a fix on its own. Open question it raises: give the sticks the same
+treatment (head-level previous stick → hold/change hazard) vs scheduled
+sampling on the full channel.
