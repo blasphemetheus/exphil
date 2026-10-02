@@ -126,6 +126,11 @@ defmodule ExPhil.Training.EmbeddingCache do
     prev_action_dropout = Keyword.get(opts, :prev_action_dropout, 0.0)
 
     hash_input =
+      if Keyword.get(opts, :prev_action_quantize, false) == true,
+        do: Map.put(hash_input, :prev_action_quantize, true),
+        else: hash_input
+
+    hash_input =
       if prev_action_dropout > 0.0 do
         case Keyword.get(opts, :prev_action_dropout_block, 1) do
           block when is_integer(block) and block > 1 ->

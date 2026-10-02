@@ -4548,3 +4548,65 @@ regimes:
   reproduced when ports 3/4 are folded into slots 1/2 — untested hypotheses.
 Rule: seed only from ports-1+2 games, pass `tolerance: 1.0`, and check
 percent/action equality at the saved frame.
+
+**Update 2026-10-02 (afternoon) — three causes on our side found and fixed
+(49970218); the rule above is superseded.**
+1. Seeding never sent the real controller port or starting facing to the sim
+   (AUTO: port = slot, slot 1 faces right). Now sent per player exactly as
+   the sim's validator does (`native.c` `facing_and_port`). Entry frames
+   match on every port pair.
+2. `ucf_cardinals: 1` was hardcoded. The ranked corpus is Slippi 1.7.1 –
+   3.15.0 (73 % is 2.0.1), all older than the 1.0-cardinals rule; with it on
+   the first walk/dash is 0.01–0.03 units off — that was the "~0.01 x
+   offset". `ucf_cardinals: :auto` (default) picks 0 for versions ≤ 3.15.0.
+   Bradley's current local games stay exact with 1.
+3. Replays before 3.7.0 write a hit's damage and hitstun action into the
+   post-frame record one frame after the sim shows it (positions identical;
+   converges on the next frame). `late_hit_records: :auto` accepts this
+   frame's or the next frame's action/percent for those versions.
+
+40-game survey at tolerance 0.01: first divergence moved from "before frame
+30 in every game" to a median of ≈ 450 frames on the 30 non-Dream-Land games
+(1 clean to 3000). **Rule now:** call `Seed.from_replay` with the defaults,
+keep only saves with `diverged?: false`, and expect a usable horizon of a
+few hundred frames per corpus game, not whole games. Still open: Dream Land
+first-frame y (37.0 vs 37.2), port-based spawns on some 1.7.1 – 3.0.0 games,
+later real drift (x by 1–2 units; percent by exactly 1.0 on 3.9.0 games,
+consistent with netplay code-set differences the batch API hardcodes on).
+The sim's validator cannot read any corpus file (missing scene / hitlag /
+animation_index / playedOn), so the "run the validator on the same game"
+recipe does not apply to the corpus. Downstream scripts that restore a seed
+into a fresh batch still pass `ucf_cardinals: 1` (coach, recovery_probe,
+checkmate_sweep, resource_recovery_eval, mewtwo_recovery_calibrate) — for
+corpus replays they should pass `seed.ucf_cardinals`.
+
+## #138 — Stick targets never use the top bucket; the prev-action channel is raw in training and decoded live (2026-10-02)
+
+**Symptom (found while auditing scheduled sampling):** two mismatches between
+what training sees and what the live agent produces/feeds back.
+
+1. **Asymmetric stick targets.** `Data.controller_to_action` buckets sticks
+   with `floor(v * 16)` capped at 15 and the decode is `bucket / 16`. Bucket
+   16 has ZERO targets (measured: 64 k frames; bucket 15 = 16.8 %, bucket
+   0 = 18.3 %). Every policy trained on these targets tilts full right / up
+   at 0.875 game units and full left / down at −1.0; every intermediate tilt
+   is shifted left/down by up to 0.125. Run speed and air drift scale with
+   stick x, so rightward movement is ~12 % weaker. `ControllerEmbed.
+   discretize_axis` (round to nearest, 17 classes) is the decode's true
+   inverse but the training targets do not use it.
+2. **Prev-action channel format.** Training fills the slot with the replay's
+   raw analog values (stick 0.9875; shoulder = the real L analog only). Live,
+   and inside the scheduled-sampling splice, the slot holds the decoded
+   output (stick on the 1/8 grid; shoulder = max(l, r) bucket on the L
+   slot). A plain channel model barely notices; a scheduled-sampling model
+   learns to tell its own inputs from the teacher's by format (ss25: P(R
+   down | R down) 0.87 on the raw channel, 0.45 when the teacher's values
+   are put on the live grid; prev_d00 0.86 → 0.86).
+
+**Fix / status:** `--prev-action-quantize` passes the training channel through
+the bucket round trip (pinned in `streaming_prev_action_test.exs`).
+`EXPHIL_STICK_ROUNDING=nearest` (runtime config, EXPERIMENTAL) makes targets
+symmetric; it is not recorded in the checkpoint config or the cache key yet,
+every existing checkpoint and baked corpus is floor-built, and the
+event-head previous-bucket code assumes floor — testbed only until the
+`base_rn` result is in and Bradley decides.

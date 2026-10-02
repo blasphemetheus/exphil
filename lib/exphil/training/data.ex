@@ -927,10 +927,43 @@ defmodule ExPhil.Training.Data do
     }
   end
 
+  @doc """
+  The controller the live agent would have fed back for this target: sticks
+  and shoulder through the bucket round trip (`controller_to_action/2` then
+  bucket / buckets, as `Policy.to_controller_state/2` decodes), shoulder =
+  max(l, r) on the L slot, R analog zero.
+  """
+  def quantize_controller(controller, opts \\ []) do
+    axis_buckets = Keyword.get(opts, :axis_buckets, 16)
+    shoulder_buckets = Keyword.get(opts, :shoulder_buckets, 4)
+    a = controller_to_action(controller, opts)
+
+    %{
+      controller
+      | main_stick: %{controller.main_stick | x: a.main_x / axis_buckets, y: a.main_y / axis_buckets},
+        c_stick: %{controller.c_stick | x: a.c_x / axis_buckets, y: a.c_y / axis_buckets},
+        l_shoulder: a.shoulder / shoulder_buckets,
+        r_shoulder: 0.0
+    }
+  end
+
+  # value is in [0, 1], convert to bucket index.
+  #
+  # :floor (the historical default every existing checkpoint and corpus was
+  # built with) never produces the top bucket: full right/up (1.0) lands in
+  # bucket `buckets - 1` and decodes to 0.9375 = 0.875 in game units, while
+  # full left/down decodes to -1.0. :nearest (experimental, 2026-10-02; set
+  # `config :exphil, :stick_rounding, :nearest` or EXPHIL_STICK_ROUNDING=nearest
+  # in scripts that honour it) is the inverse of the decode and is symmetric.
   defp discretize_axis(value, buckets) do
-    # value is in [0, 1], convert to bucket index
-    bucket = floor(value * buckets)
-    Kernel.min(bucket, buckets - 1)
+    case Application.get_env(:exphil, :stick_rounding, :floor) do
+      :nearest ->
+        Kernel.min(trunc(Kernel.max(value, 0.0) * buckets + 0.5), buckets)
+
+      _ ->
+        bucket = floor(value * buckets)
+        Kernel.min(bucket, buckets - 1)
+    end
   end
 
   defp discretize_shoulder(value, buckets) do
@@ -1488,6 +1521,12 @@ defmodule ExPhil.Training.Data do
     # channel is absent. Blocks longer than the window produce windows with
     # no channel at all.
     prev_action_dropout_block = max(Keyword.get(opts, :prev_action_dropout_block, 1) || 1, 1)
+    # Live parity (2026-10-02): the live channel holds the policy's DECODED
+    # output (stick/shoulder bucket values, shoulder = max(l, r) on the L
+    # slot), the replay holds raw analog values. With this on, the training
+    # channel is passed through the same bucket round trip, so teacher and
+    # self-generated inputs are indistinguishable by format.
+    quantize_prev? = Keyword.get(opts, :prev_action_quantize, false) == true
     dropout_seed = :rand.uniform(1_000_000_000)
 
     dropped? = fn i ->
@@ -1563,10 +1602,11 @@ defmodule ExPhil.Training.Data do
                 end
             end
 
-          if raw != nil and dropped?.(i) do
-            nil
-          else
-            raw
+          cond do
+            raw == nil -> nil
+            dropped?.(i) -> nil
+            quantize_prev? -> quantize_controller(raw)
+            true -> raw
           end
         end
 
@@ -1817,6 +1857,7 @@ defmodule ExPhil.Training.Data do
           use_prev_action: Keyword.get(opts, :use_prev_action, false),
           prev_action_dropout: Keyword.get(opts, :prev_action_dropout, 0.0),
           prev_action_dropout_block: Keyword.get(opts, :prev_action_dropout_block, 1),
+          prev_action_quantize: Keyword.get(opts, :prev_action_quantize, false),
           mix_frames: Keyword.get(opts, :mix_frames)
         )
 

@@ -1590,6 +1590,8 @@ defmodule ExPhil.Training.Config do
       # drift from ground truth — dropout stops it over-relying on the channel)
       prev_action_dropout: 0.0,
       prev_action_dropout_block: 1,
+      # Prev-action channel holds bucket-decoded values (what the live agent feeds back)
+      prev_action_quantize: false,
       # Scheduled sampling (exposure bias): fraction of samples whose LAST
       # window position's prev-action slice is replaced by the model's own
       # decoded prediction (ExPhil.Training.ScheduledSampling). Requires
@@ -2623,6 +2625,7 @@ defmodule ExPhil.Training.Config do
       stick_events: opts[:stick_events],
       prev_action_dropout: opts[:prev_action_dropout],
       prev_action_dropout_block: opts[:prev_action_dropout_block],
+      prev_action_quantize: opts[:prev_action_quantize],
       scheduled_sampling: opts[:scheduled_sampling],
       ss_ramp: opts[:ss_ramp],
       ss_steps: opts[:ss_steps],

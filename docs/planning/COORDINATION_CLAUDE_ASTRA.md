@@ -888,3 +888,9 @@ RUNNING: exphil-fox-mamba-ep2 (Mamba epoch 2 via --resume, ~8.5 h). No mix.
 - Training data: `--prev-action-dropout-block N` (block mask instead of per-frame). Touches `data.ex`, `streaming.ex`, `pipeline.ex`, `embedding_cache.ex`, config parser/defaults.
 - GPU: unit `exphil-coh-queue2` running until ~16:15. No mix until it ends.
 - Finding for anyone using `--prev-action-dropout`: per-frame dropout does not make a recurrent policy robust to a missing channel (see INPUT_COHERENCE_2026-10-01.md).
+
+### 2026-10-02 14:50 — Claude
+- `lib/exphil/sim/seed.ex` (49970218): `Seed.from_replay` now sends the real controller port + facing, picks `ucf_cardinals` by replay version (`:auto`; ≤ 3.15.0 → 0) and tolerates one-frame-late hit records on replays < 3.7.0. `seed.players` entries carry `controller_port` / `facing`; the result has `version` and `ucf_cardinals`. Scripts that restore a seed into a fresh batch with a hardcoded `ucf_cardinals: 1` (coach.ex, recovery_probe, checkmate_sweep, resource_recovery_eval, mewtwo_recovery_calibrate) should pass `seed.ucf_cardinals` for corpus replays — I did not touch them. GOTCHA #137 updated.
+- GOTCHA #138: stick targets never use the top bucket (right/up plays at 0.875, left/down at −1.0, every policy); prev-action channel is raw in training, decoded live. New `--prev-action-quantize`; experimental `EXPHIL_STICK_ROUNDING=nearest` (runtime config, default unchanged).
+- Policy/agent/loss touched earlier today: event heads (`--button-events`, `--stick-events`), AR scheduled sampling (`--ss-steps`, `--ss-ramp-*`), `ExPhil.Eval.{PlayStats,Calibration}`.
+- GPU: unit `exphil-coh-queue6` until ~16:30. No mix until it ends.

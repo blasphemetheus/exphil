@@ -4,6 +4,8 @@
 alias ExPhil.Training.{Config, Pipeline, Trainer, Streaming, Data, Output}
 alias ExPhil.Training.Callbacks.{GracefulShutdown, ProgressBar, Validation,
   EpochSummary, Checkpoint, PolicyExport, EarlyStopping, RollingCheckpoint}
+if Application.get_env(:exphil, :stick_rounding) == :nearest,
+  do: Output.warning("EXPHIL_STICK_ROUNDING=nearest: stick targets round to the nearest bucket (experimental, testbed only)")
 {:ok, warnings} = Config.validate_args(System.argv())
 if warnings != [], do: raise(Enum.join(warnings, "\n"))
 opts = Config.parse_args(System.argv()) |> Config.validate!() |> Config.ensure_checkpoint_name()

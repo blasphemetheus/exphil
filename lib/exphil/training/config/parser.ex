@@ -366,6 +366,7 @@ defmodule ExPhil.Training.Config.Parser do
     {"--stick-events", :stick_events, :flag},
     {"--prev-action-dropout", :prev_action_dropout, :float},
     {"--prev-action-dropout-block", :prev_action_dropout_block, :int},
+    {"--prev-action-quantize", :prev_action_quantize, :flag},
     {"--scheduled-sampling", :scheduled_sampling, :float},
     {"--ss-ramp", :ss_ramp, :int},
     {"--ss-steps", :ss_steps, :int},

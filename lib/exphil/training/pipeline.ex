@@ -547,7 +547,7 @@ defmodule ExPhil.Training.Pipeline do
         # prev-action channel (2026-09-30): Streaming.create_dataset hands
         # these to Data.precompute_frame_embeddings, which fills the 13-dim
         # slot from each frame's predecessor (nil at game boundaries).
-        :use_prev_action, :prev_action_dropout, :prev_action_dropout_block
+        :use_prev_action, :prev_action_dropout, :prev_action_dropout_block, :prev_action_quantize
       ]) ++ [embed_config: embed_config, player_registry: player_registry],
       val_batches: bptt_val_batches,
       character_weights: nil,
@@ -958,6 +958,7 @@ defmodule ExPhil.Training.Pipeline do
         use_prev_action: use_prev_action,
         prev_action_dropout: prev_action_dropout,
         prev_action_dropout_block: prev_action_dropout_block,
+        prev_action_quantize: opts[:prev_action_quantize] || false,
         # Mixed drill frames change the dataset without changing
         # replay_files — must not share a cache key (GOTCHAS #51 family)
         mix_frames: opts[:mix_frames]
@@ -967,7 +968,8 @@ defmodule ExPhil.Training.Pipeline do
         show_progress: true,
         use_prev_action: use_prev_action,
         prev_action_dropout: prev_action_dropout,
-        prev_action_dropout_block: prev_action_dropout_block
+        prev_action_dropout_block: prev_action_dropout_block,
+        prev_action_quantize: opts[:prev_action_quantize] || false
       )
     end
   end

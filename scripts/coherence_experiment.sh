@@ -55,9 +55,12 @@ if want recovery; then
 fi
 
 if want calibration; then
-  CALIBRATE_ONLY=1 CALIBRATE_OUT="$out/calibration.json" $run scripts/train_fox_mamba.exs "${train_args[@]}" \
-    --resume "$ckpt/model_best.axon" > "$out/calibration.log" 2>&1
-  grep RESULT "$out/calibration.log" | sed 's/^\[[0-9:]*\] //'
+  # CAL_TAG=x writes calibration_x.{json,log} (e.g. re-calibrating an existing
+  # checkpoint with different data flags)
+  cal=calibration${CAL_TAG:+_$CAL_TAG}
+  CALIBRATE_ONLY=1 CALIBRATE_OUT="$out/$cal.json" $run scripts/train_fox_mamba.exs "${train_args[@]}" \
+    --resume "$ckpt/model_best.axon" > "$out/$cal.log" 2>&1
+  grep RESULT "$out/$cal.log" | sed 's/^\[[0-9:]*\] //'
 fi
 
 if want fidelity; then

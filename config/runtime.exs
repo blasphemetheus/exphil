@@ -33,3 +33,11 @@ if memory_fraction = System.get_env("EXLA_MEMORY_FRACTION") do
 
   config :exla, :clients, clients
 end
+
+# Experimental (2026-10-02): symmetric stick targets. The historical :floor
+# bucketing never produces the top bucket (full right/up decodes to 0.875,
+# full left/down to -1.0; see Data.discretize_axis). Not recorded in the
+# checkpoint config yet, so testbed runs only.
+if System.get_env("EXPHIL_STICK_ROUNDING") == "nearest" do
+  config :exphil, :stick_rounding, :nearest
+end

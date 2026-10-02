@@ -59,6 +59,27 @@ defmodule ExPhil.Training.StreamingPrevActionTest do
     assert changed >= 1 and changed <= 13, "only the 13-dim controller slot may differ, got #{changed}"
   end
 
+  test "prev_action_quantize passes the channel through the bucket round trip" do
+    # frame 0 holds the stick at 0.99375 (game 0.9875) with R analog 0.6;
+    # frame 1 sees it. Raw channel: stick 0.9875, L-slot 0.0 (R is not on the
+    # channel). Quantized (floor buckets, what the live agent feeds back):
+    # bucket 15 -> 0.9375 -> 0.875, shoulder max(l, r) = 0.6 -> bucket 2 -> 0.5.
+    f0 = frame(frame: 0)
+    f0 = %{f0 | controller: %{f0.controller | main_stick: %{x: 0.99375, y: 0.5}, r_shoulder: 0.6}}
+    frames = [f0, frame(frame: 1)]
+
+    off = embed(frames, use_prev_action: false) |> Enum.at(1)
+    raw = embed(frames, use_prev_action: true) |> Enum.at(1)
+    quant = embed(frames, use_prev_action: true, prev_action_quantize: true) |> Enum.at(1)
+
+    diff = fn row -> Enum.zip(row, off) |> Enum.reject(fn {a, b} -> a == b end) |> Enum.map(&elem(&1, 0)) end
+    assert_in_delta hd(diff.(raw)), 0.9875, 1.0e-5
+    assert length(diff.(raw)) == 1
+    assert [x, sh] = diff.(quant)
+    assert_in_delta x, 0.875, 1.0e-6
+    assert_in_delta sh, 0.5, 1.0e-6
+  end
+
   test "block dropout masks whole runs of frames, not scattered ones" do
     # Every frame holds A, so an unmasked frame i >= 1 always differs from the
     # channel-off embedding. With block 10 each block is all-masked or

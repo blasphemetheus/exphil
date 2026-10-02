@@ -392,3 +392,131 @@ down→down 0.88 vs 0.81 (A), 0.91 vs 0.91 (R) — the hazards are right.
 6. **Why event-buttons SDs more (hypothesis with one piece of evidence):** it
    spends 12.5 % of frames in dodge/roll states vs the expert's 2.1 %, and
    presses R 28/min vs 19; an air dodge offstage is a death. Not yet tested.
+
+## Queue 4 result (10-02 12:50) — hold-or-change stick heads (`evt2`)
+
+`--button-events --stick-events`: buttons AND the four stick axes get the
+output-level "previous state" treatment (K change logits + 1 hold logit per
+axis, collapsed by the previous bucket); the trunk sees nothing of the
+previous input.
+
+| | base | evt (buttons) | evt2 (buttons + sticks) | prev_d00 (trunk channel) | expert |
+| --- | --- | --- | --- | --- | --- |
+| teacher-forced loss | 3.02 | 2.50 | 1.53 | 1.23 | |
+| main-stick loss (x + y) | 1.87 | 1.89 | 0.99 | 0.77 | |
+| vs idle damage/min | 61.6 ± 11.7 | 20.9 ± 2.7 | 21.3 ± 5.2 (n = 4) | 9.5 ± 2.7 | |
+| vs idle SD/min | 1.14 ± 0.27 | 3.27 ± 0.32 | 2.56 ± 0.23 (n = 4) | 1.08 ± 0.23 | |
+| recovery drill | 0.272 ± 0.024 | 0.290 ± 0.038 | 0.240 ± 0.027 (n = 4) | 0.157 ± 0.014 | |
+| fidelity distance | 0.360 ± 0.011 | 0.225 ± 0.002 | 0.253 ± 0.008 | 0.243 ± 0.006 | floor ≈ 0.03 |
+| self-play SD/min | 0.83 | 2.34 | 1.25 | 2.54 | 0.44 |
+| self-play damage/min | 108 | 63 | 39 | 29 | 133 |
+| L-cancel | 0.76 | 0.57 | 0.62 | 0.28 | 0.83 |
+| input repeat share (self-play) | 0.27 | 0.33 | 0.62 | 0.65 | 0.76 |
+| A presses/min (self-play) | 201 | 22.5 | 16.4 | 12.8 | 22.0 |
+
+Reading: the output-level heads recover most of the channel's
+teacher-forced benefit (1.53 vs 1.23) with nothing in the trunk — and play
+like the channel model, not like base (damage 39 vs 108 in self-play). So
+the DELIVERY ROUTE of the previous input (trunk input vs output-side
+selection) is not what makes the policy passive; knowing its own previous
+input at all is. Any model that conditions on its own last input inherits
+"mostly keep doing it", and in closed loop that compounds.
+
+## Queue 5 result (10-02 14:18) — scheduled sampling on the AR head
+
+`--prev-action --scheduled-sampling P --ss-steps 4 --ss-ramp-start 2000
+--ss-ramp-steps 8000` (the model's own SAMPLED actions replace the channel
+on the last 4 window positions for fraction P of samples, ramped in).
+
+| | base | prev_d00 (P = 0) | ss25_k4 | ss50_k4 | ss100_k4 | expert |
+| --- | --- | --- | --- | --- | --- | --- |
+| teacher-forced loss (calibration total) | 3.02 | 1.23 | 1.38 | 1.52 | 2.15 | |
+| P(A down \| A down), teacher-forced | — | 0.84 | 0.65 | 0.75 | 0.42 | 0.81 |
+| input repeat share (self-play) | 0.27 | 0.65 | 0.275 | 0.278 | 0.261 | 0.758 |
+| A presses/min (self-play) | 201 | 12.8 | 39.7 | 98.8 | 111.3 | 22.0 |
+| vs idle damage/min | 61.6 ± 11.7 | 9.5 ± 2.7 | 20.6 | 17.9 | 54.2 | |
+| vs idle SD/min | 1.14 ± 0.27 | 1.08 ± 0.23 | 1.38 | 0.75 | 1.06 | |
+| recovery drill | 0.272 ± 0.024 | 0.157 ± 0.014 | 0.240 | 0.201 | 0.250 | |
+| fidelity distance | 0.360 | 0.243 | 0.354 | 0.337 | 0.357 | |
+| self-play SD/min | 0.83 | 2.54 | 2.00 | 2.95 | 0.39 | 0.44 |
+| self-play damage/min | 108 | 29 | 32 | 46 | 76 | 133 |
+| L-cancel | 0.76 | 0.28 | 0.70 | 0.76 | 0.84 | 0.83 |
+
+**It fails the pass criteria at every rate**, and not as a dial: the
+closed-loop input repeat share is at base's flicker level (0.26–0.28) for
+P = 0.25, 0.5 and 1.0 alike, while the teacher-forced numbers move
+gradually (loss 1.38 → 1.52 → 2.15). Under teacher forcing these models
+still use the channel; in their own closed loop they behave as if it were
+not there. P = 1.0 is base again (and the cleanest player of the three);
+P = 0.25 and 0.5 are worse than both parents (flicker AND low damage).
+
+Two explanations, which queue 6 separates:
+
+1. **The objective (Huszár 2015).** When the channel holds the model's own
+   sample, the target is still the expert's action, which was not chosen
+   given that sample. The best prediction given "this input is my own
+   noise" is the marginal — i.e. ignore the channel. A model that can tell
+   self-generated history from the teacher's learns two modes, and in play
+   it is always in the "ignore" mode.
+2. **A format tell that makes (1) trivial (found 10-02).** The training
+   channel holds the replay's RAW analog values (stick 0.9875, shoulder =
+   the real L analog); the live channel and the scheduled-sampling splice
+   hold the bucket-DECODED values (stick on a 1/8 grid, shoulder =
+   max(l, r) bucket). A scheduled-sampling model can tell its own inputs
+   from the teacher's by format alone, with no need to read the content.
+   `test/exphil/training/streaming_prev_action_test.exs` pins the gap (raw
+   0.9875 / 0.0 vs live 0.875 / 0.5 for the same frame).
+
+`--prev-action-quantize` (new) passes the training channel through the same
+bucket round trip, so both look identical in format.
+
+## Stick targets never use the top bucket (found 10-02, GOTCHA #138)
+
+`Data.controller_to_action` buckets sticks with `floor(v * 16)` capped at
+15; the decode is `bucket / 16`. Measured on 64 k validation frames: bucket
+16 has zero targets, bucket 15 holds 16.8 % (full right), bucket 0 18.3 %
+(full left). So every policy trained with these targets tilts full
+right / up at 0.875 game units and full left / down at −1.0, and every
+intermediate tilt is shifted left/down by up to 0.125. In Melee, run speed
+and air drift scale with stick x. All seven testbed models recover better
+from the right ledge side (drifting left) than the left (0.38 vs 0.26 for
+base; 4 cases vs 32, not difficulty-matched, so suggestive only).
+`EXPHIL_STICK_ROUNDING=nearest` (experimental, runtime config) rounds to the
+nearest bucket, the inverse of the decode. Existing checkpoints and baked
+corpora are floor-built; the default is unchanged.
+
+## Queue 6 (launched 10-02 14:41, ~1 h 45) — `scripts/coherence_queue6.sh`
+
+1. Re-calibrate prev_d00 / ss25 / ss50 / ss100 teacher-forced with the
+   channel QUANTIZED (`calibration_quant.json`). If the scheduled-sampling
+   models' P(down | down) collapses when the teacher's values are put on
+   the live grid, they were keying on format (explanation 2).
+2. `base_rn`: base with nearest stick rounding. Pass = recovery and
+   damage at or above base, left/right recovery gap closed.
+3. `prev_q`: channel model trained on the quantized channel (parity fix
+   alone).
+4. `ss50_k4_q`: scheduled sampling 0.5 on the quantized channel — the fair
+   test of scheduled sampling. If it still flickers, explanation 1 stands
+   and the next candidate is change-frame (keyframe) loss weighting.
+
+## Replay seeding (10-02) — three causes on our side, fixed (49970218)
+
+1. Controller port and starting facing were never sent to the sim (AUTO:
+   port = slot). Entry animation now matches on every port pair.
+2. `ucf_cardinals: 1` was hardcoded. The 1.0-cardinals rule postdates the
+   whole ranked corpus (Slippi 1.7.1 – 3.15.0; 73 % is 2.0.1); it caused the
+   ~0.01 x offset at the first walk/dash. `:auto` picks by replay version.
+3. Replays before 3.7.0 record a hit's damage/hitstun one frame after the
+   sim shows it (positions identical, converges next frame); the detector
+   accepts either frame's action/percent for those versions.
+
+40-game survey, tolerance 0.01: first divergence was before frame 30 in
+every game; now median ≈ 450 frames on the 30 non-Dream-Land games, 1 clean
+to 3000. Still open: Dream Land first-frame y (37.0 vs 37.2), port-based
+spawns on some 1.7.1 – 3.0.0 games, real drift after a few hundred frames
+(x off by 1–2 units, percent off by exactly 1.0 on 3.9.0 games — consistent
+with the netplay code set, e.g. offscreen damage, which the batch API
+hardcodes on). The sim's own validator cannot read any corpus file (missing
+scene / hitlag / animation_index / playedOn), so none of the remainder can
+be attributed to the sim with it. Upstreamable: exposing the match profile
+flags in the batch API (`MslMatchConfig`), nothing else yet.
