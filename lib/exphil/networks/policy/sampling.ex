@@ -192,7 +192,7 @@ defmodule ExPhil.Networks.Policy.Sampling do
     select_fn = Keyword.get(opts, :select_fn)
     select_n = Keyword.get(opts, :select_n)
 
-    head = ar_head_params(params)
+    head = ar_head_params(params) |> put_event_prev(opts)
     argmax_buttons? = deterministic or deterministic_buttons
 
     n =
@@ -333,7 +333,7 @@ defmodule ExPhil.Networks.Policy.Sampling do
       when is_integer(n) and n > 0 do
     temps = temperature_tuple(Keyword.get(opts, :temperature, 1.0))
     key = Keyword.get(opts, :key) || fresh_key()
-    head = ar_head_params(params)
+    head = ar_head_params(params) |> put_event_prev(opts)
 
     {r0, b_l} = jitted(:ar_stage1, &ar_stage1/2).(head, features)
     {r0n, b_ln} = {Nx.tile(r0, [n, 1]), Nx.tile(b_l, [n, 1])}
@@ -394,7 +394,7 @@ defmodule ExPhil.Networks.Policy.Sampling do
       when is_integer(k) and k > 0 do
     temps = temperature_tuple(Keyword.get(opts, :temperature, 1.0))
     key = Keyword.get(opts, :key) || fresh_key()
-    head = ar_head_params(params)
+    head = ar_head_params(params) |> put_event_prev(opts)
     n = Nx.axis_size(features, 0)
 
     {r0, b_l} = jitted(:ar_stage1, &ar_stage1/2).(head, features)
@@ -421,6 +421,32 @@ defmodule ExPhil.Networks.Policy.Sampling do
 
   # Extract the AR head parameter subtree ("ar_*" layers) from a params
   # map or Axon.ModelState — mirrors Heads.build_autoregressive_head names.
+  # Press/release event heads (Heads.collapse_button_events/2): the caller
+  # supplies the previous frame's button states; they ride in the head map
+  # so every fused kernel sees them without a signature change.
+  defp put_event_prev(head, opts) do
+    case Keyword.get(opts, :event_prev_buttons) do
+      %Nx.Tensor{} = prev -> Map.put(head, "ar_event_prev", %{"value" => Nx.as_type(prev, :f32)})
+      _ -> head
+    end
+  end
+
+  deftransformp ar_button_logits(raw, head) do
+    if elem(Nx.shape(raw), Nx.rank(raw) - 1) == 16 do
+      case head do
+        %{"ar_event_prev" => %{"value" => prev}} ->
+          ExPhil.Networks.Policy.Heads.collapse_button_events(raw, prev)
+
+        _ ->
+          raise ArgumentError,
+                "this checkpoint has a press/release event button head — pass :event_prev_buttons " <>
+                  "({batch, 8} previous button states) to the sampler"
+      end
+    else
+      raw
+    end
+  end
+
   defp ar_head_params(params) do
     data =
       case params do
@@ -456,7 +482,10 @@ defmodule ExPhil.Networks.Policy.Sampling do
 
   defnp ar_stage1(head, features) do
     r0 = ar_dense(features, head["ar_residual_proj"])
-    b_l = ar_component(r0, head["ar_buttons_hidden"], head["ar_buttons_logits"])
+    b_l =
+      ar_component(r0, head["ar_buttons_hidden"], head["ar_buttons_logits"])
+      |> ar_button_logits(head)
+
     {r0, b_l}
   end
 
@@ -465,7 +494,10 @@ defmodule ExPhil.Networks.Policy.Sampling do
   # eager op left in the n>1 path).
   defnp ar_tiled_stochastic(head, features_n, key, temps) do
     r0 = ar_dense(features_n, head["ar_residual_proj"])
-    b_l = ar_component(r0, head["ar_buttons_hidden"], head["ar_buttons_logits"])
+    b_l =
+      ar_component(r0, head["ar_buttons_hidden"], head["ar_buttons_logits"])
+      |> ar_button_logits(head)
+
     {t_b, _, _, _, _, _} = temps
     {u, key2} = Nx.Random.uniform(key, shape: Nx.shape(b_l))
     buttons = Nx.less(u, Nx.sigmoid(Nx.divide(b_l, t_b)))

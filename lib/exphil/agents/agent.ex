@@ -74,6 +74,9 @@ defmodule ExPhil.Agents.Agent do
     :jump_cooldown,
     :use_prev_action,
     :ablate_prev_action,
+    # Press/release event button head (2026-10-02): sampler needs the
+    # previous emitted buttons
+    :button_events,
     # Queue-as-input (2026-07-31): ring buffer of the agent's own K most
     # recent emitted controllers (newest first) + the declared delay this
     # session plays at. Populated only for policies whose embed config has
@@ -772,7 +775,7 @@ defmodule ExPhil.Agents.Agent do
   def handle_call({:batch_get_controllers, game_states, opts}, _from, %{batch: %{n: n}} = state) do
     try do
       {features, state} = batch_trunk_step(state, game_states, opts)
-      sample_opts = ExPhil.Agents.Decode.sample_opts(state, opts)
+      sample_opts = ExPhil.Agents.Decode.sample_opts(state, opts) |> event_prev_opts(state, state.batch.last_controllers)
       action = Networks.Policy.sample_autoregressive_from_features(state.policy_params, features, sample_opts)
       # one device->host copy per head, then host-side row slicing (to_controller_state
       # does ~7 Nx.to_number calls per row — 128 rows x 7 device reads was the tail)
@@ -937,7 +940,10 @@ defmodule ExPhil.Agents.Agent do
   defp warmup_sample(state, predict_fn, input) do
     # Same builder as the live paths (INVARIANTS.md item 7); the two
     # prev_buttons variants below override the last key.
-    sample_opts = ExPhil.Agents.Decode.sample_opts(state, []) |> Keyword.delete(:prev_buttons)
+    sample_opts =
+      ExPhil.Agents.Decode.sample_opts(state, [])
+      |> Keyword.delete(:prev_buttons)
+      |> event_prev_opts(state, [nil])
 
     # AR-head checkpoints warm the sequential sampler instead — the same
     # program the live loop hits (stage1/stage2 kernels + trunk).
@@ -1779,7 +1785,8 @@ defmodule ExPhil.Agents.Agent do
     sequence_batch = Nx.reshape(sequence, {1, state.window_size, embed_size})
 
     # ONE decode builder for every path (INVARIANTS.md item 7)
-    sample_opts = ExPhil.Agents.Decode.sample_opts(state, opts)
+    sample_opts =
+      ExPhil.Agents.Decode.sample_opts(state, opts) |> event_prev_opts(state, [state.last_controller])
 
     action =
       if state.head == :autoregressive do
@@ -1882,7 +1889,8 @@ defmodule ExPhil.Agents.Agent do
       end
 
     # ONE decode builder for every path (INVARIANTS.md item 7)
-    step_sample_opts = ExPhil.Agents.Decode.sample_opts(state, opts)
+    step_sample_opts =
+      ExPhil.Agents.Decode.sample_opts(state, opts) |> event_prev_opts(state, [state.last_controller])
 
     action =
       if state.head == :autoregressive do
@@ -2071,6 +2079,19 @@ defmodule ExPhil.Agents.Agent do
   defp fresh_trunk_state(state, n),
     do: init_trunk_state(state.trunk_step_params, state.embed_config, state.backbone, n)
 
+  # Press/release event button head: hand the sampler the previous emitted
+  # buttons ({rows, 8}; nil controller = all up), in the embedding's order.
+  defp event_prev_opts(sample_opts, %{button_events: true}, controllers) do
+    prev =
+      controllers
+      |> ExPhil.Embeddings.Controller.embed_continuous_batch()
+      |> Nx.slice_along_axis(0, 8, axis: 1)
+
+    Keyword.put(sample_opts, :event_prev_buttons, prev)
+  end
+
+  defp event_prev_opts(sample_opts, _state, _controllers), do: sample_opts
+
   # ---- batched sim path helpers --------------------------------------------
 
   defp batch_preconditions(state) do
@@ -2096,7 +2117,9 @@ defmodule ExPhil.Agents.Agent do
     {embed_opts, _prev, _} = embed_inputs(hd(game_states), state)
 
     embed_opts =
-      if state.use_prev_action, do: embed_opts ++ [prev_controllers: b.last_controllers], else: embed_opts
+      if state.use_prev_action and not (state.button_events == true),
+        do: embed_opts ++ [prev_controllers: b.last_controllers],
+        else: embed_opts
 
     game_states =
       if zero_projectiles?(state.embed_config), do: Enum.map(game_states, &%{&1 | projectiles: []}), else: game_states
@@ -2415,7 +2438,10 @@ defmodule ExPhil.Agents.Agent do
     # sees frame i-1's controller); older policies trained on a zeroed slot
     # get nil → zeros. Mixing regimes scrambles the input — the config flag
     # decides, not the caller.
-    prev_controller = if state.use_prev_action, do: state.last_controller, else: nil
+    # Event-head policies keep the slot zeroed for the trunk; the sampler
+    # gets the previous buttons instead (event_prev_opts/3).
+    prev_controller =
+      if state.use_prev_action and not (state.button_events == true), do: state.last_controller, else: nil
     opts = [name_id: state.style_id || 0]
 
     # af_convention: :live normalizes the bridge's action_frame into the
@@ -3065,6 +3091,7 @@ defmodule ExPhil.Agents.Agent do
         backbone: backbone,
         window_size: window_size,
         use_prev_action: use_prev_action,
+        button_events: Map.get(config, :button_events, false) == true,
         last_controller: nil,
         controller_queue: [],
         # Reset frame buffer when loading new policy

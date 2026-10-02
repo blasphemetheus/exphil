@@ -171,6 +171,13 @@ defmodule ExPhil.Networks.Policy.Heads do
     residual_size = Keyword.get(opts, :residual_size, @default_residual_size)
     component_hidden = Keyword.get(opts, :component_hidden, @default_component_hidden)
     per_timestep = Keyword.get(opts, :per_timestep, false)
+    # Press/release event buttons (2026-10-02): an Axon node {batch, 8} with
+    # the PREVIOUS frame's button states, or nil for the plain state head.
+    button_events_prev = Keyword.get(opts, :button_events_prev)
+
+    if button_events_prev && per_timestep do
+      raise ArgumentError, "button_events is not supported with per_timestep (BPTT) heads"
+    end
 
     axis_size = axis_buckets + 1
     shoulder_size = shoulder_buckets + 1
@@ -217,7 +224,20 @@ defmodule ExPhil.Networks.Policy.Heads do
     end
 
     # buttons <- r0
-    buttons = component.(r0, @num_buttons, "ar_buttons")
+    buttons =
+      case button_events_prev do
+        nil ->
+          component.(r0, @num_buttons, "ar_buttons")
+
+        prev ->
+          raw = component.(r0, 2 * @num_buttons, "ar_buttons")
+
+          Axon.layer(fn raw, prev, _opts -> collapse_button_events(raw, prev) end, [raw, prev],
+            name: "ar_button_events",
+            op_name: :button_events
+          )
+      end
+
     r1 = Axon.add(r0, embed_buttons, name: "ar_r1")
 
     # main_x <- r1 (conditioned on buttons)
@@ -240,6 +260,33 @@ defmodule ExPhil.Networks.Policy.Heads do
     shoulder = component.(r5, shoulder_size, "ar_shoulder")
 
     Axon.container({buttons, main_x, main_y, c_x, c_y, shoulder})
+  end
+
+  @doc """
+  Collapse press/release event logits into ordinary "button is down" logits.
+
+  `raw` is `{batch, 16}`: columns 0..7 are PRESS logits (probability the
+  button goes down given it was up), columns 8..15 are RELEASE logits
+  (probability it comes up given it was down). `prev` is `{batch, 8}` (or
+  `{1, 8}`, broadcast) with the previous frame's button states. The result
+  is `{batch, 8}` logits of "down this frame":
+
+      up last frame    ->  press logit
+      down last frame  -> -release logit
+
+  so the usual BCE against the button STATE target trains the press head on
+  frames that start up and the release head on frames that start down, and
+  the usual per-frame Bernoulli sampler draws hazards instead of states.
+  The previous state selects the head; it is never an input to the trunk.
+  """
+  @spec collapse_button_events(Nx.Tensor.t(), Nx.Tensor.t()) :: Nx.Tensor.t()
+  def collapse_button_events(raw, prev) do
+    press = Nx.slice_along_axis(raw, 0, @num_buttons, axis: -1)
+    release = Nx.slice_along_axis(raw, @num_buttons, @num_buttons, axis: -1)
+    # arithmetic blend, not Nx.select: select takes its shape from the
+    # predicate, so a {1, 8} prev would not broadcast over tiled rows
+    held = Nx.as_type(Nx.greater(prev, 0.5), Nx.type(raw))
+    Nx.subtract(Nx.multiply(Nx.subtract(1, held), press), Nx.multiply(held, release))
   end
 
   @doc """

@@ -218,7 +218,7 @@ defmodule ExPhil.Training.Imitation.Loss do
           states = Nx.as_type(states, precision)
 
           loss_fn = fn p ->
-            bc = autoregressive_bc_loss(predict_fn, p, states, actions, frame_weights, loss_opts, head, temporal)
+            bc = autoregressive_bc_loss(predict_fn, p, states, actions, frame_weights, loss_opts, forward_head(config), temporal)
             h = probe_trunk_fn.(Utils.ensure_model_state(p), states)
             penalty = ProbeRegularizer.alignment_penalty(h, probe_v)
             Nx.add(bc, Nx.multiply(probe_reg_weight, penalty))
@@ -234,7 +234,7 @@ defmodule ExPhil.Training.Imitation.Loss do
 
             # Build loss function - states/actions are already Defn.Expr from outer JIT
             loss_fn = fn p ->
-              autoregressive_bc_loss(predict_fn, p, states, actions, frame_weights, loss_opts, head, temporal)
+              autoregressive_bc_loss(predict_fn, p, states, actions, frame_weights, loss_opts, forward_head(config), temporal)
             end
 
             # Compute loss and gradients
@@ -440,6 +440,39 @@ defmodule ExPhil.Training.Imitation.Loss do
     |> Map.put(state_key, states)
   end
 
+  # Press/release event button head: `states` {batch, window, embed} carry
+  # the prev-action slot at `offset`. The head gets the LAST position's 8
+  # previous button states as "prev_buttons"; the trunk gets the whole 13-dim
+  # slot zeroed at every position, so it cannot copy the previous input.
+  def policy_forward_inputs({:autoregressive, {:button_events, offset}}, true, states, actions) do
+    prev =
+      states
+      |> Nx.slice_along_axis(Nx.axis_size(states, 1) - 1, 1, axis: 1)
+      |> Nx.squeeze(axes: [1])
+      |> Nx.slice_along_axis(offset, 8, axis: 1)
+
+    idx = Nx.iota({Nx.axis_size(states, 2)})
+    keep = Nx.logical_or(Nx.less(idx, offset), Nx.greater_equal(idx, offset + 13))
+    masked = Nx.multiply(states, Nx.as_type(keep, Nx.type(states)))
+
+    ExPhil.Networks.Policy.Heads.tf_inputs(actions)
+    |> Map.put("state_sequence", masked)
+    |> Map.put("prev_buttons", prev)
+  end
+
+  @doc """
+  The head tag to hand `policy_forward_inputs/4` for a trainer config:
+  `{:autoregressive, {:button_events, offset}}` for the press/release event
+  head, otherwise the plain head atom.
+  """
+  def forward_head(config) do
+    head = config[:head] || :independent
+
+    if config[:button_events],
+      do: {head, {:button_events, config[:prev_action_offset]}},
+      else: head
+  end
+
   # Diffusion: MSE noise prediction loss
 
   defp build_diffusion_loss_and_grad_fn(predict_fn, config) do
@@ -564,7 +597,7 @@ defmodule ExPhil.Training.Imitation.Loss do
       {buttons, main_x, main_y, c_x, c_y, shoulder} =
         predict_fn.(
           Utils.ensure_model_state(params),
-          policy_forward_inputs(head, temporal, states, actions)
+          policy_forward_inputs(forward_head(config), temporal, states, actions)
         )
 
       logits = %{

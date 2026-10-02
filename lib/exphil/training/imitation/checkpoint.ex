@@ -417,6 +417,10 @@ defmodule ExPhil.Training.Imitation.Checkpointing do
         # Embedding regime: the live agent must feed its own outputs back
         # into the prev-action channel iff the model trained with it
         use_prev_action: trainer.config[:use_prev_action] || false,
+        # Press/release event button head: the agent must mask the slot in
+        # the trunk and hand the previous buttons to the sampler
+        button_events: trainer.config[:button_events] || false,
+        prev_action_offset: trainer.config[:prev_action_offset],
         # Queue-as-input layout (2026-07-31): the live agent must rebuild
         # the exact channel layout (K committed-action slots + delay
         # one-hot). Missing keys here cost a silent 288-vs-336 embed

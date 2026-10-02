@@ -278,6 +278,22 @@ defmodule ExPhil.Training.Imitation do
         do: raise(ArgumentError, "bptt does not support gradient accumulation; use accumulation_steps: 1")
     end
 
+    # Press/release event button head (2026-10-02): the head reads the
+    # previous buttons from the prev-action slot; the trunk sees it zeroed.
+    config =
+      if config[:button_events] do
+        unless config.temporal and head == :autoregressive and config[:use_prev_action] and
+                 not (config[:bptt] || false) do
+          raise ArgumentError,
+                "button_events requires temporal: true, head: :autoregressive, use_prev_action: true and no bptt"
+        end
+
+        [offset, 13] = ExPhil.Interp.Attribution.prev_action_dim_range(config: embed_config)
+        Map.put(config, :prev_action_offset, offset)
+      else
+        config
+      end
+
     # Build policy model - bptt, temporal, or regular
     policy_model =
       if config[:bptt] do
@@ -298,6 +314,8 @@ defmodule ExPhil.Training.Imitation do
         Policy.build_temporal(
           recurrent_state: Map.get(config, :recurrent_state, :legacy_random),
           head: head,
+          button_events: config[:button_events] || false,
+          prev_action_offset: config[:prev_action_offset],
           embed_size: embed_size,
           backbone: config.backbone,
           window_size: config.window_size,
@@ -404,10 +422,13 @@ defmodule ExPhil.Training.Imitation do
           end
 
         head == :autoregressive ->
-          Map.merge(
-            %{"state_sequence" => Nx.template(input_shape, init_precision)},
-            ExPhil.Networks.Policy.Heads.tf_templates(1)
-          )
+          %{"state_sequence" => Nx.template(input_shape, init_precision)}
+          |> Map.merge(ExPhil.Networks.Policy.Heads.tf_templates(1))
+          |> then(fn t ->
+            if config[:button_events],
+              do: Map.put(t, "prev_buttons", Nx.template({1, 8}, init_precision)),
+              else: t
+          end)
 
         true ->
           Nx.template(input_shape, init_precision)
@@ -703,7 +724,7 @@ defmodule ExPhil.Training.Imitation do
       # Run one forward pass (AR head models take a states+tf-inputs map)
       inputs =
         Loss.policy_forward_inputs(
-          trainer.config[:head] || :independent,
+          Loss.forward_head(trainer.config),
           trainer.config[:temporal] || false,
           states,
           batch.actions

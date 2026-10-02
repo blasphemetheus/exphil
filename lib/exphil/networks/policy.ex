@@ -273,7 +273,8 @@ defmodule ExPhil.Networks.Policy do
       :autoregressive ->
         Heads.build_autoregressive_head(backbone,
           axis_buckets: axis_buckets,
-          shoulder_buckets: shoulder_buckets
+          shoulder_buckets: shoulder_buckets,
+          button_events_prev: if(opts[:button_events], do: button_events_prev_node())
         )
 
       other ->
@@ -281,6 +282,13 @@ defmodule ExPhil.Networks.Policy do
               "Unknown controller head: #{inspect(other)}. Valid: :independent, :autoregressive"
     end
   end
+
+  # Previous-frame button states for the press/release event head arrive as
+  # their own input ({batch, 8}, order a, b, x, y, z, l, r, d_up — the same
+  # as the button targets). The trunk never sees them: training splits them
+  # off the prev-action slot and zeroes the slot
+  # (Imitation.Loss.policy_forward_inputs/4), the agent embeds without it.
+  defp button_events_prev_node, do: Axon.input("prev_buttons", shape: {nil, 8})
 
   @doc """
   Build the contiguous-BPTT temporal policy (BPTT_LOADER_DESIGN.md planks

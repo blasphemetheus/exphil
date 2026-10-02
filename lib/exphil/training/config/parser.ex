@@ -362,6 +362,7 @@ defmodule ExPhil.Training.Config.Parser do
     {"--focal-loss", :focal_loss, :flag},
     {"--prev-action", :use_prev_action, :flag},
     {"--no-prev-action", :use_prev_action, :neg_flag},
+    {"--button-events", :button_events, :flag},
     {"--prev-action-dropout", :prev_action_dropout, :float},
     {"--prev-action-dropout-block", :prev_action_dropout_block, :int},
     {"--scheduled-sampling", :scheduled_sampling, :float},
