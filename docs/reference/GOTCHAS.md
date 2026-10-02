@@ -4528,3 +4528,23 @@ configuration it was validated on, not the whole corpus. Until fixed, build
 sim drills from states captured inside the sim (`recovery_drill.exs --build`).
 Always include a control that must score ~100 % (expert replay) or ~0 %
 (neutral) — it is what exposed this.
+
+**Update 2026-10-02 — detector fixed, drift characterised (cause still open).**
+`Seed.mismatch/4` looked the sim player up by the replay's REAL port; the sim
+keys players by slot (1, 2 in ascending port order), so on any game not
+played on ports 1+2 the lookup was nil and the comparison was skipped. Fixed
+(ad0261ff): slot ↔ port mapping, and a missing sim player is reported.
+`scripts/seed_divergence_survey.exs` over 40 ranked games (tolerance 0.01):
+every game now reports a first divergence, but there are two different
+regimes:
+- **ports 1+2** (7 games): first mismatch is a ~0.01 x offset around frame
+  −30…+8; actions and percents then MATCH the replay through frame 2400 with
+  positions within ~0.6 units. Usable for seeding with a loose tolerance.
+- **any other port pair** (33 games): entry-animation y differs by ~0.4 from
+  frame −123/−118/−113 (the offset depends on the port pair and stage), the
+  state is exact again at frame 0, and by frame 300 percents and positions
+  are unrelated to the replay. Not usable. Whatever is port-indexed in the
+  real game (spawn/entry, port priority, per-port RNG lanes) is not
+  reproduced when ports 3/4 are folded into slots 1/2 — untested hypotheses.
+Rule: seed only from ports-1+2 games, pass `tolerance: 1.0`, and check
+percent/action equality at the saved frame.
