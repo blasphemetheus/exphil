@@ -1,0 +1,368 @@
+{
+  "label": "prev_q_tw4",
+  "policy": "checkpoints/coh_prev_q_tw4/model_best_policy.bin",
+  "opponent": "self",
+  "envs": 32,
+  "seeds": [
+    1001,
+    1002,
+    1003
+  ],
+  "hists": {
+    "action_group": {
+      "aerial": 0.1195,
+      "aerial_land": 0.0479,
+      "crouch": 0.0119,
+      "dash_attack": 0.0101,
+      "dash_run": 0.0534,
+      "dead_respawn": 0.0896,
+      "dodge_roll": 0.1127,
+      "fall": 0.0295,
+      "grab_throw": 0.0421,
+      "hitstun": 0.0116,
+      "jab": 0.0045,
+      "jump": 0.1131,
+      "jumpsquat": 0.0236,
+      "knockdown": 0.0089,
+      "land": 0.0395,
+      "ledge": 0.0012,
+      "other": 0.0256,
+      "shield": 0.0626,
+      "smash": 0.0358,
+      "special": 0.0518,
+      "stand": 0.0132,
+      "tech": 0.0006,
+      "tilt": 0.012,
+      "walk_turn": 0.0793
+    },
+    "hold_a": {
+      "1": 0.1852,
+      "17-32": 0.0432,
+      "2": 0.142,
+      "3-4": 0.2531,
+      "33-64": 0.0041,
+      "5-8": 0.2305,
+      "9-16": 0.142
+    },
+    "hold_b": {
+      "1": 0.2494,
+      "17-32": 0.0216,
+      "2": 0.1511,
+      "3-4": 0.2518,
+      "33-64": 0.0048,
+      "5-8": 0.2158,
+      "9-16": 0.1055
+    },
+    "hold_l": {
+      "1": 0.1962,
+      "17-32": 0.0654,
+      "2": 0.1308,
+      "3-4": 0.1885,
+      "33-64": 0.0154,
+      "5-8": 0.2308,
+      "9-16": 0.1731
+    },
+    "hold_r": {
+      "1": 0.0328,
+      "17-32": 0.1481,
+      "2": 0.0561,
+      "3-4": 0.1354,
+      "33-64": 0.0603,
+      "5-8": 0.309,
+      "65+": 0.0159,
+      "9-16": 0.2423
+    },
+    "hold_x": {
+      "1": 0.1542,
+      "17-32": 0.0906,
+      "2": 0.1272,
+      "3-4": 0.1781,
+      "33-64": 0.0151,
+      "5-8": 0.2281,
+      "9-16": 0.2067
+    },
+    "hold_y": {
+      "1": 0.1949,
+      "17-32": 0.0399,
+      "2": 0.1163,
+      "3-4": 0.1993,
+      "33-64": 0.0066,
+      "5-8": 0.2414,
+      "9-16": 0.2016
+    },
+    "hold_z": {
+      "1": 0.1408,
+      "17-32": 0.1268,
+      "2": 0.0958,
+      "3-4": 0.1915,
+      "33-64": 0.0254,
+      "5-8": 0.2056,
+      "65+": 0.0028,
+      "9-16": 0.2113
+    },
+    "jump_peak": {
+      "0": 0.0487,
+      "10": 0.1908,
+      "15": 0.0282,
+      "20": 0.0256,
+      "25": 0.0192,
+      "30": 0.4405,
+      "35": 0.0141,
+      "40": 0.0294,
+      "45": 0.0487,
+      "5": 0.0243,
+      "50": 0.0359,
+      "55": 0.0307,
+      "60": 0.064
+    },
+    "landing_lag": {
+      "1": 0.0032,
+      "10": 0.045,
+      "11": 0.0675,
+      "14": 0.0032,
+      "15": 0.0707,
+      "16": 0.0032,
+      "18": 0.2637,
+      "20": 0.1383,
+      "21": 0.0032,
+      "22": 0.3248,
+      "25": 0.0032,
+      "5": 0.0064,
+      "7": 0.0225,
+      "9": 0.045
+    },
+    "position": {
+      "air_0": 0.1123,
+      "air_1": 0.1015,
+      "air_2": 0.0877,
+      "air_3": 0.0266,
+      "dead": 0.0896,
+      "ground_0": 0.1904,
+      "ground_1": 0.1655,
+      "ground_2": 0.1029,
+      "ground_3": 0.0551,
+      "off_below": 0.0473,
+      "off_side": 0.0209
+    },
+    "stick_dwell": {
+      "1": 0.5803,
+      "17-32": 0.0429,
+      "2": 0.1051,
+      "3-4": 0.089,
+      "33-64": 0.0192,
+      "5-8": 0.0904,
+      "65+": 0.0032,
+      "9-16": 0.0699
+    },
+    "stick_zone": {
+      "down": 0.0406,
+      "down_left": 0.028,
+      "down_right": 0.0694,
+      "left": 0.1557,
+      "neutral": 0.285,
+      "right": 0.3458,
+      "up": 0.0195,
+      "up_left": 0.031,
+      "up_right": 0.025
+    }
+  },
+  "rates": {
+    "damage_dealt_per_min": {
+      "expert": 132.613,
+      "sd": 0.292,
+      "model": 25.073
+    },
+    "damage_taken_per_min": {
+      "expert": 141.061,
+      "sd": 3.119,
+      "model": 23.217
+    },
+    "dashes_per_min": {
+      "expert": 40.465,
+      "sd": 1.109,
+      "model": 19.896
+    },
+    "deaths_per_min": {
+      "expert": 0.956,
+      "sd": 0.072,
+      "model": 2.677
+    },
+    "ground_jumps_per_min": {
+      "expert": 33.543,
+      "sd": 0.672,
+      "model": 30.292
+    },
+    "input_repeat_share": {
+      "expert": 0.758,
+      "sd": 0.001,
+      "model": 0.698
+    },
+    "kills_per_min": {
+      "expert": 0.999,
+      "sd": 0.273,
+      "model": 2.511
+    },
+    "l_cancel_rate": {
+      "expert": 0.829,
+      "sd": 0.014,
+      "model": 0.168
+    },
+    "minutes": {
+      "expert": 390.2,
+      "sd": 0.0,
+      "model": 32.0
+    },
+    "neutral_input_share": {
+      "expert": 0.28,
+      "sd": 0.006,
+      "model": 0.208
+    },
+    "offstage_eps_per_min": {
+      "expert": 8.884,
+      "sd": 0.461,
+      "model": 7.813
+    },
+    "offstage_return_rate": {
+      "expert": 0.893,
+      "sd": 0.01,
+      "model": 0.641
+    },
+    "press_a_per_min": {
+      "expert": 21.976,
+      "sd": 0.337,
+      "model": 14.948
+    },
+    "press_b_per_min": {
+      "expert": 20.182,
+      "sd": 0.58,
+      "model": 13.573
+    },
+    "press_l_per_min": {
+      "expert": 15.985,
+      "sd": 0.13,
+      "model": 7.979
+    },
+    "press_r_per_min": {
+      "expert": 19.483,
+      "sd": 0.498,
+      "model": 29.292
+    },
+    "press_x_per_min": {
+      "expert": 18.514,
+      "sd": 0.768,
+      "model": 38.438
+    },
+    "press_y_per_min": {
+      "expert": 31.386,
+      "sd": 0.813,
+      "model": 29.042
+    },
+    "press_z_per_min": {
+      "expert": 5.089,
+      "sd": 0.343,
+      "model": 10.979
+    },
+    "sd_per_min": {
+      "expert": 0.441,
+      "sd": 0.09,
+      "model": 2.552
+    },
+    "short_hop_share": {
+      "expert": 0.405,
+      "sd": 0.021,
+      "model": 0.279
+    },
+    "tech_rate": {
+      "expert": 0.446,
+      "sd": 0.101,
+      "model": 0.148
+    },
+    "tech_situations": {
+      "expert": 1492,
+      "sd": 2.646,
+      "model": 17.0
+    },
+    "wavedashes_per_min": {
+      "expert": 4.63,
+      "sd": 0.119,
+      "model": 0.792
+    }
+  },
+  "frames_per_env": 3600,
+  "fidelity_distance": {
+    "sd": 0.002,
+    "mean": 0.287
+  },
+  "distances": {
+    "action_group": {
+      "sd": 0.002,
+      "distance": 0.33,
+      "noise_floor": 0.014
+    },
+    "hold_a": {
+      "sd": 0.02,
+      "distance": 0.304,
+      "noise_floor": 0.052
+    },
+    "hold_b": {
+      "sd": 0.005,
+      "distance": 0.325,
+      "noise_floor": 0.011
+    },
+    "hold_l": {
+      "sd": 0.016,
+      "distance": 0.402,
+      "noise_floor": 0.034
+    },
+    "hold_mean": {
+      "sd": 0.009,
+      "distance": 0.299,
+      "noise_floor": 0.045
+    },
+    "hold_r": {
+      "sd": 0.019,
+      "distance": 0.302,
+      "noise_floor": 0.056
+    },
+    "hold_x": {
+      "sd": 0.006,
+      "distance": 0.182,
+      "noise_floor": 0.047
+    },
+    "hold_y": {
+      "sd": 0.011,
+      "distance": 0.193,
+      "noise_floor": 0.064
+    },
+    "hold_z": {
+      "sd": 0.02,
+      "distance": 0.386,
+      "noise_floor": 0.049
+    },
+    "jump_peak": {
+      "sd": 0.015,
+      "distance": 0.229,
+      "noise_floor": 0.04
+    },
+    "landing_lag": {
+      "sd": 0.007,
+      "distance": 0.688,
+      "noise_floor": 0.071
+    },
+    "position": {
+      "sd": 0.009,
+      "distance": 0.186,
+      "noise_floor": 0.012
+    },
+    "stick_dwell": {
+      "sd": 0.001,
+      "distance": 0.076,
+      "noise_floor": 0.014
+    },
+    "stick_zone": {
+      "sd": 0.008,
+      "distance": 0.204,
+      "noise_floor": 0.016
+    }
+  }
+}

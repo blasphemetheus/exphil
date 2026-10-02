@@ -1,0 +1,20 @@
+{
+  "label": "prev_q_tw4",
+  "policy": "checkpoints/coh_prev_q_tw4/model_best_policy.bin",
+  "opponent": "idle",
+  "envs": 32,
+  "frames_per_env": 1800,
+  "env_minutes": 16.0,
+  "sd_per_min": 2.063,
+  "deaths_per_min": 2.125,
+  "kills_per_min": 0.125,
+  "damage_dealt_per_min": 28.259,
+  "damage_taken_per_min": 0.063,
+  "offstage_episodes_per_min": 6.938,
+  "recovery_rate": 0.685,
+  "neutral_share": 0.182,
+  "repeat_prev": 0.68,
+  "max_frozen_run": 75,
+  "games_finished": 0,
+  "wall_s": 29.4
+}

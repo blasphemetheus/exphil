@@ -16,7 +16,16 @@
 #
 #   build:  mix run scripts/recovery_drill.exs --build --source POLICY [--cases FILE] [--envs 32] [--frames 3600] [--max-cases 60]
 #   run:    mix run scripts/recovery_drill.exs --policy P --label L [--cases FILE] [--trials 8] [--horizon 300]
-#             [--ablate-prev-action] [--out FILE.json]
+#             [--ablate-prev-action] [--out FILE.json] [--trace FILE.json] [--warm-override SPEC]
+#
+# --trace writes every trial's per-frame record (position, action, jumps, the
+# controller the policy emitted) so a failed recovery can be read frame by
+# frame (interp Q3, 2026-10-02). --warm-override SPEC rewrites the LAST n
+# controllers of the warm history before the drill starts — a counterfactual
+# on the prev-action channel only (the game states stay real):
+#   up:3   last 3 warm inputs = main stick full up, no buttons
+#   upb:3  same plus B held (an up-B already in progress on the channel)
+#   jump:3 same plus X held
 #
 # Every policy faces the identical saved starts. `--policy neutral` holds a
 # neutral controller (floor: what doing nothing recovers).
@@ -29,7 +38,7 @@ alias ExPhil.Training.{Checkpoint, Output}
   OptionParser.parse(System.argv(),
     strict: [build: :boolean, source: :string, policy: :string, label: :string, cases: :string, envs: :integer,
              frames: :integer, max_cases: :integer, trials: :integer, horizon: :integer,
-             ablate_prev_action: :boolean, out: :string, seed: :integer])
+             ablate_prev_action: :boolean, out: :string, seed: :integer, trace: :string, warm_override: :string])
 if bad != [], do: raise("invalid options: #{inspect(bad)}")
 
 cases_path = opts[:cases] || "eval_runs/1001_recovery/cases_sim.bin"
@@ -140,23 +149,50 @@ agent = if idle?, do: nil, else: start_agent.(policy, k, ablate_prev_action: opt
 all_rows = Enum.to_list(0..(k - 1))
 {:ok, sim} = Env.start(:nif, stage: pool.stage, players: pool.players, batch_size: k, seed: 7)
 
-rows =
-  Enum.map(cases, fn c ->
+# counterfactual warm history: the last n channel inputs replaced
+override_warm = fn warm ->
+  case opts[:warm_override] do
+    nil ->
+      warm
+
+    spec ->
+      [kind, n] = String.split(spec, ":")
+      n = String.to_integer(n)
+      # x toward the stage from the case's side is unknown here; stick straight up
+      ctrl = %{neutral | main_stick: %{x: 0.5, y: 1.0}}
+      ctrl =
+        case kind do
+          "up" -> ctrl
+          "upb" -> %{ctrl | button_b: true}
+          "jump" -> %{ctrl | button_x: true}
+        end
+      {keep, last} = Enum.split(warm, length(warm) - n)
+      keep ++ Enum.map(last, fn {gs, _} -> {gs, ctrl} end)
+  end
+end
+
+trace? = opts[:trace] != nil
+btn_bits = fn c -> for b <- [:button_a, :button_b, :button_x, :button_y, :button_z, :button_l, :button_r], do: if(Map.get(c, b) == true, do: 1, else: 0) end
+
+{rows, traces} =
+  cases
+  |> Enum.with_index()
+  |> Enum.map(fn {c, ci} ->
     {:ok, id} = Env.upload(sim, c.blob)
     for i <- all_rows, do: {:ok, _} = Env.restore(sim, i, {:id, id}, frames: false)
     {:ok, states} = Env.frames(sim)
 
     unless idle? do
       :ok = Agent.batch_reset_rows(agent, all_rows)
-      for {gs, ctrl} <- c.warm do
+      for {gs, ctrl} <- override_warm.(c.warm) do
         :ok = Agent.batch_observe(agent, List.duplicate(%{gs | own_port: 1}, k), player_port: 1, controllers: List.duplicate(ctrl, k))
       end
     end
 
     stock0 = hd(states).players[1].stock
 
-    {outcomes, finals} =
-      Enum.reduce_while(1..horizon, {List.duplicate(nil, k), states}, fn t, {outs, states} ->
+    {outcomes, finals, trace} =
+      Enum.reduce_while(1..horizon, {List.duplicate(nil, k), states, []}, fn t, {outs, states, tr} ->
         cs =
           if idle? do
             List.duplicate(neutral, k)
@@ -166,6 +202,25 @@ rows =
           end
 
         {:ok, nexts, _} = Env.step(sim, Enum.map(cs, fn a -> [a || neutral, neutral] end))
+
+        # per-frame record: [t, x, y, action, jumps_left, main_x, main_y, c_y, buttons a..r] per trial
+        tr =
+          if trace? do
+            step =
+              Enum.zip_with([all_rows, outs, states, cs], fn [_i, o, s, a] ->
+                if o != nil do
+                  nil
+                else
+                  p = s.players[1]
+                  a = a || neutral
+                  [t, Float.round(p.x * 1.0, 1), Float.round(p.y * 1.0, 1), p.action, p.jumps_left,
+                   Float.round(a.main_stick.x * 1.0, 3), Float.round(a.main_stick.y * 1.0, 3), Float.round(a.c_stick.y * 1.0, 3) | btn_bits.(a)]
+                end
+              end)
+            [step | tr]
+          else
+            tr
+          end
 
         outs =
           Enum.zip_with(outs, nexts, fn o, nx ->
@@ -180,7 +235,7 @@ rows =
             end
           end)
 
-        if Enum.all?(outs, &(&1 != nil)), do: {:halt, {outs, nexts}}, else: {:cont, {outs, nexts}}
+        if Enum.all?(outs, &(&1 != nil)), do: {:halt, {outs, nexts, tr}}, else: {:cont, {outs, nexts, tr}}
       end)
 
     rec = Enum.count(outcomes, &match?({:recovered, _}, &1))
@@ -188,8 +243,34 @@ rows =
     # where unresolved trials ended (action id, y) — to audit the outcome rule
     stuck = for {o, nx} <- Enum.zip(outcomes, finals), o == nil, do: {nx.players[1].action, round(nx.players[1].y)}
     if System.get_env("DRILL_TRACE") == "1" and stuck != [], do: IO.puts("TRACE stuck #{inspect(Enum.frequencies(stuck))} start=(#{round(c.x)},#{round(c.y)})")
-    %{x: c.x, y: c.y, jumps: c.jumps, percent: c.percent, recovered: rec, died: died, timeout: k - rec - died}
+    row = %{x: c.x, y: c.y, jumps: c.jumps, percent: c.percent, recovered: rec, died: died, timeout: k - rec - died}
+
+    trace_entry =
+      if trace? do
+        # per trial: outcome + its frame rows (steps were prepended; trials are columns)
+        steps = Enum.reverse(trace)
+        trials =
+          Enum.map(all_rows, fn i ->
+            frames = steps |> Enum.map(&Enum.at(&1, i)) |> Enum.reject(&is_nil/1)
+            outcome = case Enum.at(outcomes, i) do
+              {kind, t} -> %{result: kind, t: t}
+              nil -> %{result: :timeout, t: horizon}
+            end
+            Map.put(outcome, :frames, frames)
+          end)
+        %{case: ci, x: c.x, y: c.y, jumps: c.jumps, percent: c.percent, trials: trials}
+      end
+
+    {row, trace_entry}
   end)
+  |> Enum.unzip()
+
+if trace? do
+  File.mkdir_p!(Path.dirname(opts[:trace]))
+  File.write!(opts[:trace], Jason.encode!(%{label: label, policy: policy, warm_override: opts[:warm_override],
+    columns: ~w(t x y action jumps main_x main_y c_y a b x_btn y_btn z l r), cases: traces}))
+  Output.puts("trace -> #{opts[:trace]}")
+end
 
 trials = length(rows) * k
 rec = Enum.sum(Enum.map(rows, & &1.recovered))

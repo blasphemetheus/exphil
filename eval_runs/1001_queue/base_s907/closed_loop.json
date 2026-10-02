@@ -1,0 +1,20 @@
+{
+  "label": "base_s907",
+  "policy": "checkpoints/coh_base_s907/model_best_policy.bin",
+  "opponent": "idle",
+  "envs": 32,
+  "frames_per_env": 1800,
+  "env_minutes": 16.0,
+  "sd_per_min": 0.688,
+  "deaths_per_min": 0.688,
+  "kills_per_min": 0.625,
+  "damage_dealt_per_min": 56.143,
+  "damage_taken_per_min": 0.063,
+  "offstage_episodes_per_min": 6.75,
+  "recovery_rate": 0.896,
+  "neutral_share": 0.37,
+  "repeat_prev": 0.259,
+  "max_frozen_run": 33,
+  "games_finished": 0,
+  "wall_s": 29.9
+}

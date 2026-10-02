@@ -589,3 +589,125 @@ hardcodes on). The sim's own validator cannot read any corpus file (missing
 scene / hitlag / animation_index / playedOn), so none of the remainder can
 be attributed to the sim with it. Upstreamable: exposing the match profile
 flags in the batch API (`MslMatchConfig`), nothing else yet.
+
+## Queue 7 result (10-02 17:30) — seed spread measured; change-frame weighting fails
+
+Training-seed spread of the base recipe (seeds 905 / 906 / 907, one eval
+each): recovery 0.278 / 0.299 / 0.226; vs-idle damage 57 / 67 / 56, SD/min
+1.25 / 1.56 / 0.69; self-play damage 108 / 87 / 89, SD/min 0.83 / 0.80 /
+0.92; fidelity 0.360 / 0.355 / 0.355; repeat share 0.24 / 0.32 / 0.24;
+L-cancel 0.76 / 0.88 / 0.86; A presses 100 / 85 / 98. Fidelity, SDs and
+repeat share are seed-stable; recovery, L-cancel and damage move 10–20 %
+relative. Every single-run comparison in this doc has to clear that.
+
+- `base_rn` (nearest stick rounding): fidelity 0.344 is barely outside the
+  band, recovery 0.30 / self-play damage 85 inside it, and its vs-idle
+  result (16.6 damage, 3.1 SD/min) is far outside (56–67, 0.7–1.6). Not a
+  win; dropped. `EXPHIL_STICK_ROUNDING` stays experimental and off.
+- The channel model's passivity is real: recovery 0.15 vs 0.23–0.30,
+  L-cancel 0.24 vs 0.76–0.88, self-play damage 29 vs 87–108.
+- `prev_q_tw4` / `prev_q_tw16` (change-frame weight 4× / 16×): coherence
+  holds (repeat share 0.70, A 17 / 14 per min) but recovery 0.215 / 0.181,
+  self-play damage 25 / 26, L-cancel 0.17 / 0.13 — FAIL on every play
+  criterion. Not over-changing either (P(A down | down) 0.87 vs expert
+  0.81). Change recall rose 0.244 → 0.304 → 0.33 and nothing downstream
+  followed. Loss re-weighting is out alongside scheduled sampling.
+- Mamba fidelity (`scripts/mamba_fidelity.sh`): v1 ep2 0.302 ± 0.006
+  (self-play SD 1.7/min, damage 83, repeat share 0.39); v2 prev-action
+  0.179 ± 0.004 — the closest to the expert of anything measured — with
+  SD 4.1/min, damage 46, repeat share 0.72. The big model has the same
+  profile as the testbed channel model: expert-like inputs, passive play.
+
+Per-case recovery (36 fixed starts × 8 trials, scratchpad
+`recovery_cases.js`): the channel models lose on the FAR starts (|x| > 100,
+usually no jump — a Firefox / Illusion is required): 0.00–0.08 vs base
+0.18–0.44 by geometry band; on near starts they are at par with base.
+
+## Interp readout (10-02 evening) — `scripts/interp_coherence_probe.exs`, `recovery_drill.exs --trace / --warm-override`
+
+Results in `eval_runs/1002_interp/` (unit `exphil-interp-coh`,
+`scripts/interp_coherence_queue.sh`). Offline part: 36,779 teacher-forced
+windows over the 16 held-out games (9,210 change frames).
+
+| | base | prev_q (channel, live format) | prev_q_tw4 |
+|---|---|---|---|
+| KL when the CURRENT frame's game state is swapped for another window's (change / hold frames) | 1.80 / 1.51 | 0.125 / 0.072 | 0.139 / 0.086 |
+| KL when the prev-action slot is zeroed on every frame | 0 (no channel) | 6.92 / 4.83 | 6.55 / 4.65 |
+| \|grad × input\| share on change frames: last-frame prev / last-frame state / history prev / history state | 0 / 0.33 / 0 / 0.67 | 0.38 / 0.25 / 0.14 / 0.23 | 0.38 / 0.24 / 0.14 / 0.24 |
+| head's teacher-forced decode: change recall / false-change on hold | 0.84 / 0.51 | 0.50 / 0.047 | 0.51 / 0.053 |
+| linear probe on trunk, "button change this frame" (balanced acc; shuffled control ≈ 0.5) | 0.63 | 0.70 | 0.70 |
+| probe "any change within 6 frames" | 0.64 | 0.68 | 0.68 |
+| probe on the raw last-frame embedding (input floor), button change | 0.59 | 0.69 | 0.69 |
+
+**Q1 (does the channel model still read the game state?)** At the
+output, barely: the current frame has ~15× less leverage than in base
+(0.13 vs 1.8 nats), while the channel carries ~7 nats. Gradient shares are
+more even (the state still gets ~45 % of saliency on change frames), so the
+state is used inside the network but rarely decides the output.
+
+**Q2 (is "change now" represented?)** Yes, and better than in base — the
+channel model's trunk linearly encodes an upcoming button change at 0.70
+while its head emits one on 0.50 of change frames (teacher-forced). This
+is the represented-but-not-emitted case: a target/emission problem, not a
+representation problem. `tw4`'s probe numbers are identical to `prev_q`'s
+— the weighting changed nothing upstream of the head.
+
+**Q3 (where exactly does recovery fail?)** Frame traces on the far
+no-jump starts, died trials: base presses B in 80 % of trials (first B at
+frame ~20, up-B in 70 %, plus ~5 jump edges and ~5 side-B edges per trial
+with no jump available — it recovers by mashing). The channel model holds
+the stick toward the stage (59 % of frames; only 13 % no-input) and does
+NOT press B: any B in 42 % of trials, up-B in 16 %, first B at frame 37.
+Counterfactual on the channel only (warm history's last 3 inputs
+rewritten, game states untouched):
+
+| warm history ends in | base | prev_q |
+|---|---|---|
+| (real) | 0.257 | 0.149 |
+| stick up, no buttons | 0.274 | 0.184 |
+| stick up + B (up-B in progress) | 0.288 | **0.392** |
+| stick up + X | 0.309 | 0.184 |
+
+With the channel saying "an up-B is already happening" the channel model
+carries it out from frame 1–3 (up-B in 83–98 % of trials) and recovers at
+0.39, above every base seed. Base is unmoved by the override (no channel).
+So the model knows the continuation and the route; the single missing
+piece is INITIATING the B press from a hold state. Stick-up alone is not
+enough; the press is the thing.
+
+**Q5 (R presses).** Not a format tell. At an expert L-press frame the
+model gives P(L) = 0.27, P(R) = 0.27 (base 0.11 / 0.12): the corpus uses
+the two triggers about equally (200 L edges vs 214 R in these games) and
+nothing in the state says which one this player uses, so each press is a
+coin flip; once R lands it is held like the expert holds L (P(L | L held)
+= 0.97). The R logit keys on the shoulder channel value and main-stick x,
+not on the button bits. Functionally harmless (L and R are equivalent);
+the low L-cancel rate is a timing failure, not a trigger-choice one. `tw4`
+tilted the flip to R (0.28 vs 0.11), which is its 23/min R.
+
+### What it points to
+
+The defect is press initiation from a hold state, with the information
+already in the trunk. Loss re-weighting (tw4/tw16) and self-sampled
+conditioning (scheduled sampling) do not touch it. Two candidates do:
+
+1. **Carried-state BPTT over long sequences** (slippi-ai trains this way;
+   we never have with the channel). Long holds and the presses that end
+   them inside one gradient instead of 80-frame windows that mostly
+   contain the hold. Infrastructure: `--bptt` (GRU only,
+   `imitation.ex:265`) reads the same precomputed layout, so the
+   quantized channel rides along; the testbed driver
+   (`train_fox_mamba.exs`) refuses GRU/bptt, and the coherence evals read
+   `split.json`, which the bptt path's own 16-game holdout does not write.
+   Plumbing needed: run the pair through `train.exs --bptt --backbone gru`
+   (windowed GRU control with the same holdout) and emit `split.json`.
+2. **Chunk / multi-step targets** — predict the next K inputs. For frames
+   t+1…t+K the copy-the-channel shortcut is unavailable, so the press has
+   to come from the state. Only the ACT/diffusion policies have
+   `action_horizon` today; the AR standard head needs a design (shared
+   head over per-offset features so the t-step emission is reshaped too).
+
+Also open from Q3: "committed recovery" as a situation class — extend
+`Checkmate` from yes/no to the set of surviving route classes (0 =
+checkmate, 1 = forced/coverable, 2+ = mixup), and split `sd_per_min` by it
+(already-checkmate kill / blunder from a recoverable position / pure SD).

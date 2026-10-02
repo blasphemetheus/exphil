@@ -1,0 +1,103 @@
+{
+  "label": "base_s907",
+  "policy": "checkpoints/coh_base_s907/model_best_policy.bin",
+  "games": 3,
+  "frames": 32394,
+  "press_edges_per_min": {
+    "A": {
+      "ratio": 7.378,
+      "model": 97.57,
+      "expert": 13.22
+    },
+    "B": {
+      "ratio": 5.859,
+      "model": 64.46,
+      "expert": 11.0
+    },
+    "L": {
+      "ratio": 7.696,
+      "model": 202.7,
+      "expert": 26.34
+    },
+    "R": {
+      "ratio": 27.467,
+      "model": 228.93,
+      "expert": 8.33
+    },
+    "X": {
+      "ratio": 3.919,
+      "model": 118.02,
+      "expert": 30.12
+    },
+    "Y": {
+      "ratio": 6.67,
+      "model": 132.69,
+      "expert": 19.89
+    },
+    "Z": {
+      "ratio": 2.567,
+      "model": 25.67,
+      "expert": 10.0
+    }
+  },
+  "change_recall": 0.249,
+  "hold_agreement": 0.648,
+  "change_frames": 2071,
+  "change_events": {
+    "k0": {
+      "press": {
+        "precision": 0.007,
+        "recall": 0.049
+      },
+      "release": {
+        "precision": 0.019,
+        "recall": 0.142
+      },
+      "stick": {
+        "precision": 0.016,
+        "recall": 0.126
+      }
+    },
+    "k2": {
+      "press": {
+        "precision": 0.08,
+        "recall": 0.538
+      },
+      "release": {
+        "precision": 0.095,
+        "recall": 0.549
+      },
+      "stick": {
+        "precision": 0.097,
+        "recall": 0.607
+      }
+    },
+    "k5": {
+      "press": {
+        "precision": 0.148,
+        "recall": 0.696
+      },
+      "release": {
+        "precision": 0.175,
+        "recall": 0.721
+      },
+      "stick": {
+        "precision": 0.193,
+        "recall": 0.788
+      }
+    }
+  },
+  "repeat_prev": {
+    "model": 0.197,
+    "expert": 0.764
+  },
+  "neutral_share": {
+    "model": 0.26,
+    "expert": 0.303
+  },
+  "jab1": {
+    "episodes": 4,
+    "model_a_edges_per_ep": 1.0,
+    "expert_a_edges_per_ep": 0.25
+  }
+}
