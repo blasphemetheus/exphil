@@ -847,3 +847,65 @@ now" content and the head's emission did not move — and in size: still
 moved: L-cancel timing, far-start up-B initiation (drill 0.25, thin
 bucket 0.08). Queue 9 = more pressure on the same mechanism: K=4, K=16,
 K=8 with chunk weight 3 (`scripts/coherence_queue9.sh`).
+
+## Queue 9 result (10-03 00:40) — chunk-target sweep: K=4 inert, K=16 expert-like but passive, weight 3 = most offence, timing defects untouched
+
+`scripts/coherence_queue9.sh`: prev_q recipe + chunk horizon 4 / 16, and
+8 with chunk weight 3. All on the fixed drill; ± = 3-seed spread of the
+scorecard, not training seed (queue 10 replicates ck8 / ck8w3 at seed 906).
+
+| | prev_q | ck8 | ck4 | ck16 | ck8w3 | base |
+|---|---|---|---|---|---|---|
+| self-play dmg/min | 29 ± 7 | 56 ± 5 | 27 ± 1 | 42 ± 1 | **62 ± 4** | 108 |
+| self-play SD/min | 2.14 | **1.03** | 4.50 | 1.68 | 2.48 | 0.83 |
+| offstage return rate (expert 0.89) | — | — | 0.59 | **0.75** | 0.63 | — |
+| L-cancel (expert 0.83) | 0.24 | 0.28 | 0.28 | 0.30 | 0.26 | 0.76 |
+| fidelity distance | 0.264 | 0.272 | 0.252 | **0.244** | 0.281 | 0.360 |
+| stick-zone distance | — | — | 0.126 | 0.092 | **0.313** | — |
+| wavedashes/min (expert 4.6) | — | — | 0.9 | 1.7 | 0.3 | — |
+| A presses/min (expert 22) | 27.8 | 13.8 | 17.3 | 7.0 | 19.7 | 201 |
+| B presses/min (expert 20) | 21.4 | 11.1 | **39.9** | 17.1 | **35.4** | 67 |
+| input repeat share (expert 0.76) | 0.69 | 0.69 | 0.75 | 0.68 | 0.69 | 0.27 |
+| vs idle: dmg/min, SD/min, repeat | 20, 2.06, 0.68 | 38, 1.63, 0.65 | 21, 2.44, 0.71 | 31, 2.38, 0.68 | **67**, 3.19, 0.69 | 25, 0.94, 0.28 |
+| vs idle deaths by verdict | all mixup | all mixup | 39 mixup / 1 kill | 38 mixup | 48 mixup / 4 kill | 15 mixup |
+| drill recovery; thin-mixup bucket (11 cases) | 0.226; 0.11 | 0.25; 0.08 | 0.253; 0.08 | 0.253; 0.10 | **0.309**; 0.10 | 0.46; 0.25 |
+| drill 4+-route bucket (24 cases) | — | — | 0.32 | 0.30 | **0.38** | — |
+| main-head val (teacher-forced) | 0.97 | 1.02 | 1.00 | 1.02 | 1.03 | 2.43 |
+| calibration total / buttons | 1.22 / 0.268 | 1.21 / 0.260 | 1.18 / 0.258 | 1.20 / 0.255 | (q9b) | 3.02 / 0.823 |
+
+Reading:
+
+- **K=4 does nothing good.** Within four frames the expert's input is
+  almost always unchanged, so the future heads can be served by the copy
+  shortcut too — no new pressure on the trunk — and the extra loss just
+  perturbs: worst SDs in the sweep (4.5/min), B presses doubled.
+- **K=16 is the most expert-like and the most passive.** Best fidelity
+  (0.244), best offstage return (0.75), SDs halved vs prev_q, but damage
+  42 and A presses 7/min. Sixteen frames out the targets are uncertain
+  enough that the heads learn trajectory statistics (where am I going)
+  rather than what-to-press — good for the histograms, not for
+  decisiveness.
+- **Weight 3 at K=8 pushes offence hardest** (62 self-play, 67 vs idle =
+  5× prev_q; best drill 0.31, from the 4+-route cases) **and starts to
+  cost fidelity**: stick-zone distance 0.09 → 0.31, wavedashes gone, B
+  presses 35/min. With 3 × mean-of-8 the future heads are the dominant
+  loss term and the next-frame stick distribution drifts. The dial has a
+  far end.
+- **Nothing in the sweep moves the timing-precision defects**: L-cancels
+  0.24–0.30 everywhere (expert 0.83), thin-mixup recoveries 0.08–0.10
+  (base 0.25). Chunk targets make the trunk read state harder; they do
+  not make the head emit a single press on the right frame. That is the
+  "represented, not emitted" signature from the Q2 probe, and the
+  motivation for combining with the event heads (a separate press-now
+  output) in queue 10.
+- Teacher-forced numbers are flat across the sweep (val 1.00–1.03,
+  buttons calibration loss 0.255–0.268): the auxiliary target costs the
+  main head nothing offline. The whole effect is in closed loop — the
+  scoreboard remains blind to it, as it has been to every live defect.
+
+Queue 10 (`scripts/coherence_queue10.sh`, overnight, unit `exphil-q10`):
+evt2_ck8, evt2_ck8w3 (events + chunk), base_ck8 (does the aux target
+change a model that already reads state?), prev_q_ck8_s906 and
+prev_q_ck8w3_s906 (training-seed replicates), prev_q_ck12, and
+mamba_prev_q_ck8 (small Mamba on the same slice: does the lever port?),
+then the Q1/Q2 probe on each (`eval_runs/1002_interp/probe_<name>.json`).
