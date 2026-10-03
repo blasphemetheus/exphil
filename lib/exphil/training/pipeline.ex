@@ -81,6 +81,16 @@ defmodule ExPhil.Training.Pipeline do
 
   @type t :: %__MODULE__{}
 
+  # Options Streaming.create_dataset needs, for the train chunks AND the
+  # bptt val holdout (one list: a hand-picked copy silently dropped the
+  # prev-action keys from the val set, GOTCHA #140). The prev-action keys
+  # (2026-09-30) go to Data.precompute_frame_embeddings, which fills the
+  # 13-dim slot from each frame's predecessor (nil at game boundaries).
+  @streaming_dataset_keys [
+    :temporal, :window_size, :stride, :precompute, :lazy_sequences,
+    :use_prev_action, :prev_action_dropout, :prev_action_dropout_block, :prev_action_quantize
+  ]
+
   # ============================================================================
   # Setup
   # ============================================================================
@@ -531,8 +541,11 @@ defmodule ExPhil.Training.Pipeline do
             :player_port, :dual_port, :label_delay, :skip_errors, :show_errors, :port_map
           ]) ++ [subject_character: subject_character, tag_map: tag_map]
 
+        # Same keys as streaming_dataset_opts below: the #135 fix (09-30)
+        # added the prev-action keys there only, so a bptt val set was
+        # embedded with an EMPTY channel (val 11.6 vs train 0.96, 10-02).
         dataset_opts =
-          Keyword.take(opts, [:temporal, :window_size, :stride, :precompute, :lazy_sequences]) ++
+          Keyword.take(opts, @streaming_dataset_keys) ++
             [embed_config: embed_config, player_registry: player_registry]
 
         {:ok, val_frames, _errors} = Streaming.parse_chunk(bptt_val_files, chunk_opts)
@@ -561,13 +574,8 @@ defmodule ExPhil.Training.Pipeline do
       streaming_chunk_opts: Keyword.take(opts, [
         :player_port, :dual_port, :label_delay, :skip_errors, :show_errors, :port_map
       ]) ++ [subject_character: subject_character, tag_map: tag_map],
-      streaming_dataset_opts: Keyword.take(opts, [
-        :temporal, :window_size, :stride, :precompute, :lazy_sequences,
-        # prev-action channel (2026-09-30): Streaming.create_dataset hands
-        # these to Data.precompute_frame_embeddings, which fills the 13-dim
-        # slot from each frame's predecessor (nil at game boundaries).
-        :use_prev_action, :prev_action_dropout, :prev_action_dropout_block, :prev_action_quantize
-      ]) ++ [embed_config: embed_config, player_registry: player_registry],
+      streaming_dataset_opts: Keyword.take(opts, @streaming_dataset_keys) ++
+        [embed_config: embed_config, player_registry: player_registry],
       val_batches: bptt_val_batches,
       character_weights: nil,
       augment_fn: nil,

@@ -1,0 +1,32 @@
+{
+  "label": "bptt_q",
+  "policy": "checkpoints/coh_bptt_q/model_best_policy.bin",
+  "opponent": "idle",
+  "envs": 32,
+  "deaths_by_verdict": {
+    "kill": 0,
+    "checkmate": 0,
+    "forced": 0,
+    "mixup": 0
+  },
+  "frames_per_env": 1800,
+  "env_minutes": 16.0,
+  "sd_per_min": 0.0,
+  "deaths_per_min": 0.0,
+  "kills_per_min": 0.0,
+  "deaths_by_verdict_per_min": {
+    "kill": 0.0,
+    "checkmate": 0.0,
+    "forced": 0.0,
+    "mixup": 0.0
+  },
+  "damage_dealt_per_min": 0.0,
+  "damage_taken_per_min": 0.0,
+  "offstage_episodes_per_min": 0.0,
+  "recovery_rate": null,
+  "neutral_share": 0.152,
+  "repeat_prev": 0.971,
+  "max_frozen_run": 1731,
+  "games_finished": 0,
+  "wall_s": 25.2
+}

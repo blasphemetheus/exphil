@@ -4618,3 +4618,11 @@ event-head previous-bucket code assumes floor — testbed only until the
 **Cause:** `SimBatch.restore/4` with `frames: false` skips the re-observe, so `Env.frames/1` returns the frames cached from the previous `step`/`observe` — the PREVIOUS case's final states (often a dead Fox). The drill read them as the case's first state: the route verdict was wrong, and worse, that frame was fed to `Agent.batch_get_controllers`, which appends it to the windowed agent's history, so every trial's policy window contained one alien frame for its first 79 frames. Fixing it moved base recovery 0.28 → 0.46 and prev_q 0.15 → 0.23 (rankings held; the prev_q up-B counterfactual grew 0.39 → 0.59).
 
 **Rule:** after `restore(frames: false)` call `Env.observe/1` once before reading frames or feeding an agent. `frames: false` is for callers that restore many rows and observe once — never for "restore then read".
+
+## #140 — bptt val holdout was embedded WITHOUT the prev-action channel (val 11.6 vs train 0.96) (2026-10-02)
+
+**Symptom:** `train.exs --bptt --prev-action` on 3000 files: train loss 0.96 (same regime as the windowed control), carry-threaded val 11.6; the 200-file smoke hid it (4.6 vs 4.0 early in training).
+
+**Cause:** `Pipeline.setup` built the bptt val dataset with its own hand-picked key list (`:temporal, :window_size, :stride, :precompute, :lazy_sequences`); the #135 fix (09-30) added `:use_prev_action`/`:prev_action_*` to `streaming_dataset_opts` only. The held-out frames had an empty 13-dim slot; the model was scored on an input it never saw. Third instance of the hand-picked-key-list class (#135, the 0825 pilot's `--stage-internals`).
+
+**Fix:** one `@streaming_dataset_keys` list for both. Exported policies from affected runs are fine (val selects among epochs only); their `val_loss` is meaningless.

@@ -783,3 +783,67 @@ death of base (15) and prev_q (33) is `mixup`, as it must be.
 - `scripts/coherence_queue8.sh`: gru_q (windowed GRU control, zero
   state) → bptt_q (`train.exs --bptt --unroll 80`, same holdout) →
   prev_q_ck8 (MinGRU + 8-frame chunk targets). `SMOKE=1` = 200 files.
+
+**Timing is not smeared (closes the "probe within k" question).** The Q2
+probes already include "change within 3/6": prev_q 0.65 (now) → 0.65 (≤3)
+→ 0.68 (≤6); base 0.59 → 0.61 → 0.64. Widening the window barely helps,
+so the trunk does not hold a sharp "soon" with a fuzzy "when" — it holds
+a weak signal at every horizon. The chunk-target prediction is therefore
+narrowed: if ck8 helps it is because the future heads push MORE state
+information into the trunk (Q1 state-swap KL and these probe numbers
+should both rise), not because they sharpen timing.
+
+### Queue 8 result 1: the carried-state BPTT pair (10-02 21:40)
+
+Same 3000-file slice, seed 905, prev_q recipe, same 16 held-out games.
+Windowed GRU control = zero initial state, window 80, stride 5 (16,996
+updates); bptt = `train.exs --bptt --unroll 80`, carry across chunks,
+per-timestep loss (3,340 updates at 241 ms; train loss 0.96 = the
+windowed model's regime).
+
+| | gru_q (windowed) | **bptt_q (carried)** | prev_q (MinGRU) |
+|---|---|---|---|
+| offline repeat / change recall / hold agreement | 0.74 / 0.30 / 0.57 | **0.96 / 0.17 / 0.26** | 0.72 / 0.29 / — |
+| closed loop vs idle: dmg/min, SD/min, repeat, max frozen run | 13.5, 1.44, 0.69, 157 f | **0.0, 0.0, 0.97, 1731 f** | 20, 2.06, 0.68, 86 f |
+| drill (fixed): recovery, never/always | 0.226, 15/1 | **0.149, 30/3** | 0.226, 9/0 |
+
+**Carried-state BPTT is OUT** for the channel recipe: it is the freeze
+taken to its limit — a non-neutral input held for the whole rollout, zero
+damage, zero deaths. The control is a faithful twin of the MinGRU defect
+(0.226 = 0.226), so this is the carry, not the backbone. Reading: with a
+carried state the hidden state can keep "previous input" indefinitely on
+top of the channel — the copy shortcut gains a second route — and a
+per-timestep teacher-forced objective over whole games asks for
+initiation no more than windows do. slippi-ai trains this way AND needs
+RL afterwards; this is what "pure IL makes a lot of mistakes" looks like.
+Caveats: one epoch, 6× fewer updates than the control (equal data
+exposure; equal train loss); the bptt `val_loss` 11.6 is a measurement
+bug (GOTCHA #140, val set embedded without the channel), not the model.
+
+### Queue 8 result 2: chunk targets (prev_q_ck8, 10-02 22:10)
+
+MinGRU prev_q recipe + `--chunk-horizon 8` (8 future heads, weight 1;
+22 ms/update vs 8). Main-head val 1.02 (prev_q 0.97).
+
+| | prev_q | **prev_q_ck8** | base |
+|---|---|---|---|
+| self-play dmg/min (3 seeds) | 29 ± 7 | **56 ± 5** | 108 |
+| self-play SD/min | 2.14 | **1.03** | 0.83 |
+| L-cancel rate | 0.24 | 0.28 | 0.76 |
+| fidelity distance | 0.264 | 0.272 | 0.360 |
+| vs idle: dmg/min, SD/min, repeat | 20, 2.06, 0.68 | 38, 1.63, 0.65 | 25, 0.94, 0.28 |
+| offline repeat / change recall | 0.72 / 0.29 | 0.68 / 0.27 | 0.23 / 0.30 |
+| drill (fixed) recovery, thin-mixup bucket | 0.226, 0.11 | 0.25, 0.08 | 0.46, 0.25 |
+| Q1 state-swap KL change / hold | 0.125 / 0.072 | **0.239 / 0.138** | 1.80 / 1.51 |
+| Q1 prev-slot-zeroed KL change / hold | 6.92 / 4.83 | 6.45 / 4.55 | — |
+| Q2 head TF change recall / probe "button change now" | 0.51 / 0.70 | 0.51 / 0.71 | 0.84 / 0.63 |
+
+**First lever that moves a channel model the right way without giving
+back coherence**: damage doubled, SDs halved, fidelity and repeat share
+unchanged. The mechanism check agrees in direction — the main head's
+sensitivity to the current game state doubled while the trunk's "change
+now" content and the head's emission did not move — and in size: still
+7× below base, which is what a half-way live result looks like. Not
+moved: L-cancel timing, far-start up-B initiation (drill 0.25, thin
+bucket 0.08). Queue 9 = more pressure on the same mechanism: K=4, K=16,
+K=8 with chunk weight 3 (`scripts/coherence_queue9.sh`).
