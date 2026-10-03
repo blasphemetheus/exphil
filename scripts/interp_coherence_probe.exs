@@ -125,13 +125,44 @@ end
 predict = heads.predict_fn
 params = heads.params
 
+# Forward inputs from the teacher-forced map + a window. Event-head models
+# (`--button-events` / `--stick-events`) mirror Loss.policy_forward_inputs/4:
+# the trunk sees the 13-dim prev slot ZEROED and the heads get the last
+# position's previous buttons / stick buckets as their own inputs — so for
+# them "prev slot zeroed" also neutralises the head's prev inputs, and the
+# state gradient flows only through the masked trunk.
+button_events? = flag.(:button_events)
+stick_events? = flag.(:stick_events)
+Output.puts("event heads: buttons #{button_events?} sticks #{stick_events?}")
+with_states =
+  if button_events? or stick_events? do
+    fn tf, s ->
+      last = s |> Nx.slice_along_axis(Nx.axis_size(s, 1) - 1, 1, axis: 1) |> Nx.squeeze(axes: [1])
+      idx = Nx.iota({Nx.axis_size(s, 2)})
+      keep = Nx.logical_or(Nx.less(idx, prev_off), Nx.greater_equal(idx, prev_off + 13))
+      inputs = Map.put(tf, "state_sequence", Nx.multiply(s, Nx.as_type(keep, Nx.type(s))))
+      inputs = if button_events?, do: Map.put(inputs, "prev_buttons", Nx.slice_along_axis(last, prev_off, 8, axis: 1)), else: inputs
+      if stick_events? do
+        buckets =
+          last |> Nx.slice_along_axis(prev_off + 8, 4, axis: 1) |> Nx.as_type(:f32)
+          |> Nx.divide(2.0) |> Nx.add(0.5) |> Nx.multiply(axis_buckets) |> Nx.floor()
+          |> Nx.clip(0, axis_buckets - 1) |> Nx.as_type(:s64)
+        Map.put(inputs, "prev_sticks", buckets)
+      else
+        inputs
+      end
+    end
+  else
+    fn tf, s -> Map.put(tf, "state_sequence", s) end
+  end
+
 grad_fn = fn p, s, tf, tgt ->
-  Nx.Defn.grad(s, fn s2 -> Nx.sum(logp.(predict.(p, Map.put(tf, "state_sequence", s2)), tgt)) end)
+  Nx.Defn.grad(s, fn s2 -> Nx.sum(logp.(predict.(p, with_states.(tf, s2)), tgt)) end)
 end
 grad_jit = Nx.Defn.jit(grad_fn, compiler: EXLA)
 # Q5: gradient of the R-button logit alone (jitted ONCE — a fresh closure per batch would recompile)
 r_grad_jit =
-  Nx.Defn.jit(fn p, s, tf -> Nx.Defn.grad(s, fn s2 -> Nx.sum(elem(predict.(p, Map.put(tf, "state_sequence", s2)), 0)[[.., 6]]) end) end,
+  Nx.Defn.jit(fn p, s, tf -> Nx.Defn.grad(s, fn s2 -> Nx.sum(elem(predict.(p, with_states.(tf, s2)), 0)[[.., 6]]) end) end,
     compiler: EXLA)
 
 probs = fn {b, mx, my, cx, cy, sh} ->
@@ -179,7 +210,7 @@ rows =
     prv = Data.actions_to_tensors(Enum.map(chunk, & &1.prev)) |> Map.new(fn {k, v} -> {k, Nx.backend_transfer(v, EXLA.Backend)} end)
     tf = Heads.tf_inputs(tgt)
 
-    out = predict.(params, Map.put(tf, "state_sequence", states))
+    out = predict.(params, with_states.(tf, states))
     p0 = probs.(out)
     ll = logp.(out, tgt)
 
@@ -200,13 +231,13 @@ rows =
     sh_g = shares.(gabs)
 
     # Q1b ablation KL: prev slot zeroed on every frame; last-frame game state swapped with another window's
-    p_noprev = probs.(predict.(params, Map.put(tf, "state_sequence", Nx.multiply(states, prev_mask))))
+    p_noprev = probs.(predict.(params, with_states.(tf, Nx.multiply(states, prev_mask))))
     perm = Enum.shuffle(0..(m - 1)) |> Nx.tensor()
     donor_last = states |> Nx.take(perm, axis: 0) |> last.()
     own_last = last.(states)
     swapped_last = Nx.add(Nx.multiply(donor_last, prev_mask), Nx.multiply(own_last, Nx.subtract(1.0, prev_mask)))
     states_swap = Nx.put_slice(states, [0, window - 1, 0], Nx.new_axis(swapped_last, 1))
-    p_swap = probs.(predict.(params, Map.put(tf, "state_sequence", states_swap)))
+    p_swap = probs.(predict.(params, with_states.(tf, states_swap)))
     kl_noprev = kl_total.(p0, p_noprev)
     kl_swap = kl_total.(p0, p_swap)
 

@@ -195,7 +195,11 @@ defmodule ExPhil.Interp.Activations do
         conv_size: Map.get(config, :conv_size, 4),
         dropout: Map.get(config, :dropout, 0.1),
         axis_buckets: Map.get(config, :axis_buckets, 16),
-        shoulder_buckets: Map.get(config, :shoulder_buckets, 4)
+        shoulder_buckets: Map.get(config, :shoulder_buckets, 4),
+        # event heads need their collapse layers (and "prev_buttons" /
+        # "prev_sticks" inputs) or the raw 16-logit button head comes out
+        button_events: Map.get(config, :button_events, false) == true,
+        stick_events: Map.get(config, :stick_events, false) == true
       )
 
     {_init_fn, predict_fn} = Utils.build_compiled(model, mode: :inference)

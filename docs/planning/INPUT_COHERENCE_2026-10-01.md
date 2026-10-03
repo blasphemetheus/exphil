@@ -929,3 +929,88 @@ just how much. (2) The emission numbers are frozen across the whole
 sweep, exactly where L-cancels and thin-mixup recoveries are frozen —
 consistent with those being a head-emission defect that trunk-side
 losses cannot reach (queue 10's events + chunk combination).
+
+## Queue 10 result (10-03 05:10, overnight) — events + chunk targets compose; self-play damage is seed-noisy; the lever ports to Mamba
+
+`scripts/coherence_queue10.sh`, unit `exphil-q10` (01:18–05:07). Drill is
+the fixed drill; base's own drill seed spread (905/906/907 + rn) is
+0.43–0.49 overall, **thin-mixup bucket 0.16–0.35**, 4+ bucket 0.53–0.60.
+
+| | prev_q | ck8 | ck8 s906 | ck8w3 | ck8w3 s906 | evt2 | **evt2_ck8** | **evt2_ck8w3** | base | base_ck8 | mamba ck8 |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| self-play dmg/min | 29 | 56 | **20** | 62 | 55 | 39 | 65 | 67 | 108 | 87 | 58 |
+| self-play SD/min | 2.14 | 1.03 | 1.34 | 2.48 | 1.18 | 1.25 | 1.23 | 1.43 | 0.83 | 1.38 | **0.97** |
+| vs idle dmg/min | 20 | 38 | 37 | 67 | 44 | 28 | 46 | 32 | 57 | 48 | 37 |
+| vs idle SD/min | 2.06 | 1.63 | 2.31 | 3.19 | 1.25 | 2.5 | 1.81 | 2.19 | 1.25 | 2.13 | 1.25 |
+| L-cancel (expert 0.83) | 0.24 | 0.28 | 0.30 | 0.26 | 0.25 | 0.62 | 0.51 | **0.71** | 0.76 | **0.83** | 0.25 |
+| fidelity distance | 0.264 | 0.272 | 0.298 | 0.281 | 0.273 | 0.253 | 0.250 | **0.225** | 0.360 | 0.339 | 0.308 |
+| input repeat share (expert 0.76) | 0.69 | 0.67 | 0.66 | 0.69 | 0.72 | 0.62 | 0.64 | 0.66 | 0.24 | 0.29 | 0.56 |
+| A presses/min (expert 22) | 28 | 14 | 11 | 20 | 18 | 16 | 28 | 20 | 201 | 131 | 50 |
+| drill recovery | 0.226 | 0.25 | 0.27 | 0.31 | 0.29 | 0.28 | **0.43** | 0.35 | 0.46 | 0.45 | 0.26 |
+| drill thin-mixup bucket | 0.11 | 0.08 | 0.08 | 0.10 | 0.13 | — | **0.30** | 0.19 | 0.16–0.35 | 0.17 | 0.21 |
+| drill 4+-route bucket | — | 0.31 | 0.36 | 0.38 | 0.34 | — | 0.48 | 0.41 | 0.53–0.60 | 0.57 | 0.26 |
+| drill never-recovered cases | 9 | 11 | 12 | 10 | 8 | 7 | **2** | 4 | 2–5 | 4 | 9 |
+| teacher-forced val | 0.97 | 1.02 | 1.01 | 1.03 | 1.03 | 1.37 | 1.33 | 1.34 | 2.43 | 2.41 | 1.05 |
+
+1. **The two levers compose.** `evt2_ck8` (event heads + chunk 8) is the
+   first channel-free coherent model that recovers like base: drill 0.43
+   (base 0.43–0.49), thin-mixup 0.30 (inside base's 0.16–0.35; every
+   trunk-channel model is 0.05–0.13), only 2/36 cases never recovered,
+   with repeat share 0.64 and 28 A presses/min (base: 201). The probe
+   prediction held: chunk targets alone never touched the thin bucket,
+   the press-now output did. `evt2_ck8w3` trades some of that for the
+   best fidelity of the program (0.225) and L-cancel 0.71 — the first
+   coherent model near the 0.7 pass bar — with A/B/R press rates within
+   ~25 % of the expert's.
+2. **Self-play damage is a training-seed lottery on this testbed**:
+   ck8 56 → 20 at seed 906 (prev_q 29). The "damage doubled" headline
+   from queue 8 does not survive a seed. What replicates: SD (1.0/1.3 vs
+   prev_q 2.1), vs-idle damage (38/37 vs 13.5–20), drill (0.25/0.27).
+   ck8w3 replicates better (62/55, 67/44, 0.31/0.29) and is the more
+   robust chunk setting. Rank by vs-idle, drill, fidelity, L-cancel; treat
+   self-play damage as ±20.
+3. **base_ck8 = base** on recovery (0.45; buckets inside base's spread)
+   and still flickers (repeat 0.29; the aux target is no substitute for a
+   coherence mechanism). L-cancel 0.83 (= expert) vs base 0.76 and
+   damage 87 vs 108, SD 1.4 vs 0.8 — a sideways move; chunk targets are
+   not a free general improvement on a model that already reads state.
+4. **The lever ports to Mamba**: `mamba_prev_q_ck8` (16-min train, val
+   1.05) has the ck8 profile — self-play SD 0.97 (lowest of any channel
+   model), damage 58, vs-idle 37, drill 0.26 — but with Mamba's known
+   weaker coherence on this recipe (repeat 0.56, A presses 50/min).
+5. ck12 lies on the K curve between 8 and 16 (damage 46, SD 2.2,
+   fidelity 0.261); nothing new.
+
+Still open after queue 10: L-cancel (0.51/0.71 vs 0.83) and self-play
+damage (≈65 vs 133) for the event+chunk models; the evt2 models' main-stick
+histograms (stick_zone 0.21–0.30) are the worst part of their fidelity.
+Infrastructure: calibration unwraps chunk outputs (`Loss.main_head/1`);
+the interp probe now builds event-head inputs (collapse layers +
+`prev_buttons`/`prev_sticks`, trunk slot zeroed) and the Mamba probe needs
+`--batch 64` (saliency gradient OOMs at 256).
+
+### Queue 10 probes (05:45)
+
+| | prev_q | ck8 | ck8 s906 | ck8w3 | ck8w3 s906 | ck12 | evt2_ck8 | evt2_ck8w3 | mamba ck8 | base_ck8 | base |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| Q1 state-swap KL change / hold | 0.125 / 0.072 | 0.239 / 0.138 | 0.193 / 0.123 | 0.238 / 0.137 | 0.212 / 0.124 | 0.240 / 0.144 | **0.409 / 0.229** | **0.402 / 0.220** | 0.361 / 0.230 | 1.65 / 1.38 | 1.80 / 1.51 |
+| Q1 prev-slot-zeroed KL change / hold | 6.92 / 4.83 | 6.45 / 4.55 | 6.00 / 4.30 | 6.56 / 4.68 | 6.82 / 4.94 | 6.24 / 4.51 | 4.71 / 3.20 ¹ | 4.76 / 3.19 ¹ | 5.87 / 4.12 | 0 / 0 | 0 / 0 |
+| Q2 head TF change recall / false-change | 0.505 / 0.047 | 0.514 / 0.050 | 0.513 / 0.048 | 0.523 / 0.059 | 0.527 / 0.059 | 0.520 / 0.055 | 0.233 / 0.018 ² | 0.228 / 0.018 ² | 0.525 / 0.057 | 0.835 / 0.512 | 0.84 / — |
+| Q2 probe "button change now" (act) | 0.70 | 0.71 | 0.71 | 0.71 | 0.72 | 0.72 | 0.63 | 0.62 | 0.72 | 0.63 | 0.63 |
+
+¹ For event-head models the probe zeroes the trunk slot (already zero) AND
+the heads' `prev_buttons`/`prev_sticks` inputs — this row measures the
+HEAD's dependence on the previous input, not the trunk's.
+² Hazard heads under argmax: press probabilities sit below 0.5 and are
+sampled, so deterministic "change recall" is not comparable to state heads.
+
+Reading: the event + chunk models have the highest state sensitivity of
+any coherent model (0.41, vs 0.24 for chunk alone and 1.8 for base) — the
+trunk, with no previous-input shortcut at all, reads state harder than the
+trunk-channel models do even with chunk targets. Their "change now" probe
+drops to base's 0.63: without the previous input in the trunk, "is this a
+change frame" is not a trunk-representable quantity, which is consistent
+with the whole premise — the decision moves into the heads. The seed
+replicates confirm the chunk-alone sensitivity sits at 0.19–0.24 at both
+seeds while closed-loop damage varied 20–56, i.e. the KL tracks the
+training recipe, not the per-seed outcome.
