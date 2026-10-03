@@ -711,3 +711,75 @@ Also open from Q3: "committed recovery" as a situation class — extend
 `Checkmate` from yes/no to the set of surviving route classes (0 =
 checkmate, 1 = forced/coverable, 2+ = mixup), and split `sd_per_min` by it
 (already-checkmate kill / blunder from a recoverable position / pure SD).
+
+## 10-02 night: route counting, a drill bug, and the three builds
+
+### Recovery drill was contaminated — re-baselined
+
+`recovery_drill.exs` restored each case with `frames: false` and then read
+`Env.frames`, which still held the PREVIOUS case's final states (a dead
+Fox elsewhere on the stage). That stale frame went into the windowed
+agent's history and sat inside the policy's window for the next 79 frames
+of every trial. Found 2026-10-02 when the route verdict (computed from the
+same "restored" state) differed between two runs on identical cases.
+Fixed (one `Env.observe` after the restores); every number below is on
+the fixed drill. Rankings held, levels moved, and the counterfactual
+effect grew.
+
+| policy | old | **fixed** | 1 route (1) | 2–3 routes (11) | 4+ routes (24) |
+|---|---|---|---|---|---|
+| base s905 / s906 / s907 | 0.28 / — / — | **0.462 / 0.486 / 0.434** | 1.0 / 1.0 / 0.75 | 0.25 / 0.35 / 0.16 | 0.54 / 0.53 / 0.55 |
+| base_rn | — | 0.476 | 0.88 | 0.16 | 0.60 |
+| prev_q | 0.149 | **0.226** | 0.75 | 0.11 | 0.26 |
+| prev_d00 | — | 0.167 | 0.88 | 0.07 | 0.18 |
+| prev_q_tw4 / tw16 | 0.215 / 0.181 | 0.181 / 0.167 | 0.38 / 0.75 | 0.02 / 0.01 | 0.25 / 0.21 |
+| evt2 | — | 0.281 | 0.25 | 0.09 | 0.37 |
+| ss50_k4_q | — | 0.278 | 0.25 | 0.08 | 0.37 |
+| mamba_v2_prevact | — | 0.212 | 0.63 | 0.02 | 0.28 |
+| prev_q + warm "up-B in progress" (upb:3) | 0.392 | **0.594** | 1.0 | 0.41 | 0.66 |
+| prev_q + warm stick-up only (up:3) | 0.184 | 0.236 | 0.75 | 0.15 | 0.26 |
+
+Base seed spread on the fixed drill: ±0.03. The channel deficit is 0.23
+(prev_q) — eight times the spread. The thin-mixup bucket (2–3 routes, the
+far starts) is where every channel model collapses (0.01–0.11 vs base
+0.16–0.35); with the channel told "up-B in progress" prev_q beats every
+base seed everywhere. Nearest stick rounding does not change recovery
+(base_rn inside the band).
+
+### Surviving routes (`ExPhil.Melee.Checkmate.routes/2`)
+
+Every plan in the search is simulated; a route = means (resources spent,
+in order: `[]` drift, `[:jump]`, `[:up_b]`, `[:jump, :side_b]`, …) +
+destination (`:ledge | :stage | :platform`). Timing variants of one
+means to one place are one route (one ledgehog covers them all); the
+timing freedom is reported per route (`plans`, `delays`, `fastest`).
+Verdict: 0 routes `:checkmate`, 1 `:forced` (the opponent has one thing
+to cover — Bradley's "checkmate in one"), 2+ `:mixup`. ~90 ms per state.
+Wired into the drill (per-case `routes`/`verdict`, `by_routes` buckets)
+and the closed loop (`deaths_by_verdict` at the decision frame = the
+latest offstage out-of-hitstun frame since the last hit: `kill` none
+existed, `checkmate`, `forced`, `mixup` = threw the stock). Vs idle every
+death of base (15) and prev_q (33) is `mixup`, as it must be.
+
+### Builds landed for queue 8
+
+- `--bptt-holdout-split PATH` (bptt holds out another run's `split.json`
+  validation games; bptt runs now always write `split.json`) and
+  `--recurrent-state zeros|legacy_random` (stamped windowed GRU);
+  `train_fox_mamba.exs` accepts `--backbone gru`;
+  `coherence_experiment.sh` takes `BACKBONE=` / `TRAINER=` (the parser
+  takes a flag's FIRST occurrence, so trailing overrides do not work).
+- `--chunk-horizon K` / `--chunk-weight W`: K independent six-component
+  heads on the trunk's features predict the controller at t+1..t+K
+  (`Heads.build_future_heads/4`); targets ride in the actions map
+  (`future_*`, `future_mask` 0 past the game's end); loss = main + W ·
+  mean_j; val_loss scores the main head only; export drops the `future*`
+  params so the live model is unchanged. Mechanism: t+K is not in the
+  prev-action channel, so the trunk must read the game state to score it
+  — the copy shortcut loses its monopoly on the gradient. Prediction if
+  right: the Q1 state-swap KL of the MAIN head rises toward base's and
+  far-start up-B initiation returns; if the trunk already reads the state
+  and the head just doesn't emit, nothing moves.
+- `scripts/coherence_queue8.sh`: gru_q (windowed GRU control, zero
+  state) → bptt_q (`train.exs --bptt --unroll 80`, same holdout) →
+  prev_q_ck8 (MinGRU + 8-frame chunk targets). `SMOKE=1` = 200 files.

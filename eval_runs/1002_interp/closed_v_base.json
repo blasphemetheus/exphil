@@ -1,0 +1,32 @@
+{
+  "label": "base_v",
+  "policy": "checkpoints/coh_base/model_best_policy.bin",
+  "opponent": "idle",
+  "envs": 32,
+  "deaths_by_verdict": {
+    "kill": 0,
+    "checkmate": 0,
+    "forced": 0,
+    "mixup": 15
+  },
+  "frames_per_env": 1800,
+  "env_minutes": 16.0,
+  "sd_per_min": 0.938,
+  "deaths_per_min": 0.938,
+  "kills_per_min": 0.813,
+  "deaths_by_verdict_per_min": {
+    "kill": 0.0,
+    "checkmate": 0.0,
+    "forced": 0.0,
+    "mixup": 0.938
+  },
+  "damage_dealt_per_min": 72.857,
+  "damage_taken_per_min": 0.0,
+  "offstage_episodes_per_min": 4.438,
+  "recovery_rate": 0.786,
+  "neutral_share": 0.373,
+  "repeat_prev": 0.284,
+  "max_frozen_run": 68,
+  "games_finished": 0,
+  "wall_s": 32.5
+}

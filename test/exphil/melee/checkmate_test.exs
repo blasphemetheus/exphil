@@ -167,6 +167,46 @@ defmodule ExPhil.Melee.CheckmateAirDodgeTest do
   end
 end
 
+defmodule ExPhil.Melee.CheckmateRoutesTest do
+  use ExUnit.Case, async: true
+
+  alias ExPhil.Melee.Checkmate
+
+  @fd 32
+  @edge 85.5657
+  @stripped %{stage: @fd, vx: 0.0, vy: 0.0, jumps_left: 0, up_b: false, side_b: false, air_dodge: false, wall_jump: false}
+
+  test "no resources far out: zero routes is checkmate, and agrees with analyze" do
+    st = Map.merge(@stripped, %{x: @edge + 40, y: 0.0})
+    r = Checkmate.routes(st)
+    assert r == %{count: 0, verdict: :checkmate, routes: []}
+    assert Checkmate.checkmate?(st)
+  end
+
+  test "only side-B to the ledge: one route is forced, timing variants collapse into it" do
+    r = Checkmate.routes(Map.merge(@stripped, %{x: @edge + 40, y: 0.0, side_b: true}))
+    assert r.verdict == :forced
+    assert [%{means: [:side_b], outcome: :ledge, plans: plans, delays: {lo, hi}}] = r.routes
+    assert plans > 1
+    assert lo <= hi
+  end
+
+  test "jump and up-B both in hand near the ledge: a mixup" do
+    r = Checkmate.routes(Map.merge(@stripped, %{x: @edge + 20, y: -30.0, jumps_left: 1, up_b: true}))
+    assert r.verdict == :mixup
+    assert r.count >= 2
+    means = Enum.map(r.routes, & &1.means)
+    assert [:jump] in means or [:jump, :up_b] in means
+    assert Enum.any?(means, &(:up_b in &1))
+    assert r.routes == Enum.sort_by(r.routes, &{length(&1.means), &1.fastest})
+  end
+
+  test "drift alone arriving is a route with no start delay" do
+    r = Checkmate.routes(Map.merge(@stripped, %{x: 30.0, y: 40.0}))
+    assert %{means: [], outcome: :stage, delays: nil} = hd(r.routes)
+  end
+end
+
 defmodule ExPhil.Melee.CheckmateTopBlastTest do
   use ExUnit.Case, async: true
 

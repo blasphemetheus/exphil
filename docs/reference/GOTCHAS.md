@@ -4610,3 +4610,11 @@ symmetric; it is not recorded in the checkpoint config or the cache key yet,
 every existing checkpoint and baked corpus is floor-built, and the
 event-head previous-bucket code assumes floor — testbed only until the
 `base_rn` result is in and Bradley decides.
+
+## #139 — `Env.restore(..., frames: false)` leaves `Env.frames/1` STALE; a windowed agent then carries the stale frame for a whole window (2026-10-02)
+
+**Symptom:** `recovery_drill.exs` computed `Checkmate.routes/1` on "the restored case state" and got different route counts for the same 36 cases in two runs (15 vs 18 one-route cases).
+
+**Cause:** `SimBatch.restore/4` with `frames: false` skips the re-observe, so `Env.frames/1` returns the frames cached from the previous `step`/`observe` — the PREVIOUS case's final states (often a dead Fox). The drill read them as the case's first state: the route verdict was wrong, and worse, that frame was fed to `Agent.batch_get_controllers`, which appends it to the windowed agent's history, so every trial's policy window contained one alien frame for its first 79 frames. Fixing it moved base recovery 0.28 → 0.46 and prev_q 0.15 → 0.23 (rankings held; the prev_q up-B counterfactual grew 0.39 → 0.59).
+
+**Rule:** after `restore(frames: false)` call `Env.observe/1` once before reading frames or feeding an agent. `frames: false` is for callers that restore many rows and observe once — never for "restore then read".

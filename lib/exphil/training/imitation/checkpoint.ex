@@ -476,7 +476,7 @@ defmodule ExPhil.Training.Imitation.Checkpointing do
     config = Map.merge(config, ExPhil.Networks.Policy.ExecutionContract.training(trainer.config))
     spec = Edifice.Spec.new(:exphil_policy, Map.to_list(config), external: true)
 
-    Edifice.Checkpoint.save(to_binary_backend(trainer.policy_params), path,
+    Edifice.Checkpoint.save(trainer.policy_params |> drop_future_heads() |> to_binary_backend(), path,
       spec: spec,
       metadata: %{config: config}
     )
@@ -662,6 +662,16 @@ defmodule ExPhil.Training.Imitation.Checkpointing do
         [ExPhil.Data.LabelConvention.reaction_delay(config)]
     end
   end
+
+  # Chunk-target heads (Heads.build_future_heads/4) are training-only: the
+  # exported policy is rebuilt from a config without :chunk_horizon, so
+  # their `future<j>_*` layers must not be in the params it loads.
+  defp drop_future_heads(%Axon.ModelState{data: data} = ms), do: %{ms | data: drop_future_heads(data)}
+
+  defp drop_future_heads(map) when is_map(map) and not is_struct(map),
+    do: map |> Enum.reject(fn {k, _} -> is_binary(k) and String.starts_with?(k, "future") end) |> Map.new()
+
+  defp drop_future_heads(other), do: other
 
   defp to_binary_backend(%Nx.Tensor{} = tensor) do
     Nx.backend_copy(tensor, Nx.BinaryBackend)

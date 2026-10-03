@@ -266,21 +266,30 @@ defmodule ExPhil.Networks.Policy do
     # Controller head on top: :independent = six parallel heads (legacy
     # default); :autoregressive = residual-stream conditional head
     # (AUTOREGRESSIVE_HEAD_PLAN §3, teacher-forced tf_* inputs in training)
-    case Keyword.get(opts, :head, :independent) do
-      :independent ->
-        Heads.build_controller_head(backbone, axis_buckets, shoulder_buckets)
+    head =
+      case Keyword.get(opts, :head, :independent) do
+        :independent ->
+          Heads.build_controller_head(backbone, axis_buckets, shoulder_buckets)
 
-      :autoregressive ->
-        Heads.build_autoregressive_head(backbone,
-          axis_buckets: axis_buckets,
-          shoulder_buckets: shoulder_buckets,
-          button_events_prev: if(opts[:button_events], do: button_events_prev_node()),
-          stick_events_prev: if(opts[:stick_events], do: Axon.input("prev_sticks", shape: {nil, 4}))
-        )
+        :autoregressive ->
+          Heads.build_autoregressive_head(backbone,
+            axis_buckets: axis_buckets,
+            shoulder_buckets: shoulder_buckets,
+            button_events_prev: if(opts[:button_events], do: button_events_prev_node()),
+            stick_events_prev: if(opts[:stick_events], do: Axon.input("prev_sticks", shape: {nil, 4}))
+          )
 
-      other ->
-        raise ArgumentError,
-              "Unknown controller head: #{inspect(other)}. Valid: :independent, :autoregressive"
+        other ->
+          raise ArgumentError,
+                "Unknown controller head: #{inspect(other)}. Valid: :independent, :autoregressive"
+      end
+
+    # Chunk targets (training only, see Heads.build_future_heads/4): the
+    # output becomes `{head, {future_1, ..., future_K}}`. Exports and the
+    # live agent build without :chunk_horizon and see the plain head.
+    case Keyword.get(opts, :chunk_horizon) do
+      nil -> head
+      k when is_integer(k) and k > 0 -> Axon.container({head, Heads.build_future_heads(backbone, k, axis_buckets, shoulder_buckets)})
     end
   end
 

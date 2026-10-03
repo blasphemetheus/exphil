@@ -399,13 +399,32 @@ defmodule ExPhil.Training.Pipeline do
     # cursor-batch list evaluated with the carry threaded (see
     # Validation.evaluate_bptt/3). Taken from the END of the (already
     # ordered) file list so the train set is a prefix.
+    # `--bptt-holdout-split PATH` instead holds out the validation games of
+    # another run's split.json (a windowed train_fox_mamba.exs control), so a
+    # bptt/windowed pair is scored on the same games. The split is written
+    # beside the checkpoint either way, where the eval scripts look for it.
     {replay_files, bptt_val_files} =
-      if opts[:bptt] do
-        n = opts[:bptt_val_files] || 16
-        {Enum.drop(replay_files, -n), Enum.take(replay_files, -n)}
-      else
-        {replay_files, []}
+      cond do
+        not opts[:bptt] ->
+          {replay_files, []}
+
+        path = opts[:bptt_holdout_split] ->
+          held = path |> File.read!() |> Jason.decode!() |> Map.fetch!("validation") |> MapSet.new()
+          {val, train} = Enum.split_with(replay_files, &MapSet.member?(held, &1))
+          if length(val) != MapSet.size(held),
+            do: raise("--bptt-holdout-split: #{MapSet.size(held) - length(val)} of #{MapSet.size(held)} validation games are not in this run's replay set")
+          {train, val}
+
+        true ->
+          n = opts[:bptt_val_files] || 16
+          {Enum.drop(replay_files, -n), Enum.take(replay_files, -n)}
       end
+
+    if opts[:bptt] and opts[:checkpoint] do
+      dir = Path.dirname(opts[:checkpoint])
+      File.mkdir_p!(dir)
+      File.write!(Path.join(dir, "split.json"), Jason.encode!(%{train: replay_files, validation: bptt_val_files}, pretty: true))
+    end
 
     file_chunks = Streaming.chunk_files(replay_files, chunk_size)
     Output.puts("  #{length(file_chunks)} chunks of ~#{chunk_size} files")
@@ -1136,7 +1155,9 @@ defmodule ExPhil.Training.Pipeline do
       use_batch: ropts[:use_batch] || false,
       window_size: ropts[:window_size] || 60,
       stride: ropts[:stride] || 5,
-      neutral_weight: Keyword.get(ropts, :neutral_weight, 0.25)
+      neutral_weight: Keyword.get(ropts, :neutral_weight, 0.25),
+      # chunk targets: t+1..t+K controllers ride in the actions map
+      chunk_horizon: ropts[:chunk_horizon]
     ]
 
     stream =

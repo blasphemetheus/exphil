@@ -100,6 +100,57 @@ defmodule ExPhil.Melee.Checkmate do
     end
   end
 
+  @doc """
+  Which recovery routes survive, and how many: `%{count: n, verdict: v, routes: [...]}`
+  with `verdict` `:checkmate` (0 routes), `:forced` (1 — the opponent has one
+  thing to cover) or `:mixup` (2+). Same state keys and grid options as
+  `analyze/2`, but every plan in the search is simulated.
+
+  A route is a means plus a destination: the resources a plan spends, in
+  order (`[]` = drift only, `[:jump]`, `[:up_b]`, `[:jump, :side_b]`, ...)
+  and where it arrives (`:ledge`, `:stage`, `:platform`). Timing variants of
+  the same means to the same place are one route — a ledge reached by Fire
+  Fox at frame 0 or frame 30 is covered by the same ledgehog — and the
+  timing freedom is reported per route instead: `plans` (grid plans that
+  succeed), `delays` (earliest and latest start of the final action) and
+  `fastest` (frames to arrive). Routes come cheapest-means first.
+  """
+  def routes(state, opts \\ []) do
+    s = normalize(state)
+    geo = geometry(s.stage)
+
+    routes =
+      plans(s, opts)
+      |> Enum.flat_map(fn plan ->
+        case simulate(s, geo, plan) do
+          nil -> []
+          {plan, outcome, frames} -> [{plan, outcome, frames}]
+        end
+      end)
+      |> Enum.group_by(fn {plan, outcome, _} -> {Enum.map(plan, &elem(&1, 0)), outcome} end)
+      |> Enum.map(fn {{means, outcome}, hits} ->
+        starts = for {plan, _, _} <- hits, plan != [], do: plan |> List.last() |> elem(1)
+
+        %{
+          means: means,
+          outcome: outcome,
+          plans: length(hits),
+          delays: if(starts == [], do: nil, else: Enum.min_max(starts)),
+          fastest: hits |> Enum.map(&elem(&1, 2)) |> Enum.min()
+        }
+      end)
+      |> Enum.sort_by(&{length(&1.means), &1.fastest})
+
+    verdict =
+      case length(routes) do
+        0 -> :checkmate
+        1 -> :forced
+        _ -> :mixup
+      end
+
+    %{count: length(routes), verdict: verdict, routes: routes}
+  end
+
   defp normalize(st) do
     %{
       stage: trunc(st[:stage] || 32),

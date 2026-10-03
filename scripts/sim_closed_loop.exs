@@ -12,6 +12,9 @@
 # Reports (port 1, pooled over envs):
 #   sd_per_min        stocks lost with no hit taken in the previous 90 frames
 #   deaths_per_min    all stocks lost
+#   deaths_by_verdict stocks lost split by surviving recovery routes at the
+#                     decision frame (Checkmate.routes/1): kill (none existed),
+#                     checkmate (0), forced (1), mixup (2+ = threw the stock)
 #   offstage episodes and the share that ended back on stage (recovery rate)
 #   neutral_share     frames with a fully neutral emitted controller
 #   repeat_prev       frames whose emitted controller equals the previous one
@@ -80,10 +83,21 @@ key = fn c -> {c.button_a, c.button_b, c.button_x, c.button_y, c.button_z, c.but
                Float.round(c.c_stick.x * 1.0, 2), Float.round(c.c_stick.y * 1.0, 2)} end
 offstage? = fn p -> not p.on_ground and (abs(p.x) > edge or p.y < -5.0) end
 
-# per-env running state
-env0 = %{last_hit: -10_000, prev_key: nil, run: 0, max_run: 0, off: false}
+# per-env running state. `actionable` = the state at the latest frame the
+# fighter was offstage and out of hitstun, having been in hitstun or onstage
+# the frame before — the position the recovery decision was made from. A
+# death is bucketed by ExPhil.Melee.Checkmate.routes/1 there: :kill when no
+# such frame existed since the last hit (died in stun), :checkmate (0 routes,
+# the position was lost before any decision), :forced (1 route the opponent
+# could cover) or :mixup (2+ routes open — the fighter threw the stock).
+env0 = %{last_hit: -10_000, prev_key: nil, run: 0, max_run: 0, off: false, actionable: nil}
 acc0 = %{deaths: 0, sds: 0, neutral: 0, repeat: 0, total: 0, off_eps: 0, off_recovered: 0, off_died: 0,
-         dmg_dealt: 0.0, dmg_taken: 0.0, kills: 0, games: 0, max_run: 0}
+         dmg_dealt: 0.0, dmg_taken: 0.0, kills: 0, games: 0, max_run: 0,
+         deaths_by_verdict: %{kill: 0, checkmate: 0, forced: 0, mixup: 0}}
+death_verdict = fn
+  nil -> :kill
+  p -> ExPhil.Melee.Checkmate.routes(GA.checkmate_state(p, stage_id)).verdict
+end
 
 t0 = System.monotonic_time(:millisecond)
 {acc, _envs, _states} =
@@ -115,7 +129,17 @@ t0 = System.monotonic_time(:millisecond)
         run = if k == e.prev_key, do: e.run + 1, else: 1
         was_off = e.off
         now_off = offstage?.(p1) and not died?
+        stun0 = (p0.hitstun_frames_left || 0) > 0
+        stun1 = (p1.hitstun_frames_left || 0) > 0
+        actionable =
+          cond do
+            hit? -> nil
+            now_off and not stun1 and (stun0 or not was_off) -> p1
+            true -> e.actionable
+          end
+        verdict = if died?, do: death_verdict.(e.actionable)
         acc = %{acc |
+          deaths_by_verdict: if(died?, do: Map.update!(acc.deaths_by_verdict, verdict, &(&1 + 1)), else: acc.deaths_by_verdict),
           total: acc.total + 1,
           neutral: acc.neutral + if(neutral?.(c), do: 1, else: 0),
           repeat: acc.repeat + if(k == e.prev_key, do: 1, else: 0),
@@ -128,7 +152,7 @@ t0 = System.monotonic_time(:millisecond)
           off_recovered: acc.off_recovered + if(was_off and not now_off and not died?, do: 1, else: 0),
           off_died: acc.off_died + if(was_off and died?, do: 1, else: 0),
           max_run: max(acc.max_run, run)}
-        {acc, [%{e | last_hit: last_hit, prev_key: k, run: run, max_run: max(e.max_run, run), off: now_off} | out]}
+        {acc, [%{e | last_hit: last_hit, prev_key: k, run: run, max_run: max(e.max_run, run), off: now_off, actionable: actionable} | out]}
       end)
 
     envs = Enum.reverse(envs)
@@ -159,6 +183,8 @@ result = %{
   label: label, policy: policy, opponent: opts[:opponent] || "idle", envs: n, frames_per_env: frames,
   env_minutes: Float.round(minutes, 1),
   sd_per_min: r.(acc.sds, minutes), deaths_per_min: r.(acc.deaths, minutes), kills_per_min: r.(acc.kills, minutes),
+  deaths_by_verdict: acc.deaths_by_verdict,
+  deaths_by_verdict_per_min: Map.new(acc.deaths_by_verdict, fn {v, c} -> {v, r.(c, minutes)} end),
   damage_dealt_per_min: r.(acc.dmg_dealt, minutes), damage_taken_per_min: r.(acc.dmg_taken, minutes),
   offstage_episodes_per_min: r.(acc.off_eps, minutes),
   recovery_rate: r.(acc.off_recovered, acc.off_recovered + acc.off_died),
@@ -174,5 +200,7 @@ end
 
 Output.puts("RESULT #{label} vs #{result.opponent}: #{result.env_minutes} env-min  SD/min #{result.sd_per_min}  deaths/min #{result.deaths_per_min}  " <>
   "kills/min #{result.kills_per_min}  dmg dealt/taken per min #{result.damage_dealt_per_min}/#{result.damage_taken_per_min}")
+Output.puts("RESULT #{label} deaths by verdict at the decision frame: " <>
+  Enum.map_join([:kill, :checkmate, :forced, :mixup], "  ", fn v -> "#{v} #{acc.deaths_by_verdict[v]} (#{result.deaths_by_verdict_per_min[v]}/min)" end))
 Output.puts("RESULT #{label} offstage eps/min #{result.offstage_episodes_per_min}  recovery rate #{inspect(result.recovery_rate)}  " <>
   "neutral #{result.neutral_share}  repeat_prev #{result.repeat_prev}  max frozen run #{result.max_frozen_run} f  (#{result.wall_s}s wall)")

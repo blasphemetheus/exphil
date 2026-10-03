@@ -204,6 +204,8 @@ mix run scripts/train_from_replays.exs --dual-port
 | `--unroll N` | 80 | BPTT chunk length in frames (gradient truncation horizon) |
 | `--bptt-overlap N` | 0 | Must be 0: carried state already consumed every frame of the previous chunk |
 | `--bptt-val-files N` | 16 | Whole replays held out for the carry-threaded val pass (game-level split; val batch is capped at 8 rows) |
+| `--bptt-holdout-split PATH` | none | Hold out the `validation` games of another run's `split.json` instead (score a bptt/windowed pair on the same games); bptt runs always write `split.json` beside the checkpoint |
+| `--recurrent-state zeros\|legacy_random` | legacy_random | Windowed GRU initial state; `zeros` stamps the `windowed_gru_f32_v1` contract (f32, no mixed precision) — the windowed twin of bptt's zero carry |
 
 **Available backbones (15 total):**
 
@@ -387,6 +389,8 @@ These options apply to multiple new architectures:
 | `--stick-edge-weight X` | nil | Weight edge stick buckets higher (try 2.0-3.0) |
 | `--neutral-weight X` | 0.25 | Per-frame loss weight for neutral (no-input) frames; action frames get 1.0. Blanket anti-passivity knob — 1.0 = unweighted (the 09-05 clean-loss arm), which raised idle 6.5x corpus at v2 scale. |
 | `--transition-weight X` | nil | Per-frame loss weight for DECISION frames (controller differs from the previous frame): `max(weight, X)`. Targets *when* to change action (leaving WAIT, committing) instead of downweighting all neutral frames. Flag added 2026-09-07 (was pipeline/drill-only). |
+| `--chunk-horizon K` | nil | Chunk targets: K auxiliary heads predict the controller at t+1..t+K from the same trunk features (training only, dropped at export; windowed AR path). Breaks the prev-action copy shortcut: t+K is not in the channel, so the trunk must read the game state. |
+| `--chunk-weight W` | 1.0 | Weight of the chunk-target loss (mean over the K heads) relative to the main head |
 | `--offstage-weight X` | nil | (bptt path) Per-frame loss weight for OFFSTAGE frames (subject airborne beyond the stage ledge): `max(weight, X)`. Rare-state coverage for recovery — offstage is rare in expert play, so the model gets few reps where it fails. Added 2026-09-08. |
 | `--frame-delay N` (training) | 0 | **Label convention (INVARIANTS.md item 1, GOTCHA #113).** Slippi records each input on the frame whose state it produced, so the raw same-frame pair is leaked. Since 2026-09-09 `Peppi.to_training_frames` ALWAYS pairs state[t] with the input issued from it (raw controller[t+1]); N is reaction delay on top, so N=0 is the causal pairing and the leak cannot be built. Deploy law: a policy trained at reaction k plays at live `--frame-delay k+1` (`ExPhil.Data.LabelConvention`; legacy unstamped checkpoints counted delay d = reaction d-1, and the Agent translates). |
 
@@ -1556,6 +1560,7 @@ Regenerate: `mix run -e 'ExPhil.Training.Config.FlagDocs.write!()'`.
 | `--unroll` | int | `80` | BPTT chunk length in frames (gradient truncation horizon) |
 | `--bptt-overlap` | int | `0` | Frames shared between consecutive BPTT chunks (set to frame_delay + 1) |
 | `--bptt-val-files` | int | `16` | Whole replays held out for the carry-threaded val pass (game-level split; val batch is capped at 8 rows) |
+| `--bptt-holdout-split` | string | none | Hold out the `validation` games of another run's `split.json` (bptt/windowed pair on the same games); bptt runs always write `split.json` beside the checkpoint |
 | `--mixed-precision` | flag | `false` | FP32 master weights + BF16 compute (not recommended) |
 | `--frame-delay` | int | `nil` | Training alias for --label-delay on every loader. Live Dolphin --frame-delay N remains reaction delay N-1. |
 | `--label-delay` | int | `nil` | Reaction delay on top of causal state[t]/controller[t+1] pairing. Defaults to 0 after resolution; standard, streaming, and BPTT loaders apply it once. CLI overrides YAML, preset, and resume values. Live Dolphin delay numbering is unchanged. |
@@ -1618,6 +1623,8 @@ Regenerate: `mix run -e 'ExPhil.Training.Config.FlagDocs.write!()'`.
 | `--entropy-weight` | float | `0.01` | _(undocumented)_ |
 | `--neutral-weight` | float | `0.25` | Per-frame loss weight for neutral (no-input) frames; action frames get 1.0. Blanket anti-passivity knob — 1.0 = unweighted (the 09-05 clean-loss arm), which raised idle 6.5x corpus at v2 scale. |
 | `--transition-weight` | float | `nil` | Per-frame loss weight for DECISION frames (controller differs from the previous frame): `max(weight, X)`. Targets *when* to change action (leaving WAIT, committing) instead of downweighting all neutral frames. Flag added 2026-09-07 (was pipeline/drill-only). |
+| `--chunk-horizon` | int | `nil` | Chunk targets: K auxiliary heads predict the controller at t+1..t+K (training only, dropped at export; windowed AR path) |
+| `--chunk-weight` | float | `1.0` | Weight of the chunk-target loss (mean over the K heads) |
 | `--offstage-weight` | float | `nil` | (bptt path) Per-frame loss weight for OFFSTAGE frames (subject airborne beyond the stage ledge): `max(weight, X)`. Rare-state coverage for recovery — offstage is rare in expert play, so the model gets few reps where it fails. Added 2026-09-08. |
 | `--awbc` | flag | `false` | _(undocumented)_ |
 | `--awbc-reward` | atom | `:shine` | _(undocumented)_ |

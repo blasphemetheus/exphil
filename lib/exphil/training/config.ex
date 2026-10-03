@@ -1495,6 +1495,14 @@ defmodule ExPhil.Training.Config do
       unroll: 80,
       bptt_overlap: 0,
       bptt_val_files: 16,
+      # Path to another run's split.json: its validation games become the
+      # bptt holdout (same held-out games as a windowed control run)
+      bptt_holdout_split: nil,
+      # `--recurrent-state zeros|legacy_random` (windowed GRU initial state;
+      # :zeros = stamped windowed_gru_f32_v1, the windowed twin of bptt's zero
+      # carry) has NO default entry on purpose: ExecutionContract.training/1
+      # reads the key's absence as legacy for windowed runs and as
+      # carried_zero for bptt.
       # FP32 is default - benchmarks show BF16 is 2x SLOWER on RTX 4090 due to
       # XLA issues: dimension misalignment (287 dims not divisible by 16),
       # type casting overhead, and fallback to FP32 kernels internally.
@@ -1660,6 +1668,12 @@ defmodule ExPhil.Training.Config do
       # downweighting neutral frames. nil = off. Was plumbed through the
       # pipeline and drills but had no train.exs flag until 2026-09-07.
       transition_weight: nil,
+      # Chunk targets (2026-10-02, Heads.build_future_heads/4): K auxiliary
+      # heads predict the controller at t+1..t+K from the same trunk
+      # features, loss weighted by chunk_weight; nil = off. Training only —
+      # dropped at export. Windowed AR path only (not bptt).
+      chunk_horizon: nil,
+      chunk_weight: 1.0,
       # Per-frame OFFSTAGE weight (bptt path): frames where the subject is
       # airborne beyond the ledge get max(weight, offstage_weight) —
       # rare-state coverage for recovery (V2_PREP 09-08). nil = off.

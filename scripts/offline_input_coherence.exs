@@ -39,10 +39,14 @@ key = fn c -> {bt.(c), Float.round(c.main_stick.x * 1.0, 2), Float.round(c.main_
                Float.round(c.c_stick.x * 1.0, 2), Float.round(c.c_stick.y * 1.0, 2)} end
 
 Output.banner("Offline input coherence: #{label}")
+# carried-state contracts (bptt GRU) require stateful-step inference
+{:ok, export} = ExPhil.Training.Checkpoint.load_policy(policy)
+contract = ExPhil.Networks.Policy.ExecutionContract.load(export.config)
 {:ok, agent} =
   Agent.start_link(policy_path: policy, deterministic: false, temperature: opts[:temperature] || 1.0,
     af_convention: :parsed, frame_delay: 0, harness: :sync_runner, reaction_delay: 0,
-    stateful_step: opts[:stateful_step] || false, ablate_prev_action: opts[:ablate_prev_action] || false)
+    stateful_step: opts[:stateful_step] || contract.recurrent_state == :carried_zero,
+    ablate_prev_action: opts[:ablate_prev_action] || false)
 {:ok, _} = Agent.warmup(agent)
 
 games =

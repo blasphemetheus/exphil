@@ -180,7 +180,12 @@ btn_bits = fn c -> for b <- [:button_a, :button_b, :button_x, :button_y, :button
   |> Enum.map(fn {c, ci} ->
     {:ok, id} = Env.upload(sim, c.blob)
     for i <- all_rows, do: {:ok, _} = Env.restore(sim, i, {:id, id}, frames: false)
-    {:ok, states} = Env.frames(sim)
+    # `frames: false` skips the re-observe, so Env.frames would still hold the
+    # previous case's final states (found 2026-10-02: route verdicts differed
+    # between runs on the same cases); observe once for all rows.
+    {:ok, states, _} = Env.observe(sim)
+    # surviving routes at the case frame (0 checkmate / 1 forced / 2+ mixup)
+    verdict = Checkmate.routes(GA.checkmate_state(hd(states).players[1], stage_id))
 
     unless idle? do
       :ok = Agent.batch_reset_rows(agent, all_rows)
@@ -243,7 +248,9 @@ btn_bits = fn c -> for b <- [:button_a, :button_b, :button_x, :button_y, :button
     # where unresolved trials ended (action id, y) — to audit the outcome rule
     stuck = for {o, nx} <- Enum.zip(outcomes, finals), o == nil, do: {nx.players[1].action, round(nx.players[1].y)}
     if System.get_env("DRILL_TRACE") == "1" and stuck != [], do: IO.puts("TRACE stuck #{inspect(Enum.frequencies(stuck))} start=(#{round(c.x)},#{round(c.y)})")
-    row = %{x: c.x, y: c.y, jumps: c.jumps, percent: c.percent, recovered: rec, died: died, timeout: k - rec - died}
+    row = %{x: c.x, y: c.y, jumps: c.jumps, percent: c.percent, recovered: rec, died: died, timeout: k - rec - died,
+            routes: verdict.count, verdict: verdict.verdict,
+            route_means: Enum.map(verdict.routes, &"#{Enum.join(&1.means, "+")}->#{&1.outcome}")}
 
     trace_entry =
       if trace? do
@@ -275,11 +282,21 @@ end
 trials = length(rows) * k
 rec = Enum.sum(Enum.map(rows, & &1.recovered))
 died = Enum.sum(Enum.map(rows, & &1.died))
+# recovery by how many routes the position left open: 1 = forced (the opponent
+# has one thing to cover), 2-3 = thin mixup, 4+ = open
+route_bucket = fn n -> cond do n <= 1 -> "1"; n <= 3 -> "2-3"; true -> "4+" end end
+by_routes =
+  rows
+  |> Enum.group_by(&route_bucket.(&1.routes))
+  |> Map.new(fn {b, rs} ->
+    {b, %{cases: length(rs), recovery_rate: Float.round(Enum.sum(Enum.map(rs, & &1.recovered)) / (length(rs) * k), 3)}}
+  end)
+
 result = %{label: label, policy: policy, cases: length(rows), trials: trials,
   recovery_rate: Float.round(rec / trials, 3), died_rate: Float.round(died / trials, 3),
   timeout_rate: Float.round((trials - rec - died) / trials, 3),
   cases_never_recovered: Enum.count(rows, &(&1.recovered == 0)),
-  cases_always_recovered: Enum.count(rows, &(&1.recovered == k)), rows: rows}
+  cases_always_recovered: Enum.count(rows, &(&1.recovered == k)), by_routes: by_routes, rows: rows}
 
 if out = opts[:out] do
   File.mkdir_p!(Path.dirname(out))
@@ -288,3 +305,10 @@ end
 
 Output.puts("RESULT #{label}: #{length(rows)} cases x #{k} trials  recovery #{result.recovery_rate}  died #{result.died_rate}  timeout #{result.timeout_rate}  " <>
   "never #{result.cases_never_recovered}/#{length(rows)}  always #{result.cases_always_recovered}/#{length(rows)}")
+Output.puts("RESULT #{label} by routes: " <>
+  Enum.map_join(["1", "2-3", "4+"], "  ", fn b ->
+    case by_routes[b] do
+      nil -> "#{b}: -"
+      %{cases: n, recovery_rate: r} -> "#{b} routes: #{r} (#{n} cases)"
+    end
+  end))

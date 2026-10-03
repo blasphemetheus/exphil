@@ -161,7 +161,9 @@ defmodule ExPhil.Training.Imitation.Loss do
               "or probe_reg_weight"
     end
 
-    loss_opts = LossConfig.to_loss_opts(lc)
+    # chunk_weight scales the future heads' loss (popped off again in
+    # autoregressive_bc_loss before Policy.imitation_loss sees the opts)
+    loss_opts = LossConfig.to_loss_opts(lc) ++ [chunk_weight: config[:chunk_weight] || 1.0]
 
     # KL-distillation anchor (F3 Route A): when distill_weight > 0 the
     # loss takes teacher logits + a distill mask as 5th/6th ARGUMENTS
@@ -406,21 +408,43 @@ defmodule ExPhil.Training.Imitation.Loss do
   # The plain BC objective shared by both autoregressive loss arms
   defp autoregressive_bc_loss(predict_fn, p, states, actions, frame_weights, loss_opts, head, temporal) do
     inputs = policy_forward_inputs(head, temporal, states, actions)
+    {chunk_weight, loss_opts} = Keyword.pop(loss_opts, :chunk_weight, 1.0)
 
-    {buttons, main_x, main_y, c_x, c_y, shoulder} =
-      predict_fn.(Utils.ensure_model_state(p), inputs)
+    case predict_fn.(Utils.ensure_model_state(p), inputs) do
+      # Chunk targets (Heads.build_future_heads/4): main head + the mean of
+      # the K future heads' losses, each on the t+j target with the mask
+      # (0 past the game's end) folded into the frame weights.
+      {main, futures} when is_tuple(futures) and tuple_size(main) == 6 ->
+        main_loss = Policy.imitation_loss(head_logits(main), actions, loss_opts ++ [frame_weights: frame_weights])
+        k = tuple_size(futures)
 
-    logits = %{
-      buttons: buttons,
-      main_x: main_x,
-      main_y: main_y,
-      c_x: c_x,
-      c_y: c_y,
-      shoulder: shoulder
-    }
+        future_loss =
+          for j <- 0..(k - 1), reduce: Nx.tensor(0.0) do
+            acc ->
+              at = fn t -> t |> Nx.slice_along_axis(j, 1, axis: 1) |> Nx.squeeze(axes: [1]) end
 
-    Policy.imitation_loss(logits, actions, loss_opts ++ [frame_weights: frame_weights])
+              targets = %{
+                buttons: at.(actions.future_buttons),
+                main_x: at.(actions.future_main_x),
+                main_y: at.(actions.future_main_y),
+                c_x: at.(actions.future_c_x),
+                c_y: at.(actions.future_c_y),
+                shoulder: at.(actions.future_shoulder)
+              }
+
+              w = Nx.multiply(frame_weights, at.(actions.future_mask))
+              Nx.add(acc, Policy.imitation_loss(head_logits(elem(futures, j)), targets, loss_opts ++ [frame_weights: w]))
+          end
+
+        Nx.add(main_loss, Nx.multiply(chunk_weight, Nx.divide(future_loss, k)))
+
+      main ->
+        Policy.imitation_loss(head_logits(main), actions, loss_opts ++ [frame_weights: frame_weights])
+    end
   end
+
+  defp head_logits({buttons, main_x, main_y, c_x, c_y, shoulder}),
+    do: %{buttons: buttons, main_x: main_x, main_y: main_y, c_x: c_x, c_y: c_y, shoulder: shoulder}
 
   @doc """
   Build the forward-pass input for a policy given the controller head type.
@@ -628,22 +652,18 @@ defmodule ExPhil.Training.Imitation.Loss do
       # Convert states to eval precision
       states = Nx.as_type(states, precision)
 
-      {buttons, main_x, main_y, c_x, c_y, shoulder} =
-        predict_fn.(
-          Utils.ensure_model_state(params),
-          policy_forward_inputs(forward_head(config), temporal, states, actions)
-        )
+      # val_loss scores the MAIN head only, so chunk-target runs (output
+      # `{head, futures}`) stay comparable with plain ones
+      main =
+        case predict_fn.(
+               Utils.ensure_model_state(params),
+               policy_forward_inputs(forward_head(config), temporal, states, actions)
+             ) do
+          {head, futures} when is_tuple(futures) -> head
+          head -> head
+        end
 
-      logits = %{
-        buttons: buttons,
-        main_x: main_x,
-        main_y: main_y,
-        c_x: c_x,
-        c_y: c_y,
-        shoulder: shoulder
-      }
-
-      Policy.imitation_loss(logits, actions, LossConfig.to_loss_opts(lc))
+      Policy.imitation_loss(head_logits(main), actions, LossConfig.to_loss_opts(lc))
     end
 
     # JIT compile for fast repeated evaluation

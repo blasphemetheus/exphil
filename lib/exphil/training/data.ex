@@ -2311,7 +2311,8 @@ defmodule ExPhil.Training.Data do
         sampling_weights: Keyword.get(opts, :sampling_weights),
         loss_weights: Keyword.get(opts, :loss_weights),
         distill_teacher: Keyword.get(opts, :distill_teacher),
-        distill_mask: Keyword.get(opts, :distill_mask)
+        distill_mask: Keyword.get(opts, :distill_mask),
+        chunk_horizon: Keyword.get(opts, :chunk_horizon)
       )
     else
       # Eager mode: use pre-built sequence embeddings (high RAM, fast batching)
@@ -2592,14 +2593,70 @@ defmodule ExPhil.Training.Data do
     neutral_weight = Keyword.get(opts, :neutral_weight, 0.25)
     transition_weight = Keyword.get(opts, :transition_weight)
 
+    chunk_horizon = Keyword.get(opts, :chunk_horizon)
+    starts = dataset.metadata[:sequence_starts]
+
     # Create batch stream with lazy slicing
     indices
     |> Enum.chunk_every(batch_size)
     |> maybe_drop_last(drop_last, batch_size)
     |> Stream.map(fn batch_indices ->
       batch = create_sequence_batch_lazy(chunks_array, chunk_size, frames_array, batch_indices, window_size, stride, embed_dim, gpu, use_batch, neutral_weight, transition_weight, loss_wtuple, layout)
-      attach_distill_fields(batch, batch_indices, distill, gpu)
+
+      batch
+      |> attach_distill_fields(batch_indices, distill, gpu)
+      |> attach_future_targets(batch_indices, layout, frames_array, starts, chunk_horizon, gpu)
     end)
+  end
+
+  # Chunk targets (Heads.build_future_heads/4): the controller at t+1..t+K
+  # after each window's supervised frame t, stacked on axis 1 inside the
+  # actions map (`future_buttons {b, K, 8}`, `future_main_x {b, K}`, ...)
+  # with `future_mask {b, K}` = 0 where t+j is past the end of the data or
+  # in the next game (`sequence_starts` differs). Extra keys in the actions
+  # map are ignored by every other consumer.
+  defp attach_future_targets(batch, _indices, _layout, _frames, _starts, nil, _gpu), do: batch
+
+  defp attach_future_targets(batch, indices, layout, frames_array, starts, horizon, gpu) do
+    per_seq =
+      Enum.map(indices, fn seq_idx ->
+        {_start, t, _previous} = elem(layout, seq_idx)
+        game = if starts, do: elem(starts, t)
+
+        for j <- 1..horizon do
+          case :array.get(t + j, frames_array) do
+            :undefined -> {neutral_action(), 0.0}
+            frame -> if starts == nil or elem(starts, t + j) == game, do: {get_action(frame), 1.0}, else: {neutral_action(), 0.0}
+          end
+        end
+      end)
+
+    per_j = for j <- 0..(horizon - 1), do: actions_to_tensors(Enum.map(per_seq, fn l -> elem(Enum.at(l, j), 0) end))
+    stack = fn key -> per_j |> Enum.map(& &1[key]) |> Nx.stack(axis: 1) end
+
+    future = %{
+      future_buttons: stack.(:buttons),
+      future_main_x: stack.(:main_x),
+      future_main_y: stack.(:main_y),
+      future_c_x: stack.(:c_x),
+      future_c_y: stack.(:c_y),
+      future_shoulder: stack.(:shoulder),
+      future_mask: Nx.tensor(Enum.map(per_seq, fn l -> Enum.map(l, &elem(&1, 1)) end), type: :f32)
+    }
+
+    future = if gpu, do: transfer_actions_to_gpu(future), else: future
+    %{batch | actions: Map.merge(batch.actions, future)}
+  end
+
+  defp neutral_action do
+    %{
+      buttons: %{a: false, b: false, x: false, y: false, z: false, l: false, r: false, d_up: false},
+      main_x: 8,
+      main_y: 8,
+      c_x: 8,
+      c_y: 8,
+      shoulder: 0
+    }
   end
 
   # F3 distill anchor: gather the precomputed teacher-logit rows + anchor

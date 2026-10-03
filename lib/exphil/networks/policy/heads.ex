@@ -108,6 +108,47 @@ defmodule ExPhil.Networks.Policy.Heads do
     Axon.container({buttons, main_x, main_y, c_x, c_y, shoulder})
   end
 
+  @doc """
+  Chunk-target auxiliary heads (2026-10-02): `horizon` independent
+  six-component heads on the same trunk features, head j predicting the
+  controller at t+j. Training only — the live model is built without them
+  and `Imitation.export_policy/2` drops their `future*` params.
+
+  Why: with the prev-action channel, frame t's controller is explained
+  almost entirely by frame t-1's (the copy shortcut), so the trunk's state
+  pathway gets little gradient and the live policy holds. The controller
+  at t+j is NOT in the channel; the trunk must read the game state to
+  score it, so the shortcut loses its monopoly on the gradient. Nothing
+  conditions on these heads at inference.
+
+  Returns an Axon container `{head_1, ..., head_horizon}`, each a
+  `{buttons, main_x, main_y, c_x, c_y, shoulder}` logits container.
+  """
+  @spec build_future_heads(Axon.t(), pos_integer(), non_neg_integer(), non_neg_integer()) :: Axon.t()
+  def build_future_heads(backbone, horizon, axis_buckets \\ @default_axis_buckets, shoulder_buckets \\ @default_shoulder_buckets) do
+    axis_size = axis_buckets + 1
+    shoulder_size = shoulder_buckets + 1
+
+    mlp = fn hidden, out, name ->
+      backbone
+      |> Axon.dense(hidden, name: "#{name}_hidden")
+      |> Axon.relu()
+      |> Axon.dense(out, name: "#{name}_logits")
+    end
+
+    for j <- 1..horizon do
+      p = "future#{j}_"
+
+      Axon.container(
+        {mlp.(64, @num_buttons, p <> "buttons"), mlp.(64, axis_size, p <> "main_x"),
+         mlp.(64, axis_size, p <> "main_y"), mlp.(64, axis_size, p <> "c_x"),
+         mlp.(64, axis_size, p <> "c_y"), mlp.(32, shoulder_size, p <> "shoulder")}
+      )
+    end
+    |> List.to_tuple()
+    |> Axon.container()
+  end
+
   # Default residual stream width for the autoregressive head
   # (slippi-ai AutoRegressive: residual_size 128, component_depth 0)
   @default_residual_size 128

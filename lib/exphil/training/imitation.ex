@@ -345,7 +345,9 @@ defmodule ExPhil.Training.Imitation do
           expand_factor: config.expand_factor,
           conv_size: config.conv_size,
           chunk_size: Map.get(config, :chunk_size),
-          training_mode: Map.get(config, :training_mode)
+          training_mode: Map.get(config, :training_mode),
+          # Chunk-target auxiliary heads (training only; dropped at export)
+          chunk_horizon: Map.get(config, :chunk_horizon)
         )
       else
         Policy.build(

@@ -1,0 +1,722 @@
+{
+  "label": "prev_q_cf_upb3",
+  "rows": [
+    {
+      "timeout": 0,
+      "x": -86.4256820678711,
+      "y": 9.989738464355469e-5,
+      "died": 0,
+      "jumps": 1,
+      "percent": 6.0,
+      "verdict": "mixup",
+      "routes": 15,
+      "recovered": 8,
+      "route_means": [
+        "->ledge",
+        "air_dodge->ledge",
+        "jump->ledge",
+        "side_b->ledge",
+        "up_b->ledge",
+        "air_dodge->stage",
+        "side_b->stage",
+        "jump->stage",
+        "up_b->stage",
+        "jump+air_dodge->ledge",
+        "jump+side_b->ledge",
+        "jump+up_b->ledge",
+        "jump+air_dodge->stage",
+        "jump+side_b->stage",
+        "jump+up_b->stage"
+      ]
+    },
+    {
+      "timeout": 0,
+      "x": -100.11911010742188,
+      "y": -6.4399003982543945,
+      "died": 2,
+      "jumps": 1,
+      "percent": 29.69999885559082,
+      "verdict": "mixup",
+      "routes": 10,
+      "recovered": 6,
+      "route_means": [
+        "side_b->ledge",
+        "jump->ledge",
+        "up_b->stage",
+        "up_b->ledge",
+        "jump+side_b->stage",
+        "jump+air_dodge->ledge",
+        "jump+side_b->ledge",
+        "jump+up_b->ledge",
+        "jump+up_b->stage",
+        "jump+air_dodge->stage"
+      ]
+    },
+    {
+      "timeout": 0,
+      "x": -135.51934814453125,
+      "y": -64.5203628540039,
+      "died": 5,
+      "jumps": 0,
+      "percent": 5.0,
+      "verdict": "mixup",
+      "routes": 2,
+      "recovered": 3,
+      "route_means": [
+        "up_b->ledge",
+        "up_b->stage"
+      ]
+    },
+    {
+      "timeout": 0,
+      "x": -122.4727554321289,
+      "y": -36.20980453491211,
+      "died": 2,
+      "jumps": 0,
+      "percent": 6.0,
+      "verdict": "mixup",
+      "routes": 6,
+      "recovered": 6,
+      "route_means": [
+        "side_b->ledge",
+        "up_b->ledge",
+        "side_b->stage",
+        "air_dodge->ledge",
+        "air_dodge->stage",
+        "up_b->stage"
+      ]
+    },
+    {
+      "timeout": 0,
+      "x": -149.3417205810547,
+      "y": -60.003665924072266,
+      "died": 2,
+      "jumps": 0,
+      "percent": 26.0,
+      "verdict": "mixup",
+      "routes": 2,
+      "recovered": 6,
+      "route_means": [
+        "up_b->ledge",
+        "up_b->stage"
+      ]
+    },
+    {
+      "timeout": 0,
+      "x": -95.36904907226562,
+      "y": -3.4499001502990723,
+      "died": 2,
+      "jumps": 1,
+      "percent": 17.969999313354492,
+      "verdict": "mixup",
+      "routes": 10,
+      "recovered": 6,
+      "route_means": [
+        "side_b->ledge",
+        "jump->ledge",
+        "up_b->ledge",
+        "up_b->stage",
+        "jump+air_dodge->ledge",
+        "jump+side_b->ledge",
+        "jump+up_b->ledge",
+        "jump+side_b->stage",
+        "jump+air_dodge->stage",
+        "jump+up_b->stage"
+      ]
+    },
+    {
+      "timeout": 0,
+      "x": -112.93949127197266,
+      "y": -52.37837600708008,
+      "died": 5,
+      "jumps": 0,
+      "percent": 40.54999923706055,
+      "verdict": "mixup",
+      "routes": 6,
+      "recovered": 3,
+      "route_means": [
+        "->ledge",
+        "air_dodge->ledge",
+        "side_b->ledge",
+        "up_b->ledge",
+        "air_dodge->stage",
+        "up_b->stage"
+      ]
+    },
+    {
+      "timeout": 0,
+      "x": -91.45399475097656,
+      "y": -17.813932418823242,
+      "died": 1,
+      "jumps": 0,
+      "percent": 10.0,
+      "verdict": "mixup",
+      "routes": 6,
+      "recovered": 7,
+      "route_means": [
+        "->stage",
+        "air_dodge->stage",
+        "up_b->ledge",
+        "side_b->stage",
+        "up_b->stage",
+        "air_dodge->ledge"
+      ]
+    },
+    {
+      "timeout": 0,
+      "x": -92.29714965820312,
+      "y": -20.208251953125,
+      "died": 3,
+      "jumps": 1,
+      "percent": 30.90999984741211,
+      "verdict": "mixup",
+      "routes": 9,
+      "recovered": 5,
+      "route_means": [
+        "jump->stage",
+        "air_dodge->stage",
+        "up_b->ledge",
+        "up_b->stage",
+        "jump+air_dodge->stage",
+        "jump+side_b->stage",
+        "jump+up_b->stage",
+        "jump+side_b->ledge",
+        "jump+up_b->ledge"
+      ]
+    },
+    {
+      "timeout": 0,
+      "x": -131.76150512695312,
+      "y": -20.34710693359375,
+      "died": 6,
+      "jumps": 1,
+      "percent": 64.84000396728516,
+      "verdict": "mixup",
+      "routes": 8,
+      "recovered": 2,
+      "route_means": [
+        "side_b->ledge",
+        "up_b->stage",
+        "up_b->ledge",
+        "jump+side_b->ledge",
+        "jump+side_b->stage",
+        "jump+up_b->ledge",
+        "jump+up_b->stage",
+        "jump+air_dodge->ledge"
+      ]
+    },
+    {
+      "timeout": 0,
+      "x": -110.4817886352539,
+      "y": -33.53764724731445,
+      "died": 3,
+      "jumps": 0,
+      "percent": 6.0,
+      "verdict": "mixup",
+      "routes": 7,
+      "recovered": 5,
+      "route_means": [
+        "->ledge",
+        "air_dodge->ledge",
+        "side_b->ledge",
+        "up_b->ledge",
+        "air_dodge->stage",
+        "side_b->stage",
+        "up_b->stage"
+      ]
+    },
+    {
+      "timeout": 0,
+      "x": -138.97315979003906,
+      "y": -44.2684211730957,
+      "died": 6,
+      "jumps": 0,
+      "percent": 89.74000549316406,
+      "verdict": "mixup",
+      "routes": 3,
+      "recovered": 2,
+      "route_means": [
+        "side_b->ledge",
+        "up_b->ledge",
+        "up_b->stage"
+      ]
+    },
+    {
+      "timeout": 0,
+      "x": -164.83535766601562,
+      "y": -39.210689544677734,
+      "died": 3,
+      "jumps": 0,
+      "percent": 112.83000183105469,
+      "verdict": "mixup",
+      "routes": 2,
+      "recovered": 5,
+      "route_means": [
+        "up_b->ledge",
+        "up_b->stage"
+      ]
+    },
+    {
+      "timeout": 0,
+      "x": -85.85003662109375,
+      "y": 9.999999747378752e-5,
+      "died": 6,
+      "jumps": 1,
+      "percent": 50.30999755859375,
+      "verdict": "mixup",
+      "routes": 13,
+      "recovered": 2,
+      "route_means": [
+        "->stage",
+        "air_dodge->stage",
+        "jump->stage",
+        "side_b->stage",
+        "up_b->stage",
+        "side_b->ledge",
+        "up_b->ledge",
+        "air_dodge->ledge",
+        "jump+air_dodge->stage",
+        "jump+side_b->stage",
+        "jump+up_b->stage",
+        "jump+up_b->ledge",
+        "jump+air_dodge->ledge"
+      ]
+    },
+    {
+      "timeout": 0,
+      "x": -143.09991455078125,
+      "y": -85.4873275756836,
+      "died": 8,
+      "jumps": 0,
+      "percent": 9.549999237060547,
+      "verdict": "mixup",
+      "routes": 2,
+      "recovered": 0,
+      "route_means": [
+        "up_b->ledge",
+        "up_b->stage"
+      ]
+    },
+    {
+      "timeout": 0,
+      "x": -86.5656967163086,
+      "y": -12.02011775970459,
+      "died": 8,
+      "jumps": 0,
+      "percent": 23.549999237060547,
+      "verdict": "mixup",
+      "routes": 3,
+      "recovered": 0,
+      "route_means": [
+        "air_dodge->stage",
+        "up_b->ledge",
+        "up_b->stage"
+      ]
+    },
+    {
+      "timeout": 0,
+      "x": -138.23287963867188,
+      "y": -89.65383911132812,
+      "died": 8,
+      "jumps": 0,
+      "percent": 5.0,
+      "verdict": "mixup",
+      "routes": 2,
+      "recovered": 0,
+      "route_means": [
+        "up_b->ledge",
+        "up_b->stage"
+      ]
+    },
+    {
+      "timeout": 0,
+      "x": 115.6640853881836,
+      "y": 10.48818588256836,
+      "died": 1,
+      "jumps": 0,
+      "percent": 97.1117935180664,
+      "verdict": "mixup",
+      "routes": 7,
+      "recovered": 7,
+      "route_means": [
+        "->ledge",
+        "side_b->stage",
+        "air_dodge->ledge",
+        "side_b->ledge",
+        "up_b->ledge",
+        "up_b->stage",
+        "air_dodge->stage"
+      ]
+    },
+    {
+      "timeout": 0,
+      "x": -111.3625717163086,
+      "y": -50.62080764770508,
+      "died": 5,
+      "jumps": 1,
+      "percent": 28.389999389648438,
+      "verdict": "mixup",
+      "routes": 6,
+      "recovered": 3,
+      "route_means": [
+        "jump->ledge",
+        "up_b->stage",
+        "jump+air_dodge->ledge",
+        "jump+side_b->ledge",
+        "jump+up_b->ledge",
+        "jump+up_b->stage"
+      ]
+    },
+    {
+      "timeout": 0,
+      "x": -105.34846496582031,
+      "y": -22.28420639038086,
+      "died": 4,
+      "jumps": 1,
+      "percent": 19.0,
+      "verdict": "mixup",
+      "routes": 8,
+      "recovered": 4,
+      "route_means": [
+        "side_b->ledge",
+        "jump->stage",
+        "up_b->stage",
+        "jump+air_dodge->stage",
+        "jump+side_b->stage",
+        "jump+up_b->stage",
+        "jump+side_b->ledge",
+        "jump+up_b->ledge"
+      ]
+    },
+    {
+      "timeout": 0,
+      "x": -104.93910217285156,
+      "y": 1.020216703414917,
+      "died": 2,
+      "jumps": 0,
+      "percent": 24.549999237060547,
+      "verdict": "mixup",
+      "routes": 6,
+      "recovered": 6,
+      "route_means": [
+        "air_dodge->stage",
+        "side_b->ledge",
+        "side_b->stage",
+        "up_b->ledge",
+        "air_dodge->ledge",
+        "up_b->stage"
+      ]
+    },
+    {
+      "timeout": 0,
+      "x": 105.875732421875,
+      "y": -17.746566772460938,
+      "died": 1,
+      "jumps": 0,
+      "percent": 106.1117935180664,
+      "verdict": "mixup",
+      "routes": 7,
+      "recovered": 7,
+      "route_means": [
+        "->stage",
+        "up_b->ledge",
+        "air_dodge->stage",
+        "side_b->ledge",
+        "side_b->stage",
+        "up_b->stage",
+        "air_dodge->ledge"
+      ]
+    },
+    {
+      "timeout": 0,
+      "x": -168.4253692626953,
+      "y": 29.929250717163086,
+      "died": 3,
+      "jumps": 0,
+      "percent": 115.51000213623047,
+      "verdict": "mixup",
+      "routes": 3,
+      "recovered": 5,
+      "route_means": [
+        "up_b->ledge",
+        "side_b->ledge",
+        "up_b->stage"
+      ]
+    },
+    {
+      "timeout": 0,
+      "x": -100.92012023925781,
+      "y": -35.201908111572266,
+      "died": 5,
+      "jumps": 0,
+      "percent": 19.0,
+      "verdict": "mixup",
+      "routes": 2,
+      "recovered": 3,
+      "route_means": [
+        "up_b->stage",
+        "up_b->ledge"
+      ]
+    },
+    {
+      "timeout": 0,
+      "x": -92.26427459716797,
+      "y": -10.305126190185547,
+      "died": 3,
+      "jumps": 0,
+      "percent": 24.549999237060547,
+      "verdict": "mixup",
+      "routes": 7,
+      "recovered": 5,
+      "route_means": [
+        "->stage",
+        "up_b->ledge",
+        "air_dodge->stage",
+        "side_b->ledge",
+        "side_b->stage",
+        "up_b->stage",
+        "air_dodge->ledge"
+      ]
+    },
+    {
+      "timeout": 0,
+      "x": 147.0419464111328,
+      "y": -18.72964096069336,
+      "died": 2,
+      "jumps": 0,
+      "percent": 101.56999969482422,
+      "verdict": "mixup",
+      "routes": 2,
+      "recovered": 6,
+      "route_means": [
+        "up_b->ledge",
+        "up_b->stage"
+      ]
+    },
+    {
+      "timeout": 0,
+      "x": -132.14376831054688,
+      "y": -31.152610778808594,
+      "died": 3,
+      "jumps": 0,
+      "percent": 79.18999481201172,
+      "verdict": "mixup",
+      "routes": 4,
+      "recovered": 5,
+      "route_means": [
+        "side_b->ledge",
+        "up_b->ledge",
+        "side_b->stage",
+        "up_b->stage"
+      ]
+    },
+    {
+      "timeout": 0,
+      "x": -100.5708236694336,
+      "y": -35.896949768066406,
+      "died": 2,
+      "jumps": 1,
+      "percent": 53.220001220703125,
+      "verdict": "mixup",
+      "routes": 9,
+      "recovered": 6,
+      "route_means": [
+        "jump->stage",
+        "up_b->stage",
+        "up_b->ledge",
+        "jump+air_dodge->stage",
+        "jump+up_b->ledge",
+        "jump+side_b->ledge",
+        "jump+side_b->stage",
+        "jump+up_b->stage",
+        "jump+air_dodge->ledge"
+      ]
+    },
+    {
+      "timeout": 0,
+      "x": -140.38697814941406,
+      "y": 23.836570739746094,
+      "died": 5,
+      "jumps": 0,
+      "percent": 68.55999755859375,
+      "verdict": "mixup",
+      "routes": 6,
+      "recovered": 3,
+      "route_means": [
+        "side_b->ledge",
+        "up_b->ledge",
+        "side_b->stage",
+        "up_b->stage",
+        "air_dodge->stage",
+        "air_dodge->ledge"
+      ]
+    },
+    {
+      "timeout": 0,
+      "x": -95.74735260009766,
+      "y": -16.545425415039062,
+      "died": 1,
+      "jumps": 1,
+      "percent": 103.11000061035156,
+      "verdict": "mixup",
+      "routes": 14,
+      "recovered": 7,
+      "route_means": [
+        "->ledge",
+        "air_dodge->ledge",
+        "jump->ledge",
+        "side_b->ledge",
+        "up_b->ledge",
+        "jump->stage",
+        "air_dodge->stage",
+        "up_b->stage",
+        "jump+air_dodge->ledge",
+        "jump+side_b->ledge",
+        "jump+up_b->ledge",
+        "jump+air_dodge->stage",
+        "jump+side_b->stage",
+        "jump+up_b->stage"
+      ]
+    },
+    {
+      "timeout": 0,
+      "x": -111.1275405883789,
+      "y": -19.982032775878906,
+      "died": 4,
+      "jumps": 1,
+      "percent": 36.75,
+      "verdict": "mixup",
+      "routes": 11,
+      "recovered": 4,
+      "route_means": [
+        "jump->ledge",
+        "side_b->ledge",
+        "up_b->ledge",
+        "jump->stage",
+        "up_b->stage",
+        "jump+air_dodge->ledge",
+        "jump+side_b->ledge",
+        "jump+up_b->ledge",
+        "jump+air_dodge->stage",
+        "jump+side_b->stage",
+        "jump+up_b->stage"
+      ]
+    },
+    {
+      "timeout": 0,
+      "x": -111.26846313476562,
+      "y": -19.069597244262695,
+      "died": 1,
+      "jumps": 1,
+      "percent": 60.269996643066406,
+      "verdict": "mixup",
+      "routes": 10,
+      "recovered": 7,
+      "route_means": [
+        "side_b->ledge",
+        "jump->ledge",
+        "up_b->stage",
+        "up_b->ledge",
+        "jump+air_dodge->ledge",
+        "jump+side_b->ledge",
+        "jump+up_b->ledge",
+        "jump+air_dodge->stage",
+        "jump+side_b->stage",
+        "jump+up_b->stage"
+      ]
+    },
+    {
+      "timeout": 0,
+      "x": -81.22319030761719,
+      "y": -57.089805603027344,
+      "died": 0,
+      "jumps": 0,
+      "percent": 13.149999618530273,
+      "verdict": "forced",
+      "routes": 1,
+      "recovered": 8,
+      "route_means": [
+        "up_b->stage"
+      ]
+    },
+    {
+      "timeout": 0,
+      "x": 133.98484802246094,
+      "y": 93.5099105834961,
+      "died": 0,
+      "jumps": 1,
+      "percent": 90.24810791015625,
+      "verdict": "mixup",
+      "routes": 11,
+      "recovered": 8,
+      "route_means": [
+        "side_b->stage",
+        "jump->stage",
+        "side_b->ledge",
+        "up_b->ledge",
+        "up_b->stage",
+        "jump+side_b->stage",
+        "jump+air_dodge->ledge",
+        "jump+side_b->ledge",
+        "jump+up_b->stage",
+        "jump+air_dodge->stage",
+        "jump+up_b->ledge"
+      ]
+    },
+    {
+      "timeout": 0,
+      "x": -93.07281494140625,
+      "y": -20.9349422454834,
+      "died": 2,
+      "jumps": 0,
+      "percent": 47.040000915527344,
+      "verdict": "mixup",
+      "routes": 2,
+      "recovered": 6,
+      "route_means": [
+        "up_b->stage",
+        "up_b->ledge"
+      ]
+    },
+    {
+      "timeout": 0,
+      "x": -88.61396026611328,
+      "y": -16.13935661315918,
+      "died": 3,
+      "jumps": 0,
+      "percent": 15.073419570922852,
+      "verdict": "mixup",
+      "routes": 5,
+      "recovered": 5,
+      "route_means": [
+        "->ledge",
+        "air_dodge->ledge",
+        "side_b->ledge",
+        "up_b->ledge",
+        "air_dodge->stage"
+      ]
+    }
+  ],
+  "policy": "checkpoints/coh_prev_q/model_best_policy.bin",
+  "cases": 36,
+  "trials": 288,
+  "by_routes": {
+    "1": {
+      "cases": 1,
+      "recovery_rate": 1.0
+    },
+    "2-3": {
+      "cases": 11,
+      "recovery_rate": 0.409
+    },
+    "4+": {
+      "cases": 24,
+      "recovery_rate": 0.661
+    }
+  },
+  "recovery_rate": 0.594,
+  "died_rate": 0.406,
+  "timeout_rate": 0.0,
+  "cases_never_recovered": 3,
+  "cases_always_recovered": 3
+}
