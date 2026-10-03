@@ -909,3 +909,23 @@ change a model that already reads state?), prev_q_ck8_s906 and
 prev_q_ck8w3_s906 (training-seed replicates), prev_q_ck12, and
 mamba_prev_q_ck8 (small Mamba on the same slice: does the lever port?),
 then the Q1/Q2 probe on each (`eval_runs/1002_interp/probe_<name>.json`).
+
+### Queue 9 probes (01:15) — state sensitivity is not the whole story
+
+| | prev_q | ck4 | ck8 | ck16 | ck8w3 | base |
+|---|---|---|---|---|---|---|
+| Q1 state-swap KL change / hold | 0.125 / 0.072 | 0.197 / 0.128 | **0.239 / 0.138** | 0.202 / 0.127 | **0.238 / 0.137** | 1.80 / 1.51 |
+| Q1 prev-slot-zeroed KL change / hold | 6.92 / 4.83 | 6.59 / 4.79 | 6.45 / 4.55 | 6.62 / 4.82 | 6.56 / 4.68 | — |
+| Q2 head TF change recall / false-change | 0.505 / 0.047 | 0.524 / 0.048 | 0.514 / 0.050 | 0.517 / 0.052 | 0.523 / 0.059 | 0.84 / — |
+| Q2 probe "button change now" / "within 6" | 0.70 / 0.68 | 0.71 / 0.69 | 0.71 / 0.69 | 0.71 / 0.68 | 0.71 / 0.70 | 0.63 / — |
+
+Every chunk variant raises the head's state sensitivity (0.125 → 0.20–0.24)
+and none moves the head's change emission (0.51–0.52) or the trunk's
+"change now" content (0.70–0.71). Two things follow. (1) K=4 raised
+sensitivity as much as K=16 and plays worst, and K=8 at weight 1 and 3
+have the same sensitivity with different play — so the KL is a necessary
+sign, not a predictor: WHAT the trunk reads the state for matters, not
+just how much. (2) The emission numbers are frozen across the whole
+sweep, exactly where L-cancels and thin-mixup recoveries are frozen —
+consistent with those being a head-emission defect that trunk-side
+losses cannot reach (queue 10's events + chunk combination).
