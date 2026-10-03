@@ -447,6 +447,14 @@ defmodule ExPhil.Training.Imitation.Loss do
     do: %{buttons: buttons, main_x: main_x, main_y: main_y, c_x: c_x, c_y: c_y, shoulder: shoulder}
 
   @doc """
+  The main six-head logit tuple of a policy's output. Chunk-target models
+  (`--chunk-horizon K`) return `{main, futures}` in training; evals that only
+  score the next-frame head unwrap it here.
+  """
+  def main_head({{_, _, _, _, _, _} = main, _futures}), do: main
+  def main_head({_, _, _, _, _, _} = main), do: main
+
+  @doc """
   Build the forward-pass input for a policy given the controller head type.
 
   `:independent` policies take the bare states tensor; `:autoregressive`

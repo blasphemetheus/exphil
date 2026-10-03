@@ -30,7 +30,8 @@ defmodule ExPhil.Eval.Calibration do
     acc =
       Enum.reduce(batches, %{n: 0, buttons: %{}, cats: %{}, cond: %{}}, fn batch, acc ->
         logits = trainer.predict_fn.(trainer.policy_params, Loss.policy_forward_inputs(head, true, batch.states, batch.actions))
-        {b_l, mx, my, cx, cy, sh} = logits
+        # chunk-target models (--chunk-horizon) output {main_head, future_heads}; calibrate the main head
+        {b_l, mx, my, cx, cy, sh} = Loss.main_head(logits)
         host = &(Nx.backend_copy(&1, Nx.BinaryBackend))
 
         probs = b_l |> Nx.as_type(:f32) |> Nx.sigmoid() |> host.() |> Nx.to_list()
