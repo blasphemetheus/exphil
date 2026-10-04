@@ -1014,3 +1014,83 @@ with the whole premise — the decision moves into the heads. The seed
 replicates confirm the chunk-alone sensitivity sits at 0.19–0.24 at both
 seeds while closed-loop damage varied 20–56, i.e. the KL tracks the
 training recipe, not the per-seed outcome.
+
+## 10-04: live look at evt2_ck8 / evt2_ck8w3, queue 11, the SD review
+
+### Live (Bradley, 10 + 8 games) vs the sim's prediction
+
+`scripts/live_scorecard.exs` (same PlayStats as the sim card, over .slp):
+
+| | evt2_ck8 sim → live | evt2_ck8w3 sim → live | expert |
+|---|---|---|---|
+| fidelity distance | 0.250 → 0.264 | 0.225 → 0.226 | — |
+| SD/min | 1.23 → 1.43 | 1.43 → 1.65 | 0.44 |
+| L-cancel | 0.51 → 0.52 | 0.71 → 0.65 | 0.83 |
+| input repeat share | 0.64 → 0.68 | 0.66 → 0.72 | 0.76 |
+| A / B presses per min | 23 / 24 | 18 / 15 | 22 / 20 |
+| damage dealt / taken per min | 54 / 189 | 60 / 196 | 133 / 141 |
+
+Bradley: "pretty similar … both SD'd a fair amount; the first side-B'd
+more, the other drifted off / didn't drift back and up-B." No freeze, no
+flicker. The closed-loop suite is now validated on event-head models
+(every metric within 0.02–0.2 of live). Coherence is closed as a
+problem; **recovery (SD ≈ 1.5/min, 3.5× expert) is the gap.**
+
+### Queue 11 (`scripts/coherence_queue11.sh`, 15:23–18:20)
+
+| | evt2_ck8 | evt2_ck8 s906 | evt2_ck8w3 | evt2_ck8w3 s906 | evt2_ck8w2 | evt2_ck8 ×3 epochs |
+|---|---|---|---|---|---|---|
+| self-play dmg/min | 65 | 74 | 67 | **96** | 73 | 80 |
+| self-play SD/min | 1.23 | 1.28 | 1.43 | **1.02** | 1.91 | 1.81 |
+| vs idle dmg/min | 46 | 79 | 32 | **108** | 42 | 55 |
+| L-cancel | 0.51 | 0.58 | 0.712 | **0.715** | 0.67 | 0.64 |
+| fidelity distance | 0.250 | 0.238 | 0.225 | 0.235 | 0.221 | **0.213** |
+| repeat share | 0.64 | 0.64 | 0.66 | 0.64 | 0.63 | 0.65 |
+| drill; thin bucket; never | **0.43**; 0.30; 2 | 0.38; 0.18; 4 | 0.35; 0.19; 4 | 0.34; 0.26; 5 | 0.32; 0.18; 9 | 0.38; 0.28; 3 |
+| val (main head) | 1.33 | — | 1.34 | — | — | 1.295 |
+
+- **The events + chunk result replicates across training seed** (unlike
+  plain ck8): drill 0.43/0.38 and 0.35/0.34, L-cancel 0.715/0.712
+  exactly, fidelity within 0.012, repeat 0.64 everywhere. Damage still
+  swings by seed (w3: 67 → 96 self-play, 32 → 108 vs idle) but upward.
+- **Weight orders fidelity and L-cancel, not recovery** (w1 0.43/0.38,
+  w2 0.32, w3 0.35/0.34).
+- **Three epochs**: fidelity 0.213 (best), L-cancel 0.64, damage 80 —
+  and SD 1.81, drill 0.38. More of the same training improves
+  everything except SDs. Fourth knob this week with that signature.
+
+### SD review of the live games (`scripts/sd_review.exs`, `eval_runs/1004_live/sd_review_*.json`)
+
+Every bot death, read back to the decision frame (same state machine as
+`sim_closed_loop.exs`), judged by `Checkmate.routes/1`, with what the
+bot did on the way down. 54 deaths: **38 mixup** (2+ routes open — thrown
+stocks), 13 died in stun, 2 checkmate, 1 forced.
+
+| attempt on the 38 thrown stocks | n | trace |
+|---|---|---|
+| side-B, never up-B | 13 | `TUMBLING > FOX_ILLUSION > SHORTENED > DEAD_FALL` from BELOW ledge height (y −10 … −53): illusion falls short, helpless. Only up-B works there. |
+| jump only → airdodge | 11 | at the ledge (x ≈ ±86, y ≈ 0, 10–15 routes): double-jump, then AIRDODGE into special fall |
+| laser / shine offstage | 8 | at ledge height with a jump left |
+| nothing | 4 | |
+| up-B, still died | 3 | `FIREFOX_AIR > DEAD_FALL`: aimed short |
+
+The channel model's defect was "never presses B". This model presses
+plenty — it **chooses the wrong means for its height**: side-B when
+low, airdodge/laser when at the ledge. Both of Bradley's impressions
+(ck8 side-B'd; w3 drifted and didn't up-B) are in the table. That is a
+conditioning failure on a few state dims (y, jumps left), on a trunk the
+probe says reads state harder than any coherent model before it — the
+next interp question is whether the recovery choice is keyed on height
+at all (state-swap KL restricted to y / jumps on offstage frames).
+
+### Queue 12 (`scripts/coherence_queue12.sh`, launched 18:25, ~3 h)
+
+Carried-state BPTT retested with the recipe that works windowed, at a
+matched update count: per-timestep event heads and chunk targets now
+run under `train.exs --bptt` (collapse layers broadcast over time; future
+head j scores the chunk's own targets shifted by j; commit 2dfdcdd9).
+`bptt_evt2_ck8_e5` (5 epochs ≈ 16.7k updates = the windowed count) and
+`bptt_q_e5` (the queue 8 recipe at 5 epochs: under-training control).
+Verdicts: beats windowed evt2_ck8 on SD/drill → the carry was a
+casualty of the trunk channel; freezes anyway → the carry is out for
+good; bptt_q_e5 un-freezes → queue 8 was an under-training artifact.
