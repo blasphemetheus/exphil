@@ -424,6 +424,15 @@ defmodule ExPhil.Training.Imitation do
               "tf_c_x" => Nx.template({1, unroll}, :s64),
               "tf_c_y" => Nx.template({1, unroll}, :s64)
             })
+            # per-timestep event heads: previous input at every position
+            |> then(fn t ->
+              if config[:button_events],
+                do: Map.put(t, "prev_buttons", Nx.template({1, unroll, 8}, init_precision)),
+                else: t
+            end)
+            |> then(fn t ->
+              if config[:stick_events], do: Map.put(t, "prev_sticks", Nx.template({1, unroll, 4}, :s64)), else: t
+            end)
           else
             base
           end
