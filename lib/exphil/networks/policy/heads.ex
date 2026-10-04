@@ -220,10 +220,9 @@ defmodule ExPhil.Networks.Policy.Heads do
     # with the PREVIOUS frame's bucket for main_x, main_y, c_x, c_y, or nil.
     stick_events_prev = Keyword.get(opts, :stick_events_prev)
 
-    if (button_events_prev || stick_events_prev) && per_timestep do
-      raise ArgumentError, "button/stick events are not supported with per_timestep (BPTT) heads"
-    end
-
+    # per_timestep (BPTT) event heads (2026-10-04): the prev nodes carry a
+    # time dim too (`{b, t, 8}` / `{b, t, 4}`); the collapse functions act
+    # on the last axis, so they broadcast over it unchanged.
     axis_size = axis_buckets + 1
     shoulder_size = shoulder_buckets + 1
 
@@ -280,7 +279,7 @@ defmodule ExPhil.Networks.Policy.Heads do
 
           Axon.layer(
             fn raw, prev, _opts ->
-              col = prev |> Nx.slice_along_axis(j, 1, axis: 1) |> Nx.squeeze(axes: [1])
+              col = prev |> Nx.slice_along_axis(j, 1, axis: -1) |> Nx.squeeze(axes: [-1])
               collapse_hold_change(raw, col)
             end,
             [raw, prev],

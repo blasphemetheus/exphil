@@ -283,10 +283,10 @@ defmodule ExPhil.Training.Imitation do
     config =
       if config[:button_events] || config[:stick_events] do
         unless config.temporal and head == :autoregressive and config[:use_prev_action] and
-                 not (config[:bptt] || false) and config[:kmeans_centers] == nil do
+                 config[:kmeans_centers] == nil do
           raise ArgumentError,
                 "button_events / stick_events require temporal: true, head: :autoregressive, " <>
-                  "use_prev_action: true, uniform stick buckets and no bptt"
+                  "use_prev_action: true and uniform stick buckets"
         end
 
         [offset, 13] = ExPhil.Interp.Attribution.prev_action_dim_range(config: embed_config)
@@ -308,7 +308,10 @@ defmodule ExPhil.Training.Imitation do
           num_layers: config.num_layers,
           dropout: config.dropout,
           axis_buckets: config.axis_buckets,
-          shoulder_buckets: config.shoulder_buckets
+          shoulder_buckets: config.shoulder_buckets,
+          button_events: config[:button_events] || false,
+          stick_events: config[:stick_events] || false,
+          chunk_horizon: Map.get(config, :chunk_horizon)
         )
       else
       if config.temporal do

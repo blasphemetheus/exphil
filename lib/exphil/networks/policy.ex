@@ -361,15 +361,28 @@ defmodule ExPhil.Networks.Policy do
           Heads.build_controller_head(seq, axis_buckets, shoulder_buckets)
 
         :autoregressive ->
+          # event heads (2026-10-04): previous input at EVERY position, as
+          # its own input ({b, t, 8} / {b, t, 4}); the trunk's slot is zeroed
+          # by Imitation.Loss.bptt_inputs/4
           Heads.build_autoregressive_head(seq,
             axis_buckets: axis_buckets,
             shoulder_buckets: shoulder_buckets,
-            per_timestep: true
+            per_timestep: true,
+            button_events_prev: if(opts[:button_events], do: Axon.input("prev_buttons", shape: {nil, nil, 8})),
+            stick_events_prev: if(opts[:stick_events], do: Axon.input("prev_sticks", shape: {nil, nil, 4}))
           )
 
         other ->
           raise ArgumentError,
                 "Unknown controller head: #{inspect(other)}. Valid: :independent, :autoregressive"
+      end
+
+    # chunk targets (training only): `{{head, futures}, final_hidden}`; the
+    # future heads broadcast over the time axis like the main head
+    logits =
+      case Keyword.get(opts, :chunk_horizon) do
+        nil -> logits
+        k when is_integer(k) and k > 0 -> Axon.container({logits, Heads.build_future_heads(seq, k, axis_buckets, shoulder_buckets)})
       end
 
     Axon.container({logits, final_hidden})

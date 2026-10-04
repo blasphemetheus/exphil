@@ -279,51 +279,20 @@ defmodule ExPhil.Training.Imitation.Loss do
     head = lc.head
     loss_opts = LossConfig.to_loss_opts(lc)
 
+    # the typed head, tagged with the event-head spec when configured
+    event_head = case forward_head(config) do {_, events} -> {head, events}; _ -> head end
+    chunk_weight = config[:chunk_weight] || 1.0
+
     inner_fn = fn params, states, actions, frame_weights, initial_hidden ->
       states = Nx.as_type(states, precision)
 
       loss_fn = fn p ->
-        inputs =
-          case head do
-            :autoregressive ->
-              ExPhil.Networks.Policy.Heads.tf_inputs(actions)
-              |> Map.put("state_sequence", states)
-              |> Map.put("initial_hidden", initial_hidden)
+        inputs = bptt_inputs(event_head, states, actions, initial_hidden)
 
-            :independent ->
-              %{"state_sequence" => states, "initial_hidden" => initial_hidden}
-          end
+        %{prediction: {prediction, final_hidden}, state: updated_state} =
+          predict_fn.(Utils.ensure_model_state(p), inputs)
 
-        %{prediction: {{buttons, main_x, main_y, c_x, c_y, shoulder}, final_hidden},
-          state: updated_state} = predict_fn.(Utils.ensure_model_state(p), inputs)
-
-        b = Nx.axis_size(buttons, 0)
-        t = Nx.axis_size(buttons, 1)
-
-        flat = fn tensor ->
-          case Nx.rank(tensor) do
-            2 -> Nx.reshape(tensor, {b * t})
-            3 -> Nx.reshape(tensor, {b * t, Nx.axis_size(tensor, 2)})
-          end
-        end
-
-        logits = %{
-          buttons: flat.(buttons),
-          main_x: flat.(main_x),
-          main_y: flat.(main_y),
-          c_x: flat.(c_x),
-          c_y: flat.(c_y),
-          shoulder: flat.(shoulder)
-        }
-
-        flat_targets = Map.new(actions, fn {k, v} -> {k, flat.(v)} end)
-
-        loss =
-          Policy.imitation_loss(
-            logits,
-            flat_targets,
-            loss_opts ++ [frame_weights: flat.(frame_weights)]
-          )
+        loss = bptt_supervision(prediction, actions, frame_weights, loss_opts, chunk_weight)
 
         {loss, {final_hidden, updated_state}}
       end
@@ -354,55 +323,118 @@ defmodule ExPhil.Training.Imitation.Loss do
     head = lc.head
     loss_opts = LossConfig.to_loss_opts(lc)
 
+    # the typed head, tagged with the event-head spec when configured
+    event_head = case forward_head(config) do {_, events} -> {head, events}; _ -> head end
+
     inner_fn = fn params, states, actions, frame_weights, initial_hidden ->
       states = Nx.as_type(states, precision)
-
-      inputs =
-        case head do
-          :autoregressive ->
-            ExPhil.Networks.Policy.Heads.tf_inputs(actions)
-            |> Map.put("state_sequence", states)
-            |> Map.put("initial_hidden", initial_hidden)
-
-          :independent ->
-            %{"state_sequence" => states, "initial_hidden" => initial_hidden}
-        end
-
-      {{buttons, main_x, main_y, c_x, c_y, shoulder}, final_hidden} =
-        predict_fn.(Utils.ensure_model_state(params), inputs)
-
-      b = Nx.axis_size(buttons, 0)
-      t = Nx.axis_size(buttons, 1)
-
-      flat = fn tensor ->
-        case Nx.rank(tensor) do
-          2 -> Nx.reshape(tensor, {b * t})
-          3 -> Nx.reshape(tensor, {b * t, Nx.axis_size(tensor, 2)})
-        end
-      end
-
-      logits = %{
-        buttons: flat.(buttons),
-        main_x: flat.(main_x),
-        main_y: flat.(main_y),
-        c_x: flat.(c_x),
-        c_y: flat.(c_y),
-        shoulder: flat.(shoulder)
-      }
-
-      flat_targets = Map.new(actions, fn {k, v} -> {k, flat.(v)} end)
-
-      loss =
-        Policy.imitation_loss(
-          logits,
-          flat_targets,
-          loss_opts ++ [frame_weights: flat.(frame_weights)]
-        )
-
+      inputs = bptt_inputs(event_head, states, actions, initial_hidden)
+      {prediction, final_hidden} = predict_fn.(Utils.ensure_model_state(params), inputs)
+      # val scores the main head only (chunk weight 0), like the windowed path
+      loss = bptt_supervision(prediction, actions, frame_weights, loss_opts, 0.0)
       {loss, final_hidden}
     end
 
     Nx.Defn.jit(inner_fn, compiler: EXLA, on_conflict: :reuse)
+  end
+
+  # BPTT forward inputs: per-timestep tf_* inputs + the carry; event heads
+  # (2026-10-04) get the previous input at EVERY position from the prev-action
+  # slot (the sequence already carries it) and the trunk sees the slot zeroed,
+  # exactly as policy_forward_inputs/4 does for the last position of a window.
+  defp bptt_inputs(:independent, states, _actions, initial_hidden),
+    do: %{"state_sequence" => states, "initial_hidden" => initial_hidden}
+
+  defp bptt_inputs(:autoregressive, states, actions, initial_hidden) do
+    ExPhil.Networks.Policy.Heads.tf_inputs(actions)
+    |> Map.put("state_sequence", states)
+    |> Map.put("initial_hidden", initial_hidden)
+  end
+
+  defp bptt_inputs({:autoregressive, {:events, ev}}, states, actions, initial_hidden) do
+    offset = ev.offset
+    idx = Nx.iota({Nx.axis_size(states, 2)})
+    keep = Nx.logical_or(Nx.less(idx, offset), Nx.greater_equal(idx, offset + 13))
+    masked = Nx.multiply(states, Nx.as_type(keep, Nx.type(states)))
+
+    inputs = bptt_inputs(:autoregressive, masked, actions, initial_hidden)
+
+    inputs =
+      if ev.buttons,
+        do: Map.put(inputs, "prev_buttons", Nx.slice_along_axis(states, offset, 8, axis: 2)),
+        else: inputs
+
+    if ev.sticks do
+      buckets =
+        states
+        |> Nx.slice_along_axis(offset + 8, 4, axis: 2)
+        |> Nx.as_type(:f32)
+        |> Nx.divide(2.0)
+        |> Nx.add(0.5)
+        |> Nx.multiply(ev.axis_buckets)
+        |> Nx.floor()
+        |> Nx.clip(0, ev.axis_buckets - 1)
+        |> Nx.as_type(:s64)
+
+      Map.put(inputs, "prev_sticks", buckets)
+    else
+      inputs
+    end
+  end
+
+  # Per-timestep supervision: logits/targets/weights flatten {b, t, *} ->
+  # {b*t, *} into Policy.imitation_loss. With chunk targets the prediction is
+  # {main, futures}; future head j at position i is scored against the target
+  # at i + j, which a contiguous chunk already holds: shift the targets left
+  # by j and mask positions that fall off the unroll (rows never cross a
+  # segment boundary, and padding carries zero frame weight already).
+  defp bptt_supervision({main, futures}, actions, frame_weights, loss_opts, chunk_weight)
+       when is_tuple(futures) and tuple_size(main) == 6 do
+    main_loss = bptt_supervision(main, actions, frame_weights, loss_opts, 0.0)
+    k = tuple_size(futures)
+    t = Nx.axis_size(frame_weights, 1)
+
+    future_loss =
+      for j <- 1..k, reduce: Nx.tensor(0.0) do
+        acc ->
+          shift = fn tensor ->
+            kept = Nx.slice_along_axis(tensor, j, t - j, axis: 1)
+            reps = List.duplicate(1, Nx.rank(tensor)) |> List.replace_at(1, j)
+            pad = tensor |> Nx.slice_along_axis(t - 1, 1, axis: 1) |> Nx.tile(reps)
+            Nx.concatenate([kept, pad], axis: 1)
+          end
+
+          targets = Map.new(actions, fn {key, v} -> {key, shift.(v)} end)
+          valid = Nx.less(Nx.iota({1, t}), t - j) |> Nx.as_type(Nx.type(frame_weights))
+          w = frame_weights |> Nx.multiply(shift.(frame_weights)) |> Nx.multiply(valid)
+          Nx.add(acc, bptt_supervision(elem(futures, j - 1), targets, w, loss_opts, 0.0))
+      end
+
+    Nx.add(main_loss, Nx.multiply(chunk_weight, Nx.divide(future_loss, k)))
+  end
+
+  defp bptt_supervision({buttons, main_x, main_y, c_x, c_y, shoulder}, actions, frame_weights, loss_opts, _chunk_weight) do
+    b = Nx.axis_size(buttons, 0)
+    t = Nx.axis_size(buttons, 1)
+
+    flat = fn tensor ->
+      case Nx.rank(tensor) do
+        2 -> Nx.reshape(tensor, {b * t})
+        3 -> Nx.reshape(tensor, {b * t, Nx.axis_size(tensor, 2)})
+      end
+    end
+
+    logits = %{
+      buttons: flat.(buttons),
+      main_x: flat.(main_x),
+      main_y: flat.(main_y),
+      c_x: flat.(c_x),
+      c_y: flat.(c_y),
+      shoulder: flat.(shoulder)
+    }
+
+    flat_targets = Map.new(actions, fn {key, v} -> {key, flat.(v)} end)
+    Policy.imitation_loss(logits, flat_targets, loss_opts ++ [frame_weights: flat.(frame_weights)])
   end
 
   # The plain BC objective shared by both autoregressive loss arms
