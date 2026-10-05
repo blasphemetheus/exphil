@@ -1,0 +1,14 @@
+{
+  "frames": 6033,
+  "label_b_share": 0.445,
+  "label_jump_share": 0.202,
+  "policy": "checkpoints/coh_evt2ctx_ck8/model_best_policy.bin",
+  "policy_silent_share": 1.0,
+  "run_len_median": 96,
+  "runs": 584,
+  "seeds": [
+    2001,
+    2002,
+    2003
+  ]
+}

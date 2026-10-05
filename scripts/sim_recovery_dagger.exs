@@ -21,8 +21,16 @@ alias ExPhil.Training.{Checkpoint, Output, SilentFallWeighting}
 {opts, _, bad} =
   OptionParser.parse(System.argv(),
     strict: [policy: :string, out: :string, envs: :integer, frames: :integer, seeds: :string, opponent: :string,
-             report: :string, action_delay: :integer])
+             report: :string, action_delay: :integer, only_silent: :boolean])
 if bad != [], do: raise("invalid options: #{inspect(bad)}")
+
+# --only-silent (16:50): relabel ONLY the frames where the policy's actual
+# press was neutral — the diagnosed defect ("silent-falling -> act") and
+# nothing else. The full set (every offstage frame, 15.5k frames x4 = +50 %
+# of the corpus's offstage data in a robotic style: full deflection every
+# frame, B on 35 % of frames) shifted the policy globally even
+# teacher-forced (neutral share 0.26 -> 0.10, B presses 14 -> 40/min).
+only_silent = opts[:only_silent] || false
 
 policy = opts[:policy] || raise("--policy required")
 out = opts[:out] || raise("--out required")
@@ -84,7 +92,8 @@ relabel = fn history ->
           nil
         end
 
-      %{game_state: %{s1 | own_port: 1}, controller: label || c1, prev_controller: c0, player_tag: nil, actual: c1, labeled: label != nil}
+      labeled = label != nil and (not only_silent or SilentFallWeighting.neutral?(c1))
+      %{game_state: %{s1 | own_port: 1}, controller: if(labeled, do: label, else: c1), prev_controller: c0, player_tag: nil, actual: c1, labeled: labeled}
     end)
     |> List.to_tuple()
 
