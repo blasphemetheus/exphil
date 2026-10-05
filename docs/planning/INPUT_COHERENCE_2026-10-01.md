@@ -1344,3 +1344,89 @@ DECIDED trips, and records the 30-frame approach.
   gap, not yet dissected (next: the same approach/sequence dump on
   decided deaths; the offstage probe says stick-up reads height and B
   reads the stick, so the loss is downstream of both).
+
+### 10-05 12:55 — decided-trip deaths dissected: the silent fall
+
+Tooling: every offstage trip in `recovery_means.json` now carries a
+`trace` (every 3rd frame: action, x, y, vy, stick, B, jump, jumps left);
+`scripts/expert_recovery_means.exs` writes the expert's episodes with
+traces to `expert_recovery_means_fd_episodes.json`;
+`scripts/recovery_trace_read.js` reads either. One 6-min re-roll
+(evt2ctx_ck8_e3: return 0.323, decided 0.347 — reproduces) and the rest
+was node one-liners.
+
+**Where the decided deaths are.** ~90 % of decided trips start in the
+HIGH band (y ≥ 0, |x| ≈ 86 = the FD lip): the bot runs/dashes off the
+edge (pre_actions DASHING/RUNNING, facing the edge) with its double jump
+in hand. The expert returns from that band 95 % (n = 1218); the bot
+29–40 %. 92–98 % are self-destructs.
+
+**What the died trips look like** (e3, 190 high-band decided deaths):
+
+- **The silent fall.** Stick dead-centre `(0.5, 0.5)`, no B, no jump,
+  for 30–50 frames of free fall. Died trips hold toward-stage 0.12 of
+  frames (returned trips 0.46; expert returned 0.49). 134 of 190 deaths
+  never reached helpless (up-B still available); 65 never used the
+  double jump. Expert: 9 of 41 high-band deaths with resources in hand.
+- **Run-off laser / shine, then nothing.** Top action string
+  `FALLING > LASER(344-346) > FALLING` — the expert's run-off-laser →
+  double-jump-back, second half missing. When the bot does press jump it
+  is at y −60…−100 with no jumps left.
+- **Inputs during a committed aerial** — dair from y −68 down with stick
+  up + B pressed mid-animation: right intent, 30 frames late, swallowed.
+- 29 % of deaths end helpless (`JUMP > AIRDODGE > DEAD_FALL`: airdodge
+  offstage with the jump in hand).
+
+**Hazard of resuming input vs length of silence** (below stage level,
+ledge frames 252..263 EXCLUDED — ledge hangs are input-free and
+offstage, and they inflated the expert's "silence" on the first pass):
+
+| silence so far | 3 f | 6 f | 9 f | 12 f | 15 f | 18 f | 24 f |
+|---|---|---|---|---|---|---|---|
+| e3 closed-loop, P(resume)/3 f (at risk) | .16 (414) | .13 (326) | .14 (277) | .12 (226) | .09 (191) | .09 (167) | .06 (113) |
+| expert, P(resume)/3 f (at risk) | .18 (424) | .16 (185) | .18 (132) | .13 (94) | .18 (74) | .24 (55) | .27 (15) |
+
+The expert's silent falls are rare and resolve within ~15 frames with a
+hazard that holds or rises; the bot's hazard DECAYS and its silences
+persist. Silence ≈ death for both (expert deaths show the same 30-f
+silence signature) — the bot simply enters the silent fall 190/268 times
+vs the expert's 41/886.
+
+**Teacher-forced (Q5, new in `interp_recovery_probe.exs`, e3, 24 holdout
+games, ledge frames excluded): P(any input now | expert silent k frames)
+model | expert, below stage:** k1-3 .097|.081 (259) · k4-6 .043|.039
+(207) · k7-12 .057|.052 (347) · k13-24 .070|.096 (292) ·
+**k25-48 .163|.247 (73) · k49+ .092|.207 (29)**; P(jump) in the k25-48
+bin .022|.082. Above stage: calibrated at every k.
+
+**Reading.** On expert states the model is calibrated through 24 frames
+of silence and under-fires by ~35–55 % in the long-silence tail — a tail
+the expert visits ~4 frames per game (73 + 29 frames in 24 games). The
+rising-hazard regime that ends a silent fall is DATA-STARVED in the
+corpus, and closed-loop the bot lives there (190 trips × ~30 frames per
+rollout). So: closed-loop compounding into a thin tail, with the
+under-fit of that tail already visible teacher-forced. Not the
+hold/change head (the k ≤ 24 bins are calibrated), not the carried state
+(windowed model), and not the trunk's input history — with event heads
+the trunk's controller slot is zeroed over the whole window, so "k frames
+of silence" reaches this model only through the game state (FALLING with
+a growing action_frame, constant vy, drifting x) and the one-frame prev.
+
+**Lever candidates (imitation-side, in order):**
+
+1. **Upweight the tail** — loss weight on expert offstage frames with
+   silence ≥ 13 frames (they exist: ~4/game × 3000 files ≈ 12k frames).
+   No sim, no new data; tests "thin tail" directly. Pass: Q5 k25+
+   model ≥ expert; closed-loop hazard no longer decaying (≥ .15 at 18–24
+   f); high-band decided return ≥ 0.6; coherence/fidelity unchanged.
+2. **Manufacture the states** — bit-exact replay seeding (09-21 Seed
+   module): seed the sim at an expert offstage actionable frame, inject
+   k ∈ 6..30 frames of neutral on the own port (opponent's recorded
+   inputs), embed the resulting window, label with the expert's recorded
+   decision at the seed frame, keep only while the decision stays valid
+   (jump still in hand, y above up-B range, label = stick toward/up or
+   jump). Mixed in like the drill sets. This is the DAgger-style
+   correction set §7y said had no reference — the reference is the
+   expert's own decision, carried over a short silence.
+3. More epochs/data: does NOT move this (e3 decided return 0.344 vs
+   0.450 at 1 epoch) — it fixed the carried-off illusions, not this.

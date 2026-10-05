@@ -102,8 +102,23 @@ defmodule ExPhil.Eval.RecoveryMeans do
       pre_facing_edge: (Map.get(p, :facing) || 1) * (p.x || 0.0) > 0,
       outcome: outcome,
       sd: sd?,
-      frames: length(path)
+      frames: length(path),
+      # the crime scene: every 3rd frame of the trip, so a died trip can be
+      # read offline (drifting away? stick frozen? fast-falling?) without
+      # re-rolling the sim
+      trace: path |> Enum.take_every(3) |> Enum.map(&trace_frame/1)
     }
+  end
+
+  # [action, x, y, speed_y, stick_x, stick_y, b, jump, jumps_left]
+  defp trace_frame(f) do
+    c = f.controller
+    r = fn v, d -> if v == nil, do: nil, else: Float.round(v * 1.0, d) end
+    b = fn v -> if v, do: 1, else: 0 end
+
+    [f.own.action || 0, r.(f.own.x, 1), r.(f.own.y, 1), r.(Map.get(f.own, :speed_y_self), 2),
+     r.(c && c.main_stick.x, 2), r.(c && c.main_stick.y, 2),
+     b.(c && c.button_b), b.(c && (c.button_x or c.button_y)), f.own.jumps_left || 0]
   end
 
   @doc "Bucket key for an episode (string, JSON-stable)."

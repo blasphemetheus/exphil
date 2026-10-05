@@ -174,8 +174,10 @@ zone_probs = fn {b, mx, my, _cx, _cy, _sh} ->
   p_down = Nx.sum(Nx.multiply(py, down_mask), axes: [1])
   p_y_mid = Nx.subtract(1.0, Nx.add(p_up, p_down))
   p_x_side = Nx.sum(Nx.multiply(px, side_mask), axes: [1])
+  pb = Nx.sigmoid(b)
   %{up: p_up, down: p_down, side: Nx.multiply(p_y_mid, p_x_side),
-    neutral: Nx.multiply(p_y_mid, Nx.subtract(1.0, p_x_side)), b: Nx.sigmoid(b)[[.., 1]]}
+    neutral: Nx.multiply(p_y_mid, Nx.subtract(1.0, p_x_side)), b: pb[[.., 1]],
+    jump: Nx.reduce_max(pb[[.., 2..3]], axes: [1])}
 end
 
 window_of = fn s -> Nx.slice_along_axis(Enum.at(games, s.game).emb, s.t - window + 1, window, axis: 0) end
@@ -319,9 +321,55 @@ q3 =
     nil
   end
 
+# Q5 (10-05, the silent fall): the bot's decided-trip deaths are input-free
+# falls with the double jump in hand, and its hazard of resuming input DECAYS
+# with the length of the silence closed-loop (0.20 -> 0.09 per 3 f) where the
+# expert's rises (0.17 -> 0.23). Teacher-forced: on expert offstage frames whose
+# previous input was neutral, P(any input now) model vs expert, binned by how
+# long the expert had already been silent. Flat/calibrated here = the decay is
+# closed-loop (states the expert never produces); decaying here = structural.
+silent? = fn a -> zone_of.(a) == :neutral and not a.buttons.b and not a.buttons.x and not a.buttons.y end
+silence_len = fn g, t ->
+  Enum.reduce_while(1..60, 0, fn k, acc ->
+    if t - k >= 0 and silent?.(elem(g.actions, t - k)), do: {:cont, acc + 1}, else: {:halt, acc}
+  end)
+end
+cliff? = fn p -> (p.action || 0) in 252..263 end
+q5_samples =
+  samples
+  # not on the ledge (CLIFF_* is airborne + offstage + input-free for dozens of frames)
+  |> Enum.reject(fn s -> cliff?.(elem(Enum.at(games, s.game).players, s.t)) end)
+  |> Enum.filter(fn s -> silent?.(elem(Enum.at(games, s.game).actions, s.t - 1)) end)
+  |> Enum.map(fn s ->
+    g = Enum.at(games, s.game)
+    Map.merge(s, %{k: silence_len.(g, s.t), active: not silent?.(s.action), below: s.height != :high})
+  end)
+k_bin = fn k -> cond do k <= 3 -> "1-3"; k <= 6 -> "4-6"; k <= 12 -> "7-12"; k <= 24 -> "13-24"; k <= 48 -> "25-48"; true -> "49+" end end
+k_bins = ["1-3", "4-6", "7-12", "13-24", "25-48", "49+"]
+q5_rows = run.(q5_samples, windows, :tf)
+p_active = fn r -> 1.0 - r.neutral * (1.0 - r.b) * (1.0 - r.jump) end
+q5 =
+  Map.new([true, false], fn below ->
+    {if(below, do: :below_stage, else: :above_stage),
+     Map.new(k_bins, fn bin ->
+       l = Enum.filter(q5_rows, &(&1.below == below and k_bin.(&1.k) == bin))
+       {bin, %{n: length(l), expert: share.(l, & &1.active),
+               model: if(l == [], do: nil, else: Float.round(Enum.sum(Enum.map(l, p_active)) / length(l), 3)),
+               model_up: mean.(l, :up), expert_up: share.(l, &(&1.zone == :up)),
+               model_jump: mean.(l, :jump), expert_jump: share.(l, &(&1.action.buttons.x or &1.action.buttons.y))}}
+     end)}
+  end)
+for {where, bins} <- q5 do
+  Output.puts("RESULT #{label} Q5 P(any input | silent so far k frames) #{where} model|expert (n): " <>
+    Enum.map_join(k_bins, "  ", fn bin -> b = bins[bin]; "k#{bin} #{b.model}|#{b.expert} (#{b.n})" end))
+  Output.puts("RESULT #{label} Q5 P(stick up) / P(jump) by silence #{where} model|expert: " <>
+    Enum.map_join(k_bins, "  ", fn bin -> b = bins[bin]; "k#{bin} up #{b.model_up}|#{b.expert_up} jump #{b.model_jump}|#{b.expert_jump}" end))
+end
+
 if out = opts[:out] do
   File.mkdir_p!(Path.dirname(out))
   summary = %{
+    q5: q5,
     label: label, frames: length(rows), presses: length(press_rows),
     q1: Map.new([:high, :ledge, :low, :deep], fn h ->
       l = Enum.filter(press_rows, &(&1.height == h))

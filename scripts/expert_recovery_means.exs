@@ -68,6 +68,14 @@ File.write!(out, Jason.encode!(%{
   "table" => table, "self_score" => self_score, "split_half" => floor
 }, pretty: true))
 
+# the episodes themselves (with traces) go in a sibling file so the
+# reference table stays small and the model's died trips can be read
+# against the expert's on the same situations
+episodes_out = Path.rootname(out) <> "_episodes.json"
+File.write!(episodes_out, Jason.encode!(
+  Enum.map(episodes, &Map.new(&1, fn {k, v} -> {Atom.to_string(k), if(is_atom(v) and not is_boolean(v), do: Atom.to_string(v), else: v)} end))))
+Output.puts("episodes with traces -> #{episodes_out}")
+
 Output.puts("RESULT expert recovery means: #{length(episodes)} offstage episodes over #{length(chosen)} games")
 Output.puts("RESULT expert first means: " <> Enum.map_join(Enum.sort_by(self_score["first_means"], &(-elem(&1, 1))), "  ", fn {k, n} -> "#{k} #{n}" end))
 Output.puts("RESULT expert by height (n, return rate, side_b share): " <>
