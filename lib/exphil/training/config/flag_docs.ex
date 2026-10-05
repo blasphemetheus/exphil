@@ -157,6 +157,7 @@ defmodule ExPhil.Training.Config.FlagDocs do
     "--preset" => "Training preset (quick, standard, full, mewtwo)",
     "--button-events" => "Press/release event button head: 16 logits (press-if-up, release-if-down) selected by the previous button state; the trunk sees the prev-action slot zeroed. Requires --prev-action, --head autoregressive, temporal",
     "--stick-events" => "Hold-or-change stick heads: each stick axis emits K change logits + 1 hold logit, collapsed by the previous bucket; the trunk sees the prev-action slot zeroed. Requires --prev-action, --head autoregressive, temporal",
+    "--event-context" => "Event heads also get the previous buttons / stick buckets as a FEATURE (zero-initialised embeddings on the head residual; trunk still blind), so P(B press) can depend on the stick already being up. Requires --button-events --stick-events",
     "--ss-steps" => "AR-head scheduled sampling: number of trailing window positions regenerated from the model's own sampled inputs, oldest first (default 1)",
     "--ss-ramp-start" => "Training step at which the scheduled-sampling rate starts rising from 0",
     "--ss-ramp-steps" => "Training steps over which the scheduled-sampling rate rises linearly to --scheduled-sampling (unset = flat rate)",

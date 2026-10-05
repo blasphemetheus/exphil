@@ -243,6 +243,46 @@ defmodule ExPhil.Networks.Policy.Heads do
     # r0: project trunk features into the residual stream
     r0 = Axon.dense(trunk, residual_size, name: "ar_residual_proj")
 
+    # Event context (2026-10-05): the previous input as a FEATURE of the
+    # heads, not only the selector of press/release and hold/change. The
+    # event-head recipe keeps the previous input out of the trunk (that is
+    # what closed the copy shortcut), but the expert's inter-channel
+    # dependencies live exactly there — P(B press | stick already up) is
+    # 40x P(B press | stick neutral) offstage, and a head that cannot see
+    # the stick presses B blind (lasers with a neutral stick; see
+    # scripts/interp_recovery_probe.exs Q2c). Zero-initialised, so a
+    # checkpoint without these params is the plain event head.
+    event_context = Keyword.get(opts, :event_context, false)
+
+    r0 =
+      if event_context do
+        if button_events_prev == nil or stick_events_prev == nil do
+          raise ArgumentError, "event_context needs both button_events_prev and stick_events_prev nodes"
+        end
+
+        ctx_buttons =
+          Axon.dense(button_events_prev, residual_size,
+            name: "ar_prev_buttons_embed",
+            use_bias: false,
+            kernel_initializer: :zeros
+          )
+
+        ctx_sticks =
+          for j <- 0..3 do
+            stick_events_prev
+            |> Axon.nx(fn p -> p |> Nx.slice_along_axis(j, 1, axis: -1) |> Nx.squeeze(axes: [-1]) end,
+              name: "ar_prev_stick_#{j}_col")
+            |> Axon.embedding(axis_size, residual_size,
+              name: "ar_prev_stick_#{j}_embed",
+              kernel_initializer: :zeros
+            )
+          end
+
+        Enum.reduce([ctx_buttons | ctx_sticks], r0, fn ctx, acc -> Axon.add(acc, ctx) end)
+      else
+        r0
+      end
+
     # Component embeddings E_k — ZERO-initialised so the head starts as
     # an exact independent factorization (conditioning is learned, and the
     # teacher-forced graph equals the sequential replay at init).

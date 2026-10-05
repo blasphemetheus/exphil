@@ -1,0 +1,153 @@
+{
+  "label": "evt2_ck8",
+  "frames": 15853,
+  "presses": 170,
+  "q1b": {
+    "no_stick_history": {
+      "high": {
+        "up": 0.175,
+        "neutral": 0.739,
+        "n": 12,
+        "side": 0.047
+      },
+      "low": {
+        "up": 0.242,
+        "neutral": 0.705,
+        "n": 21,
+        "side": 0.047
+      },
+      "ledge": {
+        "up": 0.277,
+        "neutral": 0.574,
+        "n": 25,
+        "side": 0.055
+      },
+      "deep": {
+        "up": 0.211,
+        "neutral": 0.731,
+        "n": 11,
+        "side": 0.053
+      }
+    },
+    "neutral_prev_stick": {
+      "high": {
+        "up": 0.175,
+        "neutral": 0.739,
+        "n": 12,
+        "side": 0.047
+      },
+      "low": {
+        "up": 0.242,
+        "neutral": 0.705,
+        "n": 21,
+        "side": 0.047
+      },
+      "ledge": {
+        "up": 0.277,
+        "neutral": 0.574,
+        "n": 25,
+        "side": 0.055
+      },
+      "deep": {
+        "up": 0.211,
+        "neutral": 0.731,
+        "n": 11,
+        "side": 0.053
+      }
+    }
+  },
+  "q3": {
+    "low_ctrl": {
+      "up": 0.474,
+      "side": 0.117
+    },
+    "high_ctrl": {
+      "up": 0.248,
+      "side": 0.501
+    },
+    "q4_event_ablation": {
+      "control": 0.299,
+      "base": 0.299,
+      "n": 63,
+      "y_to_high": 0.129
+    },
+    "low_base": {
+      "up": 0.474,
+      "n": 67,
+      "side": 0.117
+    },
+    "low_y_to_high": {
+      "up": 0.436,
+      "side": 0.119
+    },
+    "high_base": {
+      "up": 0.248,
+      "n": 36,
+      "side": 0.501
+    },
+    "high_y_to_low": {
+      "up": 0.267,
+      "side": 0.481
+    }
+  },
+  "q1": {
+    "high": {
+      "n": 36,
+      "expert_up": 0.333,
+      "model_up": 0.248,
+      "expert_side": 0.5,
+      "model_side": 0.501,
+      "expert_neutral": 0.0,
+      "model_neutral": 0.077
+    },
+    "low": {
+      "n": 55,
+      "expert_up": 0.382,
+      "model_up": 0.378,
+      "expert_side": 0.127,
+      "model_side": 0.14,
+      "expert_neutral": 0.018,
+      "model_neutral": 0.041
+    },
+    "ledge": {
+      "n": 67,
+      "expert_up": 0.373,
+      "model_up": 0.323,
+      "expert_side": 0.343,
+      "model_side": 0.35,
+      "expert_neutral": 0.015,
+      "model_neutral": 0.059
+    },
+    "deep": {
+      "n": 12,
+      "expert_up": 0.917,
+      "model_up": 0.911,
+      "expert_side": 0.0,
+      "model_side": 0.008,
+      "expert_neutral": 0.083,
+      "model_neutral": 0.076
+    }
+  },
+  "q2": {
+    "high": {
+      "press": 0.03,
+      "no_press": 0.014,
+      "expert_rate": 0.01
+    },
+    "low": {
+      "press": 0.051,
+      "no_press": 0.027,
+      "expert_rate": 0.027
+    },
+    "ledge": {
+      "press": 0.034,
+      "no_press": 0.013,
+      "expert_rate": 0.01
+    },
+    "deep": {
+      "press": 0.037,
+      "no_press": 0.018,
+      "expert_rate": 0.029
+    }
+  }
+}

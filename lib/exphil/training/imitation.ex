@@ -295,6 +295,10 @@ defmodule ExPhil.Training.Imitation do
         config
       end
 
+    if config[:event_context] and not (config[:button_events] && config[:stick_events]) do
+      raise ArgumentError, "event_context requires button_events: true and stick_events: true"
+    end
+
     # Build policy model - bptt, temporal, or regular
     policy_model =
       if config[:bptt] do
@@ -311,6 +315,7 @@ defmodule ExPhil.Training.Imitation do
           shoulder_buckets: config.shoulder_buckets,
           button_events: config[:button_events] || false,
           stick_events: config[:stick_events] || false,
+          event_context: config[:event_context] || false,
           chunk_horizon: Map.get(config, :chunk_horizon)
         )
       else
@@ -320,6 +325,7 @@ defmodule ExPhil.Training.Imitation do
           head: head,
           button_events: config[:button_events] || false,
           stick_events: config[:stick_events] || false,
+          event_context: config[:event_context] || false,
           prev_action_offset: config[:prev_action_offset],
           embed_size: embed_size,
           backbone: config.backbone,

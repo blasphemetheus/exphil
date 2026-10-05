@@ -34,9 +34,11 @@ if [ ! -f "$ckpt/model_best_policy.bin" ]; then
   $run "$trainer" "${train_args[@]}" > "$out/train.log" 2>&1 || { echo "TRAIN_FAILED $name"; exit 1; }
 fi
 
-# EVALS: space-separated subset of "coherence closed_loop recovery calibration fidelity"
-# (default: all). Existing outputs are recomputed.
-evals=${EVALS:-coherence closed_loop recovery calibration fidelity}
+# EVALS: space-separated subset of "coherence closed_loop recovery calibration fidelity
+# recovery_means recovery_probe" (default: all). Existing outputs are recomputed.
+#   recovery_means  (10-05) first recovery tool per situation vs the expert table
+#   recovery_probe  (10-05) teacher-forced: stick-up event / B hazard by stick zone / y ablation
+evals=${EVALS:-coherence closed_loop recovery calibration fidelity recovery_means recovery_probe}
 want() { case " $evals " in *" $1 "*) return 0;; *) return 1;; esac; }
 policy=$ckpt/model_best_policy.bin
 grep -o 'val_loss=[0-9.]*' "$out/train.log" | tail -1
@@ -73,6 +75,16 @@ if want fidelity; then
   $run scripts/fidelity_scorecard.exs --policy "$policy" --label "$name" --envs 32 --frames 3600 \
     --seeds "${FIDELITY_SEEDS:-1001,1002,1003}" --out "$out/fidelity.json" > "$out/fidelity.log" 2>&1
   grep RESULT "$out/fidelity.log" | sed 's/^\[[0-9:]*\] //'
+fi
+if want recovery_means; then
+  $run scripts/recovery_means.exs --policy "$policy" --label "$name" --out "$out/recovery_means.json" > "$out/recovery_means.log" 2>&1
+  grep RESULT "$out/recovery_means.log" | sed 's/^\[[0-9:]*\] //'
+fi
+
+if want recovery_probe; then
+  $run scripts/interp_recovery_probe.exs --policy "$policy" --label "$name" --games 24 \
+    --out "$out/recovery_probe.json" > "$out/recovery_probe.log" 2>&1
+  grep RESULT "$out/recovery_probe.log" | sed 's/^\[[0-9:]*\] //'
 fi
 echo "DONE $name"
 

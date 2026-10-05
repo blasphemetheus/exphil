@@ -499,8 +499,40 @@ defmodule ExPhil.Networks.Policy.Sampling do
     |> ar_dense(logits_layer)
   end
 
+  # Event context (Heads: `event_context: true`): the previous buttons /
+  # stick buckets riding in the head map (put_event_prev/2) are also FEATURES
+  # of the residual stream, through the zero-initialised ar_prev_* embeddings.
+  # Absent params = plain event head; prev rows broadcast over tiled features.
+  deftransformp ar_prev_context(r0, head) do
+    r0 =
+      case head do
+        %{"ar_prev_buttons_embed" => %{"kernel" => k}, "ar_event_prev" => %{"value" => prev}} ->
+          Nx.add(r0, Nx.dot(prev, k))
+
+        %{"ar_prev_buttons_embed" => _} ->
+          raise ArgumentError, "this checkpoint has event context — pass :event_prev_buttons to the sampler"
+
+        _ ->
+          r0
+      end
+
+    case head do
+      %{"ar_prev_stick_0_embed" => _, "ar_event_prev_sticks" => %{"value" => prev}} ->
+        Enum.reduce(0..3, r0, fn j, acc ->
+          col = prev |> Nx.slice_along_axis(j, 1, axis: 1) |> Nx.squeeze(axes: [1])
+          Nx.add(acc, Nx.take(head["ar_prev_stick_#{j}_embed"]["kernel"], col))
+        end)
+
+      %{"ar_prev_stick_0_embed" => _} ->
+        raise ArgumentError, "this checkpoint has event context — pass :event_prev_sticks to the sampler"
+
+      _ ->
+        r0
+    end
+  end
+
   defnp ar_stage1(head, features) do
-    r0 = ar_dense(features, head["ar_residual_proj"])
+    r0 = ar_dense(features, head["ar_residual_proj"]) |> ar_prev_context(head)
     b_l =
       ar_component(r0, head["ar_buttons_hidden"], head["ar_buttons_logits"])
       |> ar_button_logits(head)
@@ -512,7 +544,7 @@ defmodule ExPhil.Networks.Policy.Sampling do
   # XLA program (features pre-tiled to {n, hidden} by the caller — the only
   # eager op left in the n>1 path).
   defnp ar_tiled_stochastic(head, features_n, key, temps) do
-    r0 = ar_dense(features_n, head["ar_residual_proj"])
+    r0 = ar_dense(features_n, head["ar_residual_proj"]) |> ar_prev_context(head)
     b_l =
       ar_component(r0, head["ar_buttons_hidden"], head["ar_buttons_logits"])
       |> ar_button_logits(head)

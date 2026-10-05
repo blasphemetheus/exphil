@@ -276,7 +276,8 @@ defmodule ExPhil.Networks.Policy do
             axis_buckets: axis_buckets,
             shoulder_buckets: shoulder_buckets,
             button_events_prev: if(opts[:button_events], do: button_events_prev_node()),
-            stick_events_prev: if(opts[:stick_events], do: Axon.input("prev_sticks", shape: {nil, 4}))
+            stick_events_prev: if(opts[:stick_events], do: Axon.input("prev_sticks", shape: {nil, 4})),
+            event_context: opts[:event_context] == true
           )
 
         other ->
@@ -369,7 +370,8 @@ defmodule ExPhil.Networks.Policy do
             shoulder_buckets: shoulder_buckets,
             per_timestep: true,
             button_events_prev: if(opts[:button_events], do: Axon.input("prev_buttons", shape: {nil, nil, 8})),
-            stick_events_prev: if(opts[:stick_events], do: Axon.input("prev_sticks", shape: {nil, nil, 4}))
+            stick_events_prev: if(opts[:stick_events], do: Axon.input("prev_sticks", shape: {nil, nil, 4})),
+            event_context: opts[:event_context] == true
           )
 
         other ->

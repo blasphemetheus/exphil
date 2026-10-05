@@ -1,0 +1,345 @@
+{
+  "character": "fox",
+  "games": 150,
+  "self_score": {
+    "airdodge_with_jump": 0.034,
+    "by_height": {
+      "deep": {
+        "first": {
+          "attack": 1,
+          "jump": 3,
+          "none": 12,
+          "side_b": 2,
+          "up_b": 29
+        },
+        "n": 47,
+        "return_rate": 0.362
+      },
+      "high": {
+        "first": {
+          "airdodge": 7,
+          "attack": 418,
+          "drift": 241,
+          "jump": 461,
+          "none": 9,
+          "side_b": 33,
+          "up_b": 48
+        },
+        "n": 1217,
+        "return_rate": 0.952
+      },
+      "ledge": {
+        "first": {
+          "airdodge": 134,
+          "attack": 139,
+          "drift": 269,
+          "jump": 95,
+          "none": 3,
+          "side_b": 21,
+          "up_b": 41
+        },
+        "n": 702,
+        "return_rate": 0.969
+      },
+      "low": {
+        "first": {
+          "airdodge": 10,
+          "attack": 31,
+          "drift": 5,
+          "jump": 111,
+          "none": 4,
+          "side_b": 35,
+          "up_b": 102
+        },
+        "n": 298,
+        "return_rate": 0.836
+      }
+    },
+    "episodes": 2264,
+    "first_means": {
+      "airdodge": 151,
+      "attack": 589,
+      "drift": 515,
+      "jump": 670,
+      "none": 28,
+      "side_b": 91,
+      "up_b": 220
+    },
+    "means_js": 0.018,
+    "mismatch_rate": 0.046,
+    "nothing_died": 0.175,
+    "return_rate": 0.929,
+    "side_b_low": 0.107
+  },
+  "split_half": {
+    "means_js": 0.168,
+    "mismatch_rate": 0.08
+  },
+  "stage": 32,
+  "table": {
+    "buckets": {
+      "deep/far/j0": {
+        "attack": 1,
+        "none": 5,
+        "side_b": 2,
+        "up_b": 8
+      },
+      "deep/far/j1": {
+        "jump": 1,
+        "none": 2
+      },
+      "deep/mid/j0": {
+        "none": 1,
+        "up_b": 10
+      },
+      "deep/mid/j1": {
+        "jump": 1,
+        "up_b": 1
+      },
+      "deep/near/j0": {
+        "none": 4,
+        "up_b": 9
+      },
+      "deep/near/j1": {
+        "jump": 1,
+        "up_b": 1
+      },
+      "high/far/j0": {
+        "attack": 2,
+        "none": 4,
+        "side_b": 11,
+        "up_b": 24
+      },
+      "high/far/j1": {
+        "attack": 8,
+        "jump": 28,
+        "none": 3
+      },
+      "high/mid/j0": {
+        "airdodge": 1,
+        "attack": 2,
+        "drift": 4,
+        "side_b": 17,
+        "up_b": 11
+      },
+      "high/mid/j1": {
+        "attack": 4,
+        "jump": 39
+      },
+      "high/near/j0": {
+        "attack": 17,
+        "drift": 24,
+        "side_b": 5,
+        "up_b": 3
+      },
+      "high/near/j1": {
+        "airdodge": 6,
+        "attack": 385,
+        "drift": 213,
+        "jump": 394,
+        "none": 2,
+        "up_b": 10
+      },
+      "ledge/far/j0": {
+        "none": 1,
+        "side_b": 9,
+        "up_b": 8
+      },
+      "ledge/far/j1": {
+        "attack": 1,
+        "jump": 10,
+        "none": 2
+      },
+      "ledge/mid/j0": {
+        "airdodge": 1,
+        "side_b": 7,
+        "up_b": 18
+      },
+      "ledge/mid/j1": {
+        "attack": 7,
+        "jump": 29,
+        "up_b": 1
+      },
+      "ledge/near/j0": {
+        "airdodge": 85,
+        "attack": 40,
+        "drift": 147,
+        "side_b": 5,
+        "up_b": 14
+      },
+      "ledge/near/j1": {
+        "airdodge": 48,
+        "attack": 91,
+        "drift": 122,
+        "jump": 56
+      },
+      "low/far/j0": {
+        "attack": 3,
+        "side_b": 14,
+        "up_b": 32
+      },
+      "low/far/j1": {
+        "attack": 1,
+        "jump": 18,
+        "none": 4
+      },
+      "low/mid/j0": {
+        "airdodge": 7,
+        "attack": 3,
+        "drift": 1,
+        "side_b": 20,
+        "up_b": 45
+      },
+      "low/mid/j1": {
+        "attack": 13,
+        "jump": 64
+      },
+      "low/near/j0": {
+        "airdodge": 3,
+        "attack": 2,
+        "drift": 4,
+        "side_b": 1,
+        "up_b": 25
+      },
+      "low/near/j1": {
+        "attack": 9,
+        "jump": 29
+      }
+    },
+    "episodes": 2264,
+    "heights": {
+      "deep": {
+        "attack": 1,
+        "jump": 3,
+        "none": 12,
+        "side_b": 2,
+        "up_b": 29
+      },
+      "high": {
+        "airdodge": 7,
+        "attack": 418,
+        "drift": 241,
+        "jump": 461,
+        "none": 9,
+        "side_b": 33,
+        "up_b": 48
+      },
+      "ledge": {
+        "airdodge": 134,
+        "attack": 139,
+        "drift": 269,
+        "jump": 95,
+        "none": 3,
+        "side_b": 21,
+        "up_b": 41
+      },
+      "low": {
+        "airdodge": 10,
+        "attack": 31,
+        "drift": 5,
+        "jump": 111,
+        "none": 4,
+        "side_b": 35,
+        "up_b": 102
+      }
+    },
+    "returns": {
+      "deep/far/j0": {
+        "n": 16,
+        "returned": 3
+      },
+      "deep/far/j1": {
+        "n": 3,
+        "returned": 1
+      },
+      "deep/mid/j0": {
+        "n": 11,
+        "returned": 3
+      },
+      "deep/mid/j1": {
+        "n": 2,
+        "returned": 1
+      },
+      "deep/near/j0": {
+        "n": 13,
+        "returned": 7
+      },
+      "deep/near/j1": {
+        "n": 2,
+        "returned": 2
+      },
+      "high/far/j0": {
+        "n": 41,
+        "returned": 30
+      },
+      "high/far/j1": {
+        "n": 39,
+        "returned": 30
+      },
+      "high/mid/j0": {
+        "n": 35,
+        "returned": 33
+      },
+      "high/mid/j1": {
+        "n": 43,
+        "returned": 41
+      },
+      "high/near/j0": {
+        "n": 49,
+        "returned": 46
+      },
+      "high/near/j1": {
+        "n": 1010,
+        "returned": 978
+      },
+      "ledge/far/j0": {
+        "n": 18,
+        "returned": 10
+      },
+      "ledge/far/j1": {
+        "n": 13,
+        "returned": 8
+      },
+      "ledge/mid/j0": {
+        "n": 26,
+        "returned": 21
+      },
+      "ledge/mid/j1": {
+        "n": 37,
+        "returned": 35
+      },
+      "ledge/near/j0": {
+        "n": 291,
+        "returned": 291
+      },
+      "ledge/near/j1": {
+        "n": 317,
+        "returned": 315
+      },
+      "low/far/j0": {
+        "n": 49,
+        "returned": 28
+      },
+      "low/far/j1": {
+        "n": 23,
+        "returned": 15
+      },
+      "low/mid/j0": {
+        "n": 76,
+        "returned": 66
+      },
+      "low/mid/j1": {
+        "n": 77,
+        "returned": 74
+      },
+      "low/near/j0": {
+        "n": 35,
+        "returned": 30
+      },
+      "low/near/j1": {
+        "n": 38,
+        "returned": 36
+      }
+    }
+  }
+}

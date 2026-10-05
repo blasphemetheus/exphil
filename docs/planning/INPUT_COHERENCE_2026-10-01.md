@@ -1130,3 +1130,107 @@ the captured batch, fixed at the denominator, 90d32b9f).
   needing RL on top of exactly this training.
 - **Decision: carried state is out for the imitation program. The port
   recipe is windowed MinGRU/Mamba + event heads + chunk targets.**
+
+## 10-05 — the recovery defect pinned: a head that cannot see the stick
+
+Bradley's asks (01:00): an eval that pinpoints the recovery defect; then
+the interp step; whether carried state might work with Mamba where it
+failed with MinGRU; whether we are "doing carried state wrong".
+
+### Carried state: not an implementation bug (answered first)
+
+- Trainer (`train_loop.ex:293-322`): carry zeroed on `is_resetting` rows,
+  passed as a plain argument (detached at the chunk edge) — textbook.
+- The offline coherence eval runs the carried model through the SAME
+  `Agent` stateful step the live bot uses, over whole expert games:
+  bptt_evt2_ck8_e5 repeat 0.707 (expert 0.738), neutral 0.159 — not
+  frozen; val 1.44 vs windowed 1.33. Closed loop: repeat 0.91 vs idle,
+  0.77 in self-play. The freeze scales with distance from the corpus:
+  exposure bias through the hidden state, not code.
+- Mamba carried state: untestable with the current methodology (BPTT
+  path is GRU-only; porting the initial-state threading to the Mamba
+  scan is ~a day). Deferred unless the windowed Mamba port underperforms.
+
+### Recovery-means scorecard (`lib/exphil/eval/recovery_means.ex`)
+
+Every offstage trip (the death list in `sd_review` is survivorship-
+biased): situation at the decision frame = height band (high > 0 /
+ledge > -20 / low > -60 / deep) × distance beyond the edge (near < 20 /
+mid < 60 / far) × jumps (0 / 1+); first means (jump / side_b / up_b /
+airdodge / attack / drift / none); outcome. Scored against an expert
+table (`scripts/expert_recovery_means.exs`, 150 FD Fox games, 2264
+episodes; split-half floor mismatch 0.08 / JS 0.168) by
+`scripts/recovery_means.exs` (sim rollouts 3 seeds × 32 envs, or live
+`.slp`). Gotcha fixed on the first pass: dead/rebirth action states
+(0..13) sit at y ≈ -141 for 59 frames and then teleport — they looked
+like "deep, drift, returned" trips (expert deep band 274 → 47 episodes).
+
+| | expert | evt2_ck8 | evt2_ck8w3 | base | bptt_evt2_ck8_e5 |
+|---|---|---|---|---|---|
+| mismatch (floor 0.08) | — | 0.128 | 0.103 | 0.166 | 0.207 |
+| return rate | 0.929 | 0.651 | 0.670 | 0.702 | 0.399 |
+| side_b_low | 0.107 | 0.333 | 0.15 | 0.25 | 0.0 |
+| airdodge_with_jump | 0.034 | 0.335 | 0.184 | 0.25 | 0.231 |
+| **high band return** | **0.952** | 0.283 | 0.337 | 0.379 | 0.21 |
+| died with a jump in hand (high) | 0.73 | 0.46 | 0.70 | 0.64 | 0.96 |
+| up-B anywhere in the death sequence (high) | 0.17 | 0.06 | 0.05 | 0.00 | 0.01 |
+| median frames to death (high) | 102 | 72 | 75 | 75 | 57 |
+
+The stock goes from the HIGH band (at the edge, above ledge height):
+one move then nothing — `side_b` alone (evt2_ck8 40 %), `attack` alone
+(laser/shine/aerial 17-40 %), `airdodge>jump` (11-24 %) — then ~70
+frames of free fall. Not "wrong means for its height": **no second
+means**, never the up-B.
+
+### Offstage B presses (`scripts/b_press_stick.exs`, live replays vs expert)
+
+| | expert (2163) | evt2_ck8 (76) | w3 (50) |
+|---|---|---|---|
+| stick NEUTRAL on the press frame | 2.5 % | 27.6 % | 20 % |
+| late-up (not up on press, up within 3 f) | 1.9 % | 14.5 % | 16 % |
+| result = none (B while helpless) | 5.1 % | 36.8 % | 20 % |
+| side-B share of presses at low | 5.2 % | 16.7 % | 38 % |
+
+A special's identity is the stick on the frame B goes down. Neutral = laser,
+side = illusion (aerial illusion ends HELPLESS — the "none" presses are B
+mashed after it). And in 96 % of the expert's up-Bs the stick was already
+up ≥ 1 frame before the press (75 % ≥ 3 frames): the decision is "stick
+up while falling", made before the button.
+
+### Interp (`scripts/interp_recovery_probe.exs`, evt2_ck8, 24 holdout games, teacher-forced)
+
+- Q1 at press frames the model's zone shares match the expert's by band
+  (±0.02) — **confounded**: with the head's previous-stick input centred
+  (Q1b) P(up) on the expert's up-B presses falls 0.93 → 0.24 (deep 0.99 →
+  0.21). At the press frame the stick is copied from the previous stick —
+  which is what the data does too (96 % above).
+- Q4 the stick-UP event offstage: model P(up) on the expert's event frame
+  0.12 high / 0.25 ledge / 0.29 low / 0.45 deep vs 0.01-0.10 on stay-down
+  frames; **y ablation 0.30 → 0.13 (control 0.30 → 0.30)**. Height IS
+  represented and used, at the right decision. Jumps-left: no effect.
+- Q2b B hazard once the stick is up: model 0.017-0.026 vs expert
+  0.033-0.044 (half).
+- **Q2c B-press hazard by previous stick zone — model 0.011 neutral /
+  0.018 side / 0.025 down / 0.021 up; expert 0.001 / 0.011 / 0.040 /
+  0.037.** The model's hazard is flat where the expert's spans 40×. The
+  button head presses B blind to the stick.
+- Structural cause (`heads.ex` `build_autoregressive_head`): the button
+  head is `component.(r0)` with `r0 = dense(trunk)`; the `prev` nodes only
+  SELECT press-vs-release / hold-vs-change, they are never a feature; and
+  the event recipe zeroes the prev slot in the trunk. No head can
+  condition on "the stick is up now". The AR order (buttons → sticks)
+  makes the previous stick the only stick information a press could use.
+
+### Lever: `--event-context` (queue 13, running)
+
+Previous buttons / stick buckets as zero-initialised embeddings added to
+the head residual `r0` (`ar_prev_buttons_embed`, `ar_prev_stick_{j}_embed`);
+trunk still blind, so the copy shortcut stays closed; absent params =
+plain event head (sampler mirror in `sampling.ex` `ar_prev_context/2`).
+Tests: `test/exphil/networks/policy/event_context_test.exs`.
+`scripts/coherence_queue13.sh`: smoke → evt2ctx_ck8 → evt2ctx_ck8w3 →
+recovery_probe on the evt2_ck8w3 control. Pass criteria in the script
+header: Q2c neutral ≤ 0.004 / up ≥ 0.03; high-band return ≥ 0.6 (0.28);
+mismatch ≤ 0.15; airdodge_with_jump ≤ 0.10; coherence criteria kept;
+neutral-stick press share ≤ 5 % on replays. `coherence_experiment.sh` now
+runs `recovery_means` and `recovery_probe` by default.

@@ -199,7 +199,8 @@ defmodule ExPhil.Interp.Activations do
         # event heads need their collapse layers (and "prev_buttons" /
         # "prev_sticks" inputs) or the raw 16-logit button head comes out
         button_events: Map.get(config, :button_events, false) == true,
-        stick_events: Map.get(config, :stick_events, false) == true
+        stick_events: Map.get(config, :stick_events, false) == true,
+        event_context: Map.get(config, :event_context, false) == true
       )
 
     {_init_fn, predict_fn} = Utils.build_compiled(model, mode: :inference)
