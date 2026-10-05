@@ -1273,3 +1273,37 @@ probe = P(side-B / dash-off | onstage within 20 u of the edge, facing out)
 teacher-forced vs the expert's labels, and whether that reads x / facing.
 Queue 14 (running: ctx seed replicate, 3 epochs, Mamba testbed) answers the
 lever's robustness and the port question in the meantime.
+
+### Queue 14 result (05:39) — the lever is seed-robust, keeps paying with epochs, and carries to Mamba
+
+| | evt2_ck8 | ctx_ck8 | ctx_ck8 s906 | ctx_ck8 **3 ep** | ctx_ck8w3 | **mamba** ctx_ck8 |
+|---|---|---|---|---|---|---|
+| Q2c neutral / up (expert .001 / .037) | .011 / .021 | .007 / .039 | .006 / .040 | **.003 / .036** | .004 / .024 | .010 / .038 |
+| Q4 stick-up y ablation (base → y:=high) | .30 → .13 | .35 → .21 | .43 → .25 | .45 → .29 | .35 → .23 | .26 → .22 |
+| fidelity | 0.250 | 0.185 | 0.198 | **0.149** | 0.181 | 0.197 |
+| L-cancel | 0.51 | 0.63 | 0.53 | **0.80** | 0.69 | 0.55 |
+| self-play dmg/min | 65 | 52 | 53 | 61 | 73 | 45 |
+| self-play SD/min (expert 0.44) | 1.23 | 1.30 | 1.27 | **2.87** | 2.17 | 2.44 |
+| vs idle repeat / frozen run | .63 / 50 f | .74 / 119 f | .74 / 122 f | .76 / 414 f | .77 / 184 f | .72 / 100 f |
+| drill (fixed); never | .43; 2 | .40; 5 | .25; 10 | .45; 1 | .26; 10 | .22; 13 |
+| recovery-means mismatch / return | .117 / .64 | .105 / .66 | .083 / .71 | .105 / .51 | .082 / .50 | .105 / .53 |
+| first-means latency (expert 9 f) | 0 | 0 | 0 | 4 | 0 | 0 |
+
+- **Seed-robust**: s906 reproduces Q2c, fidelity (0.198 vs pre-context
+  s906 0.238) and the coherence card.
+- **3 epochs**: every teacher-forced number lands on the expert (neutral
+  .003), fidelity 0.149, L-cancel 0.80 — and **SD/min doubles** (2.87),
+  offstage trips 10/min, return 0.51. More training = more expert-like
+  inputs AND more walking off the stage. The walk-off is learned, not
+  under-trained. Idle-opponent frozen run grows (414 f) but no freeze.
+- **Mamba carries the recipe** at 256×2: Q2c, fidelity 0.197, coherence
+  (repeat .72, 100 f). Weaker on the drill (0.22, never 13/36) and the
+  y-ablation (.26 → .22) — recovery reading is softer on Mamba at this
+  size; worth re-checking at the port width before reading much into it.
+- The drill is noisy across seeds (0.25–0.45 for the same recipe); the
+  recovery-means return rate is steadier (0.50–0.71) and now reads mostly
+  **edge self-destructs** (latency 0 everywhere but e3's 4 f).
+
+**Port recipe (settled by this queue): windowed + prev_q + event heads +
+`--event-context` + chunk 8.** Epochs: ≥ 3 for fidelity/L-cancel, with the
+edge-SD defect to be fixed first or it will scale with training.
