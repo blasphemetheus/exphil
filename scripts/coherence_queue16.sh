@@ -12,7 +12,10 @@
 # 0.26 -> 0.10, B presses 14 -> 40/min; closed-loop fidelity 0.33, SDs 2.3/min)
 # — +50 % of the corpus's offstage data in a robotic style. Arms now:
 #   evt2ctx_ck8_dags2   silent-only set (frames where the policy was silent), oversample 2
-#   evt2ctx_ck8_dag1    full set, oversample 1 (dose check)
+#   evt2ctx_ck8_dags4   same set, oversample 4 (dose)
+# 17:40: FoxRecoveryExpert pressed B on the ledge-aim vector = Illusion when the
+# aim was sideways-dominant (jump>side_b deaths 7 -> 24 with the first silent-only
+# set); fixed to a straight-up press, set regenerated, arms rerun.
 # Pass: high-band decided-trip return >= 0.6 (baseline 0.40, expert 0.95);
 # closed-loop resume hazard >= .15 at 18-24 f; coherence neutral >= 0.22 and
 # repeat >= 0.70 teacher-forced; fidelity <= 0.21; mismatch <= 0.16.
@@ -25,5 +28,5 @@ pq=(--prev-action --prev-action-dropout 0.0 --prev-action-quantize)
 ev=(--button-events --stick-events --event-context)
 run() { echo "== $1 ($(date +%H:%M))"; scripts/coherence_experiment.sh "$@"; }
 run evt2ctx_ck8_dags2 "${pq[@]}" "${ev[@]}" --chunk-horizon 8 --mix-frames data/silent_fall/sim_dagger_r1_silent.frames --mix-oversample 2
-run evt2ctx_ck8_dag1 "${pq[@]}" "${ev[@]}" --chunk-horizon 8 --mix-frames data/silent_fall/sim_dagger_r1.frames --mix-oversample 1
+run evt2ctx_ck8_dags4 "${pq[@]}" "${ev[@]}" --chunk-horizon 8 --mix-frames data/silent_fall/sim_dagger_r1_silent.frames --mix-oversample 4
 echo "QUEUE 16 DONE ($(date +%H:%M))"

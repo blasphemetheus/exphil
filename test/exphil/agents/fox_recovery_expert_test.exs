@@ -49,13 +49,26 @@ defmodule ExPhil.Agents.FoxRecoveryExpertTest do
 
     {:ok, c} = FoxRecoveryExpert.label(e, p)
     assert c.button_b, "the entire E2 post-mortem: B was never pressed"
-    assert c.main_stick.x < 0.5, "aim inward (target ledge is left of us)"
-    assert c.main_stick.y > 0.5, "aim upward (we are below the ledge)"
+    # the press frame is STRAIGHT UP: the stick at the press selects the
+    # special, and a sideways-dominant aim fires Illusion (2026-10-05)
+    assert_in_delta c.main_stick.x, 0.5, 0.01
+    assert c.main_stick.y >= 0.95
 
     b_held = %{ControllerState.neutral() | button_b: true}
     {:ok, c} = FoxRecoveryExpert.label(e, p, b_held)
     refute c.button_b, "B must be a tap against prev"
-    assert c.main_stick.y > 0.5, "keep aiming during the charge"
+    assert c.main_stick.x < 0.5, "aim inward during the charge (target ledge is left of us)"
+    assert c.main_stick.y > 0.5, "keep aiming upward during the charge"
+  end
+
+  test "near ledge height the press is still Firefox, never a sideways B", %{expert: e} do
+    # at the ledge's height the aim vector is almost horizontal — pressing B on
+    # it would be Illusion from offstage
+    p = player(x: 120.0, y: 3.0, jumps_left: 0)
+    {:ok, c} = FoxRecoveryExpert.label(e, p)
+    assert c.button_b
+    assert c.main_stick.y >= 0.95
+    assert_in_delta c.main_stick.x, 0.5, 0.01
   end
 
   test "mid-special keeps steering at the ledge", %{expert: e} do

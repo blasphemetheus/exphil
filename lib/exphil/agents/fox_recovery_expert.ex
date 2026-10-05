@@ -146,13 +146,18 @@ defmodule ExPhil.Agents.FoxRecoveryExpert do
     end
   end
 
+  # The PRESS frame holds the stick straight up: Melee picks the special
+  # from the stick at the press, and an aim that is sideways-dominant (the
+  # player near ledge height) fires Illusion, not Firefox — from below the
+  # ledge that is the "side-B low" self-destruct. Until 2026-10-05 this
+  # pressed B on the aim vector, and the sim-DAgger set built from it
+  # taught exactly that death (jump>side_b deaths 7 -> 24 per rollout).
+  # The charge frames (B held / @char_specials) aim at the ledge.
   defp tap_upb(expert, x, y, prev) do
-    aim = aim_at_ledge(expert, x, y)
-
     if held?(prev, :button_b) do
-      aim
+      aim_at_ledge(expert, x, y)
     else
-      %{aim | button_b: true}
+      %{neutral() | main_stick: %{x: 0.5, y: 1.0}, button_b: true}
     end
   end
 
