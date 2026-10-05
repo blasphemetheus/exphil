@@ -366,9 +366,44 @@ for {where, bins} <- q5 do
     Enum.map_join(k_bins, "  ", fn bin -> b = bins[bin]; "k#{bin} up #{b.model_up}|#{b.expert_up} jump #{b.model_jump}|#{b.expert_jump}" end))
 end
 
+# Q6 (10-05 19:00, the extrapolation hypothesis): the bot's silence decays
+# because the state drifts out of data — FALLING with a growing action_frame
+# (the expert never falls 30 frames straight offstage). On the expert's
+# silent below-stage frames, overwrite the own action_frame dim in the last
+# 12 window frames with the value for a 30- and a 60-frame fall and read
+# P(any input). A large drop = the counter is what silences the policy
+# (lever: saturate the feature); flat = the silence lives elsewhere.
+af_dims = dims[:own_action_frame] || []
+Output.puts("own action_frame dims #{inspect(af_dims)}")
+
+q6 =
+  if af_dims == [] do
+    Output.warning("Q6 skipped: no own_action_frame dims discovered")
+    nil
+  else
+    q6_base = Enum.filter(q5_rows, & &1.below)
+    set_af = fn frames_value ->
+      v = frames_value / 60.0
+      run.(Enum.filter(q5_samples, & &1.below), fn chunk ->
+        states = windows.(chunk)
+        {_b, w, d} = Nx.shape(states)
+        dim_mask = Nx.tensor(Enum.map(0..(d - 1), fn i -> if i in af_dims, do: 1.0, else: 0.0 end)) |> Nx.reshape({1, 1, d})
+        time_mask = Nx.tensor(Enum.map(0..(w - 1), fn t -> if t >= w - 12, do: 1.0, else: 0.0 end)) |> Nx.reshape({1, w, 1})
+        mask = Nx.multiply(dim_mask, time_mask) |> Nx.backend_transfer(EXLA.Backend)
+        Nx.add(Nx.multiply(states, Nx.subtract(1.0, mask)), Nx.multiply(mask, v))
+      end, :tf)
+    end
+    pa = fn rows -> if rows == [], do: nil, else: Float.round(Enum.sum(Enum.map(rows, p_active)) / length(rows), 3) end
+    r = %{base: pa.(q6_base), af30: pa.(set_af.(30)), af60: pa.(set_af.(60)), af0: pa.(set_af.(1)), n: length(q6_base),
+          expert: share.(q6_base, & &1.active)}
+    Output.puts("RESULT #{label} Q6 action_frame ablation on expert silent below-stage frames (n=#{r.n}), P(any input): base #{r.base} (expert #{r.expert}) -> action_frame:=1 #{r.af0}, :=30 #{r.af30}, :=60 #{r.af60}")
+    r
+  end
+
 if out = opts[:out] do
   File.mkdir_p!(Path.dirname(out))
   summary = %{
+    q6: q6,
     q5: q5,
     label: label, frames: length(rows), presses: length(press_rows),
     q1: Map.new([:high, :ledge, :low, :deep], fn h ->

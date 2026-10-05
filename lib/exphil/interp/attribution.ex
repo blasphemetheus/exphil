@@ -38,6 +38,8 @@ defmodule ExPhil.Interp.Attribution do
       own_x: update_player(base, 1, %{x: 31.4}),
       own_jumps: update_player(base, 1, %{jumps_left: 0}),
       own_airborne: update_player(base, 1, %{on_ground: false}),
+      # silent-fall probe (2026-10-05): how long the current action has run
+      own_action_frame: update_player(base, 1, %{action_frame: 25}),
       own_facing: update_player(base, 1, %{facing: -1.0}),
       own_action: update_player(base, 1, %{action: 66, action_frame: 3}),
       own_speeds: update_player(base, 1, %{speed_air_x_self: 1.3, speed_y_self: -2.1}),

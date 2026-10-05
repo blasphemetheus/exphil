@@ -1536,3 +1536,40 @@ Lesson for every mixed-in set from here: check (a) ordering — interleave;
    the policy's actual press was neutral (the diagnosed defect and nothing
    else; 6.0k frames, hold share 0.77, B 45 % / jump 20 %) at oversample 2
    (~27 batches), plus the full set at oversample 1 as a dose check.
+
+4. **Silent-only set, oversample 2 (18:30 / 19:00).** Style damage gone:
+   val 1.044–1.046, coherence repeat 0.75–0.76 / neutral 0.25–0.29,
+   **fidelity 0.172–0.177 (best 1-epoch yet)**, closed-loop rates
+   expert-like (repeat 0.73, neutral 0.30, dashes 51/min). Recovery NOT
+   better: high-band decided return **0.32 / 0.27** (baseline 0.40), return
+   0.32 / 0.24. The first run (`evt2ctx_ck8_dags2_illusionlabel`) raised
+   `jump>side_b` deaths 7 → 24 — which exposed a **bug in
+   `FoxRecoveryExpert` since July**: `tap_upb` pressed B on the ledge-aim
+   vector, and a sideways-dominant aim (player near ledge height) fires
+   ILLUSION, not Firefox — the "side-B low" self-destruct, taught as the
+   label. Fixed (straight-up press, aim during the charge; test added).
+   The corrected set's run instead grew a new carried-off mode: **grounded
+   Firefox at the lip** (x ≈ 86–87, y = 0, FIREFOX startup in
+   `pre_actions`; 20 trips, 18 fatal) — "B + stick up near the edge"
+   generalised from the airborne silent-fall states onto the lip. Silent
+   falls got a little shorter (never-helpless deaths 57 % vs 70 %), the
+   hazard no longer decays as cleanly, but the follow-up still fails.
+
+**Where this leaves lever 2.** Sim DAgger with the rules expert is a net
+negative for recovery at every dose and label variant tried today, while
+being a small positive for fidelity when kept to silent frames. The
+labeler is the weak part: a rules expert has a *style* (full deflection
+every frame, robotic taps) and *mistakes* (the Illusion press), and a
+256×2 trunk carries both into neighbouring states. If this route is
+pursued, the labeler must be the expert distribution itself (e.g. sample
+the means from the recovery-means table per situation and the stick from
+expert offstage frames), not rules.
+
+**Extrapolation hypothesis (Q6, 19:00).** The silence decays because the
+state leaves the data: FALLING with a growing `action_frame` (embedded as
+frames/60, clipped at 2.0 — in range, but the expert never falls 30 frames
+straight offstage). If P(input) falls as that counter grows on expert
+frames, the lever is a saturation cap on the feature — no new labels, no
+reweighting, just stopping the extrapolation. Probe: on expert silent
+below-stage frames, overwrite the own action_frame dim (last 12 window
+frames) with the value for 1 / 30 / 60 frames.
