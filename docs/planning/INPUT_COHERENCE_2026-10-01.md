@@ -1234,3 +1234,42 @@ header: Q2c neutral ≤ 0.004 / up ≥ 0.03; high-band return ≥ 0.6 (0.28);
 mismatch ≤ 0.15; airdodge_with_jump ≤ 0.10; coherence criteria kept;
 neutral-stick press share ≤ 5 % on replays. `coherence_experiment.sh` now
 runs `recovery_means` and `recovery_probe` by default.
+
+### Queue 13 result (03:10) — the lever works where it was aimed; the stock goes somewhere else
+
+| | evt2_ck8 | evt2_ck8w3 | **evt2ctx_ck8** | **evt2ctx_ck8w3** | expert |
+|---|---|---|---|---|---|
+| Q2c B hazard neutral / side / down / up | .011/.018/.025/.021 | .007/.015/.019/.017 | .007/.009/**.042/.039** | **.004**/.008/.021/.024 | .001/.011/.040/.037 |
+| fidelity distance | 0.250 | 0.225 | **0.185** | **0.181** | — |
+| offline repeat (expert 0.76) / frozen run | 0.65 / 50 f | — | 0.75 / 119 f | 0.75 / 184 f | — |
+| self-play SD/min | 1.23 | — | 1.30 | — | 0.44 |
+| drill (fixed) | 0.43 | 0.34 | 0.40 | — | — |
+| recovery-means mismatch (floor 0.08) | 0.117 | 0.103 | **0.069** | 0.082 | — |
+| return rate | 0.635 | 0.67 | 0.667 | 0.501 | 0.929 |
+
+- **Mechanism confirmed**: with the previous input as a head feature the
+  B-press hazard spans the stick zones (6–10× range; expert 40×) and the
+  up/down hazards land on the expert's. Without it, both controls are flat
+  (≤ 2.5×). Fidelity improves by 0.04–0.065 — the largest single move of
+  the program — with no coherence regression (repeat 0.75, no freeze).
+- **But the return rate does not move** (0.64 → 0.67; w3 0.50).
+
+**Why (timing fields, 03:11):** expert first means fires a median **9 f**
+after becoming actionable (side-B 12 f; 17.6 % of side-Bs from low/deep).
+Model: latency **0**, side-B from low **0.0** — the first means is ALREADY
+IN PROGRESS on the first offstage frame. evt2_ck8: side-B 53/54 episodes
+at frame 0 (49 died), airdodge 87/96, attack 71/98; only jumps start
+offstage. The bot's offstage trips are mostly **moves started on stage
+that carry it off the edge** — illusion off the lip (helpless → dead),
+wavedash/airdodge off, laser/aerial off. The expert is launched off and
+then decides; the bot walks off. The SD review's "side-B from below the
+ledge" and Bradley's "drifted off stage" are the same thing.
+
+So: the offstage machinery was real and is now fixed at its bottleneck
+(stick-up reads height; B conditions on the stick), but it is not where
+the stocks go. Next eval = **edge self-destructs**: offstage episodes with
+the first means active at frame 0, by move, vs the expert's rate; next
+probe = P(side-B / dash-off | onstage within 20 u of the edge, facing out)
+teacher-forced vs the expert's labels, and whether that reads x / facing.
+Queue 14 (running: ctx seed replicate, 3 epochs, Mamba testbed) answers the
+lever's robustness and the port question in the meantime.
