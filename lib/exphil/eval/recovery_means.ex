@@ -164,6 +164,20 @@ defmodule ExPhil.Eval.RecoveryMeans do
       "side_b_fired_low" => rate.(&(&1.first_height in [:low, :deep]), &(&1.first == :side_b)),
       "first_means_latency_median" => median(episodes |> Enum.map(& &1.first_at) |> Enum.reject(&is_nil/1)),
       "side_b_latency_median" => median(episodes |> Enum.filter(&(&1.first == :side_b)) |> Enum.map(& &1.first_at)),
+      # EDGE SELF-DESTRUCTS (10-05): a trip whose first means is already active
+      # on the first offstage frame was carried off the stage by a move started
+      # on it (illusion off the lip, wavedash/airdodge off, aerial/laser off).
+      # Share of all trips, their death rate, and the per-move breakdown; the
+      # DECIDED trips (launched, or acted offstage) scored separately.
+      "carried_off_share" => rate.(&carried_off?/1, fn _ -> true end),
+      "carried_off_died" => rate.(&(&1.outcome == :died), &carried_off?/1),
+      "carried_off_by_move" =>
+        episodes
+        |> Enum.filter(&carried_off?/1)
+        |> Enum.group_by(& &1.first)
+        |> Map.new(fn {m, l} -> {Atom.to_string(m), %{"n" => length(l), "died" => Enum.count(l, &(&1.outcome == :died))}} end),
+      "decided_n" => Enum.count(episodes, &(not carried_off?(&1))),
+      "decided_return_rate" => rate.(&(&1.outcome == :returned), &(not carried_off?(&1))),
       "first_means" => Enum.frequencies_by(episodes, &Atom.to_string(&1.first)),
       "by_height" =>
         episodes
@@ -228,6 +242,8 @@ defmodule ExPhil.Eval.RecoveryMeans do
 
   # dead / rebirth action states (0..13) sit below the blast zone for ~59 frames
   # and then teleport to the revival platform: not an offstage trip
+  defp carried_off?(ep), do: ep.first_at == 0
+
   defp median([]), do: nil
   defp median(l), do: l |> Enum.sort() |> Enum.at(div(length(l), 2))
 

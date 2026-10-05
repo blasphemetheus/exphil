@@ -55,6 +55,28 @@
         "return_rate": 0.836
       }
     },
+    "carried_off_by_move": {
+      "airdodge": {
+        "died": 4,
+        "n": 135
+      },
+      "attack": {
+        "died": 5,
+        "n": 194
+      },
+      "side_b": {
+        "died": 3,
+        "n": 8
+      },
+      "up_b": {
+        "died": 4,
+        "n": 11
+      }
+    },
+    "carried_off_died": 0.046,
+    "carried_off_share": 0.154,
+    "decided_n": 1916,
+    "decided_return_rate": 0.925,
     "episodes": 2264,
     "first_means": {
       "airdodge": 151,
@@ -65,10 +87,13 @@
       "side_b": 91,
       "up_b": 220
     },
+    "first_means_latency_median": 9,
     "means_js": 0.018,
     "mismatch_rate": 0.046,
     "nothing_died": 0.175,
     "return_rate": 0.929,
+    "side_b_fired_low": 0.176,
+    "side_b_latency_median": 12,
     "side_b_low": 0.107
   },
   "split_half": {

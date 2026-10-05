@@ -38,7 +38,8 @@ fi
 # recovery_means recovery_probe" (default: all). Existing outputs are recomputed.
 #   recovery_means  (10-05) first recovery tool per situation vs the expert table
 #   recovery_probe  (10-05) teacher-forced: stick-up event / B hazard by stick zone / y ablation
-evals=${EVALS:-coherence closed_loop recovery calibration fidelity recovery_means recovery_probe}
+#   edge_probe      (10-05) teacher-forced: walk-off hazards near the edge + x/facing ablation
+evals=${EVALS:-coherence closed_loop recovery calibration fidelity recovery_means recovery_probe edge_probe}
 want() { case " $evals " in *" $1 "*) return 0;; *) return 1;; esac; }
 policy=$ckpt/model_best_policy.bin
 grep -o 'val_loss=[0-9.]*' "$out/train.log" | tail -1
@@ -85,6 +86,11 @@ if want recovery_probe; then
   $run scripts/interp_recovery_probe.exs --policy "$policy" --label "$name" --games 24 --batch "${PROBE_BATCH:-256}" \
     --out "$out/recovery_probe.json" > "$out/recovery_probe.log" 2>&1
   grep RESULT "$out/recovery_probe.log" | sed 's/^\[[0-9:]*\] //'
+fi
+if want edge_probe; then
+  $run scripts/interp_edge_probe.exs --policy "$policy" --label "$name" --games 24 --batch "${PROBE_BATCH:-256}" \
+    --out "$out/edge_probe.json" > "$out/edge_probe.log" 2>&1
+  grep RESULT "$out/edge_probe.log" | sed 's/^\[[0-9:]*\] //'
 fi
 echo "DONE $name"
 

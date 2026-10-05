@@ -35,6 +35,7 @@ defmodule ExPhil.Interp.Attribution do
       own_position: update_player(base, 1, %{x: 31.4, y: 7.7}),
       # recovery probe (2026-10-05): height alone, jumps alone, airborne alone
       own_y: update_player(base, 1, %{y: 7.7}),
+      own_x: update_player(base, 1, %{x: 31.4}),
       own_jumps: update_player(base, 1, %{jumps_left: 0}),
       own_airborne: update_player(base, 1, %{on_ground: false}),
       own_facing: update_player(base, 1, %{facing: -1.0}),
