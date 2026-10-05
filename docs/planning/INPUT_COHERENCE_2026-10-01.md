@@ -1094,3 +1094,39 @@ head j scores the chunk's own targets shifted by j; commit 2dfdcdd9).
 Verdicts: beats windowed evt2_ck8 on SD/drill → the carry was a
 casualty of the trunk channel; freezes anyway → the carry is out for
 good; bptt_q_e5 un-freezes → queue 8 was an under-training artifact.
+
+### Queue 12 result (22:10) — carried state is out: not under-training, not a missing knob
+
+Bradley's question: could `bptt_q` have needed one of the other knobs, or
+more training? Both tested at once (`scripts/coherence_queue12.sh`; the
+chunk run hit a latent NaN — all-zero future weights on a batch of
+one-frame segments divided by zero in `imitation_loss`; found by replaying
+the captured batch, fixed at the denominator, 90d32b9f).
+
+| | windowed evt2_ck8 (1 ep) | carried evt2_ck8, 5 ep | carried bptt_q, 1 ep (q8) | carried bptt_q, 5 ep |
+|---|---|---|---|---|
+| updates | 17k | 16.7k | 3.3k | 16.7k |
+| val (teacher-forced) | 1.33 | 1.44 | (11.6, #140) | 1.65 |
+| vs idle: dmg/min, repeat, max frozen run | 46, 0.65, 50 f | **0.9, 0.91, 1707 f** | 0, 0.97, 1731 f | **0, 0.997, 1800 f** |
+| self-play SD/min, dmg/min, L-cancel | 1.23, 65, 0.51 | **4.33**, 16, 0.74 | — | — |
+| fidelity distance | 0.250 | 0.273 | 0.567 | 0.681 |
+| drill (fixed); never | 0.43; 2 | 0.32; 9 | 0.15; 30 | 0.15; 24 |
+| smoke (200 files, ~220 updates) max frozen run | — | 48 f | — | — |
+
+- **More training makes the carried models freeze harder**, not softer:
+  bptt_q at 5 epochs is neutral on 99.7 % of frames. Under-training is
+  ruled out.
+- **The working recipe freezes under the carry too.** Event heads + chunk
+  targets, no previous input anywhere in the trunk, matched updates: one
+  input held for 1707 of 1800 frames vs idle, SD 4.3/min in self-play.
+  Softer than the channel version (it wakes up against a moving opponent:
+  L-cancel 0.74, fidelity 0.27), but out by every pass criterion.
+- The smoke had NOT frozen at ~220 updates: the freeze develops with
+  training. Reading: whatever the carry learns to hold over a whole game
+  under teacher forcing — with no shortcut to copy, it must be game-state
+  history — becomes a reason to wait rather than act once the model runs
+  on its own outputs. The windowed model cannot hold anything past 80
+  frames and so cannot learn that. This is consistent with slippi-ai
+  needing RL on top of exactly this training.
+- **Decision: carried state is out for the imitation program. The port
+  recipe is windowed MinGRU/Mamba + event heads + chunk targets.**
