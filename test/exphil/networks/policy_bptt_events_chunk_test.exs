@@ -122,6 +122,37 @@ defmodule ExPhil.Networks.PolicyBpttEventsChunkTest do
     refute Nx.to_number(loss0) == Nx.to_number(loss)
   end
 
+  test "a batch of one-frame segments (future weights all zero) scores finite" do
+    # the 2026-10-04 fatal batch: every row one real frame + padding, so
+    # w[i] * w[i+j] is zero everywhere for every future head
+    model = model(button_events: true, stick_events: true, chunk_horizon: 2)
+    {init, predict} = Axon.build(model, mode: :train)
+
+    init_inputs =
+      Map.merge(tf(), %{
+        "state_sequence" => Nx.broadcast(0.0, {@batch, @time, @embed}),
+        "initial_hidden" => Nx.broadcast(0.0, {@batch, @layers, @hidden}),
+        "prev_buttons" => Nx.broadcast(0.0, {@batch, @time, 8}),
+        "prev_sticks" => Nx.broadcast(Nx.tensor(1, type: :s64), {@batch, @time, 4})
+      })
+
+    params = init.(init_inputs, Axon.ModelState.empty())
+    config = %{
+      head: :autoregressive, precision: :f32, button_events: true, stick_events: true,
+      prev_action_offset: @offset, axis_buckets: @buckets, chunk_horizon: 2, chunk_weight: 1.0,
+      focal_loss: false, label_smoothing: 0.0, entropy_weight: 0.0
+    }
+    loss_and_grad = Loss.build_bptt_loss_and_grad_fn(predict, config)
+
+    states = Nx.iota({@batch, @time, @embed}, type: :f32) |> Nx.divide(50.0)
+    weights = Nx.put_slice(Nx.broadcast(0.0, {@batch, @time}), [0, 0], Nx.broadcast(1.0, {@batch, 1}))
+    carry = Nx.broadcast(0.0, {@batch, @layers, @hidden})
+
+    {{loss, _}, grads} = loss_and_grad.(params, states, actions(), weights, carry)
+    assert Nx.to_number(Nx.is_nan(loss)) == 0
+    assert Nx.to_number(Nx.sum(Nx.as_type(Nx.is_nan(grads.data["ar_buttons_logits"]["kernel"]), :s64))) == 0
+  end
+
   test "plain BPTT build still refuses nothing and has no event inputs" do
     {init, predict} = Axon.build(model([]), mode: :inference)
     inputs = Map.merge(tf(), %{

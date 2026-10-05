@@ -219,7 +219,11 @@ defmodule ExPhil.Networks.Policy.Loss do
 
         # Apply frame weights and compute weighted mean
         weighted = Nx.multiply(total_per_sample, frame_weights)
-        Nx.sum(weighted) |> Nx.divide(Nx.sum(frame_weights))
+        # a batch whose weights are ALL zero (e.g. chunk-target future heads
+        # on a batch of one-frame segments, 2026-10-04) must score 0, not
+        # NaN: guard the denominator (weights are counts-like, >= ~0.3 when
+        # any frame counts, so the floor never changes a real batch)
+        Nx.sum(weighted) |> Nx.divide(Nx.max(Nx.sum(frame_weights), 1.0e-3))
       else
         # Standard path: mean reduction per head, sum across heads
         button_loss =
@@ -269,7 +273,7 @@ defmodule ExPhil.Networks.Policy.Loss do
     if entropy_weight > 0.0 do
       reduce_entropy = fn per_frame ->
         if frame_weights do
-          Nx.sum(Nx.multiply(per_frame, frame_weights)) |> Nx.divide(Nx.sum(frame_weights))
+          Nx.sum(Nx.multiply(per_frame, frame_weights)) |> Nx.divide(Nx.max(Nx.sum(frame_weights), 1.0e-3))
         else
           Nx.mean(per_frame)
         end

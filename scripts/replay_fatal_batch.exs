@@ -14,9 +14,22 @@
 alias ExPhil.Training.{Imitation, Utils}
 alias ExPhil.Training.Output
 
-[capture_path, config_path] = System.argv()
+# trailing key=value args override/extend the config (the exported
+# model_config.json lacks the data flags: use_prev_action=true
+# button_events=true chunk_horizon=8 stage_internals=true ...)
+[capture_path, config_path | overrides] = System.argv()
 payload = capture_path |> File.read!() |> :erlang.binary_to_term()
-config = config_path |> File.read!() |> Jason.decode!()
+coerce = fn
+  "true" -> true
+  "false" -> false
+  v -> case Integer.parse(v) do
+    {i, ""} -> i
+    _ -> case Float.parse(v) do {f, ""} -> f; _ -> v end
+  end
+end
+config =
+  config_path |> File.read!() |> Jason.decode!()
+  |> Map.merge(Map.new(overrides, fn kv -> [k, v] = String.split(kv, "=", parts: 2); {k, coerce.(v)} end))
 Output.puts("capture: step #{payload.step} batch_idx #{payload.batch_idx} epoch #{payload.epoch} loss #{inspect(payload.loss)}")
 
 finite? = fn t -> Nx.logical_not(Nx.logical_or(Nx.is_nan(t), Nx.is_infinity(t))) end
@@ -60,7 +73,11 @@ trainer =
     embed_size: cfg[:embed_size], temporal: true, bptt: true, backbone: :gru, head: String.to_atom(cfg[:head] || "autoregressive"),
     unroll: cfg[:unroll] || 80, hidden_size: cfg[:hidden_size] || hd(cfg[:hidden_sizes]), num_layers: cfg[:num_layers], precision: :f32,
     batch_size: Nx.axis_size(batch.states, 0), dropout: cfg[:dropout] || 0.1, learning_rate: cfg[:learning_rate] || 1.0e-4,
-    max_grad_norm: cfg[:max_grad_norm] || 1.0, hidden_sizes: cfg[:hidden_sizes]
+    max_grad_norm: cfg[:max_grad_norm] || 1.0, hidden_sizes: cfg[:hidden_sizes],
+    use_prev_action: cfg[:use_prev_action] || false, prev_action_quantize: cfg[:prev_action_quantize] || false,
+    button_events: cfg[:button_events] || false, stick_events: cfg[:stick_events] || false,
+    chunk_horizon: cfg[:chunk_horizon], chunk_weight: cfg[:chunk_weight] || 1.0,
+    stage_internals: cfg[:stage_internals] || false
   )
 
 params_state = %{Utils.ensure_model_state(trainer.policy_params) | data: params}
