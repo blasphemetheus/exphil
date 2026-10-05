@@ -27,7 +27,7 @@ defmodule ExPhil.Eval.RecoveryMeans do
 
   @doc "Offstage episodes of one game: situation at the decision frame, means, outcome."
   def episodes(frames, edge) when is_list(frames) do
-    init = %{off: false, actionable: nil, path: [], last_hit: -10_000, out: []}
+    init = %{off: false, actionable: nil, path: [], last_hit: -10_000, out: [], hist: []}
 
     r =
       frames
@@ -43,12 +43,16 @@ defmodule ExPhil.Eval.RecoveryMeans do
         actionable =
           cond do
             hit? -> nil
-            now_off and not stun?(p1) and (stun?(p0) or not e.off) -> {p1, i}
+            now_off and not stun?(p1) and (stun?(p0) or not e.off) ->
+              # a re-actionable frame inside the same trip keeps the trip's approach
+              {p1, i, if(e.actionable == nil, do: Enum.take([f0 | e.hist], 30), else: elem(e.actionable, 2))}
             true -> e.actionable
           end
 
         path = if actionable == nil, do: [], else: [f1 | e.path]
         last_hit = if hit?, do: i, else: e.last_hit
+        # the 30 frames before the decision frame, frozen when the trip starts
+        hist = Enum.take([f0 | e.hist], 30)
 
         cond do
           died? and e.actionable != nil ->
@@ -63,15 +67,19 @@ defmodule ExPhil.Eval.RecoveryMeans do
                   out: [episode(e.actionable, Enum.reverse(e.path), :returned, false, edge) | e.out]}
 
           true ->
-            %{e | off: now_off, actionable: actionable, path: path, last_hit: last_hit}
+            %{e | off: now_off, actionable: actionable, path: path, last_hit: last_hit, hist: hist}
         end
       end)
 
     Enum.reverse(r.out)
   end
 
-  defp episode({p, _i}, path, outcome, sd?, edge) do
+  defp episode({p, _i, pre}, path, outcome, sd?, edge) do
     {means, first_at, first_y} = means_sequence(p, path)
+    pre = Enum.reverse(pre)
+    sign = if (p.x || 0.0) >= 0, do: 1, else: -1
+    toward = fn f -> f.controller != nil and (f.controller.main_stick.x - 0.5) * sign >= 0.33 end
+    pre_speed = fn f -> abs((Map.get(f.own, :speed_ground_x_self) || 0.0) + (Map.get(f.own, :speed_air_x_self) || 0.0)) end
     first = List.first(means) || if(outcome == :died, do: :none, else: :drift)
 
     %{
@@ -87,6 +95,11 @@ defmodule ExPhil.Eval.RecoveryMeans do
       first_y: first_y,
       first_height: if(first_y, do: height_band(first_y)),
       seq: Enum.join(Enum.take(means, 3), ">"),
+      # the approach: what the player was doing in the 30 frames before the trip
+      pre_actions: pre |> Enum.map(&(&1.own.action || 0)) |> Enum.dedup() |> Enum.take(-5),
+      pre_stick_edge_share: if(pre == [], do: nil, else: Float.round(Enum.count(pre, toward) / length(pre), 2)),
+      pre_speed: if(pre == [], do: nil, else: Float.round(Enum.sum(Enum.map(Enum.take(pre, -5), pre_speed)) / max(length(Enum.take(pre, -5)), 1), 2)),
+      pre_facing_edge: (Map.get(p, :facing) || 1) * (p.x || 0.0) > 0,
       outcome: outcome,
       sd: sd?,
       frames: length(path)
@@ -247,8 +260,10 @@ defmodule ExPhil.Eval.RecoveryMeans do
   defp median([]), do: nil
   defp median(l), do: l |> Enum.sort() |> Enum.at(div(length(l), 2))
 
+  # y < -12 rather than PlayStats' -5: a wavedash's airdodge and an onstage
+  # illusion dip to y ~ -5.5 on the surface and are not trips (seen 10-05)
   defp offstage?(p, edge),
-    do: not (p.on_ground == true) and (p.action || 99) > 13 and (abs(p.x || 0.0) > edge or (p.y || 0.0) < -5.0)
+    do: not (p.on_ground == true) and (p.action || 99) > 13 and (abs(p.x || 0.0) > edge or (p.y || 0.0) < -12.0)
   defp stun?(p), do: (Map.get(p, :hitstun_frames_left) || 0) > 0
 
   defp js_distance(p, q) do

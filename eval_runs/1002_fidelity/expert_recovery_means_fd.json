@@ -2,7 +2,7 @@
   "character": "fox",
   "games": 150,
   "self_score": {
-    "airdodge_with_jump": 0.034,
+    "airdodge_with_jump": 0.006,
     "by_height": {
       "deep": {
         "first": {
@@ -20,26 +20,26 @@
           "airdodge": 7,
           "attack": 418,
           "drift": 241,
-          "jump": 461,
+          "jump": 462,
           "none": 9,
           "side_b": 33,
           "up_b": 48
         },
-        "n": 1217,
+        "n": 1218,
         "return_rate": 0.952
       },
       "ledge": {
         "first": {
-          "airdodge": 134,
-          "attack": 139,
-          "drift": 269,
+          "airdodge": 3,
+          "attack": 22,
+          "drift": 43,
           "jump": 95,
           "none": 3,
-          "side_b": 21,
+          "side_b": 18,
           "up_b": 41
         },
-        "n": 702,
-        "return_rate": 0.969
+        "n": 225,
+        "return_rate": 0.902
       },
       "low": {
         "first": {
@@ -58,47 +58,47 @@
     "carried_off_by_move": {
       "airdodge": {
         "died": 4,
-        "n": 135
+        "n": 4
       },
       "attack": {
         "died": 5,
-        "n": 194
+        "n": 78
       },
       "side_b": {
         "died": 3,
-        "n": 8
+        "n": 5
       },
       "up_b": {
         "died": 4,
         "n": 11
       }
     },
-    "carried_off_died": 0.046,
-    "carried_off_share": 0.154,
-    "decided_n": 1916,
-    "decided_return_rate": 0.925,
-    "episodes": 2264,
+    "carried_off_died": 0.163,
+    "carried_off_share": 0.055,
+    "decided_n": 1690,
+    "decided_return_rate": 0.915,
+    "episodes": 1788,
     "first_means": {
-      "airdodge": 151,
-      "attack": 589,
-      "drift": 515,
-      "jump": 670,
+      "airdodge": 20,
+      "attack": 472,
+      "drift": 289,
+      "jump": 671,
       "none": 28,
-      "side_b": 91,
+      "side_b": 88,
       "up_b": 220
     },
-    "first_means_latency_median": 9,
-    "means_js": 0.018,
+    "first_means_latency_median": 11,
+    "means_js": 0.02,
     "mismatch_rate": 0.046,
     "nothing_died": 0.175,
-    "return_rate": 0.929,
-    "side_b_fired_low": 0.176,
-    "side_b_latency_median": 12,
+    "return_rate": 0.911,
+    "side_b_fired_low": 0.182,
+    "side_b_latency_median": 13,
     "side_b_low": 0.107
   },
   "split_half": {
-    "means_js": 0.168,
-    "mismatch_rate": 0.08
+    "means_js": 0.174,
+    "mismatch_rate": 0.084
   },
   "stage": 32,
   "table": {
@@ -161,7 +161,7 @@
         "airdodge": 6,
         "attack": 385,
         "drift": 213,
-        "jump": 394,
+        "jump": 395,
         "none": 2,
         "up_b": 10
       },
@@ -186,16 +186,14 @@
         "up_b": 1
       },
       "ledge/near/j0": {
-        "airdodge": 85,
-        "attack": 40,
-        "drift": 147,
-        "side_b": 5,
+        "drift": 7,
+        "side_b": 2,
         "up_b": 14
       },
       "ledge/near/j1": {
-        "airdodge": 48,
-        "attack": 91,
-        "drift": 122,
+        "airdodge": 2,
+        "attack": 14,
+        "drift": 36,
         "jump": 56
       },
       "low/far/j0": {
@@ -231,7 +229,7 @@
         "jump": 29
       }
     },
-    "episodes": 2264,
+    "episodes": 1788,
     "heights": {
       "deep": {
         "attack": 1,
@@ -244,18 +242,18 @@
         "airdodge": 7,
         "attack": 418,
         "drift": 241,
-        "jump": 461,
+        "jump": 462,
         "none": 9,
         "side_b": 33,
         "up_b": 48
       },
       "ledge": {
-        "airdodge": 134,
-        "attack": 139,
-        "drift": 269,
+        "airdodge": 3,
+        "attack": 22,
+        "drift": 43,
         "jump": 95,
         "none": 3,
-        "side_b": 21,
+        "side_b": 18,
         "up_b": 41
       },
       "low": {
@@ -314,8 +312,8 @@
         "returned": 46
       },
       "high/near/j1": {
-        "n": 1010,
-        "returned": 978
+        "n": 1011,
+        "returned": 979
       },
       "ledge/far/j0": {
         "n": 18,
@@ -334,12 +332,12 @@
         "returned": 35
       },
       "ledge/near/j0": {
-        "n": 291,
-        "returned": 291
+        "n": 23,
+        "returned": 23
       },
       "ledge/near/j1": {
-        "n": 317,
-        "returned": 315
+        "n": 108,
+        "returned": 106
       },
       "low/far/j0": {
         "n": 49,

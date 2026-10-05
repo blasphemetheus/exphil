@@ -1307,3 +1307,40 @@ lever's robustness and the port question in the meantime.
 **Port recipe (settled by this queue): windowed + prev_q + event heads +
 `--event-context` + chunk 8.** Epochs: ≥ 3 for fidelity/L-cancel, with the
 edge-SD defect to be fixed first or it will scale with training.
+
+### 10-05 07:30 — edge self-destructs measured; the honest recovery picture
+
+Two eval fixes first: (1) the offstage threshold y < -5 caught wavedashes
+and onstage illusions (they dip to y ≈ -5.5 on the surface) as "trips"
+and inflated every return rate above — `RecoveryMeans` now uses y < -12
+(PlayStats keeps -5; shared noise); (2) the scorecard splits CARRIED-OFF
+trips (first means already active on the first offstage frame) from
+DECIDED trips, and records the 30-frame approach.
+
+| | return (all trips) | carried-off share | carried-off died | side-B off (died) | decided-trip return |
+|---|---|---|---|---|---|
+| expert (1788 trips) | **0.911** | 0.055 | 0.16 | 5 (3) | **0.915** |
+| evt2_ck8 | 0.292 | 0.431 | 0.93 | 52 (52) | 0.459 |
+| evt2ctx_ck8 | 0.299 | 0.389 | 0.94 | 62 (61) | 0.450 |
+| evt2ctx_ck8 3 ep | 0.312 | **0.140** | 0.88 | 12 (12) | 0.344 |
+| mamba ctx | 0.269 | 0.361 | 0.89 | 41 (38) | 0.359 |
+
+- **The bot returns from ~30 % of offstage trips; the expert from 91 %.**
+  The fixed drill (0.25–0.45) only ever measured launched recoveries.
+- **Illusion off the lip** (`KNEE_BEND > JUMPING_FORWARD > FOX_ILLUSION
+  > FOX_ILLUSION_SHORTENED` at x ≈ 86, y 2–31, facing the edge, run
+  speed): the SHAPE of the expert's ledge-cancelled illusion, from the
+  wrong height/speed; ~100 % fatal; 52–62 per rollout vs the expert's 5.
+  3 epochs cuts it to 12 → it is learnable from more training/data.
+- **Edge probe** (`scripts/interp_edge_probe.exs`, teacher-forced on
+  expert onstage frames): every walk-off hazard is calibrated — near /
+  facing-edge P(B press) .006 | .006, P(stick→edge) .135 | .132, and
+  P(B press | stick already toward the edge) .001 | .003 — and the x /
+  facing ablations barely move it. **The excess is not in the policy on
+  expert states; it is in the states the bot drives itself into** —
+  closed-loop compounding on a precise technique. Same shape as the
+  carried-state freeze, localized.
+- **Decided trips** return 0.34–0.46 vs 0.915 — the second half of the
+  gap, not yet dissected (next: the same approach/sequence dump on
+  decided deaths; the offstage probe says stick-up reads height and B
+  reads the stick, so the loss is downstream of both).
