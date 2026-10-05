@@ -78,4 +78,5 @@ Output.puts("RESULT expert by height (n, return rate, side_b share): " <>
   end))
 Output.puts("RESULT expert split-half floor: mismatch #{floor["mismatch_rate"]}  means_js #{floor["means_js"]}")
 Output.puts("RESULT expert named rates: side_b_low #{self_score["side_b_low"]}  airdodge_with_jump #{self_score["airdodge_with_jump"]}  nothing_died #{self_score["nothing_died"]}")
+Output.puts("RESULT expert timing: side_b fired from low/deep #{self_score["side_b_fired_low"]}  first-means latency median #{self_score["first_means_latency_median"]} f  side_b latency #{self_score["side_b_latency_median"]} f")
 Output.success("wrote #{out}")

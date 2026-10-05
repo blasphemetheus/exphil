@@ -3,6 +3,7 @@
   "presses": [
     {
       "y": -37.6,
+      "stick_dir": "stick_centre",
       "result": "shine",
       "frame": 1103,
       "sticks": [
@@ -41,6 +42,7 @@
     },
     {
       "y": -6.5,
+      "stick_dir": "stick_to_stage",
       "result": "shine",
       "frame": 1122,
       "sticks": [
@@ -79,6 +81,7 @@
     },
     {
       "y": 18.6,
+      "stick_dir": "stick_centre",
       "result": "shine",
       "frame": 2910,
       "sticks": [
@@ -117,6 +120,7 @@
     },
     {
       "y": -46.6,
+      "stick_dir": "stick_to_stage",
       "result": "shine",
       "frame": 2965,
       "sticks": [
@@ -155,6 +159,7 @@
     },
     {
       "y": -46.6,
+      "stick_dir": "stick_centre",
       "result": "up_b",
       "frame": 3434,
       "sticks": [
@@ -193,6 +198,7 @@
     },
     {
       "y": -18.6,
+      "stick_dir": "stick_centre",
       "result": "none",
       "frame": 3539,
       "sticks": [
@@ -231,6 +237,7 @@
     },
     {
       "y": -17.6,
+      "stick_dir": "stick_centre",
       "result": "up_b",
       "frame": 2287,
       "sticks": [
@@ -269,6 +276,7 @@
     },
     {
       "y": -73.8,
+      "stick_dir": "stick_centre",
       "result": "up_b",
       "frame": 6455,
       "sticks": [
@@ -307,6 +315,7 @@
     },
     {
       "y": -105.4,
+      "stick_dir": "stick_centre",
       "result": "none",
       "frame": 6560,
       "sticks": [
@@ -345,6 +354,7 @@
     },
     {
       "y": -34.9,
+      "stick_dir": "stick_centre",
       "result": "up_b",
       "frame": 341,
       "sticks": [
@@ -383,6 +393,7 @@
     },
     {
       "y": -54.9,
+      "stick_dir": "stick_centre",
       "result": "up_b",
       "frame": 1435,
       "sticks": [
@@ -421,6 +432,7 @@
     },
     {
       "y": -14.4,
+      "stick_dir": "stick_to_stage",
       "result": "none",
       "frame": 1994,
       "sticks": [
@@ -459,6 +471,7 @@
     },
     {
       "y": -52.9,
+      "stick_dir": "stick_to_stage",
       "result": "side_b",
       "frame": 2254,
       "sticks": [
@@ -497,6 +510,7 @@
     },
     {
       "y": -57.6,
+      "stick_dir": "stick_centre",
       "result": "none",
       "frame": 2616,
       "sticks": [
@@ -535,6 +549,7 @@
     },
     {
       "y": -27.8,
+      "stick_dir": "stick_to_stage",
       "result": "side_b",
       "frame": 366,
       "sticks": [
@@ -573,6 +588,7 @@
     },
     {
       "y": -25.6,
+      "stick_dir": "stick_centre",
       "result": "side_b",
       "frame": 386,
       "sticks": [
@@ -611,6 +627,7 @@
     },
     {
       "y": -41.0,
+      "stick_dir": "stick_away",
       "result": "side_b",
       "frame": 1059,
       "sticks": [
@@ -649,6 +666,7 @@
     },
     {
       "y": -29.6,
+      "stick_dir": "stick_to_stage",
       "result": "side_b",
       "frame": 1849,
       "sticks": [
@@ -687,6 +705,7 @@
     },
     {
       "y": -14.3,
+      "stick_dir": "stick_to_stage",
       "result": "shine",
       "frame": 2548,
       "sticks": [
@@ -725,6 +744,7 @@
     },
     {
       "y": -126.9,
+      "stick_dir": "stick_centre",
       "result": "up_b",
       "frame": 452,
       "sticks": [
@@ -763,6 +783,7 @@
     },
     {
       "y": -95.2,
+      "stick_dir": "stick_centre",
       "result": "up_b",
       "frame": 507,
       "sticks": [
@@ -801,6 +822,7 @@
     },
     {
       "y": 8.8,
+      "stick_dir": "stick_centre",
       "result": "shine",
       "frame": 2888,
       "sticks": [
@@ -839,6 +861,7 @@
     },
     {
       "y": -37.3,
+      "stick_dir": "stick_to_stage",
       "result": "side_b",
       "frame": 3371,
       "sticks": [
@@ -877,6 +900,7 @@
     },
     {
       "y": -129.8,
+      "stick_dir": "stick_centre",
       "result": "none",
       "frame": 3449,
       "sticks": [
@@ -915,6 +939,7 @@
     },
     {
       "y": -13.6,
+      "stick_dir": "stick_to_stage",
       "result": "side_b",
       "frame": 4346,
       "sticks": [
@@ -953,6 +978,7 @@
     },
     {
       "y": -4.7,
+      "stick_dir": "stick_to_stage",
       "result": "side_b",
       "frame": 4374,
       "sticks": [
@@ -991,6 +1017,7 @@
     },
     {
       "y": 34.5,
+      "stick_dir": "stick_to_stage",
       "result": "side_b",
       "frame": 5547,
       "sticks": [
@@ -1029,6 +1056,7 @@
     },
     {
       "y": -74.1,
+      "stick_dir": "stick_to_stage",
       "result": "none",
       "frame": 6966,
       "sticks": [
@@ -1067,6 +1095,7 @@
     },
     {
       "y": 10.4,
+      "stick_dir": "stick_centre",
       "result": "up_b",
       "frame": 502,
       "sticks": [
@@ -1105,6 +1134,7 @@
     },
     {
       "y": -37.0,
+      "stick_dir": "stick_to_stage",
       "result": "none",
       "frame": 595,
       "sticks": [
@@ -1143,6 +1173,7 @@
     },
     {
       "y": -69.7,
+      "stick_dir": "stick_centre",
       "result": "up_b",
       "frame": 1167,
       "sticks": [
@@ -1181,6 +1212,7 @@
     },
     {
       "y": -43.6,
+      "stick_dir": "stick_centre",
       "result": "none",
       "frame": 1263,
       "sticks": [
@@ -1219,6 +1251,7 @@
     },
     {
       "y": -43.4,
+      "stick_dir": "stick_centre",
       "result": "up_b",
       "frame": 2401,
       "sticks": [
@@ -1257,6 +1290,7 @@
     },
     {
       "y": -52.2,
+      "stick_dir": "stick_to_stage",
       "result": "up_b",
       "frame": 2549,
       "sticks": [
@@ -1295,6 +1329,7 @@
     },
     {
       "y": -83.7,
+      "stick_dir": "stick_centre",
       "result": "none",
       "frame": 2658,
       "sticks": [
@@ -1333,6 +1368,7 @@
     },
     {
       "y": 27.4,
+      "stick_dir": "stick_centre",
       "result": "shine",
       "frame": 3704,
       "sticks": [
@@ -1371,6 +1407,7 @@
     },
     {
       "y": 20.3,
+      "stick_dir": "stick_centre",
       "result": "shine",
       "frame": 41,
       "sticks": [
@@ -1409,6 +1446,7 @@
     },
     {
       "y": -6.4,
+      "stick_dir": "stick_centre",
       "result": "laser",
       "frame": 68,
       "sticks": [
@@ -1447,6 +1485,7 @@
     },
     {
       "y": 12.6,
+      "stick_dir": "stick_centre",
       "result": "laser",
       "frame": 74,
       "sticks": [
@@ -1485,6 +1524,7 @@
     },
     {
       "y": -66.2,
+      "stick_dir": "stick_centre",
       "result": "up_b",
       "frame": 1964,
       "sticks": [
@@ -1523,6 +1563,7 @@
     },
     {
       "y": 31.3,
+      "stick_dir": "stick_centre",
       "result": "shine",
       "frame": 2619,
       "sticks": [
@@ -1561,6 +1602,7 @@
     },
     {
       "y": -46.9,
+      "stick_dir": "stick_to_stage",
       "result": "side_b",
       "frame": 2854,
       "sticks": [
@@ -1599,6 +1641,7 @@
     },
     {
       "y": -70.4,
+      "stick_dir": "stick_centre",
       "result": "none",
       "frame": 3407,
       "sticks": [
@@ -1637,6 +1680,7 @@
     },
     {
       "y": -58.5,
+      "stick_dir": "stick_centre",
       "result": "shine",
       "frame": 5073,
       "sticks": [
@@ -1675,6 +1719,7 @@
     },
     {
       "y": -58.8,
+      "stick_dir": "stick_to_stage",
       "result": "shine",
       "frame": 5081,
       "sticks": [
@@ -1713,6 +1758,7 @@
     },
     {
       "y": -38.1,
+      "stick_dir": "stick_to_stage",
       "result": "shine",
       "frame": 4339,
       "sticks": [
@@ -1751,6 +1797,7 @@
     },
     {
       "y": -128.8,
+      "stick_dir": "stick_centre",
       "result": "shine",
       "frame": 4425,
       "sticks": [
@@ -1789,6 +1836,7 @@
     },
     {
       "y": -19.7,
+      "stick_dir": "stick_to_stage",
       "result": "side_b",
       "frame": 6769,
       "sticks": [
@@ -1827,6 +1875,7 @@
     },
     {
       "y": -43.8,
+      "stick_dir": "stick_to_stage",
       "result": "side_b",
       "frame": 6821,
       "sticks": [
@@ -1865,6 +1914,7 @@
     },
     {
       "y": -10.9,
+      "stick_dir": "stick_centre",
       "result": "up_b",
       "frame": 8274,
       "sticks": [

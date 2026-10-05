@@ -143,6 +143,7 @@ end
 fmt = fn v -> if v == nil, do: "-", else: inspect(v) end
 Output.puts("RESULT #{label} recovery means: #{score["episodes"]} offstage episodes  mismatch #{fmt.(score["mismatch_rate"])} (expert split-half #{fmt.(floor["mismatch_rate"])})  means_js #{fmt.(score["means_js"])} (floor #{fmt.(floor["means_js"])})  return #{fmt.(score["return_rate"])} (expert #{fmt.(expert["return_rate"])})")
 Output.puts("RESULT #{label} named defects model|expert: side_b_low #{fmt.(score["side_b_low"])}|#{fmt.(expert["side_b_low"])}  airdodge_with_jump #{fmt.(score["airdodge_with_jump"])}|#{fmt.(expert["airdodge_with_jump"])}  nothing_died #{fmt.(score["nothing_died"])}|#{fmt.(expert["nothing_died"])}")
+Output.puts("RESULT #{label} timing model|expert: side_b fired from low/deep #{fmt.(score["side_b_fired_low"])}|#{fmt.(expert["side_b_fired_low"])}  first-means latency (median f) #{fmt.(score["first_means_latency_median"])}|#{fmt.(expert["first_means_latency_median"])}  side_b latency #{fmt.(score["side_b_latency_median"])}|#{fmt.(expert["side_b_latency_median"])}")
 Output.puts("RESULT #{label} by height n/return/first-means model | expert: " <>
   Enum.map_join(~w(high ledge low deep), "  ", fn h ->
     m = score["by_height"][h] || %{"n" => 0, "return_rate" => nil, "first" => %{}}

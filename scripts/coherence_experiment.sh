@@ -82,7 +82,7 @@ if want recovery_means; then
 fi
 
 if want recovery_probe; then
-  $run scripts/interp_recovery_probe.exs --policy "$policy" --label "$name" --games 24 \
+  $run scripts/interp_recovery_probe.exs --policy "$policy" --label "$name" --games 24 --batch "${PROBE_BATCH:-256}" \
     --out "$out/recovery_probe.json" > "$out/recovery_probe.log" 2>&1
   grep RESULT "$out/recovery_probe.log" | sed 's/^\[[0-9:]*\] //'
 fi

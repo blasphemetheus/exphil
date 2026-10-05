@@ -71,7 +71,7 @@ defmodule ExPhil.Eval.RecoveryMeans do
   end
 
   defp episode({p, _i}, path, outcome, sd?, edge) do
-    means = means_sequence(p, path)
+    {means, first_at, first_y} = means_sequence(p, path)
     first = List.first(means) || if(outcome == :died, do: :none, else: :drift)
 
     %{
@@ -81,6 +81,11 @@ defmodule ExPhil.Eval.RecoveryMeans do
       x: Float.round((p.x || 0.0) * 1.0, 1),
       y: Float.round((p.y || 0.0) * 1.0, 1),
       first: first,
+      # where and when the first means fired (the height band above is the
+      # DECISION frame's; a side-B 40 frames later fires from far lower)
+      first_at: first_at,
+      first_y: first_y,
+      first_height: if(first_y, do: height_band(first_y)),
       seq: Enum.join(Enum.take(means, 3), ">"),
       outcome: outcome,
       sd: sd?,
@@ -154,6 +159,11 @@ defmodule ExPhil.Eval.RecoveryMeans do
       "side_b_low" => rate.(&(&1.first == :side_b), &(&1.height in [:low, :deep])),
       "airdodge_with_jump" => rate.(&(&1.first == :airdodge), &(&1.jumps == 1)),
       "nothing_died" => rate.(&(&1.first == :none), &(&1.outcome == :died)),
+      # side-B that FIRED from low/deep, over all side-B-first episodes; and
+      # the latency (frames from the decision frame to the first means)
+      "side_b_fired_low" => rate.(&(&1.first_height in [:low, :deep]), &(&1.first == :side_b)),
+      "first_means_latency_median" => median(episodes |> Enum.map(& &1.first_at) |> Enum.reject(&is_nil/1)),
+      "side_b_latency_median" => median(episodes |> Enum.filter(&(&1.first == :side_b)) |> Enum.map(& &1.first_at)),
       "first_means" => Enum.frequencies_by(episodes, &Atom.to_string(&1.first)),
       "by_height" =>
         episodes
@@ -177,10 +187,11 @@ defmodule ExPhil.Eval.RecoveryMeans do
 
   # ---- means --------------------------------------------------------------------
 
-  # first-to-last means on the way back, deduplicated; a jump is a spent double jump
+  # first-to-last means on the way back, deduplicated; a jump is a spent double
+  # jump. Also the frame offset and height at which the FIRST means fired.
   defp means_sequence(p0, path) do
-    {_, acc} =
-      Enum.reduce(path, {p0.jumps_left || 0, []}, fn f, {jumps, acc} ->
+    {_, acc, first_at, first_y, _} =
+      Enum.reduce(path, {p0.jumps_left || 0, [], nil, nil, 0}, fn f, {jumps, acc, first_at, first_y, i} ->
         p = f.own
         a = p.action || 0
         j = p.jumps_left || 0
@@ -195,10 +206,13 @@ defmodule ExPhil.Eval.RecoveryMeans do
             true -> nil
           end
 
-        {min(jumps, j), if(m && List.first(acc) != m, do: [m | acc], else: acc)}
+        {first_at, first_y} =
+          if m != nil and acc == [], do: {i, Float.round((p.y || 0.0) * 1.0, 1)}, else: {first_at, first_y}
+
+        {min(jumps, j), if(m && List.first(acc) != m, do: [m | acc], else: acc), first_at, first_y, i + 1}
       end)
 
-    Enum.reverse(acc)
+    {Enum.reverse(acc), first_at, first_y}
   end
 
   # y relative to the stage surface (ledge grab box reaches ~ -20 for Fox)
@@ -214,6 +228,9 @@ defmodule ExPhil.Eval.RecoveryMeans do
 
   # dead / rebirth action states (0..13) sit below the blast zone for ~59 frames
   # and then teleport to the revival platform: not an offstage trip
+  defp median([]), do: nil
+  defp median(l), do: l |> Enum.sort() |> Enum.at(div(length(l), 2))
+
   defp offstage?(p, edge),
     do: not (p.on_ground == true) and (p.action || 99) > 13 and (abs(p.x || 0.0) > edge or (p.y || 0.0) < -5.0)
   defp stun?(p), do: (Map.get(p, :hitstun_frames_left) || 0) > 0

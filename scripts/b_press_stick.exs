@@ -79,8 +79,11 @@ presses =
       sticks = for j <- -3..3, do: (elem(frames, i + j) |> elem(1) |> then(&{Float.round(&1.main_stick.x - 0.5, 2), Float.round(&1.main_stick.y - 0.5, 2)}))
       result = Enum.find_value(0..4, fn j -> special.(elem(elem(frames, i + j), 0).action || 0) end)
       toward = if (p.facing || 1) * (p.x || 0.0) < 0, do: :facing_stage, else: :facing_out
+      # stick x on the press frame relative to the stage (an illusion travels the stick's way)
+      sx = c.main_stick.x - 0.5
+      stick_dir = cond do abs(sx) < 0.33 -> :stick_centre; sx * (p.x || 0.0) < 0 -> :stick_to_stage; true -> :stick_away end
       %{game: Path.basename(path), frame: i, y: Float.round((p.y || 0.0) * 1.0, 1), jumps: p.jumps_left || 0,
-        sticks: sticks, result: result || :none, facing: toward}
+        sticks: sticks, result: result || :none, facing: toward, stick_dir: stick_dir}
     end
   end, max_concurrency: 8, timeout: 300_000)
   |> Enum.flat_map(fn {:ok, ps} -> ps end)
@@ -105,6 +108,8 @@ ups = Enum.filter(presses, &(zone.(at_press.(&1.sticks)) == :up))
 Output.puts("RESULT #{label} UP presses (#{length(ups)}): frames the stick was already up before the press: " <> by.(ups, &lead_up.(&1.sticks)) <>
   "  (0 = stick arrives ON the press frame)")
 Output.puts("RESULT #{label} late-up (stick not up on press, up within 3 f): #{pct.(Enum.count(presses, &late_up.(&1.sticks)), length(presses))}")
+sides = Enum.filter(presses, &(&1.result == :side_b))
+Output.puts("RESULT #{label} side-B presses (#{length(sides)}): stick direction " <> by.(sides, & &1.stick_dir) <> "  | by height " <> by.(sides, &height.(&1.y)))
 for h <- [:high, :ledge, :low, :deep] do
   ps = Enum.filter(presses, &(height.(&1.y) == h))
   Output.puts("RESULT #{label} #{h} (#{length(ps)}): result " <> by.(ps, & &1.result) <> "  | zone " <> by.(ps, &zone.(at_press.(&1.sticks))) <>
