@@ -1392,10 +1392,34 @@ defmodule ExPhil.Training.Pipeline do
               end
               |> Enum.to_list()
 
-            Stream.concat(
-              stream,
-              Stream.flat_map(1..oversample, fn _ -> mix_batches end)
-            )
+            mix_all = Enum.flat_map(1..oversample, fn _ -> Enum.shuffle(mix_batches) end)
+
+            # INTERLEAVED, not appended (2026-10-05): a 470-batch recovery-only
+            # block at the end of the epoch sent held-out val loss 1.06 -> 4.92
+            # (catastrophic forgetting from ordering; queue 16 dag4). Spread the
+            # mix evenly through the main stream by credit: every main batch
+            # earns `ratio` mix batches, emitted whenever the credit reaches 1.
+            # Leftover mix batches (estimate short) follow at the end.
+            main_est = max(pipeline.estimated_batches || 0, 1)
+            ratio = length(mix_all) / main_est
+
+            Logger.info("[Streaming] curriculum mix interleaved: #{length(mix_all)} mix batches over ~#{main_est} main batches (1 per #{Float.round(1 / max(ratio, 1.0e-9), 1)})")
+
+            interleaved =
+              Stream.transform(
+                stream,
+                fn -> {mix_all, 0.0} end,
+                fn batch, {queue, credit} ->
+                  credit = credit + ratio
+                  n = trunc(credit)
+                  {emit, rest} = Enum.split(queue, n)
+                  {[batch | emit], {rest, credit - length(emit)}}
+                end,
+                fn {rest, _} -> {rest, nil} end,
+                fn _ -> :ok end
+              )
+
+            interleaved
           end
       end
 
