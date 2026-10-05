@@ -114,6 +114,23 @@ relabel = fn history ->
 
     ctx = for i <- start..(a - 1)//1, i < a, do: elem(frames, i) |> Map.put(:input_only, true) |> Map.delete(:labeled)
     trip = for i <- a..b, do: elem(frames, i) |> Map.delete(:labeled)
+
+    # prev = the PREVIOUS LABEL, not the policy's actual press (first attempt,
+    # 16:25): with event heads the previous input is only the hold/change
+    # selector (the trunk's copy is zeroed), and "policy press -> expert
+    # label" made 98 % of the set change events (expert corpus ~76 % holds).
+    # 108 interleaved batches of that taught the bot to change its input
+    # every frame everywhere: closed-loop repeat share 0.75 -> 0.36, dashes
+    # 40 -> 3/min, SDs 1.3 -> 6.5/min, while teacher-forced metrics were
+    # untouched. The state is still the bot's own; the input history is the
+    # expert-consistent one (82 % holds). The first trip frame keeps the
+    # actual press at t-1 (what really preceded it).
+    {trip, _} =
+      Enum.map_reduce(trip, nil, fn f, prev_label ->
+        f = if prev_label, do: %{f | prev_controller: prev_label}, else: f
+        {f, f.controller}
+      end)
+
     ctx ++ trip
   end)
 end
@@ -167,6 +184,9 @@ ctx_total = (frame_lists |> List.flatten() |> length()) - total
 
 # what the relabel changed: the policy was silent, the expert says act
 silent_actual = Enum.count(all, &SilentFallWeighting.neutral?(&1.actual))
+# hold share as the event heads will read it (label vs prev): expert corpus ~0.76
+same_action = fn a, b -> ExPhil.Training.Data.controller_to_action(a, axis_buckets: 16) == ExPhil.Training.Data.controller_to_action(b, axis_buckets: 16) end
+hold_share = Enum.count(all, &same_action.(&1.controller, &1.prev_controller)) / max(total, 1)
 label_b = Enum.count(all, & &1.controller.button_b)
 label_jump = Enum.count(all, &(&1.controller.button_x or &1.controller.button_y))
 runs_len = frame_lists |> Enum.map(&length/1) |> Enum.sort()
@@ -193,4 +213,4 @@ if report = opts[:report] do
 end
 
 Output.puts("RESULT sim dagger: #{length(frame_lists)} offstage runs (median #{median.(runs_len)} f incl. prefix), #{total} relabeled frames + #{ctx_total} input-only context; " <>
-  "policy was silent on #{Float.round(100 * silent_actual / max(total, 1), 1)} %; expert label: B #{Float.round(100 * label_b / max(total, 1), 1)} %, jump #{Float.round(100 * label_jump / max(total, 1), 1)} % -> #{out}")
+  "policy was silent on #{Float.round(100 * silent_actual / max(total, 1), 1)} %; expert label: B #{Float.round(100 * label_b / max(total, 1), 1)} %, jump #{Float.round(100 * label_jump / max(total, 1), 1)} %; hold share (label vs prev) #{Float.round(hold_share, 3)} -> #{out}")

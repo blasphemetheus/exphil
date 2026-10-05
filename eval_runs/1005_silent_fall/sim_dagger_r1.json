@@ -1,11 +1,11 @@
 {
-  "frames": 16403,
-  "label_b_share": 0.368,
-  "label_jump_share": 0.183,
+  "frames": 15520,
+  "label_b_share": 0.353,
+  "label_jump_share": 0.192,
   "policy": "checkpoints/coh_evt2ctx_ck8/model_best_policy.bin",
-  "policy_silent_share": 0.354,
-  "run_len_median": 94,
-  "runs": 494,
+  "policy_silent_share": 0.345,
+  "run_len_median": 95,
+  "runs": 496,
   "seeds": [
     2001,
     2002,

@@ -1492,3 +1492,32 @@ windows straddle trips and rejected input-only prefixes). Arms: mix
 oversample 4 and 16 (the mix is appended after the main corpus each
 epoch). Pass: high-band decided return ≥ 0.6, resume hazard ≥ .15 at
 18–24 f, mismatch ≤ 0.16, coherence/fidelity unchanged.
+
+**Two ways the mix wrecked the model before it taught anything (16:30):**
+
+1. **Appended block.** The mix convention appended all mix batches after
+   the main corpus: a ~470-batch recovery-only block at the end of the
+   epoch sent held-out val loss 1.06 → **4.92** (catastrophic forgetting
+   from ordering; training loss looked normal all epoch). Fixed: mix
+   batches are now INTERLEAVED by credit, 1 per ~151 main batches at
+   oversample 4 (`pipeline.ex`). Val back to 1.043.
+2. **DAgger prev + event heads = "change everywhere".** The drill
+   protocol puts the policy's ACTUAL press in `:prev_controller` and the
+   expert's correction in `:controller`. With event heads the previous
+   input is only the hold/change SELECTOR (the trunk's copy is zeroed),
+   and by construction 98 % of the set were change events (label ≠ prev;
+   the expert corpus is ~76 % holds). 108 interleaved batches of that
+   taught the bot to change its input every frame everywhere: closed-loop
+   repeat share **0.75 → 0.36**, dashes 40 → 3/min, wavedashes 4.6 →
+   0.15/min, SDs 1.3 → **6.5/min**, offstage trips 6.7 → 15/min, fidelity
+   0.185 → 0.472 — while val loss (1.043), coherence (repeat 0.756) and
+   every teacher-forced number were untouched. The states are not the
+   problem (per-dim sim-vs-replay embedding gap: 6 of 296 dims shift, the
+   largest = opponent character, Fox in self-play). Fixed: for event-head
+   models `prev_controller` = the PREVIOUS LABEL inside the trip (82 %
+   holds), the first trip frame keeps the real press at t−1; the states
+   stay the bot's own. `sim_recovery_dagger.exs` now prints the hold share.
+
+Lesson for every mixed-in set from here: check (a) ordering — interleave;
+(b) hold share of label-vs-prev ≈ the corpus's; (c) closed-loop rates
+(repeat share, dashes/min) — teacher-forced metrics are blind to both.
