@@ -46,6 +46,28 @@ defmodule ExPhil.Training.MixFramesTest do
     assert numbers == [0, 1, 2, 100, 101, 102]
   end
 
+  test "load_lists keeps each export list separate and preserves input_only prefixes", %{tmp_dir: dir} do
+    ctx = Enum.map(0..2, &Map.put(frame(&1), :input_only, true))
+    trip = Enum.map(3..6, &frame/1)
+    path = write_export(dir, "sf.frames", [ctx ++ trip, Enum.map(50..53, &frame/1)], 0)
+
+    {lists, [stats]} = MixFrames.load_lists(path, action_delay: 0)
+
+    assert length(lists) == 2
+    assert stats.frames == 11
+    [first, second] = lists
+    assert Enum.map(first, &(&1[:input_only] == true)) == [true, true, true, false, false, false, false]
+    assert Enum.map(second, & &1.game_state.frame) == [50, 51, 52, 53]
+
+    # the flat loader is the same data flattened
+    {flat, _} = MixFrames.load(path, action_delay: 0)
+    assert length(flat) == 11
+
+    # and from_frame_lists accepts the prefix (boundary-aware layout)
+    ds = ExPhil.Training.Data.from_frame_lists(lists)
+    assert tuple_size(ds.metadata.sequence_starts) == 11
+  end
+
   test "globs and comma lists combine files", %{tmp_dir: dir} do
     write_export(dir, "one.frames", [[frame(0), frame(1), frame(2)]], 0)
     write_export(dir, "two.frames", [[frame(10), frame(11)]], 0)

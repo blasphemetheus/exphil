@@ -1345,20 +1345,24 @@ defmodule ExPhil.Training.Pipeline do
           stream
 
         spec ->
-          {mixed, mstats} =
-            ExPhil.Training.MixFrames.load(spec, label_delay: ropts[:label_delay])
+          # lists, not a flat list (2026-10-05): the export's frame lists are
+          # episode boundaries — lazy windows must not straddle two trips, and
+          # input-only prefixes need them (Data.from_frame_lists).
+          {mix_lists, mstats} =
+            ExPhil.Training.MixFrames.load_lists(spec, label_delay: ropts[:label_delay])
 
+          mixed = List.flatten(mix_lists)
           oversample = ropts[:mix_oversample] || 1
 
           Logger.info(
-            "[Streaming] curriculum mix: #{length(mixed)} frames from " <>
+            "[Streaming] curriculum mix: #{length(mixed)} frames in #{length(mix_lists)} lists from " <>
               "#{length(mstats)} export(s), oversample #{oversample}"
           )
 
           if mixed == [] do
             stream
           else
-            mix_dataset = Streaming.create_dataset(mixed, dataset_opts)
+            mix_dataset = Streaming.create_dataset(mixed, dataset_opts ++ [frame_lists: mix_lists])
 
             mix_batch_opts =
               if awbc? do

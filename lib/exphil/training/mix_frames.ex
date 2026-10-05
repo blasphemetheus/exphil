@@ -31,6 +31,18 @@ defmodule ExPhil.Training.MixFrames do
   """
   @spec load(String.t(), keyword()) :: {[map()], [map()]}
   def load(spec, opts \\ []) do
+    {lists, stats} = load_lists(spec, opts)
+    {List.flatten(lists), stats}
+  end
+
+  @doc """
+  Like `load/2` but keeps each export's frame lists separate: `{[[frame]], stats}`.
+  Feed the lists to `Streaming.create_dataset(_, frame_lists: lists)` so lazy
+  windows never straddle two trips and input-only prefixes are honoured
+  (2026-10-05, the silent-fall DAgger set — short offstage runs).
+  """
+  @spec load_lists(String.t(), keyword()) :: {[[map()]], [map()]}
+  def load_lists(spec, opts \\ []) do
     delay = ExPhil.Training.LabelDelay.resolve!(opts)[:label_delay]
 
     paths =
@@ -43,8 +55,8 @@ defmodule ExPhil.Training.MixFrames do
     results =
       Enum.map(paths, fn path ->
         case load_file(path, delay) do
-          {:ok, frames, meta} ->
-            %{path: path, expert: meta[:expert], frames: length(frames), data: frames}
+          {:ok, lists, meta} ->
+            %{path: path, expert: meta[:expert], frames: lists |> Enum.map(&length/1) |> Enum.sum(), data: lists}
 
           {:error, reason} ->
             Logger.warning("[MixFrames] Skipping #{path}: #{inspect(reason)}")
@@ -52,9 +64,9 @@ defmodule ExPhil.Training.MixFrames do
         end
       end)
 
-    frames = Enum.flat_map(results, & &1.data)
+    lists = Enum.flat_map(results, & &1.data)
     stats = Enum.map(results, &Map.delete(&1, :data))
-    {frames, stats}
+    {lists, stats}
   end
 
   defp load_file(path, delay) do
@@ -86,11 +98,12 @@ defmodule ExPhil.Training.MixFrames do
         )
       end
 
-      frames =
+      lists =
         frame_lists
-        |> Enum.flat_map(&Data.shift_actions(&1, delay))
+        |> Enum.map(&Data.shift_actions(&1, delay))
+        |> Enum.reject(&(&1 == []))
 
-      {:ok, frames, expert: payload[:expert]}
+      {:ok, lists, expert: payload[:expert]}
     else
       {:error, reason} -> {:error, reason}
       other -> {:error, {:bad_format, other}}

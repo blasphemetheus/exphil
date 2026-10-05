@@ -320,7 +320,15 @@ defmodule ExPhil.Training.Streaming do
         do: [{:player_registry, player_registry} | from_frames_opts],
         else: from_frames_opts
 
-    dataset = Data.from_frames(frames, from_frames_opts)
+    # `frame_lists: [[frame]]` (2026-10-05) keeps episode boundaries — lazy
+    # windows never straddle two lists and input-only prefixes are honoured
+    # (Data.from_frame_lists); `frames` is then ignored. Used by the
+    # curriculum mix, whose exports are short offstage trips.
+    dataset =
+      case Keyword.get(opts, :frame_lists) do
+        nil -> Data.from_frames(frames, from_frames_opts)
+        lists -> Data.from_frame_lists(lists, from_frames_opts)
+      end
 
     # Precompute embeddings for this chunk if enabled
     if precompute do
