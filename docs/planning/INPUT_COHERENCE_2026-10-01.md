@@ -1521,3 +1521,18 @@ epoch). Pass: high-band decided return ≥ 0.6, resume hazard ≥ .15 at
 Lesson for every mixed-in set from here: check (a) ordering — interleave;
 (b) hold share of label-vs-prev ≈ the corpus's; (c) closed-loop rates
 (repeat share, dashes/min) — teacher-forced metrics are blind to both.
+
+3. **Dose and style (attempt 2, 17:00).** Interleaved + label-prev, full
+   set × 4 (108 batches, val 1.07): still fidelity 0.33, SDs 2.3/min,
+   repeat share 0.57, **neutral share 0.05** — and this time it shows
+   teacher-forced too: coherence neutral 0.26 → 0.10, repeat 0.75 → 0.65,
+   B presses 14 → 40/min on expert frames. Not ordering, not the prev
+   channel: the labels. Within offstage states the set is +50 % of the
+   corpus's offstage data (expert ≈ 120k offstage targets/epoch; mix
+   15.5k × 4 = 62k) in a robotic style — full stick deflection on every
+   frame, B on 35 % of frames, X taps — and a 256×2 trunk carries that
+   style onstage. Evals kept in `eval_runs/1001_queue/evt2ctx_ck8_dag4_fullset_attempt2`.
+   Next (queue 16 as now): `--only-silent` — relabel ONLY the frames where
+   the policy's actual press was neutral (the diagnosed defect and nothing
+   else; 6.0k frames, hold share 0.77, B 45 % / jump 20 %) at oversample 2
+   (~27 batches), plus the full set at oversample 1 as a dose check.
