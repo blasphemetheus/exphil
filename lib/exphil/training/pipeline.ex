@@ -1168,6 +1168,20 @@ defmodule ExPhil.Training.Pipeline do
       chunk_horizon: ropts[:chunk_horizon]
     ]
 
+    # Windowed-path offstage / silent-fall LOSS weights (2026-10-05): a
+    # per-chunk fn over the prepared frames, nil when neither knob is set.
+    # (--offstage-weight on the bptt path is applied by TrajectoryCursors.)
+    rare_weights_fn =
+      if ropts[:offstage_weight] || ropts[:silent_fall_weight] do
+        fn frames ->
+          ExPhil.Training.SilentFallWeighting.frame_weights(frames,
+            offstage_weight: ropts[:offstage_weight],
+            silent_fall_weight: ropts[:silent_fall_weight],
+            silent_fall_min: ropts[:silent_fall_min] || 13
+          )
+        end
+      end
+
     stream =
       if ropts[:bptt] do
         # Contiguous-BPTT (BPTT_LOADER_DESIGN.md plank B wiring): per chunk,
@@ -1273,7 +1287,8 @@ defmodule ExPhil.Training.Pipeline do
             cache_embeddings: ropts[:cache_streaming] || false,
             embed_config: pipeline.embed_config,
             progress_path: pipeline.progress_path,
-            chunk_offset: pipeline.chunk_offset || 0
+            chunk_offset: pipeline.chunk_offset || 0,
+            loss_weights_fn: rare_weights_fn
           ] ++ seq_batch_opts
         )
       else
@@ -1298,7 +1313,10 @@ defmodule ExPhil.Training.Pipeline do
 
               seq_batch_opts ++ [loss_weights: ws]
             else
-              seq_batch_opts
+              case rare_weights_fn && rare_weights_fn.(chunk_dataset.frames) do
+                nil -> seq_batch_opts
+                ws -> seq_batch_opts ++ [loss_weights: ws]
+              end
             end
 
           if ropts[:temporal] do

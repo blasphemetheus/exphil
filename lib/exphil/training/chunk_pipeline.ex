@@ -222,6 +222,11 @@ defmodule ExPhil.Training.ChunkPipeline do
     temporal = Keyword.get(opts, :temporal, false)
     shuffle = Keyword.get(opts, :shuffle, true)
     drop_last = Keyword.get(opts, :drop_last, false)
+    # Per-chunk LOSS weights (2026-10-05): `fn frames -> [weight] | nil`,
+    # evaluated on each prepared dataset's frames and passed on as the
+    # `:loss_weights` channel. The seam AWBC lacked (it forces the
+    # non-pipelined path); SilentFallWeighting uses it.
+    loss_weights_fn = Keyword.get(opts, :loss_weights_fn)
 
     # Separate pipeline opts from batch opts
     pipeline_opts =
@@ -251,7 +256,8 @@ defmodule ExPhil.Training.ChunkPipeline do
         :progress_path,
         :chunk_offset,
         :batch_size,
-        :temporal
+        :temporal,
+        :loss_weights_fn
       ])
       |> Keyword.merge(batch_size: batch_size, shuffle: shuffle, drop_last: drop_last)
 
@@ -261,6 +267,12 @@ defmodule ExPhil.Training.ChunkPipeline do
       if dataset.size == 0 do
         []
       else
+        batch_opts =
+          case loss_weights_fn && loss_weights_fn.(dataset.frames) do
+            nil -> batch_opts
+            ws when is_list(ws) -> Keyword.put(batch_opts, :loss_weights, ws)
+          end
+
         if temporal do
           ExPhil.Training.Data.batched_sequences(dataset, batch_opts)
         else

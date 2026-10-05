@@ -1675,10 +1675,18 @@ defmodule ExPhil.Training.Config do
       # dropped at export. Windowed AR path only (not bptt).
       chunk_horizon: nil,
       chunk_weight: 1.0,
-      # Per-frame OFFSTAGE weight (bptt path): frames where the subject is
-      # airborne beyond the ledge get max(weight, offstage_weight) —
-      # rare-state coverage for recovery (V2_PREP 09-08). nil = off.
+      # Per-frame OFFSTAGE weight: frames where the subject is airborne
+      # beyond the ledge get max(weight, offstage_weight) — rare-state
+      # coverage for recovery (V2_PREP 09-08; bptt path via
+      # TrajectoryCursors, windowed path via SilentFallWeighting since
+      # 10-05). nil = off.
       offstage_weight: nil,
+      # Silent-fall weight (2026-10-05, SilentFallWeighting): offstage frames
+      # where the subject's controller has been neutral for >= silent_fall_min
+      # previous frames get max(weight, silent_fall_weight). The data-starved
+      # tail behind the bot's input-free offstage deaths. nil = off.
+      silent_fall_weight: nil,
+      silent_fall_min: 13,
       # AWBC (advantage-weighted BC) loss weights: reweight the imitation loss
       # by observed outcomes. --awbc-reward standard uses Rewards.Standard
       # (stock + damage); default :shine is the multishine specialist signal.
