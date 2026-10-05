@@ -1430,3 +1430,65 @@ a growing action_frame, constant vy, drifting x) and the one-frame prev.
    expert's own decision, carried over a short silence.
 3. More epochs/data: does NOT move this (e3 decided return 0.344 vs
    0.450 at 1 epoch) — it fixed the carried-off illusions, not this.
+
+### 10-05 15:40 — lever 1 (loss weights) fails; lever 2 (sim DAgger) running
+
+**Lever 1 = queue 15** (`--silent-fall-weight 20`, k ≥ 13, ledge/dead/
+helpless/hitstun excluded — `ExPhil.Training.SilentFallWeighting`, a
+per-chunk `loss_weights_fn` seam in `ChunkPipeline`; and `--offstage-weight
+3`, the V2 knob now wired on the windowed path). Coverage on 20 holdout
+games: offstage = 8.5 % of frames (ledge hangs, edgeguards), gated
+silent-fall frames = 0.12 % (~9/game, expert acts on 8 % of them — the
+probe's number once ledges were excluded). Single seed each, 1 epoch,
+against evt2ctx_ck8:
+
+| arm | val | fidelity | mismatch | return | carried-off | decided | high-band decided | Q5 k25-48 (expert .247) |
+|---|---|---|---|---|---|---|---|---|
+| evt2ctx_ck8 (baseline) | 1.058 | 0.185 | 0.161 | 0.299 | 0.389 | 0.450 | 0.40 | **0.154** |
+| sf20 | 1.054 | 0.197 | 0.209 | **0.191** | 0.311 | **0.228** | **0.14** | **0.124** |
+| off3 | 1.058 | — | **0.088** (floor 0.084) | **0.373** | **0.281** | 0.463 | 0.40 | 0.151 |
+| e3 (3 ep, for reference) | — | 0.149 | 0.129 | 0.312 | 0.140 | 0.344 | 0.29 | 0.163 |
+
+- **sf20 is worse on the quantity it targeted**: teacher-forced P(input |
+  silent ≥ 25 f) fell 0.154 → 0.124, closed-loop resume hazard 0.12 →
+  0.08 at 9–24 f, high-band decided return 0.40 → 0.14. Coherence intact
+  (repeat 0.746). Twenty-fold weight on ~3 frames/game does not sharpen
+  the conditional; it moved it the wrong way. (`loss_weights` multiply
+  the base weights, so the 4:1 active:neutral ratio inside the regime
+  was preserved — not a ratio artefact.) Verdict: more gradient on the
+  same thin tail is not the lever.
+- **off3 is a real, separate win**: mismatch 0.088 — at the expert's
+  split-half floor for the first time — carried-off share 0.389 → 0.281,
+  return 0.299 → 0.373, resume hazard higher at 6–12 f (0.23/0.22/0.18
+  vs 0.13–0.14). It ends silences sooner and picks the expert's tool; the
+  follow-up still fails (high-band decided return unchanged at 0.40).
+  Candidate for the port recipe pending a seed replicate; the tail
+  (Q5 k25+) did not move.
+- Neither arm touches the data-starved states themselves — which is
+  what both results say the problem is.
+
+**Lever 2 (replay seeding) is dead on this corpus**: `Seed.from_replay`
+is bit-exact until the first divergence and then a different game, and
+38 of 40 ranked FD Fox games diverge inside the first few hundred
+frames (ports 3/4, early percent mismatches) — 1 usable seed from 141
+decision frames (`scripts/silent_fall_set.exs`, kept for local Dolphin
+games where seeding is exact).
+
+**Lever 2 as sim DAgger (= queue 16, running)**: the bot manufactures
+the silent-fall states itself (190/rollout). `scripts/sim_recovery_dagger.exs`
+rolls the 1-epoch baseline out in the sim (3 seeds × 32 envs × 3600 f,
+self-play) and relabels every offstage/below airborne frame with
+`ExPhil.Agents.FoxRecoveryExpert` — the July E2 post-mortem relabeler
+("mashed jump 55–161 frames offstage, pressed B zero times": the same
+disease): jump if one is left, else Firefox aimed at the ledge, steer
+mid-special, DI in hitstun. Onstage play and ledge hangs are NOT
+relabeled. The policy's actual press rides in `:prev_controller`; each
+trip carries 90 input-only context frames from its own env. Set r1: 494
+trips, 16.4k relabeled frames (+44.5k context), the policy silent on
+35 % of them, labels B 37 % / jump 18 %. New plumbing:
+`MixFrames.load_lists` + `Streaming.create_dataset(frame_lists:)` keep
+trip boundaries on the windowed mix path (the flat mix path let lazy
+windows straddle trips and rejected input-only prefixes). Arms: mix
+oversample 4 and 16 (the mix is appended after the main corpus each
+epoch). Pass: high-band decided return ≥ 0.6, resume hazard ≥ .15 at
+18–24 f, mismatch ≤ 0.16, coherence/fidelity unchanged.
