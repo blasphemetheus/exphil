@@ -1620,3 +1620,31 @@ states, plus too little drift toward the stage. Q7 (recovery probe) tests
 whether the release excess is already there teacher-forced on expert
 frames (structural: the hold/change head lets go too easily offstage) or
 only in the bot's own states (closed-loop).
+
+**Q7 — the release floor (teacher-forced, expert frames, P(release to
+neutral | stick deflected, offstage below stage) per frame):**
+
+| band | baseline | e3 (3 ep) | off3 | **rel** (release head) | expert |
+|---|---|---|---|---|---|
+| −20…−60 jumpless | 0.024 | 0.022 | **0.015** | 0.026 | 0.007 |
+| −20…−60 jump in hand | 0.042 | 0.053 | 0.042 | 0.039 | 0.028 |
+| < −60 jumpless | 0.026 | 0.012 | 0.012 | **0.038** | 0.000 |
+| < −60 jump in hand | 0.027 | 0.033 | 0.019 | 0.039 | 0.000 |
+| ledge, jumpless | 0.030 | 0.027 | 0.024 | 0.025 | 0.024 |
+| ledge, jump in hand | 0.071 | 0.084 | 0.066 | 0.066 | 0.046 |
+
+Structural, yes — the floor is there on expert frames — but NOT a
+parametrisation artefact: **`--stick-release`** (release logit beside
+hold, `Heads.collapse_hold_release_change`, queue 17 `evt2ctx_ck8_rel`)
+learned the same floor and a worse deep band; closed-loop it entered
+silence MORE (< −60 jumpless 0.143 vs 0.098 per 3 f; high-band decided
+return 0.23 vs 0.40). Val 1.049, coherence repeat 0.753 / neutral 0.315
+(the closest neutral share to the expert's 0.303 yet), fidelity 0.195 —
+the head is sound, it just doesn't change what is learned. Read: the
+hold/release/change decision is a weakly state-conditioned prior
+(hold_agreement 0.60, change_recall 0.30 say the same thing globally);
+~42k training frames where the expert never releases deep offstage do not
+move it. The silent fall is one symptom of that under-conditioning.
+Epochs don't help (e3 worse with the jump in hand). The one lever that
+moved the floor is the offstage LOSS WEIGHT (×3 halved it in the jumpless
+bands) — queue 18 runs ×8 as the dose point.
