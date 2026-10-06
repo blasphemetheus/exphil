@@ -1573,3 +1573,50 @@ frames, the lever is a saturation cap on the feature — no new labels, no
 reweighting, just stopping the extrapolation. Probe: on expert silent
 below-stage frames, overwrite the own action_frame dim (last 12 window
 frames) with the value for 1 / 30 / 60 frames.
+**Result (Q6):** base 0.081 → af:=30 0.074 → af:=60 0.070. Real, minor
+(−14 %). Not the driver.
+
+### 10-05 20:00 — the silence is entered, not failed to escape
+
+**Probe on the bot's OWN states** (`scripts/interp_silent_fall_probe.exs`:
+the silent-only DAgger export is 5.7k frames where the policy's actual
+press was neutral, each with 90 frames of its own context; embedded like
+training, teacher-forced with a neutral previous input and the neutral
+action — i.e. the proper joint P(any input) = 1 − P(all heads neutral)):
+
+- Model P(any input) on its own silent frames: 0.047 (k 1–6) → 0.027
+  (k 49+); by depth 0.052 (ledge) → 0.026 (< −90). Matches the live hazard.
+- Ablations: action_frame := 1 → 0.049; jumps := 0 → 0.046; the whole
+  80-frame history replaced by the last frame → 0.043. **Replacing every
+  dim except the previous-input slot with an EXPERT silent offstage
+  window → 0.047.** The state does not silence the model.
+- The expert's own silent offstage frames through the same protocol:
+  model 0.058 | expert acts 0.045 (n=177 in 12 games — the expert is
+  almost never silent offstage). Calibrated. (Q5's "tail under-fire" was
+  partly a protocol artefact: it teacher-forces the expert's actual
+  action, which conditions the stick heads on the pressed buttons.)
+
+So: both resume from silence at ~0.05/frame; the policy's resume hazard
+is state-insensitive and roughly the expert's. **The difference is
+upstream — the bot lets go in danger.** From the traces, P(enter silence |
+active) per 3 f, decided trips below stage level:
+
+| state | bot (e3) | expert | ratio |
+|---|---|---|---|
+| −20…−60, jumpless | **0.072** | 0.017 | 4× |
+| −20…−60, jump in hand | **0.126** | 0.044 | 3× |
+| < −60, jumpless | **0.098** | 0.019 | 5× |
+| ledge band, jump in hand | 0.156 | 0.094 | 1.7× |
+
+and among active frames the bot holds toward the stage half as often
+(0.17–0.45 vs 0.39–0.76), holding OUT 0.50 vs 0.38 on the first offstage
+frame. The approach differs too: dash/run in the last 30 frames 0.68 vs
+0.35, facing the edge 0.79 vs 0.39, speed med 1.4 vs 0 — the bot arrives
+at the lip running outward; the expert arrives standing or already turned.
+
+**The defect, finally named:** not "frozen", not "can't resume" — a
+3–5× excess hazard of RELEASING a deflected stick in dangerous offstage
+states, plus too little drift toward the stage. Q7 (recovery probe) tests
+whether the release excess is already there teacher-forced on expert
+frames (structural: the hold/change head lets go too easily offstage) or
+only in the bot's own states (closed-loop).

@@ -309,10 +309,35 @@ defmodule ExPhil.Networks.Policy.Heads do
 
     # A stick axis with hold-or-change: K change logits + 1 hold logit,
     # collapsed to K log-probabilities given the previous bucket (column j).
+    # With `stick_release` (2026-10-05) a RELEASE logit joins the hold logit
+    # (K + 2 raw, layer "#{prefix}_logits_hr"): letting the axis go to centre
+    # becomes an explicit decision instead of the change softmax's centre
+    # mass — which is the onstage prior, and left the policy a ~2.5 %/frame
+    # release floor offstage where the expert never lets go (recovery probe
+    # Q7; INPUT_COHERENCE "10-05 20:00").
+    stick_release = Keyword.get(opts, :stick_release, false)
+
     stick_component = fn r, out_size, prefix, j ->
       case stick_events_prev do
         nil ->
           component.(r, out_size, prefix)
+
+        prev when stick_release ->
+          raw =
+            r
+            |> Axon.dense(component_hidden, name: "#{prefix}_hidden")
+            |> Axon.relu()
+            |> Axon.dense(out_size + 2, name: "#{prefix}_logits_hr")
+
+          Axon.layer(
+            fn raw, prev, _opts ->
+              col = prev |> Nx.slice_along_axis(j, 1, axis: -1) |> Nx.squeeze(axes: [-1])
+              collapse_hold_release_change(raw, col)
+            end,
+            [raw, prev],
+            name: "#{prefix}_hold_release_change",
+            op_name: :hold_release_change
+          )
 
         prev ->
           raw = component.(r, out_size + 1, prefix)
@@ -423,6 +448,53 @@ defmodule ExPhil.Networks.Policy.Heads do
 
     at_prev = Nx.equal(Nx.iota({1, k}), Nx.new_axis(prev, -1)) |> Nx.as_type(Nx.type(raw))
     Nx.add(Nx.multiply(at_prev, both), Nx.multiply(Nx.subtract(1, at_prev), a))
+  end
+
+  @doc """
+  Hold / release / change collapse (2026-10-05).
+
+  `raw` is `{batch, K + 2}`: K change logits, one hold logit, one RELEASE
+  logit. With h = sigmoid(hold), r = sigmoid(release), c = the centre bucket
+  (K div 2):
+
+      p(bucket) = h * [bucket == prev]
+                + (1 - h) * r * [bucket == c]
+                + (1 - h) * (1 - r) * softmax(change)[bucket]
+
+  Returned as log-probabilities `{batch, K}`. Letting the axis go back to
+  centre is its own decision, like holding, so its calibration per state is
+  learned directly instead of inherited from the change softmax's centre
+  mass (the onstage prior). When prev == c the hold and release masses both
+  land on c.
+  """
+  @spec collapse_hold_release_change(Nx.Tensor.t(), Nx.Tensor.t()) :: Nx.Tensor.t()
+  def collapse_hold_release_change(raw, prev) do
+    k = Nx.axis_size(raw, -1) - 2
+    centre = div(k, 2)
+    change = Nx.slice_along_axis(raw, 0, k, axis: -1)
+    hold = Nx.slice_along_axis(raw, k, 1, axis: -1)
+    release = Nx.slice_along_axis(raw, k + 1, 1, axis: -1)
+    log_sig = fn x -> Nx.subtract(Nx.min(x, 0), Nx.log1p(Nx.exp(Nx.negate(Nx.abs(x))))) end
+
+    log_h = log_sig.(hold)
+    log_nh = log_sig.(Nx.negate(hold))
+    log_r = log_sig.(release)
+    log_nr = log_sig.(Nx.negate(release))
+
+    # change mass per bucket, hold mass at prev, release mass at centre — in
+    # log space, summed with logsumexp over a stacked axis (-1e30 where a
+    # term does not apply)
+    a = Nx.add(Nx.add(log_nh, log_nr), Nx.subtract(change, Nx.logsumexp(change, axes: [-1], keep_axes: true)))
+    neg = Nx.tensor(-1.0e30, type: Nx.type(raw))
+    iota = Nx.iota({1, k})
+    # (predicates broadcast to the full {batch, K} explicitly — a {1} prev
+    # from the tiled sampler would otherwise pin select's shape to {1, K})
+    at_prev = Nx.equal(iota, Nx.new_axis(prev, -1)) |> Nx.broadcast(Nx.shape(a))
+    at_centre = Nx.equal(iota, centre) |> Nx.broadcast(Nx.shape(a))
+    t_hold = Nx.select(at_prev, Nx.broadcast(log_h, Nx.shape(a)), neg)
+    t_release = Nx.select(at_centre, Nx.broadcast(Nx.add(log_nh, log_r), Nx.shape(a)), neg)
+
+    Nx.stack([a, t_hold, t_release], axis: -1) |> Nx.logsumexp(axes: [-1])
   end
 
   @doc """

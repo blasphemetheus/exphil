@@ -200,7 +200,8 @@ defmodule ExPhil.Interp.Activations do
         # "prev_sticks" inputs) or the raw 16-logit button head comes out
         button_events: Map.get(config, :button_events, false) == true,
         stick_events: Map.get(config, :stick_events, false) == true,
-        event_context: Map.get(config, :event_context, false) == true
+        event_context: Map.get(config, :event_context, false) == true,
+        stick_release: Map.get(config, :stick_release, false) == true
       )
 
     {_init_fn, predict_fn} = Utils.build_compiled(model, mode: :inference)

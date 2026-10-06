@@ -246,7 +246,7 @@ donors =
           p.on_ground != true and (abs(p.x || 0.0) > edge or (p.y || 0.0) < -12.0) and (p.y || 0.0) < 0.0,
           (p.action || 0) > 13 and (p.action || 0) != 35 and (p.action || 0) not in 252..263,
           silent_ctrl?.(elem(ft, i - 1).controller),
-          do: %{emb: gemb, i: i, y: p.y || 0.0}
+          do: %{emb: gemb, i: i, y: p.y || 0.0, active: not silent_ctrl?.(f.controller)}
     end
   end)
 
@@ -269,6 +269,17 @@ swap_group = fn group_dims ->
     Nx.add(Nx.multiply(states, Nx.subtract(1.0, mask)), Nx.multiply(donor, mask))
   end
 end
+
+# the expert's own silent frames through the SAME protocol (teacher-forced
+# neutral = the proper joint P(any input) = 1 - P(all heads neutral)); Q5 in
+# the recovery probe teacher-forces the expert's actual action, which
+# conditions the stick heads on the pressed buttons and reads higher
+donor_samples = Enum.map(donors, fn d -> %{i: d.i, y: d.y, k: 1, jumps: 0, emb: d.emb, active: d.active} end)
+donor_windows = fn chunk -> chunk |> Enum.map(fn s -> Nx.slice_along_axis(s.emb, s.i - window + 1, window, axis: 0) end) |> Nx.stack() end
+expert_rows = if donors == [], do: [], else: run.(donor_samples, donor_windows)
+Output.puts("RESULT #{label} silent-fall probe EXPERT silent offstage frames, same protocol, P(any input) by y: " <>
+  Enum.map_join(y_bins, "  ", fn b -> l = Enum.filter(expert_rows, &(y_bin.(&1.y) == b)); "#{b} model #{mean.(l, p_active)} | expert acts #{mean.(l, &if(&1.active, do: 1.0, else: 0.0))} (n=#{length(l)})" end) <>
+  "  | overall model #{mean.(expert_rows, p_active)} expert #{mean.(expert_rows, &if(&1.active, do: 1.0, else: 0.0))} (bot states: model #{mean.(base_rows, p_active)})")
 
 all_but_prev = Enum.to_list(0..(embed_size - 1)) -- Enum.to_list(prev_off..(prev_off + 12))
 groups =

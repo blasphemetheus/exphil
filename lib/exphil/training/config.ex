@@ -1594,6 +1594,11 @@ defmodule ExPhil.Training.Config do
       button_events: false,
       stick_events: false,
       event_context: false,
+      # Stick RELEASE as an explicit decision beside hold (2026-10-05): the
+      # change softmax's centre mass is the onstage prior and left a ~2.5 %/frame
+      # release floor offstage where the expert never lets go (recovery probe
+      # Q7). Needs stick_events.
+      stick_release: false,
       # Fraction of frames whose prev-action channel is zeroed during training
       # (exposure-bias mitigation: live the model eats its own outputs, which
       # drift from ground truth — dropout stops it over-relying on the channel)
@@ -2647,6 +2652,7 @@ defmodule ExPhil.Training.Config do
       button_events: opts[:button_events],
       stick_events: opts[:stick_events],
       event_context: opts[:event_context],
+      stick_release: opts[:stick_release],
       prev_action_dropout: opts[:prev_action_dropout],
       prev_action_dropout_block: opts[:prev_action_dropout_block],
       prev_action_quantize: opts[:prev_action_quantize],

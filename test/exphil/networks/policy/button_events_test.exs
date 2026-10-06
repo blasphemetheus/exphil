@@ -54,6 +54,41 @@ defmodule ExPhil.Networks.Policy.ButtonEventsTest do
     end
   end
 
+  describe "hold / release / change sticks (2026-10-05)" do
+    # K = 5 buckets, centre = 2; raw = 5 change logits + hold + release
+    test "probabilities sum to one; hold mass at prev, release mass at centre" do
+      change = [0.3, -1.0, 2.0, 0.5, -0.5]
+      raw = Nx.tensor([change ++ [1.5, 0.8]])
+      p = Heads.collapse_hold_release_change(raw, Nx.tensor([4])) |> Nx.exp()
+      [row] = Nx.to_list(p)
+      assert_in_delta Enum.sum(row), 1.0, 1.0e-5
+
+      h = 1 / (1 + :math.exp(-1.5))
+      r = 1 / (1 + :math.exp(-0.8))
+      z = Enum.sum(Enum.map(change, &:math.exp/1))
+      sm = fn i -> :math.exp(Enum.at(change, i)) / z end
+      assert_in_delta Enum.at(row, 4), h + (1 - h) * (1 - r) * sm.(4), 1.0e-5
+      assert_in_delta Enum.at(row, 2), (1 - h) * r + (1 - h) * (1 - r) * sm.(2), 1.0e-5
+      assert_in_delta Enum.at(row, 0), (1 - h) * (1 - r) * sm.(0), 1.0e-5
+    end
+
+    test "prev == centre merges hold and release on the centre bucket" do
+      change = [0.0, 0.0, 0.0, 0.0, 0.0]
+      p = Heads.collapse_hold_release_change(Nx.tensor([change ++ [0.0, 0.0]]), Nx.tensor([2])) |> Nx.exp()
+      [row] = Nx.to_list(p)
+      assert_in_delta Enum.sum(row), 1.0, 1.0e-5
+      # h = r = 0.5: centre gets 0.5 + 0.25 + 0.25 * 0.2
+      assert_in_delta Enum.at(row, 2), 0.5 + 0.25 + 0.25 * 0.2, 1.0e-5
+    end
+
+    test "a confident release goes to centre regardless of the change logits" do
+      change = [0.0, 5.0, 0.0, 0.0, 0.0]
+      out = Heads.collapse_hold_release_change(Nx.tensor([change ++ [-20.0, 20.0]]), Nx.tensor([3]))
+      assert Nx.to_number(Nx.argmax(out, axis: -1)[0]) == 2
+      assert Nx.shape(Heads.collapse_hold_release_change(Nx.broadcast(Nx.tensor(0.0), {3, 7}), Nx.tensor([1]))) == {3, 5}
+    end
+  end
+
   describe "sampler" do
     # Minimal AR head: hidden 4, residual 4, 16 button logits. Zero weights
     # with a bias make the raw logits a known constant.

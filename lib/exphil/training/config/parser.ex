@@ -368,6 +368,7 @@ defmodule ExPhil.Training.Config.Parser do
     {"--no-prev-action", :use_prev_action, :neg_flag},
     {"--button-events", :button_events, :flag},
     {"--stick-events", :stick_events, :flag},
+    {"--stick-release", :stick_release, :flag},
     {"--event-context", :event_context, :flag},
     {"--prev-action-dropout", :prev_action_dropout, :float},
     {"--prev-action-dropout-block", :prev_action_dropout_block, :int},

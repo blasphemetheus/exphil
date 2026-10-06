@@ -422,6 +422,7 @@ defmodule ExPhil.Training.Imitation.Checkpointing do
         button_events: trainer.config[:button_events] || false,
         stick_events: trainer.config[:stick_events] || false,
         event_context: trainer.config[:event_context] || false,
+        stick_release: trainer.config[:stick_release] || false,
         prev_action_offset: trainer.config[:prev_action_offset],
         # Queue-as-input layout (2026-07-31): the live agent must rebuild
         # the exact channel layout (K committed-action slots + delay

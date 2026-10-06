@@ -400,9 +400,37 @@ q6 =
     r
   end
 
+# Q7 (10-05 19:55, the release): closed-loop the bot ENTERS silence 3-5x
+# more often than the expert in dangerous offstage states (P(release |
+# active) per 3 f: -20..-60 jumpless 0.072 vs 0.017, below -60 0.098 vs
+# 0.019) while both resume from silence at ~0.05/frame. Teacher-forced: on
+# expert offstage below-stage frames where the previous stick was deflected
+# (active), P(all heads neutral) — the AR head teacher-forced with the
+# NEUTRAL action so the stick heads are conditioned on "no button" — vs the
+# expert's empirical release rate, by depth band x jumps. Calibrated here =
+# the excess release is closed-loop (its own states); 3x here = structural
+# (the hold/change head lets go of a deflected stick too easily offstage).
+neutral_action = Data.controller_to_action(ExPhil.Bridge.ControllerState.neutral(), axis_buckets: axis_buckets)
+depth_bin = fn h -> case h do :ledge -> "ledge"; :low -> "-20..-60"; :deep -> "<-60"; _ -> "high" end end
+q7_samples =
+  samples
+  |> Enum.reject(fn s -> cliff?.(elem(Enum.at(games, s.game).players, s.t)) end)
+  |> Enum.filter(fn s -> s.height != :high and s.prev_zone != :neutral and not s.prev_b end)
+  |> Enum.map(fn s -> Map.merge(s, %{release: silent?.(s.action), tf_action: neutral_action, jbin: if(s.jumps >= 1, do: "j1+", else: "j0")}) end)
+q7_rows = run.(Enum.map(q7_samples, &%{&1 | action: &1.tf_action}), windows, :tf) |> Enum.zip(q7_samples) |> Enum.map(fn {r, s} -> Map.merge(r, Map.take(s, [:release, :jbin])) end)
+p_release = fn r -> r.neutral * (1.0 - r.b) * (1.0 - r.jump) end
+q7 =
+  for d <- ["ledge", "-20..-60", "<-60"], j <- ["j0", "j1+"], into: %{} do
+    l = Enum.filter(q7_rows, &(depth_bin.(&1.height) == d and &1.jbin == j))
+    {"#{d} #{j}", %{n: length(l), model: if(l == [], do: nil, else: Float.round(Enum.sum(Enum.map(l, p_release)) / length(l), 3)), expert: share.(l, & &1.release)}}
+  end
+Output.puts("RESULT #{label} Q7 P(release to neutral | stick deflected, offstage below stage) model|expert (n): " <>
+  Enum.map_join(Enum.sort(Map.keys(q7)), "  ", fn k -> r = q7[k]; "#{k} #{r.model}|#{r.expert} (#{r.n})" end))
+
 if out = opts[:out] do
   File.mkdir_p!(Path.dirname(out))
   summary = %{
+    q7: q7,
     q6: q6,
     q5: q5,
     label: label, frames: length(rows), presses: length(press_rows),

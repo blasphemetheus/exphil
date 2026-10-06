@@ -1,93 +1,93 @@
 {
-  "label": "evt2ctx_ck8",
+  "label": "evt2ctx_ck8_off3",
   "frames": 15853,
   "presses": 170,
   "q1b": {
     "no_stick_history": {
       "high": {
-        "up": 0.095,
-        "neutral": 0.773,
+        "up": 0.077,
+        "neutral": 0.738,
         "n": 12,
-        "side": 0.026
-      },
-      "low": {
-        "up": 0.185,
-        "neutral": 0.761,
-        "n": 21,
-        "side": 0.018
-      },
-      "ledge": {
-        "up": 0.07,
-        "neutral": 0.843,
-        "n": 25,
         "side": 0.021
       },
+      "low": {
+        "up": 0.224,
+        "neutral": 0.723,
+        "n": 21,
+        "side": 0.016
+      },
+      "ledge": {
+        "up": 0.089,
+        "neutral": 0.758,
+        "n": 25,
+        "side": 0.023
+      },
       "deep": {
-        "up": 0.077,
-        "neutral": 0.886,
+        "up": 0.129,
+        "neutral": 0.848,
         "n": 11,
-        "side": 0.011
+        "side": 0.007
       }
     },
     "neutral_prev_stick": {
       "high": {
-        "up": 0.095,
-        "neutral": 0.773,
+        "up": 0.077,
+        "neutral": 0.738,
         "n": 12,
-        "side": 0.026
-      },
-      "low": {
-        "up": 0.185,
-        "neutral": 0.761,
-        "n": 21,
-        "side": 0.018
-      },
-      "ledge": {
-        "up": 0.07,
-        "neutral": 0.843,
-        "n": 25,
         "side": 0.021
       },
+      "low": {
+        "up": 0.224,
+        "neutral": 0.723,
+        "n": 21,
+        "side": 0.016
+      },
+      "ledge": {
+        "up": 0.089,
+        "neutral": 0.758,
+        "n": 25,
+        "side": 0.023
+      },
       "deep": {
-        "up": 0.077,
-        "neutral": 0.886,
+        "up": 0.129,
+        "neutral": 0.848,
         "n": 11,
-        "side": 0.011
+        "side": 0.007
       }
     }
   },
   "q3": {
     "low_ctrl": {
-      "up": 0.464,
-      "side": 0.114
+      "up": 0.468,
+      "side": 0.112
     },
     "high_ctrl": {
-      "up": 0.259,
-      "side": 0.512
+      "up": 0.261,
+      "side": 0.511
     },
     "q4_event_ablation": {
-      "control": 0.35,
-      "base": 0.35,
+      "control": 0.374,
+      "base": 0.375,
       "n": 63,
-      "y_to_high": 0.213
+      "y_to_high": 0.224
     },
     "low_base": {
-      "up": 0.464,
+      "up": 0.467,
       "n": 67,
-      "side": 0.114
+      "side": 0.112
     },
     "low_y_to_high": {
-      "up": 0.454,
-      "side": 0.118
+      "up": 0.456,
+      "side": 0.117
     },
     "high_base": {
-      "up": 0.259,
+      "up": 0.26,
       "n": 36,
-      "side": 0.513
+      "side": 0.511
     },
     "high_y_to_low": {
-      "up": 0.266,
-      "side": 0.505
+      "up": 0.269,
+      "side": 0.503
     }
   },
   "q5": {
@@ -95,55 +95,55 @@
       "1-3": {
         "n": 259,
         "expert": 0.081,
-        "model": 0.105,
+        "model": 0.101,
         "model_up": 0.01,
         "expert_up": 0.035,
-        "model_jump": 0.011,
+        "model_jump": 0.014,
         "expert_jump": 0.012
       },
       "13-24": {
         "n": 292,
         "expert": 0.096,
-        "model": 0.079,
-        "model_up": 0.008,
+        "model": 0.078,
+        "model_up": 0.01,
         "expert_up": 0.017,
-        "model_jump": 0.01,
+        "model_jump": 0.015,
         "expert_jump": 0.014
       },
       "25-48": {
         "n": 73,
         "expert": 0.247,
-        "model": 0.154,
-        "model_up": 0.005,
+        "model": 0.151,
+        "model_up": 0.006,
         "expert_up": 0.014,
-        "model_jump": 0.014,
+        "model_jump": 0.027,
         "expert_jump": 0.082
       },
       "4-6": {
         "n": 207,
         "expert": 0.039,
-        "model": 0.057,
+        "model": 0.052,
         "model_up": 0.002,
         "expert_up": 0.0,
-        "model_jump": 0.009,
+        "model_jump": 0.01,
         "expert_jump": 0.014
       },
       "49+": {
         "n": 29,
         "expert": 0.207,
-        "model": 0.102,
-        "model_up": 0.001,
+        "model": 0.117,
+        "model_up": 0.002,
         "expert_up": 0.0,
-        "model_jump": 0.009,
+        "model_jump": 0.02,
         "expert_jump": 0.0
       },
       "7-12": {
         "n": 347,
         "expert": 0.052,
-        "model": 0.062,
+        "model": 0.06,
         "model_up": 0.002,
         "expert_up": 0.003,
-        "model_jump": 0.009,
+        "model_jump": 0.01,
         "expert_jump": 0.014
       }
     },
@@ -151,8 +151,8 @@
       "1-3": {
         "n": 162,
         "expert": 0.142,
-        "model": 0.128,
-        "model_up": 0.01,
+        "model": 0.116,
+        "model_up": 0.011,
         "expert_up": 0.0,
         "model_jump": 0.006,
         "expert_jump": 0.012
@@ -160,28 +160,28 @@
       "13-24": {
         "n": 63,
         "expert": 0.159,
-        "model": 0.109,
+        "model": 0.118,
         "model_up": 0.001,
         "expert_up": 0.0,
-        "model_jump": 0.002,
+        "model_jump": 0.004,
         "expert_jump": 0.0
       },
       "25-48": {
         "n": 14,
         "expert": 0.071,
-        "model": 0.053,
-        "model_up": 0.003,
+        "model": 0.048,
+        "model_up": 0.001,
         "expert_up": 0.0,
-        "model_jump": 0.003,
+        "model_jump": 0.005,
         "expert_jump": 0.0
       },
       "4-6": {
         "n": 101,
         "expert": 0.149,
-        "model": 0.1,
+        "model": 0.095,
         "model_up": 0.001,
         "expert_up": 0.0,
-        "model_jump": 0.004,
+        "model_jump": 0.006,
         "expert_jump": 0.0
       },
       "49+": {
@@ -199,24 +199,24 @@
         "model": 0.076,
         "model_up": 0.001,
         "expert_up": 0.017,
-        "model_jump": 0.003,
+        "model_jump": 0.005,
         "expert_jump": 0.0
       }
     }
   },
   "q6": {
-    "base": 0.081,
+    "base": 0.079,
     "n": 1207,
     "expert": 0.082,
-    "af30": 0.074,
-    "af60": 0.07,
-    "af0": 0.082
+    "af30": 0.072,
+    "af60": 0.061,
+    "af0": 0.081
   },
   "q7": {
     "-20..-60 j0": {
       "n": 1199,
       "expert": 0.007,
-      "model": 0.024
+      "model": 0.015
     },
     "-20..-60 j1+": {
       "n": 495,
@@ -226,60 +226,60 @@
     "<-60 j0": {
       "n": 236,
       "expert": 0.0,
-      "model": 0.026
+      "model": 0.012
     },
     "<-60 j1+": {
       "n": 91,
       "expert": 0.0,
-      "model": 0.027
+      "model": 0.019
     },
     "ledge j0": {
       "n": 1386,
       "expert": 0.024,
-      "model": 0.03
+      "model": 0.024
     },
     "ledge j1+": {
       "n": 632,
       "expert": 0.046,
-      "model": 0.071
+      "model": 0.066
     }
   },
   "q1": {
     "high": {
       "n": 36,
-      "model_up": 0.259,
+      "model_up": 0.26,
       "expert_up": 0.333,
       "expert_side": 0.5,
-      "model_side": 0.513,
+      "model_side": 0.511,
       "expert_neutral": 0.0,
-      "model_neutral": 0.059
+      "model_neutral": 0.058
     },
     "low": {
       "n": 55,
-      "model_up": 0.367,
+      "model_up": 0.37,
       "expert_up": 0.382,
       "expert_side": 0.127,
-      "model_side": 0.137,
+      "model_side": 0.136,
       "expert_neutral": 0.018,
       "model_neutral": 0.028
     },
     "ledge": {
       "n": 67,
-      "model_up": 0.329,
+      "model_up": 0.324,
       "expert_up": 0.373,
       "expert_side": 0.343,
-      "model_side": 0.366,
+      "model_side": 0.37,
       "expert_neutral": 0.015,
-      "model_neutral": 0.041
+      "model_neutral": 0.04
     },
     "deep": {
       "n": 12,
-      "model_up": 0.907,
+      "model_up": 0.912,
       "expert_up": 0.917,
       "expert_side": 0.0,
-      "model_side": 0.008,
+      "model_side": 0.004,
       "expert_neutral": 0.083,
-      "model_neutral": 0.085
+      "model_neutral": 0.084
     }
   },
   "q2": {
@@ -289,18 +289,18 @@
       "expert_rate": 0.01
     },
     "low": {
-      "press": 0.124,
-      "no_press": 0.025,
+      "press": 0.09,
+      "no_press": 0.021,
       "expert_rate": 0.027
     },
     "ledge": {
-      "press": 0.057,
-      "no_press": 0.012,
+      "press": 0.048,
+      "no_press": 0.011,
       "expert_rate": 0.01
     },
     "deep": {
-      "press": 0.081,
-      "no_press": 0.014,
+      "press": 0.053,
+      "no_press": 0.011,
       "expert_rate": 0.029
     }
   }
