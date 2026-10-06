@@ -1664,9 +1664,9 @@ the head redistributes, the weight does the work.
 **But the silent fall itself did not move — in any arm.** High-band
 decided-trip return (the silent fall's own metric; expert 0.95):
 
-| baseline | off3 s905 | off3 s906 | e3 | mamba | sf20 | dags2 | rel | rel_off3 |
-|---|---|---|---|---|---|---|---|---|
-| 0.40 | 0.40 | 0.41 | 0.29 | 0.29 | 0.14 | 0.27–0.32 | 0.23 | 0.37 |
+| baseline | off3 s905 | off3 s906 | off8 | e3 | mamba | sf20 | dags2 | rel | rel_off3 |
+|---|---|---|---|---|---|---|---|---|---|
+| 0.40 | 0.40 | 0.41 | 0.34 | 0.29 | 0.29 | 0.14 | 0.27–0.32 | 0.23 | 0.37 |
 
 Both off3 seeds enter silence in danger at the baseline rate (0.05–0.12
 per 3 f vs the expert's 0.017–0.044) and their Q7 floors disagree with
@@ -1688,3 +1688,41 @@ state); (2) a targeted hold-weight on offstage frames where the expert
 HOLDS a deflected stick (off3's win, aimed); (3) test the capacity
 hypothesis directly on the Mamba testbed (Q7 + entering-silence hazard
 on `mamba_evt2ctx_ck8`). Decided with Bradley.
+
+### 10-05 22:45 — queue 18: `--offstage-weight 8` closes the loss-weight lever
+
+The dose point. ×8 pushed the teacher-forced release floor to the expert's
+and nothing downstream followed:
+
+| | off3 (s905/s906) | **off8** | expert |
+|---|---|---|---|
+| Q7 −20…−60 jumpless | 0.015 / 0.027 | **0.017** | 0.007 |
+| Q7 < −60 jumpless | 0.012 / — | **0.004** | 0.000 |
+| Q7 < −60 jump in hand | 0.019 / — | 0.020 | 0.000 |
+| closed-loop P(enter silence) −20…−60 j0 / < −60 j0 (per 3 f) | 0.055 / 0.103 · 0.054 / 0.092 | **0.067 / 0.081** | 0.019 / 0.034 |
+| high-band decided return | 0.40 / 0.41 | **0.34** | 0.95 |
+| means mismatch (expert floor 0.084) | 0.088 / 0.084 | **0.151** | — |
+| return | 0.373 / 0.394 | 0.318 | 0.911 |
+| carried-off share | 0.22–0.28 | 0.363 | 0.055 |
+| fidelity | 0.209 / 0.198 | 0.205 | 0 |
+| val | 1.07 | 1.073 | — |
+
+Coherence repeat 0.738 / neutral 0.245 (expert 0.764 / 0.303). The Q7
+floor is now within +0.010 / +0.004 of the expert, but the bot still
+enters silence in danger at 3–4× the expert's rate and carries itself off
+MORE than baseline (0.36 vs 0.39 → off3 had cut it to 0.22). The weight
+is a dose with an optimum at ~3: at 8 it buys the teacher-forced release
+statistic while un-learning the lip (mismatch back to 0.151 = baseline
+territory) — classic reweighting over-fit to the up-weighted frames.
+
+Two conclusions. **(a) The teacher-forced release floor is not the causal
+variable** — three arms now have floors from 0.004 to 0.027 in the deep
+bands with the same closed-loop hazard (0.05–0.10). Q7 is a readout of
+what the head does on EXPERT states; the loop enters silence from the
+bot's OWN states (running off the lip facing out, stick held out), which
+donor swaps already showed is not the input the model reads. **(b) The
+loss-weight lever is closed**: ×3 is in the recipe for the lip, ×8 is
+worse everywhere that matters. Remaining imitation-side levers are the
+ones that change what the hold/change decision is conditioned on (danger
+readout features) or where the loop's states come from — and the capacity
+question, being tested now on the Mamba checkpoint (Q7 + traced roll).
