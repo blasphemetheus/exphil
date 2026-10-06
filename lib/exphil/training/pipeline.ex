@@ -1031,7 +1031,9 @@ defmodule ExPhil.Training.Pipeline do
             lazy: opts[:lazy_sequences] != false,
             gpu: false,
             window_size: opts[:window_size] || 60,
-            stride: opts[:stride] || 5
+            stride: opts[:stride] || 5,
+            # stick_duration: the val likelihood needs the chunk futures
+            chunk_horizon: if(opts[:stick_duration], do: opts[:chunk_horizon])
           )
         else
           Data.batched(val_ds, batch_size: opts[:batch_size] || 32, shuffle: false)

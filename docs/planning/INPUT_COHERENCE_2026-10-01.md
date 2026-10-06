@@ -1784,3 +1784,122 @@ order of my recommendation:
 
 Mamba port with the recipe (windowed + prev_q + events + context + chunk
 8 + `--offstage-weight 3`, ≥ 3 ep) and the live look: Bradley's call.
+
+## 10-06 — the silent fall as a map; the semi-Markov main stick
+
+Bradley's direction (10-06 morning): (1) an eval that tracks entering
+silence everywhere, by situation — "turn the silent fall into a map we
+can read for every arm"; (2) build the most principled lever, **change
+the timescale of the decision**; if that is not it, attack the copy
+shortcut generally; (3) a sim branch for replay parity so real DAgger
+is available whenever we want it (standing, independent of the lever).
+The danger-readout idea is a probe, not a fix (it would not generalise
+across characters); the edge-approach weight is tuning — dropped.
+
+### The map — `ExPhil.Eval.SilenceMap`
+
+`lib/exphil/eval/silence_map.ex`. For every frame with a successor it
+classifies the input transition (active → enter_silence / change / hold,
+silent → resume) and counts it in three bucket families: universal
+physical **state** bins (grounded centre / edge, airborne onstage,
+offstage high / low / deep × jumps, ledge hang, hitstun), every
+`ExPhil.Situations` **label** the frame carries, and **age** (onstage /
+offstage × how long the current input has been held). Same game shape
+as `PlayStats`, so `fidelity_scorecard.exs` now writes `silence_map.json`
+beside `fidelity.json` for every arm (RESULT lines: worst buckets with
+z ≥ 3, by state, by age) and `expert_reference.exs --silence-map-out`
+builds the expert map once (`eval_runs/1002_fidelity/expert_silence_map_fd.json`,
+split halves agree to ±0.002; the existing `expert_fd.json` reproduced
+byte-identical). Compare = model / expert hazard with a binomial z,
+min n 200. Test: `test/exphil/eval/silence_map_test.exs`.
+
+**First read, `off3` (3 seeds × 32 × 3600 f), P(enter silence | active) per frame:**
+
+| state | bot | expert | ratio |
+|---|---|---|---|
+| grounded centre | 0.048 | 0.052 | 0.92 |
+| grounded edge | 0.041 | 0.048 | 0.86 |
+| airborne onstage | 0.054 | 0.042 | 1.3 |
+| hitstun | 0.040 | 0.025 | 1.6 |
+| offstage high j0 / j1+ | 0.033 / 0.057 | 0.007 / 0.028 | **4.7** / 2.0 |
+| offstage low j0 / j1+ | 0.030 / 0.050 | 0.010 / 0.019 | **3.1** / 2.7 |
+| offstage deep j0 / j1+ | 0.051 / 0.060 | 0.007 / 0.010 | **7.0** / **5.9** |
+
+**The bot's hazard is flat — 0.03–0.06 in every state — while the
+expert's spans 0.007 offstage to 0.052 onstage.** Onstage the bot is at
+or below the human; the silence budget is right and mislocated, not too
+big (closed-loop neutral share 0.325 vs 0.28). Worst situation labels:
+`below_ledge` ×3.8, `resource_exhausted` ×3.5, `near_blastzone` ×3.3,
+`being_edgeguarded` ×2.8, `recovery_high` ×2.7, **`shield_pressure_theirs`
+×2.4** (letting go of shield under pressure — the same defect outside
+recovery, as "general" predicts), `edge_danger` ×2.2. Resume is also
+higher offstage (deep ×4). Change hazard is close to the expert's
+(×1.1–1.8) — it is the release that is wrong, not changes in general.
+
+**By age (frames the current input has been held), offstage:**
+
+| age | bot | expert | ratio |
+|---|---|---|---|
+| 1–3 | **0.059** | 0.013 | 4.5 |
+| 4–7 | 0.037 | 0.014 | 2.6 |
+| 8–15 | 0.025 | 0.012 | 2.0 |
+| 16–31 | 0.029 | 0.007 | 4.1 |
+| 32+ | (n < 200) | 0.004 | — |
+
+Onstage: bot 0.066 / 0.044 / 0.038 / 0.031 / 0.027 vs expert 0.041 /
+0.048 / 0.044 / 0.023 / 0.019. Two facts for the design: the expert's
+hazard **falls with age** (3× from short to 32+ frames; long holds get
+safer to continue), and the bot's excess is **largest right after a
+press** — a fresh offstage input is fidgeted away at 6 %/frame, the same
+rate as onstage (0.066), where the expert's differs 3×. The bot almost
+never sustains a 32-frame hold offstage.
+
+### The lever — `--stick-duration C` (semi-Markov main stick)
+
+The event-head recipe zeroes the previous input in the trunk (that
+closed the copy shortcut) and the head sees only last frame's bucket as
+a selector, so the policy has **no notion of how long it has been
+holding**, and the per-frame hold/change decision is re-drawn 50 times
+over a fall. The semi-Markov head decides the main-stick pair only at
+**decision frames** — the frame the pair changes, and every C-th frame
+of a continuing hold — and a **duration head** says, given the pair just
+chosen, how long it is held (classes 1..C−1, C+ = re-decide at age C).
+Between decisions the sampler holds. A duration chosen once, in the
+state the press was made in, cannot be fidgeted away frame by frame —
+which is where the excess is. Honest caveat: a state-blind hazard
+rescaled to a coarser timescale gives the same survival curve; the gain
+has to come from the decision being made in the informative state and
+from the age feature, so the first C frames after a press are where
+this should show first (age 1–3 and 4–7 rows of the map).
+
+Implementation (windowed AR path only; BPTT refuses):
+- `Heads.build_autoregressive_head(stick_duration: C)`: `"prev_age"`
+  input → `Heads.age_bucket/1` (11 bins) → zero-init `ar_prev_age_embed`
+  added to r0; `ar_duration_{hidden,logits}` on r3 (after the pair);
+  output a 7-tuple (`Loss.split_duration_head/1`).
+- `Imitation.Loss`: `prev_age_from_window/3` reads the age off the
+  window's prev-action slots (trailing run of equal main-stick pairs);
+  `stick_decision_targets/3` builds the decision mask (event ∨ age ≡ 0
+  mod C) and the duration class from the chunk futures (needs
+  `--chunk-horizon ≥ C−1`); `Policy.Loss.imitation_loss(main_stick_mask:)`
+  scores main_x/main_y at decision frames only, renormalised; duration CE
+  × `--stick-duration-weight`. Val uses the same likelihood (NOT
+  comparable with per-frame arms' val).
+- `Sampling`: `:event_prev_age` / `:stick_commit` ride in the head map;
+  committed rows get a one-hot spike on prev for main_x/main_y; the
+  duration head is sampled (temperature of main_x) when commit = 0;
+  result carries `stick_commit` (frames left). Mode-of-N and the
+  deterministic path handled.
+- `Agent`: `{age, commit}` per batch row (`batch.stick_runs`) and for
+  the single path (`stick_run`), advanced on every emitted/observed
+  controller, reset with the rows; `stick_duration` read from the export
+  config. Checkpoints without the head behave exactly as before.
+- Tests: `test/exphil/networks/policy/stick_duration_test.exs` (6).
+
+Pass criteria for the first arm (`evt2ctx_ck8_off3_dur8`, recipe +
+`--stick-duration 8`): SilenceMap enter_silence offstage ratios ≤ 2 in
+every jumpless band (from 3–7) and age 1–3 offstage ≤ 0.03 (from 0.059);
+high-band decided return ≥ 0.6 (0.40); fidelity ≤ 0.21; mismatch ≤ 0.10;
+coherence repeat ≥ 0.70 / neutral 0.22–0.33; no new SD mode (SDs/min,
+dashes/min within the fidelity reference). Dose point: `dur16` with
+`--chunk-horizon 16`.

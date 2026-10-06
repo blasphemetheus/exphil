@@ -128,6 +128,12 @@ defmodule ExPhil.Agents.Agent do
     :uncertainty_log,
     :uncertainty_buf,
     :last_controller,
+    # Semi-Markov main stick (stick_duration checkpoints, 2026-10-06): does the
+    # policy carry a duration head, and the single path's {age, commit} run —
+    # frames the previous main-stick pair has been held, frames still
+    # committed to it. Batch rows keep theirs in batch.stick_runs.
+    :stick_duration,
+    :stick_run,
     # Temporal inference config
     :temporal,
     :backbone,
@@ -713,14 +719,16 @@ defmodule ExPhil.Agents.Agent do
         trunk = fresh_trunk_state(state, n)
 
         {:reply, :ok,
-         %{state | batch: %{n: n, mode: :stateful, trunk_state: trunk, cold: true, last_controllers: List.duplicate(nil, n)}}}
+         %{state | batch: %{n: n, mode: :stateful, trunk_state: trunk, cold: true, last_controllers: List.duplicate(nil, n),
+           stick_runs: List.duplicate({0, 0}, n)}}}
 
       {:ok, :window} ->
         # Windowed policies (Mamba, MinGRU, ...): a rolling {n, window, dim}
         # tensor; a cold row's window is its first frame repeated, exactly
         # like the single path's pad_sequence.
         {:reply, :ok,
-         %{state | batch: %{n: n, mode: :window, window: nil, cold_rows: MapSet.new(0..(n - 1)), last_controllers: List.duplicate(nil, n)}}}
+         %{state | batch: %{n: n, mode: :window, window: nil, cold_rows: MapSet.new(0..(n - 1)), last_controllers: List.duplicate(nil, n),
+           stick_runs: List.duplicate({0, 0}, n)}}}
 
       {:error, _} = e ->
         {:reply, e, state}
@@ -729,11 +737,13 @@ defmodule ExPhil.Agents.Agent do
 
   def handle_call({:batch_reset_rows, rows}, _from, %{batch: %{mode: :window} = b} = state) do
     last = b.last_controllers |> Enum.with_index() |> Enum.map(fn {c, i} -> if i in rows, do: nil, else: c end)
-    {:reply, :ok, %{state | batch: %{b | cold_rows: MapSet.union(b.cold_rows, MapSet.new(rows)), last_controllers: last}}}
+    runs = reset_stick_runs(b.stick_runs, rows)
+    {:reply, :ok, %{state | batch: %{b | cold_rows: MapSet.union(b.cold_rows, MapSet.new(rows)), last_controllers: last, stick_runs: runs}}}
   end
 
   def handle_call({:batch_reset_rows, rows}, _from, %{batch: %{n: n} = b} = state) do
-    b = %{b | last_controllers: b.last_controllers |> Enum.with_index() |> Enum.map(fn {c, i} -> if i in rows, do: nil, else: c end)}
+    b = %{b | last_controllers: b.last_controllers |> Enum.with_index() |> Enum.map(fn {c, i} -> if i in rows, do: nil, else: c end),
+          stick_runs: reset_stick_runs(b.stick_runs, rows)}
     fresh = fresh_trunk_state(state, n)
     mask = Nx.tensor(Enum.map(0..(n - 1), fn i -> if i in rows, do: 1, else: 0 end), type: :u8)
 
@@ -761,7 +771,10 @@ defmodule ExPhil.Agents.Agent do
       # the single path's observe/4.
       state =
         case Keyword.get(opts, :controllers) do
-          cs when is_list(cs) and state.use_prev_action -> %{state | batch: %{state.batch | last_controllers: cs}}
+          cs when is_list(cs) and state.use_prev_action ->
+            runs = advance_stick_runs(state.batch.stick_runs, state.batch.last_controllers, cs, nil, state)
+            %{state | batch: %{state.batch | last_controllers: cs, stick_runs: runs}}
+
           _ -> state
         end
 
@@ -776,7 +789,9 @@ defmodule ExPhil.Agents.Agent do
   def handle_call({:batch_get_controllers, game_states, opts}, _from, %{batch: %{n: n}} = state) do
     try do
       {features, state} = batch_trunk_step(state, game_states, opts)
-      sample_opts = ExPhil.Agents.Decode.sample_opts(state, opts) |> event_prev_opts(state, state.batch.last_controllers)
+      sample_opts =
+        ExPhil.Agents.Decode.sample_opts(state, opts)
+        |> event_prev_opts(state, state.batch.last_controllers, state.batch.stick_runs)
       action = Networks.Policy.sample_autoregressive_from_features(state.policy_params, features, sample_opts)
       # one device->host copy per head, then host-side row slicing (to_controller_state
       # does ~7 Nx.to_number calls per row — 128 rows x 7 device reads was the tail)
@@ -790,9 +805,13 @@ defmodule ExPhil.Agents.Agent do
 
       # prev-action channel: each row sees its own emitted controller next step
       state =
-        if state.use_prev_action,
-          do: %{state | batch: %{state.batch | last_controllers: controllers}},
-          else: state
+        if state.use_prev_action do
+          commits = if state.stick_duration, do: Nx.to_flat_list(action.stick_commit), else: nil
+          runs = advance_stick_runs(state.batch.stick_runs, state.batch.last_controllers, controllers, commits, state)
+          %{state | batch: %{state.batch | last_controllers: controllers, stick_runs: runs}}
+        else
+          state
+        end
 
       # RL_ON_PRIOR R2/R3: the critic and the head-only PPO both live on the FROZEN trunk, so a
       # collector needs this step's trunk features ([n, d]) and, for PPO, the sampled bucket
@@ -852,6 +871,7 @@ defmodule ExPhil.Agents.Agent do
       | frame_buffer: :queue.new(),
         last_action: nil,
         last_controller: nil,
+        stick_run: nil,
         controller_queue: [],
         frames_since_inference: 0,
         mamba_cache: new_mamba_cache,
@@ -944,7 +964,7 @@ defmodule ExPhil.Agents.Agent do
     sample_opts =
       ExPhil.Agents.Decode.sample_opts(state, [])
       |> Keyword.delete(:prev_buttons)
-      |> event_prev_opts(state, [nil])
+      |> event_prev_opts(state, [nil], [{0, 0}])
 
     # AR-head checkpoints warm the sequential sampler instead — the same
     # program the live loop hits (stage1/stage2 kernels + trunk).
@@ -1384,11 +1404,20 @@ defmodule ExPhil.Agents.Agent do
             new_state
         end
 
+      stick_run =
+        if new_state.use_prev_action do
+          commit = case action do %{stick_commit: %Nx.Tensor{} = c} -> Nx.to_number(Nx.reshape(c, {})); _ -> 0 end
+          advance_stick_run(new_state.stick_run || {0, 0}, new_state.last_controller, last_controller, commit, new_state)
+        else
+          nil
+        end
+
       # Cache action for action repeat
       new_state = %{
         new_state
         | last_action: action,
           last_controller: last_controller,
+          stick_run: stick_run,
           frames_since_inference: 1,
           # Mark as warmed up after first successful inference
           warmed_up: true
@@ -1511,12 +1540,18 @@ defmodule ExPhil.Agents.Agent do
           true -> new_state.last_controller
         end
 
+      stick_run =
+        if new_state.use_prev_action and controller != nil,
+          do: advance_stick_run(new_state.stick_run || {0, 0}, new_state.last_controller, controller, 0, new_state),
+          else: new_state.stick_run
+
       {:ok,
        %{
          new_state
          | last_debounce_frame: frame,
            was_airborne: airborne?,
            last_controller: last_controller,
+           stick_run: stick_run,
            last_action: nil
        }, probe}
     rescue
@@ -1787,7 +1822,8 @@ defmodule ExPhil.Agents.Agent do
 
     # ONE decode builder for every path (INVARIANTS.md item 7)
     sample_opts =
-      ExPhil.Agents.Decode.sample_opts(state, opts) |> event_prev_opts(state, [state.last_controller])
+      ExPhil.Agents.Decode.sample_opts(state, opts)
+      |> event_prev_opts(state, [state.last_controller], [state.stick_run || {0, 0}])
 
     action =
       if state.head == :autoregressive do
@@ -1891,7 +1927,8 @@ defmodule ExPhil.Agents.Agent do
 
     # ONE decode builder for every path (INVARIANTS.md item 7)
     step_sample_opts =
-      ExPhil.Agents.Decode.sample_opts(state, opts) |> event_prev_opts(state, [state.last_controller])
+      ExPhil.Agents.Decode.sample_opts(state, opts)
+      |> event_prev_opts(state, [state.last_controller], [state.stick_run || {0, 0}])
 
     action =
       if state.head == :autoregressive do
@@ -2082,7 +2119,18 @@ defmodule ExPhil.Agents.Agent do
 
   # Press/release event button head: hand the sampler the previous emitted
   # buttons ({rows, 8}; nil controller = all up), in the embedding's order.
-  defp event_prev_opts(sample_opts, state, controllers) do
+  defp event_prev_opts(sample_opts, state, controllers, runs) do
+    # Semi-Markov main stick: the age of each row's previous pair and the
+    # frames still committed to it (Sampling: :event_prev_age / :stick_commit)
+    sample_opts =
+      if state.stick_duration == true do
+        sample_opts
+        |> Keyword.put(:event_prev_age, Nx.tensor(Enum.map(runs, &elem(&1, 0)), type: :s64))
+        |> Keyword.put(:stick_commit, Nx.tensor(Enum.map(runs, &elem(&1, 1)), type: :s64))
+      else
+        sample_opts
+      end
+
     sample_opts =
       if state.button_events == true do
         prev =
@@ -2115,6 +2163,31 @@ defmodule ExPhil.Agents.Agent do
   # Event-head policies (press/release buttons, hold-or-change sticks) keep
   # the prev-action slot zeroed for the trunk.
   defp event_heads?(state), do: state.button_events == true or state.stick_events == true
+
+  # ---- semi-Markov main stick runs ----------------------------------------
+  # {age, commit}: age = frames the current main-stick bucket pair has been
+  # held (the training-side prev_age), commit = frames still committed to it.
+  defp advance_stick_run({age, _old}, prev_c, new_c, commit, state) do
+    n = (state.embed_config || %{})[:axis_buckets] || 16
+    pair = fn
+      nil -> nil
+      c -> {min(floor(c.main_stick.x * n), n - 1), min(floor(c.main_stick.y * n), n - 1)}
+    end
+
+    age = if prev_c != nil and pair.(prev_c) == pair.(new_c), do: age + 1, else: 1
+    {age, commit || 0}
+  end
+
+  defp advance_stick_runs(runs, prevs, news, commits, state) do
+    commits = commits || List.duplicate(0, length(runs))
+
+    Enum.zip_with([runs, prevs, news, commits], fn [run, p, c, k] ->
+      if c == nil, do: run, else: advance_stick_run(run, p, c, k, state)
+    end)
+  end
+
+  defp reset_stick_runs(runs, rows),
+    do: runs |> Enum.with_index() |> Enum.map(fn {r, i} -> if i in rows, do: {0, 0}, else: r end)
 
   # ---- batched sim path helpers --------------------------------------------
 
@@ -3117,6 +3190,8 @@ defmodule ExPhil.Agents.Agent do
         use_prev_action: use_prev_action,
         button_events: Map.get(config, :button_events, false) == true,
         stick_events: Map.get(config, :stick_events, false) == true,
+        stick_duration: Map.get(config, :stick_duration) != nil,
+        stick_run: nil,
         last_controller: nil,
         controller_queue: [],
         # Reset frame buffer when loading new policy

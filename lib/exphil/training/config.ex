@@ -1599,6 +1599,13 @@ defmodule ExPhil.Training.Config do
       # release floor offstage where the expert never lets go (recovery probe
       # Q7). Needs stick_events.
       stick_release: false,
+      # Semi-Markov main stick (2026-10-06): decide the main-stick pair only at
+      # decision frames (its change, and every C-th frame of a hold) and predict
+      # the hold duration (1..C-1, C+) there; the sampler holds in between. nil
+      # = per-frame hold/change. Needs stick_events and chunk_horizon >= C - 1.
+      stick_duration: nil,
+      # Weight of the duration cross-entropy relative to the main heads
+      stick_duration_weight: 1.0,
       # Fraction of frames whose prev-action channel is zeroed during training
       # (exposure-bias mitigation: live the model eats its own outputs, which
       # drift from ground truth — dropout stops it over-relying on the channel)
@@ -2653,6 +2660,8 @@ defmodule ExPhil.Training.Config do
       stick_events: opts[:stick_events],
       event_context: opts[:event_context],
       stick_release: opts[:stick_release],
+      stick_duration: opts[:stick_duration],
+      stick_duration_weight: opts[:stick_duration_weight],
       prev_action_dropout: opts[:prev_action_dropout],
       prev_action_dropout_block: opts[:prev_action_dropout_block],
       prev_action_quantize: opts[:prev_action_quantize],

@@ -143,6 +143,12 @@ defmodule ExPhil.Networks.Policy.Loss do
     # Stick edge weight: weight edge buckets higher than center
     # nil = disabled, 2.0 = edges weighted 2x center
     stick_edge_weight = Keyword.get(opts, :stick_edge_weight, nil)
+    # Semi-Markov main stick (stick_duration, 2026-10-06): {batch} 0/1 mask of
+    # DECISION frames — main_x / main_y are scored there only, renormalised
+    # so the two heads keep their share of the gradient. Frame-weights path
+    # only (the windowed AR trainer always supplies weights).
+    main_stick_mask = Keyword.get(opts, :main_stick_mask, nil)
+    frame_weights = if main_stick_mask != nil and frame_weights == nil, do: Nx.broadcast(1.0, Nx.shape(main_stick_mask)), else: frame_weights
 
     # Choose loss functions based on focal_loss flag
     # Buttons are NEVER label-smoothed (pass 0.0 regardless of the option):
@@ -193,6 +199,15 @@ defmodule ExPhil.Networks.Policy.Loss do
 
         mx_ps = compute_cat_loss_per_sample(logits.main_x, targets.main_x, label_smoothing, stick_edge_weight)
         my_ps = compute_cat_loss_per_sample(logits.main_y, targets.main_y, label_smoothing, stick_edge_weight)
+
+        {mx_ps, my_ps} =
+          if main_stick_mask != nil do
+            scale = Nx.divide(Nx.sum(frame_weights), Nx.max(Nx.sum(Nx.multiply(frame_weights, main_stick_mask)), 1.0e-3))
+            m = Nx.multiply(main_stick_mask, Nx.Defn.Kernel.stop_grad(scale))
+            {Nx.multiply(mx_ps, m), Nx.multiply(my_ps, m)}
+          else
+            {mx_ps, my_ps}
+          end
         cx_ps = compute_cat_loss_per_sample(logits.c_x, targets.c_x, label_smoothing, nil)
         cy_ps = compute_cat_loss_per_sample(logits.c_y, targets.c_y, label_smoothing, nil)
         sh_ps = compute_cat_loss_per_sample(logits.shoulder, targets.shoulder, label_smoothing, nil)

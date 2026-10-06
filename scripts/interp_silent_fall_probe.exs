@@ -91,6 +91,16 @@ Output.puts("dims: action_frame #{inspect(af_dims)} y #{inspect(y_dims)} jumps #
 
 # ---- forward (same head-input protocol as the recovery probe) --------------------
 predict = heads.predict_fn
+# stick_duration checkpoints (2026-10-06) carry a 7th (duration) head and need
+# the hold age of the previous main-stick pair ("prev_age", read off the
+# window's prev-action slots); the probes read the six main heads.
+stick_duration? = Map.get(config, :stick_duration, Map.get(json_cfg, "stick_duration")) != nil
+predict = fn p, i ->
+  case predict.(p, i) do
+    {b, mx, my, cx, cy, sh, _dur} -> {b, mx, my, cx, cy, sh}
+    out -> out
+  end
+end
 params = heads.params
 
 with_states = fn tf, s ->
@@ -105,7 +115,10 @@ with_states = fn tf, s ->
         last |> Nx.slice_along_axis(prev_off + 8, 4, axis: 1) |> Nx.as_type(:f32)
         |> Nx.divide(2.0) |> Nx.add(0.5) |> Nx.multiply(axis_buckets) |> Nx.floor()
         |> Nx.clip(0, axis_buckets - 1) |> Nx.as_type(:s64)
-      Map.put(inputs, "prev_sticks", buckets)
+      inputs = Map.put(inputs, "prev_sticks", buckets)
+        if stick_duration?,
+          do: Map.put(inputs, "prev_age", ExPhil.Training.Imitation.Loss.prev_age_from_window(s, prev_off, axis_buckets)),
+          else: inputs
     else
       inputs
     end

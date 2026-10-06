@@ -375,6 +375,8 @@ These options apply to multiple new architectures:
 | `--button-events` | false | Press/release event button head (16 logits selected by the previous button state; trunk sees the prev-action slot zeroed). Requires `--prev-action`, `--head autoregressive`, temporal |
 | `--stick-events` | false | Hold-or-change stick heads (K change logits + 1 hold logit per axis, collapsed by the previous bucket; trunk sees the prev-action slot zeroed). Requires `--prev-action`, `--head autoregressive`, temporal |
 | `--event-context` | false | Event heads also get the previous input as a FEATURE (zero-initialised embeddings of the previous buttons / stick buckets added to the head residual; trunk still blind). Lets P(B press) depend on the stick already being up (2026-10-05 recovery probe). Requires `--button-events --stick-events` |
+| `--stick-duration C` | nil | Semi-Markov main stick: the pair is decided only at decision frames (its change + every C-th frame of a hold) and a duration head predicts how long it is held (1..C-1, C+); the sampler holds in between, so a fresh input cannot be fidgeted away frame by frame (SilenceMap by age, 2026-10-06). Adds a hold-age head feature. Requires `--stick-events`, `--chunk-horizon >= C-1`; windowed path only |
+| `--stick-duration-weight W` | 1.0 | Weight of the duration cross-entropy relative to the main heads |
 | `--stick-release` | false | Stick RELEASE (back to centre) as an explicit decision beside hold (K change logits + hold + release per axis). Without it a release is the change softmax's centre mass — the onstage prior — which left a ~2.5 %/frame release floor offstage where the expert never lets go (recovery probe Q7, 2026-10-05). Requires `--stick-events` |
 | `--prev-action-dropout P` | 0.0 | Zero the prev-action channel on fraction P of training frames (exposure-bias mitigation: live, the model feeds back its own outputs, which drift from teacher-forced ground truth). Try 0.1–0.3 with --prev-action. Mask is baked into the embedding cache entry — use --no-cache for a fresh mask. |
 | `--prev-action-quantize` | false | Pass the prev-action channel through the stick/shoulder bucket round trip so training sees exactly what the live agent feeds back (its decoded output) instead of raw analog values |
@@ -1611,6 +1613,8 @@ Regenerate: `mix run -e 'ExPhil.Training.Config.FlagDocs.write!()'`.
 | `--button-events` | flag | `false` | Press/release event button head; requires `--prev-action` and the autoregressive head |
 | `--stick-events` | flag | `false` | Hold-or-change stick heads; requires `--prev-action` and the autoregressive head |
 | `--event-context` | flag | `false` | Previous input as a head feature on top of the event heads; requires both event flags |
+| `--stick-duration` | int | `nil` | Semi-Markov main stick with duration cap C (decision frames + duration head); requires `--stick-events`, `--chunk-horizon >= C-1` |
+| `--stick-duration-weight` | float | `1.0` | Duration cross-entropy weight |
 | `--stick-release` | flag | `false` | Release-to-centre as an explicit stick decision beside hold; requires `--stick-events` |
 | `--prev-action-dropout` | float | `0.0` | Zero the prev-action channel on fraction P of training frames (exposure-bias mitigation: live, the model feeds back its own outputs, which drift from teacher-forced ground truth). Try 0.1–0.3 with --prev-action. Mask is baked into the embedding cache entry — use --no-cache for a fresh mask. |
 | `--prev-action-quantize` | flag | `false` | Prev-action channel holds bucket-decoded values (live parity) |

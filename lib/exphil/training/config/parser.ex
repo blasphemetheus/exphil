@@ -369,6 +369,8 @@ defmodule ExPhil.Training.Config.Parser do
     {"--button-events", :button_events, :flag},
     {"--stick-events", :stick_events, :flag},
     {"--stick-release", :stick_release, :flag},
+    {"--stick-duration", :stick_duration, :int},
+    {"--stick-duration-weight", :stick_duration_weight, :float},
     {"--event-context", :event_context, :flag},
     {"--prev-action-dropout", :prev_action_dropout, :float},
     {"--prev-action-dropout-block", :prev_action_dropout_block, :int},

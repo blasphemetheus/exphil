@@ -163,7 +163,9 @@ defmodule ExPhil.Training.Imitation.Loss do
 
     # chunk_weight scales the future heads' loss (popped off again in
     # autoregressive_bc_loss before Policy.imitation_loss sees the opts)
-    loss_opts = LossConfig.to_loss_opts(lc) ++ [chunk_weight: config[:chunk_weight] || 1.0]
+    loss_opts =
+      LossConfig.to_loss_opts(lc) ++
+        [chunk_weight: config[:chunk_weight] || 1.0, stick_duration_weight: config[:stick_duration_weight] || 1.0]
 
     # KL-distillation anchor (F3 Route A): when distill_weight > 0 the
     # loss takes teacher logits + a distill mask as 5th/6th ARGUMENTS
@@ -441,8 +443,13 @@ defmodule ExPhil.Training.Imitation.Loss do
   defp autoregressive_bc_loss(predict_fn, p, states, actions, frame_weights, loss_opts, head, temporal) do
     inputs = policy_forward_inputs(head, temporal, states, actions)
     {chunk_weight, loss_opts} = Keyword.pop(loss_opts, :chunk_weight, 1.0)
+    {duration_weight, loss_opts} = Keyword.pop(loss_opts, :stick_duration_weight, 1.0)
 
-    case predict_fn.(Utils.ensure_model_state(p), inputs) do
+    {prediction, loss_opts, duration_loss} =
+      duration_terms(head, predict_fn.(Utils.ensure_model_state(p), inputs), inputs, actions, frame_weights, loss_opts, duration_weight)
+
+    bc_loss =
+    case prediction do
       # Chunk targets (Heads.build_future_heads/4): main head + the mean of
       # the K future heads' losses, each on the t+j target with the mask
       # (0 past the game's end) folded into the frame weights.
@@ -473,10 +480,103 @@ defmodule ExPhil.Training.Imitation.Loss do
       main ->
         Policy.imitation_loss(head_logits(main), actions, loss_opts ++ [frame_weights: frame_weights])
     end
+
+    Nx.add(bc_loss, duration_loss)
   end
 
   defp head_logits({buttons, main_x, main_y, c_x, c_y, shoulder}),
     do: %{buttons: buttons, main_x: main_x, main_y: main_y, c_x: c_x, c_y: c_y, shoulder: shoulder}
+
+  @doc "Split a stick_duration head output into the six-head tuple and the duration logits."
+  def split_duration_head({b, mx, my, cx, cy, sh, dur}), do: {{b, mx, my, cx, cy, sh}, dur}
+
+  # Semi-Markov main stick: split the duration logits off the head tuple,
+  # score main_x/main_y at decision frames only (main_stick_mask), and add
+  # the duration cross-entropy. Returns {six-head prediction, loss_opts,
+  # duration_loss}; a pass-through for every other head.
+  defp duration_terms({:autoregressive, {:events, %{duration: c}}}, out, inputs, actions, frame_weights, loss_opts, weight)
+       when is_integer(c) do
+    {main7, futures} =
+      case out do
+        {m, f} when is_tuple(f) and tuple_size(m) == 7 -> {m, f}
+        m when tuple_size(m) == 7 -> {m, nil}
+      end
+
+    {main6, dur_logits} = split_duration_head(main7)
+    %{mask: mask, duration: dur_target} = stick_decision_targets(inputs, actions, c)
+    fw = frame_weights || Nx.broadcast(1.0, {Nx.axis_size(mask, 0)})
+    w = Nx.multiply(fw, mask)
+
+    dur_ce =
+      Policy.Loss.categorical_cross_entropy(Nx.as_type(dur_logits, :f32), dur_target, 0.0, reduction: :none)
+      |> Nx.multiply(w)
+      |> Nx.sum()
+      |> Nx.divide(Nx.max(Nx.sum(w), 1.0e-3))
+
+    out = if futures, do: {main6, futures}, else: main6
+    {out, loss_opts ++ [main_stick_mask: mask], Nx.multiply(weight, dur_ce)}
+  end
+
+  defp duration_terms(_head, out, _inputs, _actions, _frame_weights, loss_opts, _weight), do: {out, loss_opts, Nx.tensor(0.0)}
+
+  @doc """
+  Decision-frame mask and duration targets for the semi-Markov main stick
+  (cap `c`). A frame is a decision frame when the target main-stick pair
+  differs from the previous frame's (`prev_sticks` columns 0/1) or when the
+  previous input has been held a multiple of `c` frames (`prev_age`). The
+  duration class is how many of the next c - 1 frames (chunk futures) keep
+  the target pair: 0 = changes next frame (held 1), ..., c - 1 = still held
+  after c - 1 more frames ("c+"). Mask and target are `{batch}`.
+  """
+  def stick_decision_targets(inputs, actions, c) do
+    prev = inputs["prev_sticks"]
+    age = inputs["prev_age"]
+    prev_x = prev |> Nx.slice_along_axis(0, 1, axis: 1) |> Nx.squeeze(axes: [1])
+    prev_y = prev |> Nx.slice_along_axis(1, 1, axis: 1) |> Nx.squeeze(axes: [1])
+    mx = Nx.as_type(actions.main_x, :s64)
+    my = Nx.as_type(actions.main_y, :s64)
+
+    event = Nx.logical_or(Nx.not_equal(mx, prev_x), Nx.not_equal(my, prev_y))
+    continuation = Nx.logical_and(Nx.greater_equal(age, c), Nx.equal(Nx.remainder(age, c), 0))
+    mask = Nx.logical_or(event, continuation) |> Nx.as_type(:f32)
+
+    fx = Nx.slice_along_axis(Nx.as_type(actions.future_main_x, :s64), 0, c - 1, axis: 1)
+    fy = Nx.slice_along_axis(Nx.as_type(actions.future_main_y, :s64), 0, c - 1, axis: 1)
+    fm = Nx.slice_along_axis(actions.future_mask, 0, c - 1, axis: 1)
+
+    same =
+      Nx.equal(fx, Nx.new_axis(mx, 1))
+      |> Nx.logical_and(Nx.equal(fy, Nx.new_axis(my, 1)))
+      |> Nx.logical_and(Nx.greater(fm, 0.5))
+      |> Nx.as_type(:s64)
+
+    # leading run of matches = frames the pair survives past this one
+    duration = same |> Nx.cumulative_product(axis: 1) |> Nx.sum(axes: [1])
+    %{mask: mask, duration: duration}
+  end
+
+  @doc """
+  Age of the previous main-stick input in frames, read off a window's
+  prev-action slots: the trailing run of positions whose main-stick bucket
+  pair equals the last position's (`{batch}`, 1..window; window = held at
+  least the whole window). The agent tracks the same quantity exactly.
+  """
+  def prev_age_from_window(states, offset, axis_buckets) do
+    pairs =
+      states
+      |> Nx.slice_along_axis(offset + 8, 2, axis: 2)
+      |> Nx.as_type(:f32)
+      |> Nx.divide(2.0)
+      |> Nx.add(0.5)
+      |> Nx.multiply(axis_buckets)
+      |> Nx.floor()
+      |> Nx.clip(0, axis_buckets - 1)
+
+    w = Nx.axis_size(states, 1)
+    last = Nx.slice_along_axis(pairs, w - 1, 1, axis: 1)
+    same = Nx.equal(pairs, last) |> Nx.all(axes: [2]) |> Nx.as_type(:s64)
+    same |> Nx.reverse(axes: [1]) |> Nx.cumulative_product(axis: 1) |> Nx.sum(axes: [1])
+  end
 
   @doc """
   The main six-head logit tuple of a policy's output. Chunk-target models
@@ -543,7 +643,11 @@ defmodule ExPhil.Training.Imitation.Loss do
         |> Nx.clip(0, ev.axis_buckets - 1)
         |> Nx.as_type(:s64)
 
-      Map.put(inputs, "prev_sticks", buckets)
+      inputs = Map.put(inputs, "prev_sticks", buckets)
+
+      if ev[:duration],
+        do: Map.put(inputs, "prev_age", prev_age_from_window(states, offset, ev.axis_buckets)),
+        else: inputs
     else
       inputs
     end
@@ -564,7 +668,9 @@ defmodule ExPhil.Training.Imitation.Loss do
           offset: config[:prev_action_offset],
           buttons: config[:button_events] == true,
           sticks: config[:stick_events] == true,
-          axis_buckets: config[:axis_buckets] || 16
+          axis_buckets: config[:axis_buckets] || 16,
+          # semi-Markov main stick (2026-10-06): duration cap C or nil
+          duration: config[:stick_duration]
         }}}
     else
       head
@@ -693,17 +799,24 @@ defmodule ExPhil.Training.Imitation.Loss do
       states = Nx.as_type(states, precision)
 
       # val_loss scores the MAIN head only, so chunk-target runs (output
-      # `{head, futures}`) stay comparable with plain ones
+      # `{head, futures}`) stay comparable with plain ones. stick_duration
+      # runs score main_x/main_y at decision frames + the duration CE (their
+      # likelihood), so they are NOT comparable with per-frame runs.
+      fh = forward_head(config)
+      inputs = policy_forward_inputs(fh, temporal, states, actions)
+      loss_opts = LossConfig.to_loss_opts(lc)
+
+      {prediction, loss_opts, duration_loss} =
+        duration_terms(fh, predict_fn.(Utils.ensure_model_state(params), inputs), inputs, actions, nil, loss_opts,
+          config[:stick_duration_weight] || 1.0)
+
       main =
-        case predict_fn.(
-               Utils.ensure_model_state(params),
-               policy_forward_inputs(forward_head(config), temporal, states, actions)
-             ) do
+        case prediction do
           {head, futures} when is_tuple(futures) -> head
           head -> head
         end
 
-      Policy.imitation_loss(head_logits(main), actions, LossConfig.to_loss_opts(lc))
+      Nx.add(Policy.imitation_loss(head_logits(main), actions, loss_opts), duration_loss)
     end
 
     # JIT compile for fast repeated evaluation

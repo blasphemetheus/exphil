@@ -32,9 +32,12 @@ Output.puts("#{length(train_files)} training games; #{length(val_files)} disjoin
 {:ok, val_frames, errors} = Streaming.parse_chunk(val_files, pipeline.streaming_chunk_opts)
 if errors != [], do: Output.warning("Validation parser report: #{inspect(errors)}")
 val_dataset = Streaming.create_dataset(val_frames, pipeline.streaming_dataset_opts)
+# stick_duration (2026-10-06): the val likelihood needs the chunk futures too
+# (duration targets); every other arm keeps val batches exactly as before
+val_chunk = if opts[:stick_duration], do: opts[:chunk_horizon], else: nil
 val_batches = val_dataset |> Data.batched_sequences(batch_size: opts[:batch_size],
   window_size: opts[:window_size], stride: opts[:window_size], lazy: true,
-  shuffle: false, drop_last: false, gpu: false, neutral_weight: 1.0) |> Enum.to_list()
+  shuffle: false, drop_last: false, gpu: false, neutral_weight: 1.0, chunk_horizon: val_chunk) |> Enum.to_list()
 if val_batches == [], do: raise("empty validation holdout")
 # ---- stop / restart (2026-09-27) -------------------------------------------
 # `--resume PATH` accepts a trainer .axon OR a checkpoint DIRECTORY; a

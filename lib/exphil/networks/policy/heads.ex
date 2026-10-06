@@ -37,6 +37,11 @@ defmodule ExPhil.Networks.Policy.Heads do
   @num_buttons 8
   @default_axis_buckets 16
   @default_shoulder_buckets 4
+  # Hold-age buckets for the `prev_age` feature (stick_duration): 0 = no
+  # previous input (game start), then 1, 2, 3, 4-5, 6-7, 8-11, 12-15, 16-23,
+  # 24-31, 32+.
+  @age_buckets 11
+  @age_edges [1, 2, 3, 4, 6, 8, 12, 16, 24, 32]
 
   @doc """
   Build the autoregressive controller head.
@@ -317,6 +322,37 @@ defmodule ExPhil.Networks.Policy.Heads do
     # Q7; INPUT_COHERENCE "10-05 20:00").
     stick_release = Keyword.get(opts, :stick_release, false)
 
+    # Semi-Markov main stick (2026-10-06, `stick_duration: C`): the main
+    # stick is decided at DECISION frames only — the frame its bucket pair
+    # changes, and every C-th frame of a continuing hold — and a duration
+    # head says, given the pair just chosen, how many frames it is held
+    # (1..C-1, or "C+": re-decide at age C). Between decisions the sampler
+    # holds. The per-frame hold/change head let a fresh offstage input go at
+    # 6 %/frame regardless of state (SilenceMap by age, INPUT_COHERENCE
+    # "10-06"); a duration chosen once, in the state the press was made in,
+    # cannot be fidgeted away frame by frame. The age of the previous input
+    # ("prev_age", frames) is a zero-initialised head feature so the
+    # continuation decision knows how long the hold has lasted.
+    stick_duration = Keyword.get(opts, :stick_duration)
+
+    if stick_duration != nil and (stick_events_prev == nil or not is_integer(stick_duration) or stick_duration < 2) do
+      raise ArgumentError, "stick_duration needs stick_events_prev and an integer cap >= 2 (got #{inspect(stick_duration)})"
+    end
+
+    r0 =
+      if stick_duration do
+        age_shape = if per_timestep, do: {nil, nil}, else: {nil}
+
+        age_embed =
+          Axon.input("prev_age", shape: age_shape)
+          |> Axon.nx(&age_bucket/1, name: "ar_prev_age_bucket")
+          |> Axon.embedding(@age_buckets, residual_size, name: "ar_prev_age_embed", kernel_initializer: :zeros)
+
+        Axon.add(r0, age_embed)
+      else
+        r0
+      end
+
     stick_component = fn r, out_size, prefix, j ->
       case stick_events_prev do
         nil ->
@@ -390,8 +426,30 @@ defmodule ExPhil.Networks.Policy.Heads do
     # shoulder <- r5 (conditioned on everything; nothing conditions on it)
     shoulder = component.(r5, shoulder_size, "ar_shoulder")
 
-    Axon.container({buttons, main_x, main_y, c_x, c_y, shoulder})
+    case stick_duration do
+      nil ->
+        Axon.container({buttons, main_x, main_y, c_x, c_y, shoulder})
+
+      c ->
+        # duration <- r3: knows buttons and the main-stick pair just chosen;
+        # class d = hold d + 1 more frames (d < C - 1), class C - 1 = "C+"
+        duration = component.(r3, c, "ar_duration")
+        Axon.container({buttons, main_x, main_y, c_x, c_y, shoulder, duration})
+    end
   end
+
+  @doc "Bucket index of a hold age (frames, s64 tensor) for the age embedding."
+  @spec age_bucket(Nx.Tensor.t()) :: Nx.Tensor.t()
+  def age_bucket(age) do
+    age = Nx.as_type(age, :s64)
+
+    Enum.reduce(@age_edges, Nx.broadcast(Nx.tensor(0, type: :s64), Nx.shape(age)), fn edge, acc ->
+      Nx.add(acc, Nx.as_type(Nx.greater_equal(age, edge), :s64))
+    end)
+  end
+
+  @doc "Number of hold-age buckets (`age_bucket/1` range)."
+  def age_buckets, do: @age_buckets
 
   @doc """
   Collapse press/release event logits into ordinary "button is down" logits.

@@ -303,6 +303,19 @@ defmodule ExPhil.Training.Imitation do
       raise ArgumentError, "stick_release requires stick_events: true"
     end
 
+    # Semi-Markov main stick: the duration targets (how long the pair just
+    # chosen is held, capped at C) are read off the chunk-target futures, so
+    # the chunk horizon must reach C - 1 frames ahead.
+    if c = config[:stick_duration] do
+      cond do
+        not config[:stick_events] -> raise ArgumentError, "stick_duration requires stick_events: true"
+        config[:bptt] -> raise ArgumentError, "stick_duration is not implemented on the BPTT path"
+        (Map.get(config, :chunk_horizon) || 0) < c - 1 ->
+          raise ArgumentError, "stick_duration #{c} needs chunk_horizon >= #{c - 1} (got #{inspect(Map.get(config, :chunk_horizon))})"
+        true -> :ok
+      end
+    end
+
     # Build policy model - bptt, temporal, or regular
     policy_model =
       if config[:bptt] do
@@ -332,6 +345,7 @@ defmodule ExPhil.Training.Imitation do
           stick_events: config[:stick_events] || false,
           event_context: config[:event_context] || false,
           stick_release: config[:stick_release] || false,
+          stick_duration: config[:stick_duration],
           prev_action_offset: config[:prev_action_offset],
           embed_size: embed_size,
           backbone: config.backbone,
@@ -459,6 +473,9 @@ defmodule ExPhil.Training.Imitation do
           end)
           |> then(fn t ->
             if config[:stick_events], do: Map.put(t, "prev_sticks", Nx.template({1, 4}, :s64)), else: t
+          end)
+          |> then(fn t ->
+            if config[:stick_duration], do: Map.put(t, "prev_age", Nx.template({1}, :s64)), else: t
           end)
 
         true ->

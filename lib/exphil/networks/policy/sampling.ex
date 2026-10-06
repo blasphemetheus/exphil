@@ -219,7 +219,7 @@ defmodule ExPhil.Networks.Policy.Sampling do
         _ -> {Nx.broadcast(Nx.tensor(0, type: :u8), {1, 8}), Nx.tensor(0, type: :u8)}
       end
 
-    {buttons, {mx, my, cx, cy, sh, mx_l, my_l, cx_l, cy_l, sh_l, conf}, b_l} =
+    {buttons, {mx, my, cx, cy, sh, mx_l, my_l, cx_l, cy_l, sh_l, conf, commit}, b_l} =
       cond do
         n > 1 ->
           # Mode-of-N / critic-selector: ONE fused program for the whole
@@ -270,7 +270,7 @@ defmodule ExPhil.Networks.Policy.Sampling do
     # N>1 pick: critic scorer when a select_fn is wired (live decode knob),
     # else the mode-of-N vote (instrument only — disqualified for play,
     # same as the independent path)
-    {buttons, mx, my, cx, cy, sh, mx_l, my_l, cx_l, cy_l, sh_l, b_l} =
+    {buttons, mx, my, cx, cy, sh, mx_l, my_l, cx_l, cy_l, sh_l, b_l, commit} =
       if n > 1 do
         i =
           if is_function(select_fn) and not (is_integer(mode_of_n) and mode_of_n > 1) do
@@ -285,9 +285,9 @@ defmodule ExPhil.Networks.Policy.Sampling do
         # identical, same features; this just restores the {1, 8} shape
         # contract for logits.buttons downstream)
         {row.(buttons), row.(mx), row.(my), row.(cx), row.(cy), row.(sh), row.(mx_l), row.(my_l),
-         row.(cx_l), row.(cy_l), row.(sh_l), row.(b_l)}
+         row.(cx_l), row.(cy_l), row.(sh_l), row.(b_l), row.(commit)}
       else
-        {buttons, mx, my, cx, cy, sh, mx_l, my_l, cx_l, cy_l, sh_l, b_l}
+        {buttons, mx, my, cx, cy, sh, mx_l, my_l, cx_l, cy_l, sh_l, b_l, commit}
       end
 
     %{
@@ -297,6 +297,9 @@ defmodule ExPhil.Networks.Policy.Sampling do
       c_x: cx,
       c_y: cy,
       shoulder: sh,
+      # semi-Markov main stick: frames still committed to this pair after
+      # this one ({rows} s64; all zero without a duration head)
+      stick_commit: commit,
       confidence_raw: conf,
       # NOTE: categorical logits are CONDITIONAL on the sampled prefix
       # (document in interp readers; B3 entropies become conditional
@@ -341,7 +344,7 @@ defmodule ExPhil.Networks.Policy.Sampling do
     {u, key2} = Nx.Random.uniform(key, shape: Nx.shape(b_ln))
     buttons = Nx.less(u, Nx.sigmoid(Nx.divide(b_ln, t_b)))
 
-    {mx, my, cx, cy, sh, _mx_l, _my_l, _cx_l, _cy_l, _sh_l, _conf} =
+    {mx, my, cx, cy, sh, _mx_l, _my_l, _cx_l, _cy_l, _sh_l, _conf, _commit} =
       jitted(:ar_stage2, &ar_stage2_stochastic/6).(
         head,
         r0n,
@@ -403,7 +406,7 @@ defmodule ExPhil.Networks.Policy.Sampling do
     {u, key2} = Nx.Random.uniform(key, shape: Nx.shape(b_lk))
     buttons = Nx.less(u, Nx.sigmoid(Nx.divide(b_lk, t_b)))
 
-    {mx, my, cx, cy, sh, _mx_l, _my_l, _cx_l, _cy_l, _sh_l, _conf} =
+    {mx, my, cx, cy, sh, _mx_l, _my_l, _cx_l, _cy_l, _sh_l, _conf, _commit} =
       jitted(:ar_stage2, &ar_stage2_stochastic/6).(
         head,
         r0k,
@@ -431,9 +434,81 @@ defmodule ExPhil.Networks.Policy.Sampling do
         _ -> head
       end
 
-    case Keyword.get(opts, :event_prev_sticks) do
-      %Nx.Tensor{} = prev -> Map.put(head, "ar_event_prev_sticks", %{"value" => Nx.as_type(prev, :s64)})
+    head =
+      case Keyword.get(opts, :event_prev_sticks) do
+        %Nx.Tensor{} = prev -> Map.put(head, "ar_event_prev_sticks", %{"value" => Nx.as_type(prev, :s64)})
+        _ -> head
+      end
+
+    # Semi-Markov main stick (stick_duration, 2026-10-06): the age of the
+    # previous main-stick input ({rows} frames) and the frames still committed
+    # to it ({rows}); both come back updated in the result (:stick_commit).
+    head =
+      case Keyword.get(opts, :event_prev_age) do
+        %Nx.Tensor{} = age -> Map.put(head, "ar_event_prev_age", %{"value" => Nx.as_type(age, :s64)})
+        _ -> head
+      end
+
+    case Keyword.get(opts, :stick_commit) do
+      %Nx.Tensor{} = c -> Map.put(head, "ar_stick_commit", %{"value" => Nx.as_type(c, :s64)})
       _ -> head
+    end
+  end
+
+  # The duration head is present iff the checkpoint trained with stick_duration.
+  deftransformp duration_head?(head), do: Map.has_key?(head, "ar_duration_logits")
+
+  # Age embedding (Heads: stick_duration): zero-initialised feature of r0.
+  deftransformp ar_age_context(r0, head) do
+    case head do
+      %{"ar_prev_age_embed" => %{"kernel" => k}, "ar_event_prev_age" => %{"value" => age}} ->
+        Nx.add(r0, Nx.take(k, ExPhil.Networks.Policy.Heads.age_bucket(age)))
+
+      %{"ar_prev_age_embed" => _} ->
+        raise ArgumentError, "this checkpoint has a stick_duration head — pass :event_prev_age and :stick_commit to the sampler"
+
+      _ ->
+        r0
+    end
+  end
+
+  # Committed rows hold the previous main-stick bucket: their logits are
+  # replaced by a one-hot spike on prev so the ordinary sampler draws it.
+  deftransformp ar_commit_force(logits, head, j) do
+    case head do
+      %{"ar_stick_commit" => %{"value" => commit}, "ar_event_prev_sticks" => %{"value" => prev}} ->
+        col = prev |> Nx.slice_along_axis(j, 1, axis: 1) |> Nx.squeeze(axes: [1])
+        k = Nx.axis_size(logits, -1)
+        spike = Nx.select(Nx.equal(Nx.iota({1, k}), Nx.new_axis(col, -1)), 0.0, -1.0e9) |> Nx.broadcast(Nx.shape(logits))
+        committed = Nx.greater(commit, 0) |> Nx.new_axis(-1) |> Nx.broadcast(Nx.shape(logits))
+        Nx.select(committed, spike, logits)
+
+      %{"ar_stick_commit" => _} ->
+        raise ArgumentError, "stick_commit needs :event_prev_sticks too"
+
+      _ ->
+        logits
+    end
+  end
+
+  # Next commitment: committed rows count down; deciding rows take the sampled
+  # duration class d (= hold d more frames; class C-1 = "C+", re-decide at C).
+  deftransformp ar_next_commit(head, r3, key, temp, deterministic?) do
+    if duration_head?(head) do
+      d_l = ar_component(r3, head["ar_duration_hidden"], head["ar_duration_logits"])
+
+      {d, key} =
+        if deterministic?, do: {Nx.argmax(d_l, axis: -1), key}, else: gumbel_argmax(d_l, key, temp)
+
+      commit =
+        case head do
+          %{"ar_stick_commit" => %{"value" => c}} -> Nx.broadcast(c, Nx.shape(d))
+          _ -> raise ArgumentError, "stick_duration checkpoint: pass :stick_commit ({rows} s64) to the sampler"
+        end
+
+      {Nx.select(Nx.greater(commit, 0), Nx.subtract(commit, 1), d), key}
+    else
+      {Nx.broadcast(Nx.tensor(0, type: :s64), {Nx.axis_size(r3, 0)}), key}
     end
   end
 
@@ -547,7 +622,7 @@ defmodule ExPhil.Networks.Policy.Sampling do
   end
 
   defnp ar_stage1(head, features) do
-    r0 = ar_dense(features, head["ar_residual_proj"]) |> ar_prev_context(head)
+    r0 = ar_dense(features, head["ar_residual_proj"]) |> ar_prev_context(head) |> ar_age_context(head)
     b_l =
       ar_component(r0, head["ar_buttons_hidden"], head["ar_buttons_logits"])
       |> ar_button_logits(head)
@@ -559,7 +634,7 @@ defmodule ExPhil.Networks.Policy.Sampling do
   # XLA program (features pre-tiled to {n, hidden} by the caller — the only
   # eager op left in the n>1 path).
   defnp ar_tiled_stochastic(head, features_n, key, temps) do
-    r0 = ar_dense(features_n, head["ar_residual_proj"]) |> ar_prev_context(head)
+    r0 = ar_dense(features_n, head["ar_residual_proj"]) |> ar_prev_context(head) |> ar_age_context(head)
     b_l =
       ar_component(r0, head["ar_buttons_hidden"], head["ar_buttons_logits"])
       |> ar_button_logits(head)
@@ -576,12 +651,14 @@ defmodule ExPhil.Networks.Policy.Sampling do
     r1 = r0 + Nx.dot(buttons_f32, head["ar_buttons_embed"]["kernel"])
 
     mx_l = ar_component(r1, head["ar_main_x_hidden"], ar_stick_params(head, 0)) |> ar_stick_logits(head, 0)
-    {mx, key} = gumbel_argmax(mx_l, key, t_mx)
+    {mx, key} = gumbel_argmax(ar_commit_force(mx_l, head, 0), key, t_mx)
     r2 = r1 + Nx.take(head["ar_main_x_embed"]["kernel"], mx)
 
     my_l = ar_component(r2, head["ar_main_y_hidden"], ar_stick_params(head, 1)) |> ar_stick_logits(head, 1)
-    {my, key} = gumbel_argmax(my_l, key, t_my)
+    {my, key} = gumbel_argmax(ar_commit_force(my_l, head, 1), key, t_my)
     r3 = r2 + Nx.take(head["ar_main_y_embed"]["kernel"], my)
+
+    {commit, key} = ar_next_commit(head, r3, key, t_mx, false)
 
     cx_l = ar_component(r3, head["ar_c_x_hidden"], ar_stick_params(head, 2)) |> ar_stick_logits(head, 2)
     {cx, key} = gumbel_argmax(cx_l, key, t_cx)
@@ -595,19 +672,21 @@ defmodule ExPhil.Networks.Policy.Sampling do
     {sh, _key} = gumbel_argmax(sh_l, key, t_sh)
 
     {mx, my, cx, cy, sh, mx_l, my_l, cx_l, cy_l, sh_l,
-     confidence_scalars(b_l, mx_l, my_l, cx_l, cy_l, sh_l)}
+     confidence_scalars(b_l, mx_l, my_l, cx_l, cy_l, sh_l), commit}
   end
 
   defnp ar_stage2_deterministic(head, r0, buttons_f32, b_l) do
     r1 = r0 + Nx.dot(buttons_f32, head["ar_buttons_embed"]["kernel"])
 
     mx_l = ar_component(r1, head["ar_main_x_hidden"], ar_stick_params(head, 0)) |> ar_stick_logits(head, 0)
-    mx = Nx.argmax(mx_l, axis: -1)
+    mx = Nx.argmax(ar_commit_force(mx_l, head, 0), axis: -1)
     r2 = r1 + Nx.take(head["ar_main_x_embed"]["kernel"], mx)
 
     my_l = ar_component(r2, head["ar_main_y_hidden"], ar_stick_params(head, 1)) |> ar_stick_logits(head, 1)
-    my = Nx.argmax(my_l, axis: -1)
+    my = Nx.argmax(ar_commit_force(my_l, head, 1), axis: -1)
     r3 = r2 + Nx.take(head["ar_main_y_embed"]["kernel"], my)
+
+    {commit, _key} = ar_next_commit(head, r3, Nx.Random.key(0), 1.0, true)
 
     cx_l = ar_component(r3, head["ar_c_x_hidden"], ar_stick_params(head, 2)) |> ar_stick_logits(head, 2)
     cx = Nx.argmax(cx_l, axis: -1)
@@ -621,7 +700,7 @@ defmodule ExPhil.Networks.Policy.Sampling do
     sh = Nx.argmax(sh_l, axis: -1)
 
     {mx, my, cx, cy, sh, mx_l, my_l, cx_l, cy_l, sh_l,
-     confidence_scalars(b_l, mx_l, my_l, cx_l, cy_l, sh_l)}
+     confidence_scalars(b_l, mx_l, my_l, cx_l, cy_l, sh_l), commit}
   end
 
   # --- fully fused single-decision variants (buttons decode in-kernel) ---

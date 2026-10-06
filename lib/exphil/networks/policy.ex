@@ -278,7 +278,8 @@ defmodule ExPhil.Networks.Policy do
             button_events_prev: if(opts[:button_events], do: button_events_prev_node()),
             stick_events_prev: if(opts[:stick_events], do: Axon.input("prev_sticks", shape: {nil, 4})),
             event_context: opts[:event_context] == true,
-            stick_release: opts[:stick_release] == true
+            stick_release: opts[:stick_release] == true,
+            stick_duration: opts[:stick_duration]
           )
 
         other ->
@@ -380,6 +381,10 @@ defmodule ExPhil.Networks.Policy do
           raise ArgumentError,
                 "Unknown controller head: #{inspect(other)}. Valid: :independent, :autoregressive"
       end
+
+    if opts[:stick_duration] do
+      raise ArgumentError, "stick_duration (semi-Markov main stick) is implemented on the windowed path only, not BPTT"
+    end
 
     # chunk targets (training only): `{{head, futures}, final_hidden}`; the
     # future heads broadcast over the time axis like the main head
