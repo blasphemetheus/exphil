@@ -1,0 +1,2524 @@
+{
+  "label": "evt2ctx_ck8_off3",
+  "reference": "eval_runs/1002_fidelity/expert_silence_map_fd.json",
+  "compare": {
+    "resume": [
+      {
+        "n": 1240,
+        "z": 6.4,
+        "ratio": 4.37,
+        "expert": 0.012,
+        "model": 0.0524,
+        "bucket": "state:offstage_deep_j0",
+        "expert_n": 1749
+      },
+      {
+        "n": 1152,
+        "z": 5.0,
+        "ratio": 3.07,
+        "expert": 0.015,
+        "model": 0.046,
+        "bucket": "situation:near_blastzone",
+        "expert_n": 3866
+      },
+      {
+        "n": 507,
+        "z": 2.8,
+        "ratio": 2.59,
+        "expert": 0.0152,
+        "model": 0.0394,
+        "bucket": "age:offstage:a32+",
+        "expert_n": 1121
+      },
+      {
+        "n": 1044,
+        "z": 5.8,
+        "ratio": 1.79,
+        "expert": 0.0788,
+        "model": 0.1408,
+        "bucket": "situation:tech_chase",
+        "expert_n": 11013
+      },
+      {
+        "n": 1276,
+        "z": 3.7,
+        "ratio": 1.72,
+        "expert": 0.0328,
+        "model": 0.0564,
+        "bucket": "state:offstage_low_j0",
+        "expert_n": 3602
+      },
+      {
+        "n": 251,
+        "z": 1.8,
+        "ratio": 1.63,
+        "expert": 0.0488,
+        "model": 0.0797,
+        "bucket": "situation:tech_committed",
+        "expert_n": 7752
+      },
+      {
+        "n": 785,
+        "z": 3.0,
+        "ratio": 1.54,
+        "expert": 0.0556,
+        "model": 0.0854,
+        "bucket": "situation:getup_committed",
+        "expert_n": 7451
+      },
+      {
+        "n": 1432,
+        "z": 3.6,
+        "ratio": 1.52,
+        "expert": 0.0473,
+        "model": 0.0719,
+        "bucket": "age:offstage:a16-31",
+        "expert_n": 2031
+      },
+      {
+        "n": 1106,
+        "z": 3.4,
+        "ratio": 1.5,
+        "expert": 0.058,
+        "model": 0.0868,
+        "bucket": "age:offstage:a04-07",
+        "expert_n": 3102
+      },
+      {
+        "n": 2230,
+        "z": 5.9,
+        "ratio": 1.45,
+        "expert": 0.0941,
+        "model": 0.1368,
+        "bucket": "situation:cornered",
+        "expert_n": 23103
+      },
+      {
+        "n": 952,
+        "z": 3.1,
+        "ratio": 1.45,
+        "expert": 0.0652,
+        "model": 0.0945,
+        "bucket": "situation:being_tech_chased",
+        "expert_n": 13028
+      },
+      {
+        "n": 399,
+        "z": 2.1,
+        "ratio": 1.44,
+        "expert": 0.0731,
+        "model": 0.1053,
+        "bucket": "situation:being_juggled",
+        "expert_n": 17153
+      },
+      {
+        "n": 1213,
+        "z": 3.5,
+        "ratio": 1.44,
+        "expert": 0.0677,
+        "model": 0.0973,
+        "bucket": "state:offstage_low_j1+",
+        "expert_n": 4267
+      },
+      {
+        "n": 11338,
+        "z": 12.0,
+        "ratio": 1.42,
+        "expert": 0.0886,
+        "model": 0.1259,
+        "bucket": "situation:conversion_open",
+        "expert_n": 114783
+      },
+      {
+        "n": 1241,
+        "z": 4.5,
+        "ratio": 1.41,
+        "expert": 0.1117,
+        "model": 0.1579,
+        "bucket": "situation:shield_pressure_ours",
+        "expert_n": 5452
+      },
+      {
+        "n": 577,
+        "z": 2.1,
+        "ratio": 1.41,
+        "expert": 0.0617,
+        "model": 0.0867,
+        "bucket": "situation:juggle",
+        "expert_n": 38616
+      },
+      {
+        "n": 4392,
+        "z": 6.2,
+        "ratio": 1.35,
+        "expert": 0.0839,
+        "model": 0.1134,
+        "bucket": "situation:onstage_corner",
+        "expert_n": 47734
+      },
+      {
+        "n": 28864,
+        "z": 18.0,
+        "ratio": 1.34,
+        "expert": 0.1115,
+        "model": 0.1492,
+        "bucket": "situation:onstage_center",
+        "expert_n": 95175
+      },
+      {
+        "n": 5662,
+        "z": 6.7,
+        "ratio": 1.33,
+        "expert": 0.0845,
+        "model": 0.1125,
+        "bucket": "situation:punish_sequence",
+        "expert_n": 93678
+      },
+      {
+        "n": 12324,
+        "z": 10.0,
+        "ratio": 1.33,
+        "expert": 0.0876,
+        "model": 0.1164,
+        "bucket": "situation:advantage",
+        "expert_n": 91136
+      },
+      {
+        "n": 1134,
+        "z": 2.4,
+        "ratio": 1.33,
+        "expert": 0.0563,
+        "model": 0.075,
+        "bucket": "situation:walljump_zone",
+        "expert_n": 26122
+      },
+      {
+        "n": 3907,
+        "z": 3.6,
+        "ratio": 1.31,
+        "expert": 0.0422,
+        "model": 0.0553,
+        "bucket": "situation:resource_exhausted",
+        "expert_n": 11825
+      },
+      {
+        "n": 1002,
+        "z": 2.0,
+        "ratio": 1.31,
+        "expert": 0.0517,
+        "model": 0.0679,
+        "bucket": "situation:both_offstage",
+        "expert_n": 23083
+      },
+      {
+        "n": 4335,
+        "z": 5.5,
+        "ratio": 1.3,
+        "expert": 0.0885,
+        "model": 0.1153,
+        "bucket": "state:grounded_edge",
+        "expert_n": 38117
+      },
+      {
+        "n": 43787,
+        "z": 20.1,
+        "ratio": 1.3,
+        "expert": 0.1137,
+        "model": 0.1478,
+        "bucket": "state:grounded_center",
+        "expert_n": 151628
+      },
+      {
+        "n": 5413,
+        "z": 4.1,
+        "ratio": 1.28,
+        "expert": 0.0462,
+        "model": 0.0593,
+        "bucket": "age:onstage:a32+",
+        "expert_n": 27660
+      },
+      {
+        "n": 892,
+        "z": 2.0,
+        "ratio": 1.28,
+        "expert": 0.0629,
+        "model": 0.0807,
+        "bucket": "situation:knockdown_bounce",
+        "expert_n": 6387
+      },
+      {
+        "n": 1514,
+        "z": 2.0,
+        "ratio": 1.27,
+        "expert": 0.0421,
+        "model": 0.0535,
+        "bucket": "age:offstage:a08-15",
+        "expert_n": 3184
+      },
+      {
+        "n": 16012,
+        "z": 9.4,
+        "ratio": 1.25,
+        "expert": 0.1003,
+        "model": 0.1249,
+        "bucket": "situation:disadvantage",
+        "expert_n": 96337
+      },
+      {
+        "n": 13125,
+        "z": 6.8,
+        "ratio": 1.22,
+        "expert": 0.0799,
+        "model": 0.0974,
+        "bucket": "age:onstage:a16-31",
+        "expert_n": 55529
+      },
+      {
+        "n": 4893,
+        "z": 4.8,
+        "ratio": 1.22,
+        "expert": 0.1001,
+        "model": 0.1224,
+        "bucket": "situation:last_stock_theirs",
+        "expert_n": 66131
+      },
+      {
+        "n": 308,
+        "z": 1.2,
+        "ratio": 1.22,
+        "expert": 0.1015,
+        "model": 0.1234,
+        "bucket": "situation:percent_deficit",
+        "expert_n": 31265
+      },
+      {
+        "n": 28519,
+        "z": 11.9,
+        "ratio": 1.2,
+        "expert": 0.124,
+        "model": 0.1491,
+        "bucket": "age:onstage:a01-03",
+        "expert_n": 99032
+      },
+      {
+        "n": 223,
+        "z": 0.8,
+        "ratio": 1.19,
+        "expert": 0.0904,
+        "model": 0.1076,
+        "bucket": "situation:thrown",
+        "expert_n": 1438
+      },
+      {
+        "n": 780,
+        "z": 1.6,
+        "ratio": 1.19,
+        "expert": 0.1027,
+        "model": 0.1218,
+        "bucket": "situation:percent_lead",
+        "expert_n": 34416
+      },
+      {
+        "n": 3399,
+        "z": 2.5,
+        "ratio": 1.16,
+        "expert": 0.0771,
+        "model": 0.0894,
+        "bucket": "situation:combo_active",
+        "expert_n": 70687
+      },
+      {
+        "n": 13385,
+        "z": 6.5,
+        "ratio": 1.16,
+        "expert": 0.1274,
+        "model": 0.1472,
+        "bucket": "situation:landing_recovery",
+        "expert_n": 48256
+      },
+      {
+        "n": 22301,
+        "z": 6.8,
+        "ratio": 1.15,
+        "expert": 0.0957,
+        "model": 0.11,
+        "bucket": "age:onstage:a08-15",
+        "expert_n": 81663
+      },
+      {
+        "n": 16305,
+        "z": 5.9,
+        "ratio": 1.13,
+        "expert": 0.1172,
+        "model": 0.133,
+        "bucket": "situation:approach",
+        "expert_n": 42941
+      },
+      {
+        "n": 5392,
+        "z": 2.0,
+        "ratio": 1.12,
+        "expert": 0.0568,
+        "model": 0.0634,
+        "bucket": "situation:recovery_low",
+        "expert_n": 34006
+      },
+      {
+        "n": 20063,
+        "z": 5.2,
+        "ratio": 1.11,
+        "expert": 0.1093,
+        "model": 0.1214,
+        "bucket": "situation:retreat",
+        "expert_n": 40877
+      },
+      {
+        "n": 4192,
+        "z": 1.1,
+        "ratio": 1.07,
+        "expert": 0.0577,
+        "model": 0.0618,
+        "bucket": "situation:below_ledge",
+        "expert_n": 8992
+      },
+      {
+        "n": 60601,
+        "z": 4.4,
+        "ratio": 1.05,
+        "expert": 0.1117,
+        "model": 0.1174,
+        "bucket": "situation:neutral",
+        "expert_n": 132519
+      },
+      {
+        "n": 7254,
+        "z": 0.8,
+        "ratio": 1.04,
+        "expert": 0.0625,
+        "model": 0.0649,
+        "bucket": "situation:offstage",
+        "expert_n": 47517
+      },
+      {
+        "n": 2963,
+        "z": 0.1,
+        "ratio": 1.01,
+        "expert": 0.0854,
+        "model": 0.0861,
+        "bucket": "state:hitstun",
+        "expert_n": 83442
+      },
+      {
+        "n": 3564,
+        "z": 0.3,
+        "ratio": 1.01,
+        "expert": 0.1034,
+        "model": 0.1047,
+        "bucket": "situation:last_stock_ours",
+        "expert_n": 56902
+      },
+      {
+        "n": 6084,
+        "z": 0.1,
+        "ratio": 1.0,
+        "expert": 0.0645,
+        "model": 0.0648,
+        "bucket": "situation:being_edgeguarded",
+        "expert_n": 18731
+      },
+      {
+        "n": 2963,
+        "z": -0.7,
+        "ratio": 0.96,
+        "expert": 0.0895,
+        "model": 0.0861,
+        "bucket": "situation:in_hitstun",
+        "expert_n": 46285
+      },
+      {
+        "n": 22866,
+        "z": -2.1,
+        "ratio": 0.96,
+        "expert": 0.126,
+        "model": 0.1214,
+        "bucket": "age:onstage:a04-07",
+        "expert_n": 83571
+      },
+      {
+        "n": 235,
+        "z": -0.3,
+        "ratio": 0.93,
+        "expert": 0.0733,
+        "model": 0.0681,
+        "bucket": "situation:knockdown_wait",
+        "expert_n": 2128
+      },
+      {
+        "n": 5809,
+        "z": -2.4,
+        "ratio": 0.92,
+        "expert": 0.1284,
+        "model": 0.1181,
+        "bucket": "situation:above_stage",
+        "expert_n": 19184
+      },
+      {
+        "n": 1862,
+        "z": -1.3,
+        "ratio": 0.9,
+        "expert": 0.0769,
+        "model": 0.0693,
+        "bucket": "situation:recovery_high",
+        "expert_n": 13511
+      },
+      {
+        "n": 563,
+        "z": -1.0,
+        "ratio": 0.88,
+        "expert": 0.0974,
+        "model": 0.0853,
+        "bucket": "state:offstage_high_j1+",
+        "expert_n": 1664
+      },
+      {
+        "n": 8074,
+        "z": -5.6,
+        "ratio": 0.84,
+        "expert": 0.1092,
+        "model": 0.0914,
+        "bucket": "situation:edgeguard",
+        "expert_n": 42336
+      },
+      {
+        "n": 998,
+        "z": -2.4,
+        "ratio": 0.82,
+        "expert": 0.125,
+        "model": 0.1022,
+        "bucket": "situation:shield_pressure_theirs",
+        "expert_n": 2903
+      },
+      {
+        "n": 1077,
+        "z": -2.2,
+        "ratio": 0.82,
+        "expert": 0.0968,
+        "model": 0.0789,
+        "bucket": "age:offstage:a01-03",
+        "expert_n": 3544
+      },
+      {
+        "n": 773,
+        "z": -4.5,
+        "ratio": 0.74,
+        "expert": 0.2326,
+        "model": 0.1721,
+        "bucket": "situation:jc_window",
+        "expert_n": 2201
+      },
+      {
+        "n": 4199,
+        "z": -8.2,
+        "ratio": 0.69,
+        "expert": 0.1053,
+        "model": 0.0726,
+        "bucket": "situation:pummel_throw_decision",
+        "expert_n": 10483
+      },
+      {
+        "n": 40768,
+        "z": -30.8,
+        "ratio": 0.68,
+        "expert": 0.1388,
+        "model": 0.0942,
+        "bucket": "state:airborne_onstage",
+        "expert_n": 52657
+      },
+      {
+        "n": 12939,
+        "z": -19.5,
+        "ratio": 0.66,
+        "expert": 0.1551,
+        "model": 0.103,
+        "bucket": "situation:post_kill_neutral",
+        "expert_n": 27917
+      },
+      {
+        "n": 371,
+        "z": -2.2,
+        "ratio": 0.63,
+        "expert": 0.0596,
+        "model": 0.0377,
+        "bucket": "state:ledge_hang",
+        "expert_n": 21611
+      },
+      {
+        "n": 262,
+        "z": -5.1,
+        "ratio": 0.63,
+        "expert": 0.3527,
+        "model": 0.2214,
+        "bucket": "situation:edge_danger",
+        "expert_n": 723
+      },
+      {
+        "n": 703,
+        "z": -4.4,
+        "ratio": 0.61,
+        "expert": 0.1065,
+        "model": 0.0654,
+        "bucket": "state:offstage_high_j0",
+        "expert_n": 1502
+      },
+      {
+        "n": 641,
+        "z": -4.9,
+        "ratio": 0.56,
+        "expert": 0.101,
+        "model": 0.0562,
+        "bucket": "state:offstage_deep_j1+",
+        "expert_n": 198
+      },
+      {
+        "n": 3237,
+        "z": -16.0,
+        "ratio": 0.54,
+        "expert": 0.1809,
+        "model": 0.0973,
+        "bucket": "situation:respawn_invincible",
+        "expert_n": 6770
+      },
+      {
+        "n": 478,
+        "z": -6.3,
+        "ratio": 0.46,
+        "expert": 0.1261,
+        "model": 0.0586,
+        "bucket": "situation:captured",
+        "expert_n": 2261
+      },
+      {
+        "n": 599,
+        "z": -8.4,
+        "ratio": 0.46,
+        "expert": 0.1736,
+        "model": 0.0801,
+        "bucket": "situation:shine_cancellable",
+        "expert_n": 1941
+      },
+      {
+        "n": 6863,
+        "z": -31.0,
+        "ratio": 0.38,
+        "expert": 0.1341,
+        "model": 0.0514,
+        "bucket": "situation:warmup_frames",
+        "expert_n": 4817
+      }
+    ],
+    "enter_silence": [
+      {
+        "n": 1621,
+        "z": 7.5,
+        "ratio": 6.42,
+        "expert": 0.0073,
+        "model": 0.0469,
+        "bucket": "state:offstage_deep_j0",
+        "expert_n": 6011
+      },
+      {
+        "n": 1608,
+        "z": 5.7,
+        "ratio": 4.55,
+        "expert": 0.0071,
+        "model": 0.0323,
+        "bucket": "state:offstage_high_j0",
+        "expert_n": 34737
+      },
+      {
+        "n": 3604,
+        "z": 11.7,
+        "ratio": 4.52,
+        "expert": 0.013,
+        "model": 0.0588,
+        "bucket": "age:offstage:a01-03",
+        "expert_n": 37514
+      },
+      {
+        "n": 588,
+        "z": 3.9,
+        "ratio": 4.21,
+        "expert": 0.0101,
+        "model": 0.0425,
+        "bucket": "state:offstage_deep_j1+",
+        "expert_n": 696
+      },
+      {
+        "n": 981,
+        "z": 4.1,
+        "ratio": 4.13,
+        "expert": 0.0069,
+        "model": 0.0285,
+        "bucket": "age:offstage:a16-31",
+        "expert_n": 15679
+      },
+      {
+        "n": 7368,
+        "z": 12.4,
+        "ratio": 3.92,
+        "expert": 0.0092,
+        "model": 0.0361,
+        "bucket": "situation:below_ledge",
+        "expert_n": 57318
+      },
+      {
+        "n": 8154,
+        "z": 12.0,
+        "ratio": 3.56,
+        "expert": 0.0093,
+        "model": 0.0331,
+        "bucket": "situation:resource_exhausted",
+        "expert_n": 109792
+      },
+      {
+        "n": 1511,
+        "z": 7.3,
+        "ratio": 3.51,
+        "expert": 0.0185,
+        "model": 0.0649,
+        "bucket": "state:offstage_low_j1+",
+        "expert_n": 16555
+      },
+      {
+        "n": 1330,
+        "z": 5.9,
+        "ratio": 3.38,
+        "expert": 0.0149,
+        "model": 0.0504,
+        "bucket": "situation:near_blastzone",
+        "expert_n": 7782
+      },
+      {
+        "n": 1525,
+        "z": 6.0,
+        "ratio": 3.09,
+        "expert": 0.0157,
+        "model": 0.0485,
+        "bucket": "situation:both_offstage",
+        "expert_n": 73065
+      },
+      {
+        "n": 2954,
+        "z": 6.2,
+        "ratio": 2.97,
+        "expert": 0.0098,
+        "model": 0.0291,
+        "bucket": "state:offstage_low_j0",
+        "expert_n": 46963
+      },
+      {
+        "n": 2860,
+        "z": 7.2,
+        "ratio": 2.85,
+        "expert": 0.0145,
+        "model": 0.0413,
+        "bucket": "situation:recovery_high",
+        "expert_n": 76091
+      },
+      {
+        "n": 378,
+        "z": 2.8,
+        "ratio": 2.8,
+        "expert": 0.017,
+        "model": 0.0476,
+        "bucket": "situation:thrown",
+        "expert_n": 9952
+      },
+      {
+        "n": 10520,
+        "z": 12.8,
+        "ratio": 2.71,
+        "expert": 0.014,
+        "model": 0.0379,
+        "bucket": "situation:being_edgeguarded",
+        "expert_n": 103357
+      },
+      {
+        "n": 2324,
+        "z": 5.9,
+        "ratio": 2.63,
+        "expert": 0.0142,
+        "model": 0.0374,
+        "bucket": "age:offstage:a04-07",
+        "expert_n": 26914
+      },
+      {
+        "n": 404,
+        "z": 2.1,
+        "ratio": 2.5,
+        "expert": 0.0119,
+        "model": 0.0297,
+        "bucket": "situation:escape_action",
+        "expert_n": 3604
+      },
+      {
+        "n": 12310,
+        "z": 13.3,
+        "ratio": 2.47,
+        "expert": 0.0158,
+        "model": 0.0391,
+        "bucket": "situation:offstage",
+        "expert_n": 179075
+      },
+      {
+        "n": 9450,
+        "z": 11.0,
+        "ratio": 2.3,
+        "expert": 0.0167,
+        "model": 0.0384,
+        "bucket": "situation:recovery_low",
+        "expert_n": 102984
+      },
+      {
+        "n": 721,
+        "z": 4.4,
+        "ratio": 2.29,
+        "expert": 0.0345,
+        "model": 0.0791,
+        "bucket": "situation:edge_danger",
+        "expert_n": 4082
+      },
+      {
+        "n": 3875,
+        "z": 5.8,
+        "ratio": 2.2,
+        "expert": 0.013,
+        "model": 0.0286,
+        "bucket": "situation:shield_pressure_theirs",
+        "expert_n": 20137
+      },
+      {
+        "n": 1979,
+        "z": 3.7,
+        "ratio": 2.04,
+        "expert": 0.0124,
+        "model": 0.0253,
+        "bucket": "age:offstage:a08-15",
+        "expert_n": 21854
+      },
+      {
+        "n": 760,
+        "z": 3.4,
+        "ratio": 2.01,
+        "expert": 0.0281,
+        "model": 0.0566,
+        "bucket": "state:offstage_high_j1+",
+        "expert_n": 8335
+      },
+      {
+        "n": 854,
+        "z": 3.0,
+        "ratio": 1.89,
+        "expert": 0.0236,
+        "model": 0.0445,
+        "bucket": "situation:being_juggled",
+        "expert_n": 60948
+      },
+      {
+        "n": 848,
+        "z": 3.0,
+        "ratio": 1.89,
+        "expert": 0.0243,
+        "model": 0.046,
+        "bucket": "situation:captured",
+        "expert_n": 11224
+      },
+      {
+        "n": 697,
+        "z": 2.9,
+        "ratio": 1.86,
+        "expert": 0.0293,
+        "model": 0.0545,
+        "bucket": "situation:percent_deficit",
+        "expert_n": 110436
+      },
+      {
+        "n": 434,
+        "z": 2.2,
+        "ratio": 1.85,
+        "expert": 0.0262,
+        "model": 0.0484,
+        "bucket": "situation:ledge_occupied_by_opp",
+        "expert_n": 14210
+      },
+      {
+        "n": 6843,
+        "z": 7.0,
+        "ratio": 1.69,
+        "expert": 0.0246,
+        "model": 0.0416,
+        "bucket": "situation:in_hitstun",
+        "expert_n": 172830
+      },
+      {
+        "n": 16708,
+        "z": 10.9,
+        "ratio": 1.67,
+        "expert": 0.025,
+        "model": 0.0418,
+        "bucket": "situation:above_stage",
+        "expert_n": 88545
+      },
+      {
+        "n": 6875,
+        "z": 6.7,
+        "ratio": 1.63,
+        "expert": 0.0254,
+        "model": 0.0415,
+        "bucket": "state:hitstun",
+        "expert_n": 272275
+      },
+      {
+        "n": 93396,
+        "z": 31.1,
+        "ratio": 1.62,
+        "expert": 0.0408,
+        "model": 0.0661,
+        "bucket": "age:onstage:a01-03",
+        "expert_n": 383926
+      },
+      {
+        "n": 49927,
+        "z": 18.5,
+        "ratio": 1.58,
+        "expert": 0.0309,
+        "model": 0.0487,
+        "bucket": "situation:approach",
+        "expert_n": 184694
+      },
+      {
+        "n": 153606,
+        "z": 31.5,
+        "ratio": 1.54,
+        "expert": 0.0325,
+        "model": 0.05,
+        "bucket": "situation:neutral",
+        "expert_n": 446979
+      },
+      {
+        "n": 5079,
+        "z": 3.8,
+        "ratio": 1.47,
+        "expert": 0.0186,
+        "model": 0.0274,
+        "bucket": "age:onstage:a32+",
+        "expert_n": 29481
+      },
+      {
+        "n": 7379,
+        "z": 5.5,
+        "ratio": 1.38,
+        "expert": 0.0372,
+        "model": 0.0512,
+        "bucket": "situation:last_stock_ours",
+        "expert_n": 159381
+      },
+      {
+        "n": 49322,
+        "z": 13.8,
+        "ratio": 1.36,
+        "expert": 0.038,
+        "model": 0.0518,
+        "bucket": "situation:retreat",
+        "expert_n": 109251
+      },
+      {
+        "n": 27926,
+        "z": 9.9,
+        "ratio": 1.34,
+        "expert": 0.0375,
+        "model": 0.0504,
+        "bucket": "situation:disadvantage",
+        "expert_n": 261123
+      },
+      {
+        "n": 21044,
+        "z": 6.6,
+        "ratio": 1.34,
+        "expert": 0.0233,
+        "model": 0.0312,
+        "bucket": "age:onstage:a16-31",
+        "expert_n": 82503
+      },
+      {
+        "n": 3442,
+        "z": 3.6,
+        "ratio": 1.33,
+        "expert": 0.0428,
+        "model": 0.0569,
+        "bucket": "situation:shield_pressure_ours",
+        "expert_n": 14762
+      },
+      {
+        "n": 81749,
+        "z": 17.0,
+        "ratio": 1.33,
+        "expert": 0.0417,
+        "model": 0.0553,
+        "bucket": "state:airborne_onstage",
+        "expert_n": 219384
+      },
+      {
+        "n": 11926,
+        "z": 5.8,
+        "ratio": 1.3,
+        "expert": 0.0386,
+        "model": 0.0503,
+        "bucket": "situation:last_stock_theirs",
+        "expert_n": 173041
+      },
+      {
+        "n": 5805,
+        "z": 3.4,
+        "ratio": 1.26,
+        "expert": 0.0353,
+        "model": 0.0446,
+        "bucket": "situation:cornered",
+        "expert_n": 51125
+      },
+      {
+        "n": 30923,
+        "z": 8.0,
+        "ratio": 1.25,
+        "expert": 0.0402,
+        "model": 0.0501,
+        "bucket": "situation:advantage",
+        "expert_n": 203796
+      },
+      {
+        "n": 1719,
+        "z": 2.0,
+        "ratio": 1.24,
+        "expert": 0.0449,
+        "model": 0.0558,
+        "bucket": "situation:percent_lead",
+        "expert_n": 79059
+      },
+      {
+        "n": 9614,
+        "z": 4.4,
+        "ratio": 1.23,
+        "expert": 0.0443,
+        "model": 0.0545,
+        "bucket": "situation:jc_window",
+        "expert_n": 34478
+      },
+      {
+        "n": 2001,
+        "z": 1.4,
+        "ratio": 1.21,
+        "expert": 0.0268,
+        "model": 0.0325,
+        "bucket": "situation:shine_cancellable",
+        "expert_n": 14903
+      },
+      {
+        "n": 808,
+        "z": 1.1,
+        "ratio": 1.18,
+        "expert": 0.0534,
+        "model": 0.0631,
+        "bucket": "situation:juggle",
+        "expert_n": 42420
+      },
+      {
+        "n": 2685,
+        "z": 1.5,
+        "ratio": 1.16,
+        "expert": 0.0349,
+        "model": 0.0406,
+        "bucket": "situation:walljump_zone",
+        "expert_n": 41812
+      },
+      {
+        "n": 5219,
+        "z": 2.8,
+        "ratio": 1.15,
+        "expert": 0.0695,
+        "model": 0.0801,
+        "bucket": "situation:pummel_throw_decision",
+        "expert_n": 19922
+      },
+      {
+        "n": 5377,
+        "z": 2.0,
+        "ratio": 1.13,
+        "expert": 0.0478,
+        "model": 0.0539,
+        "bucket": "situation:warmup_frames",
+        "expert_n": 13183
+      },
+      {
+        "n": 2323,
+        "z": 0.7,
+        "ratio": 1.08,
+        "expert": 0.031,
+        "model": 0.0336,
+        "bucket": "situation:being_tech_chased",
+        "expert_n": 27417
+      },
+      {
+        "n": 80018,
+        "z": 3.5,
+        "ratio": 1.06,
+        "expert": 0.0465,
+        "model": 0.0492,
+        "bucket": "situation:onstage_center",
+        "expert_n": 216855
+      },
+      {
+        "n": 29764,
+        "z": 1.5,
+        "ratio": 1.04,
+        "expert": 0.0461,
+        "model": 0.0479,
+        "bucket": "situation:conversion_open",
+        "expert_n": 229038
+      },
+      {
+        "n": 25885,
+        "z": 0.9,
+        "ratio": 1.03,
+        "expert": 0.0501,
+        "model": 0.0514,
+        "bucket": "situation:post_kill_neutral",
+        "expert_n": 85965
+      },
+      {
+        "n": 13587,
+        "z": 0.7,
+        "ratio": 1.02,
+        "expert": 0.0549,
+        "model": 0.0562,
+        "bucket": "situation:edgeguard",
+        "expert_n": 84427
+      },
+      {
+        "n": 9624,
+        "z": 0.2,
+        "ratio": 1.01,
+        "expert": 0.0424,
+        "model": 0.0428,
+        "bucket": "situation:onstage_corner",
+        "expert_n": 79677
+      },
+      {
+        "n": 7014,
+        "z": 0.2,
+        "ratio": 1.01,
+        "expert": 0.0462,
+        "model": 0.0468,
+        "bucket": "situation:combo_active",
+        "expert_n": 123788
+      },
+      {
+        "n": 1651,
+        "z": -0.1,
+        "ratio": 0.99,
+        "expert": 0.0348,
+        "model": 0.0345,
+        "bucket": "situation:knockdown_bounce",
+        "expert_n": 12517
+      },
+      {
+        "n": 14007,
+        "z": -1.4,
+        "ratio": 0.95,
+        "expert": 0.0472,
+        "model": 0.0448,
+        "bucket": "situation:punish_sequence",
+        "expert_n": 179150
+      },
+      {
+        "n": 119603,
+        "z": -5.1,
+        "ratio": 0.94,
+        "expert": 0.052,
+        "model": 0.0488,
+        "bucket": "state:grounded_center",
+        "expert_n": 315897
+      },
+      {
+        "n": 55810,
+        "z": -4.6,
+        "ratio": 0.92,
+        "expert": 0.0481,
+        "model": 0.0441,
+        "bucket": "age:onstage:a04-07",
+        "expert_n": 235023
+      },
+      {
+        "n": 2889,
+        "z": -1.3,
+        "ratio": 0.91,
+        "expert": 0.0528,
+        "model": 0.0478,
+        "bucket": "situation:tech_chase",
+        "expert_n": 16657
+      },
+      {
+        "n": 9524,
+        "z": -2.2,
+        "ratio": 0.9,
+        "expert": 0.0479,
+        "model": 0.0433,
+        "bucket": "state:grounded_edge",
+        "expert_n": 59571
+      },
+      {
+        "n": 829,
+        "z": -0.7,
+        "ratio": 0.87,
+        "expert": 0.0319,
+        "model": 0.0277,
+        "bucket": "situation:tech_committed",
+        "expert_n": 14281
+      },
+      {
+        "n": 43161,
+        "z": -6.6,
+        "ratio": 0.86,
+        "expert": 0.0441,
+        "model": 0.038,
+        "bucket": "age:onstage:a08-15",
+        "expert_n": 150025
+      },
+      {
+        "n": 2677,
+        "z": -2.2,
+        "ratio": 0.8,
+        "expert": 0.0372,
+        "model": 0.0299,
+        "bucket": "situation:getup_committed",
+        "expert_n": 14165
+      },
+      {
+        "n": 5709,
+        "z": -5.4,
+        "ratio": 0.77,
+        "expert": 0.0696,
+        "model": 0.0536,
+        "bucket": "situation:respawn_invincible",
+        "expert_n": 17610
+      },
+      {
+        "n": 20252,
+        "z": -24.7,
+        "ratio": 0.59,
+        "expert": 0.1001,
+        "model": 0.0591,
+        "bucket": "situation:landing_recovery",
+        "expert_n": 64584
+      },
+      {
+        "n": 739,
+        "z": -3.9,
+        "ratio": 0.54,
+        "expert": 0.0506,
+        "model": 0.0271,
+        "bucket": "state:ledge_hang",
+        "expert_n": 13831
+      },
+      {
+        "n": 346,
+        "z": -7.8,
+        "ratio": 0.27,
+        "expert": 0.0862,
+        "model": 0.0231,
+        "bucket": "situation:ledge_hang",
+        "expert_n": 4119
+      },
+      {
+        "n": 254,
+        "z": -6.3,
+        "ratio": 0.24,
+        "expert": 0.0652,
+        "model": 0.0157,
+        "bucket": "situation:ledge_option_pending",
+        "expert_n": 2224
+      }
+    ],
+    "change": [
+      {
+        "n": 1621,
+        "z": 8.5,
+        "ratio": 1.94,
+        "expert": 0.0832,
+        "model": 0.161,
+        "bucket": "state:offstage_deep_j0",
+        "expert_n": 6011
+      },
+      {
+        "n": 2677,
+        "z": 6.2,
+        "ratio": 1.63,
+        "expert": 0.0538,
+        "model": 0.0878,
+        "bucket": "situation:getup_committed",
+        "expert_n": 14165
+      },
+      {
+        "n": 1330,
+        "z": 4.6,
+        "ratio": 1.47,
+        "expert": 0.0916,
+        "model": 0.1346,
+        "bucket": "situation:near_blastzone",
+        "expert_n": 7782
+      },
+      {
+        "n": 404,
+        "z": 2.6,
+        "ratio": 1.39,
+        "expert": 0.1301,
+        "model": 0.1807,
+        "bucket": "situation:escape_action",
+        "expert_n": 3604
+      },
+      {
+        "n": 829,
+        "z": 2.7,
+        "ratio": 1.37,
+        "expert": 0.08,
+        "model": 0.1098,
+        "bucket": "situation:tech_committed",
+        "expert_n": 14281
+      },
+      {
+        "n": 8154,
+        "z": 6.7,
+        "ratio": 1.25,
+        "expert": 0.0992,
+        "model": 0.1237,
+        "bucket": "situation:resource_exhausted",
+        "expert_n": 109792
+      },
+      {
+        "n": 5079,
+        "z": 3.6,
+        "ratio": 1.24,
+        "expert": 0.0503,
+        "model": 0.0626,
+        "bucket": "age:onstage:a32+",
+        "expert_n": 29481
+      },
+      {
+        "n": 981,
+        "z": 1.6,
+        "ratio": 1.23,
+        "expert": 0.0565,
+        "model": 0.0693,
+        "bucket": "age:offstage:a16-31",
+        "expert_n": 15679
+      },
+      {
+        "n": 2860,
+        "z": 3.1,
+        "ratio": 1.2,
+        "expert": 0.0905,
+        "model": 0.1087,
+        "bucket": "situation:recovery_high",
+        "expert_n": 76091
+      },
+      {
+        "n": 2954,
+        "z": 3.4,
+        "ratio": 1.2,
+        "expert": 0.1045,
+        "model": 0.1253,
+        "bucket": "state:offstage_low_j0",
+        "expert_n": 46963
+      },
+      {
+        "n": 2323,
+        "z": 2.1,
+        "ratio": 1.16,
+        "expert": 0.0782,
+        "model": 0.0908,
+        "bucket": "situation:being_tech_chased",
+        "expert_n": 27417
+      },
+      {
+        "n": 10520,
+        "z": 4.9,
+        "ratio": 1.15,
+        "expert": 0.1048,
+        "model": 0.1204,
+        "bucket": "situation:being_edgeguarded",
+        "expert_n": 103357
+      },
+      {
+        "n": 1608,
+        "z": 1.7,
+        "ratio": 1.14,
+        "expert": 0.0964,
+        "model": 0.1095,
+        "bucket": "state:offstage_high_j0",
+        "expert_n": 34737
+      },
+      {
+        "n": 12310,
+        "z": 3.3,
+        "ratio": 1.09,
+        "expert": 0.1094,
+        "model": 0.119,
+        "bucket": "situation:offstage",
+        "expert_n": 179075
+      },
+      {
+        "n": 6875,
+        "z": 2.6,
+        "ratio": 1.09,
+        "expert": 0.1104,
+        "model": 0.1207,
+        "bucket": "state:hitstun",
+        "expert_n": 272275
+      },
+      {
+        "n": 3604,
+        "z": 2.0,
+        "ratio": 1.08,
+        "expert": 0.1537,
+        "model": 0.1662,
+        "bucket": "age:offstage:a01-03",
+        "expert_n": 37514
+      },
+      {
+        "n": 93396,
+        "z": 8.9,
+        "ratio": 1.07,
+        "expert": 0.1655,
+        "model": 0.1766,
+        "bucket": "age:onstage:a01-03",
+        "expert_n": 383926
+      },
+      {
+        "n": 49927,
+        "z": 6.0,
+        "ratio": 1.07,
+        "expert": 0.1329,
+        "model": 0.1423,
+        "bucket": "situation:approach",
+        "expert_n": 184694
+      },
+      {
+        "n": 721,
+        "z": 0.8,
+        "ratio": 1.07,
+        "expert": 0.1445,
+        "model": 0.1553,
+        "bucket": "situation:edge_danger",
+        "expert_n": 4082
+      },
+      {
+        "n": 760,
+        "z": 0.5,
+        "ratio": 1.05,
+        "expert": 0.1061,
+        "model": 0.1118,
+        "bucket": "state:offstage_high_j1+",
+        "expert_n": 8335
+      },
+      {
+        "n": 21044,
+        "z": 2.2,
+        "ratio": 1.05,
+        "expert": 0.075,
+        "model": 0.0791,
+        "bucket": "age:onstage:a16-31",
+        "expert_n": 82503
+      },
+      {
+        "n": 153606,
+        "z": 6.0,
+        "ratio": 1.04,
+        "expert": 0.1331,
+        "model": 0.1384,
+        "bucket": "situation:neutral",
+        "expert_n": 446979
+      },
+      {
+        "n": 16708,
+        "z": 2.1,
+        "ratio": 1.04,
+        "expert": 0.1297,
+        "model": 0.1353,
+        "bucket": "situation:above_stage",
+        "expert_n": 88545
+      },
+      {
+        "n": 6843,
+        "z": 0.8,
+        "ratio": 1.03,
+        "expert": 0.1172,
+        "model": 0.1204,
+        "bucket": "situation:in_hitstun",
+        "expert_n": 172830
+      },
+      {
+        "n": 1525,
+        "z": 0.4,
+        "ratio": 1.03,
+        "expert": 0.1156,
+        "model": 0.1193,
+        "bucket": "situation:both_offstage",
+        "expert_n": 73065
+      },
+      {
+        "n": 7379,
+        "z": 0.9,
+        "ratio": 1.03,
+        "expert": 0.1379,
+        "model": 0.1416,
+        "bucket": "situation:last_stock_ours",
+        "expert_n": 159381
+      },
+      {
+        "n": 49322,
+        "z": 1.9,
+        "ratio": 1.02,
+        "expert": 0.1359,
+        "model": 0.1389,
+        "bucket": "situation:retreat",
+        "expert_n": 109251
+      },
+      {
+        "n": 1979,
+        "z": 0.3,
+        "ratio": 1.02,
+        "expert": 0.098,
+        "model": 0.1001,
+        "bucket": "age:offstage:a08-15",
+        "expert_n": 21854
+      },
+      {
+        "n": 7368,
+        "z": 0.7,
+        "ratio": 1.02,
+        "expert": 0.1256,
+        "model": 0.1285,
+        "bucket": "situation:below_ledge",
+        "expert_n": 57318
+      },
+      {
+        "n": 43161,
+        "z": 0.4,
+        "ratio": 1.01,
+        "expert": 0.098,
+        "model": 0.0986,
+        "bucket": "age:onstage:a08-15",
+        "expert_n": 150025
+      },
+      {
+        "n": 81749,
+        "z": 1.2,
+        "ratio": 1.01,
+        "expert": 0.142,
+        "model": 0.1435,
+        "bucket": "state:airborne_onstage",
+        "expert_n": 219384
+      },
+      {
+        "n": 9450,
+        "z": -0.4,
+        "ratio": 0.99,
+        "expert": 0.1234,
+        "model": 0.1221,
+        "bucket": "situation:recovery_low",
+        "expert_n": 102984
+      },
+      {
+        "n": 434,
+        "z": -0.1,
+        "ratio": 0.99,
+        "expert": 0.1137,
+        "model": 0.1129,
+        "bucket": "situation:ledge_occupied_by_opp",
+        "expert_n": 14210
+      },
+      {
+        "n": 1719,
+        "z": -0.5,
+        "ratio": 0.97,
+        "expert": 0.1494,
+        "model": 0.1454,
+        "bucket": "situation:percent_lead",
+        "expert_n": 79059
+      },
+      {
+        "n": 3875,
+        "z": -0.8,
+        "ratio": 0.96,
+        "expert": 0.0996,
+        "model": 0.0957,
+        "bucket": "situation:shield_pressure_theirs",
+        "expert_n": 20137
+      },
+      {
+        "n": 808,
+        "z": -0.5,
+        "ratio": 0.96,
+        "expert": 0.1489,
+        "model": 0.1423,
+        "bucket": "situation:juggle",
+        "expert_n": 42420
+      },
+      {
+        "n": 30923,
+        "z": -3.9,
+        "ratio": 0.95,
+        "expert": 0.1517,
+        "model": 0.144,
+        "bucket": "situation:advantage",
+        "expert_n": 203796
+      },
+      {
+        "n": 27926,
+        "z": -4.9,
+        "ratio": 0.93,
+        "expert": 0.1304,
+        "model": 0.1208,
+        "bucket": "situation:disadvantage",
+        "expert_n": 261123
+      },
+      {
+        "n": 697,
+        "z": -0.7,
+        "ratio": 0.93,
+        "expert": 0.1229,
+        "model": 0.1148,
+        "bucket": "situation:percent_deficit",
+        "expert_n": 110436
+      },
+      {
+        "n": 11926,
+        "z": -4.2,
+        "ratio": 0.91,
+        "expert": 0.1389,
+        "model": 0.126,
+        "bucket": "situation:last_stock_theirs",
+        "expert_n": 173041
+      },
+      {
+        "n": 29764,
+        "z": -7.4,
+        "ratio": 0.9,
+        "expert": 0.158,
+        "model": 0.1429,
+        "bucket": "situation:conversion_open",
+        "expert_n": 229038
+      },
+      {
+        "n": 5805,
+        "z": -3.0,
+        "ratio": 0.9,
+        "expert": 0.1306,
+        "model": 0.118,
+        "bucket": "situation:cornered",
+        "expert_n": 51125
+      },
+      {
+        "n": 7014,
+        "z": -3.9,
+        "ratio": 0.9,
+        "expert": 0.1655,
+        "model": 0.1488,
+        "bucket": "situation:combo_active",
+        "expert_n": 123788
+      },
+      {
+        "n": 1651,
+        "z": -1.5,
+        "ratio": 0.89,
+        "expert": 0.0982,
+        "model": 0.0878,
+        "bucket": "situation:knockdown_bounce",
+        "expert_n": 12517
+      },
+      {
+        "n": 2889,
+        "z": -2.7,
+        "ratio": 0.89,
+        "expert": 0.1527,
+        "model": 0.1357,
+        "bucket": "situation:tech_chase",
+        "expert_n": 16657
+      },
+      {
+        "n": 80018,
+        "z": -16.1,
+        "ratio": 0.88,
+        "expert": 0.157,
+        "model": 0.1374,
+        "bucket": "situation:onstage_center",
+        "expert_n": 216855
+      },
+      {
+        "n": 14007,
+        "z": -6.4,
+        "ratio": 0.88,
+        "expert": 0.1638,
+        "model": 0.1449,
+        "bucket": "situation:punish_sequence",
+        "expert_n": 179150
+      },
+      {
+        "n": 5219,
+        "z": -4.0,
+        "ratio": 0.88,
+        "expert": 0.1556,
+        "model": 0.1364,
+        "bucket": "situation:pummel_throw_decision",
+        "expert_n": 19922
+      },
+      {
+        "n": 9624,
+        "z": -5.6,
+        "ratio": 0.87,
+        "expert": 0.1369,
+        "model": 0.1185,
+        "bucket": "situation:onstage_corner",
+        "expert_n": 79677
+      },
+      {
+        "n": 13587,
+        "z": -9.2,
+        "ratio": 0.83,
+        "expert": 0.1476,
+        "model": 0.1219,
+        "bucket": "situation:edgeguard",
+        "expert_n": 84427
+      },
+      {
+        "n": 9614,
+        "z": -11.9,
+        "ratio": 0.83,
+        "expert": 0.3259,
+        "model": 0.2717,
+        "bucket": "situation:jc_window",
+        "expert_n": 34478
+      },
+      {
+        "n": 854,
+        "z": -2.2,
+        "ratio": 0.82,
+        "expert": 0.1267,
+        "model": 0.1042,
+        "bucket": "situation:being_juggled",
+        "expert_n": 60948
+      },
+      {
+        "n": 25885,
+        "z": -13.9,
+        "ratio": 0.82,
+        "expert": 0.1676,
+        "model": 0.1379,
+        "bucket": "situation:post_kill_neutral",
+        "expert_n": 85965
+      },
+      {
+        "n": 119603,
+        "z": -32.9,
+        "ratio": 0.81,
+        "expert": 0.1675,
+        "model": 0.135,
+        "bucket": "state:grounded_center",
+        "expert_n": 315897
+      },
+      {
+        "n": 3442,
+        "z": -5.9,
+        "ratio": 0.8,
+        "expert": 0.1771,
+        "model": 0.1421,
+        "bucket": "situation:shield_pressure_ours",
+        "expert_n": 14762
+      },
+      {
+        "n": 9524,
+        "z": -10.3,
+        "ratio": 0.78,
+        "expert": 0.1536,
+        "model": 0.1194,
+        "bucket": "state:grounded_edge",
+        "expert_n": 59571
+      },
+      {
+        "n": 55810,
+        "z": -25.5,
+        "ratio": 0.78,
+        "expert": 0.1642,
+        "model": 0.1281,
+        "bucket": "age:onstage:a04-07",
+        "expert_n": 235023
+      },
+      {
+        "n": 378,
+        "z": -2.2,
+        "ratio": 0.77,
+        "expert": 0.1584,
+        "model": 0.1217,
+        "bucket": "situation:thrown",
+        "expert_n": 9952
+      },
+      {
+        "n": 5709,
+        "z": -10.0,
+        "ratio": 0.76,
+        "expert": 0.196,
+        "model": 0.1489,
+        "bucket": "situation:respawn_invincible",
+        "expert_n": 17610
+      },
+      {
+        "n": 2324,
+        "z": -6.6,
+        "ratio": 0.72,
+        "expert": 0.1548,
+        "model": 0.1119,
+        "bucket": "age:offstage:a04-07",
+        "expert_n": 26914
+      },
+      {
+        "n": 2685,
+        "z": -6.5,
+        "ratio": 0.72,
+        "expert": 0.1354,
+        "model": 0.098,
+        "bucket": "situation:walljump_zone",
+        "expert_n": 41812
+      },
+      {
+        "n": 588,
+        "z": -3.8,
+        "ratio": 0.71,
+        "expert": 0.1882,
+        "model": 0.1344,
+        "bucket": "state:offstage_deep_j1+",
+        "expert_n": 696
+      },
+      {
+        "n": 2001,
+        "z": -9.9,
+        "ratio": 0.7,
+        "expert": 0.2952,
+        "model": 0.2054,
+        "bucket": "situation:shine_cancellable",
+        "expert_n": 14903
+      },
+      {
+        "n": 739,
+        "z": -3.4,
+        "ratio": 0.67,
+        "expert": 0.089,
+        "model": 0.0595,
+        "bucket": "state:ledge_hang",
+        "expert_n": 13831
+      },
+      {
+        "n": 20252,
+        "z": -28.4,
+        "ratio": 0.66,
+        "expert": 0.1964,
+        "model": 0.1294,
+        "bucket": "situation:landing_recovery",
+        "expert_n": 64584
+      },
+      {
+        "n": 5377,
+        "z": -13.9,
+        "ratio": 0.64,
+        "expert": 0.1596,
+        "model": 0.1021,
+        "bucket": "situation:warmup_frames",
+        "expert_n": 13183
+      },
+      {
+        "n": 848,
+        "z": -7.6,
+        "ratio": 0.56,
+        "expert": 0.1801,
+        "model": 0.1014,
+        "bucket": "situation:captured",
+        "expert_n": 11224
+      },
+      {
+        "n": 1511,
+        "z": -12.8,
+        "ratio": 0.52,
+        "expert": 0.2205,
+        "model": 0.1152,
+        "bucket": "state:offstage_low_j1+",
+        "expert_n": 16555
+      },
+      {
+        "n": 346,
+        "z": -5.6,
+        "ratio": 0.43,
+        "expert": 0.1139,
+        "model": 0.0491,
+        "bucket": "situation:ledge_hang",
+        "expert_n": 4119
+      },
+      {
+        "n": 254,
+        "z": -8.3,
+        "ratio": 0.29,
+        "expert": 0.1488,
+        "model": 0.0433,
+        "bucket": "situation:ledge_option_pending",
+        "expert_n": 2224
+      }
+    ]
+  },
+  "policy": "checkpoints/coh_evt2ctx_ck8_off3/model_best_policy.bin",
+  "seeds": [
+    1001,
+    1002,
+    1003
+  ],
+  "summary": {
+    "age:onstage:a04-07": {
+      "active": 55810,
+      "resume": 0.1214,
+      "silent": 22866,
+      "frames": 78676,
+      "enter_silence": 0.0441,
+      "change": 0.1281
+    },
+    "situation:edge_danger": {
+      "active": 721,
+      "resume": 0.2214,
+      "silent": 262,
+      "frames": 983,
+      "enter_silence": 0.0791,
+      "change": 0.1553
+    },
+    "situation:percent_deficit": {
+      "active": 697,
+      "resume": 0.1234,
+      "silent": 308,
+      "frames": 1005,
+      "enter_silence": 0.0545,
+      "change": 0.1148
+    },
+    "state:offstage_low_j0": {
+      "active": 2954,
+      "resume": 0.0564,
+      "silent": 1276,
+      "frames": 4230,
+      "enter_silence": 0.0291,
+      "change": 0.1253
+    },
+    "situation:landing_recovery": {
+      "active": 20252,
+      "resume": 0.1472,
+      "silent": 13385,
+      "frames": 33637,
+      "enter_silence": 0.0591,
+      "change": 0.1294
+    },
+    "situation:below_ledge": {
+      "active": 7368,
+      "resume": 0.0618,
+      "silent": 4192,
+      "frames": 11560,
+      "enter_silence": 0.0361,
+      "change": 0.1285
+    },
+    "situation:ledge_trap": {
+      "active": 119,
+      "resume": 0.2162,
+      "silent": 37,
+      "frames": 156,
+      "enter_silence": 0.042,
+      "change": 0.1261
+    },
+    "situation:percent_lead": {
+      "active": 1719,
+      "resume": 0.1218,
+      "silent": 780,
+      "frames": 2499,
+      "enter_silence": 0.0558,
+      "change": 0.1454
+    },
+    "situation:last_stock_ours": {
+      "active": 7379,
+      "resume": 0.1047,
+      "silent": 3564,
+      "frames": 10943,
+      "enter_silence": 0.0512,
+      "change": 0.1416
+    },
+    "situation:last_stock_theirs": {
+      "active": 11926,
+      "resume": 0.1224,
+      "silent": 4893,
+      "frames": 16819,
+      "enter_silence": 0.0503,
+      "change": 0.126
+    },
+    "situation:thrown": {
+      "active": 378,
+      "resume": 0.1076,
+      "silent": 223,
+      "frames": 601,
+      "enter_silence": 0.0476,
+      "change": 0.1217
+    },
+    "state:offstage_deep_j1+": {
+      "active": 588,
+      "resume": 0.0562,
+      "silent": 641,
+      "frames": 1229,
+      "enter_silence": 0.0425,
+      "change": 0.1344
+    },
+    "age:offstage:a32+": {
+      "active": 154,
+      "resume": 0.0394,
+      "silent": 507,
+      "frames": 661,
+      "enter_silence": 0.0195,
+      "change": 0.1299
+    },
+    "situation:walljump_zone": {
+      "active": 2685,
+      "resume": 0.075,
+      "silent": 1134,
+      "frames": 3819,
+      "enter_silence": 0.0406,
+      "change": 0.098
+    },
+    "situation:tech_chase": {
+      "active": 2889,
+      "resume": 0.1408,
+      "silent": 1044,
+      "frames": 3933,
+      "enter_silence": 0.0478,
+      "change": 0.1357
+    },
+    "situation:knockdown_wait": {
+      "active": 25,
+      "resume": 0.0681,
+      "silent": 235,
+      "frames": 260,
+      "enter_silence": 0.12,
+      "change": 0.2
+    },
+    "situation:advantage": {
+      "active": 30923,
+      "resume": 0.1164,
+      "silent": 12324,
+      "frames": 43247,
+      "enter_silence": 0.0501,
+      "change": 0.144
+    },
+    "situation:jc_window": {
+      "active": 9614,
+      "resume": 0.1721,
+      "silent": 773,
+      "frames": 10387,
+      "enter_silence": 0.0545,
+      "change": 0.2717
+    },
+    "situation:juggle": {
+      "active": 808,
+      "resume": 0.0867,
+      "silent": 577,
+      "frames": 1385,
+      "enter_silence": 0.0631,
+      "change": 0.1423
+    },
+    "age:onstage:a16-31": {
+      "active": 21044,
+      "resume": 0.0974,
+      "silent": 13125,
+      "frames": 34169,
+      "enter_silence": 0.0312,
+      "change": 0.0791
+    },
+    "state:ledge_hang": {
+      "active": 739,
+      "resume": 0.0377,
+      "silent": 371,
+      "frames": 1110,
+      "enter_silence": 0.0271,
+      "change": 0.0595
+    },
+    "situation:walltech_available": {
+      "active": 139,
+      "resume": 0.0449,
+      "silent": 89,
+      "frames": 228,
+      "enter_silence": 0.0504,
+      "change": 0.0719
+    },
+    "age:offstage:a08-15": {
+      "active": 1979,
+      "resume": 0.0535,
+      "silent": 1514,
+      "frames": 3493,
+      "enter_silence": 0.0253,
+      "change": 0.1001
+    },
+    "situation:combo_active": {
+      "active": 7014,
+      "resume": 0.0894,
+      "silent": 3399,
+      "frames": 10413,
+      "enter_silence": 0.0468,
+      "change": 0.1488
+    },
+    "situation:ledge_option_pending": {
+      "active": 254,
+      "resume": 0.0588,
+      "silent": 136,
+      "frames": 390,
+      "enter_silence": 0.0157,
+      "change": 0.0433
+    },
+    "state:airborne_onstage": {
+      "active": 81749,
+      "resume": 0.0942,
+      "silent": 40768,
+      "frames": 122517,
+      "enter_silence": 0.0553,
+      "change": 0.1435
+    },
+    "situation:tech_committed": {
+      "active": 829,
+      "resume": 0.0797,
+      "silent": 251,
+      "frames": 1080,
+      "enter_silence": 0.0277,
+      "change": 0.1098
+    },
+    "situation:tumble": {
+      "active": 68,
+      "resume": 0.0976,
+      "silent": 41,
+      "frames": 109,
+      "enter_silence": 0.0882,
+      "change": 0.1029
+    },
+    "state:grounded_center": {
+      "active": 119603,
+      "resume": 0.1478,
+      "silent": 43787,
+      "frames": 163390,
+      "enter_silence": 0.0488,
+      "change": 0.135
+    },
+    "situation:shine_cancellable": {
+      "active": 2001,
+      "resume": 0.0801,
+      "silent": 599,
+      "frames": 2600,
+      "enter_silence": 0.0325,
+      "change": 0.2054
+    },
+    "situation:ledge_occupied_by_opp": {
+      "active": 434,
+      "resume": 0.1526,
+      "silent": 190,
+      "frames": 624,
+      "enter_silence": 0.0484,
+      "change": 0.1129
+    },
+    "situation:getup_committed": {
+      "active": 2677,
+      "resume": 0.0854,
+      "silent": 785,
+      "frames": 3462,
+      "enter_silence": 0.0299,
+      "change": 0.0878
+    },
+    "situation:being_tech_chased": {
+      "active": 2323,
+      "resume": 0.0945,
+      "silent": 952,
+      "frames": 3275,
+      "enter_silence": 0.0336,
+      "change": 0.0908
+    },
+    "situation:pummel_throw_decision": {
+      "active": 5219,
+      "resume": 0.0726,
+      "silent": 4199,
+      "frames": 9418,
+      "enter_silence": 0.0801,
+      "change": 0.1364
+    },
+    "situation:warmup_frames": {
+      "active": 5377,
+      "resume": 0.0514,
+      "silent": 6863,
+      "frames": 12240,
+      "enter_silence": 0.0539,
+      "change": 0.1021
+    },
+    "situation:recaught": {
+      "active": 60,
+      "resume": 0.1053,
+      "silent": 19,
+      "frames": 79,
+      "enter_silence": 0.0833,
+      "change": 0.0667
+    },
+    "situation:edgeguard": {
+      "active": 13587,
+      "resume": 0.0914,
+      "silent": 8074,
+      "frames": 21661,
+      "enter_silence": 0.0562,
+      "change": 0.1219
+    },
+    "state:offstage_deep_j0": {
+      "active": 1621,
+      "resume": 0.0524,
+      "silent": 1240,
+      "frames": 2861,
+      "enter_silence": 0.0469,
+      "change": 0.161
+    },
+    "situation:respawn_invincible": {
+      "active": 5709,
+      "resume": 0.0973,
+      "silent": 3237,
+      "frames": 8946,
+      "enter_silence": 0.0536,
+      "change": 0.1489
+    },
+    "situation:disadvantage": {
+      "active": 27926,
+      "resume": 0.1249,
+      "silent": 16012,
+      "frames": 43938,
+      "enter_silence": 0.0504,
+      "change": 0.1208
+    },
+    "situation:captured": {
+      "active": 848,
+      "resume": 0.0586,
+      "silent": 478,
+      "frames": 1326,
+      "enter_silence": 0.046,
+      "change": 0.1014
+    },
+    "age:onstage:a08-15": {
+      "active": 43161,
+      "resume": 0.11,
+      "silent": 22301,
+      "frames": 65462,
+      "enter_silence": 0.038,
+      "change": 0.0986
+    },
+    "state:hitstun": {
+      "active": 6875,
+      "resume": 0.0861,
+      "silent": 2963,
+      "frames": 9838,
+      "enter_silence": 0.0415,
+      "change": 0.1207
+    },
+    "state:grounded_edge": {
+      "active": 9524,
+      "resume": 0.1153,
+      "silent": 4335,
+      "frames": 13859,
+      "enter_silence": 0.0433,
+      "change": 0.1194
+    },
+    "age:offstage:a01-03": {
+      "active": 3604,
+      "resume": 0.0789,
+      "silent": 1077,
+      "frames": 4681,
+      "enter_silence": 0.0588,
+      "change": 0.1662
+    },
+    "situation:offstage": {
+      "active": 12310,
+      "resume": 0.0649,
+      "silent": 7254,
+      "frames": 19564,
+      "enter_silence": 0.0391,
+      "change": 0.119
+    },
+    "situation:shield_pressure_ours": {
+      "active": 3442,
+      "resume": 0.1579,
+      "silent": 1241,
+      "frames": 4683,
+      "enter_silence": 0.0569,
+      "change": 0.1421
+    },
+    "state:offstage_low_j1+": {
+      "active": 1511,
+      "resume": 0.0973,
+      "silent": 1213,
+      "frames": 2724,
+      "enter_silence": 0.0649,
+      "change": 0.1152
+    },
+    "situation:approach": {
+      "active": 49927,
+      "resume": 0.133,
+      "silent": 16305,
+      "frames": 66232,
+      "enter_silence": 0.0487,
+      "change": 0.1423
+    },
+    "state:offstage_high_j1+": {
+      "active": 760,
+      "resume": 0.0853,
+      "silent": 563,
+      "frames": 1323,
+      "enter_silence": 0.0566,
+      "change": 0.1118
+    },
+    "situation:cornered": {
+      "active": 5805,
+      "resume": 0.1368,
+      "silent": 2230,
+      "frames": 8035,
+      "enter_silence": 0.0446,
+      "change": 0.118
+    },
+    "situation:knockdown_followup": {
+      "active": 3,
+      "resume": null,
+      "silent": 0,
+      "frames": 3,
+      "enter_silence": 0.0,
+      "change": 0.0
+    },
+    "situation:knockdown_bounce": {
+      "active": 1651,
+      "resume": 0.0807,
+      "silent": 892,
+      "frames": 2543,
+      "enter_silence": 0.0345,
+      "change": 0.0878
+    },
+    "state:offstage_high_j0": {
+      "active": 1608,
+      "resume": 0.0654,
+      "silent": 703,
+      "frames": 2311,
+      "enter_silence": 0.0323,
+      "change": 0.1095
+    },
+    "situation:punish_sequence": {
+      "active": 14007,
+      "resume": 0.1125,
+      "silent": 5662,
+      "frames": 19669,
+      "enter_silence": 0.0448,
+      "change": 0.1449
+    },
+    "situation:both_offstage": {
+      "active": 1525,
+      "resume": 0.0679,
+      "silent": 1002,
+      "frames": 2527,
+      "enter_silence": 0.0485,
+      "change": 0.1193
+    },
+    "situation:ledge_hang": {
+      "active": 346,
+      "resume": 0.0588,
+      "silent": 170,
+      "frames": 516,
+      "enter_silence": 0.0231,
+      "change": 0.0491
+    },
+    "situation:near_blastzone": {
+      "active": 1330,
+      "resume": 0.046,
+      "silent": 1152,
+      "frames": 2482,
+      "enter_silence": 0.0504,
+      "change": 0.1346
+    },
+    "age:offstage:a16-31": {
+      "active": 981,
+      "resume": 0.0719,
+      "silent": 1432,
+      "frames": 2413,
+      "enter_silence": 0.0285,
+      "change": 0.0693
+    },
+    "situation:conversion_open": {
+      "active": 29764,
+      "resume": 0.1259,
+      "silent": 11338,
+      "frames": 41102,
+      "enter_silence": 0.0479,
+      "change": 0.1429
+    },
+    "situation:above_stage": {
+      "active": 16708,
+      "resume": 0.1181,
+      "silent": 5809,
+      "frames": 22517,
+      "enter_silence": 0.0418,
+      "change": 0.1353
+    },
+    "situation:neutral": {
+      "active": 153606,
+      "resume": 0.1174,
+      "silent": 60601,
+      "frames": 214207,
+      "enter_silence": 0.05,
+      "change": 0.1384
+    },
+    "age:offstage:a04-07": {
+      "active": 2324,
+      "resume": 0.0868,
+      "silent": 1106,
+      "frames": 3430,
+      "enter_silence": 0.0374,
+      "change": 0.1119
+    },
+    "situation:platform_exit": {
+      "active": 11,
+      "resume": 0.0,
+      "silent": 5,
+      "frames": 16,
+      "enter_silence": 0.0909,
+      "change": 0.0
+    },
+    "situation:on_platform": {
+      "active": 14,
+      "resume": 0.125,
+      "silent": 8,
+      "frames": 22,
+      "enter_silence": 0.0714,
+      "change": 0.0714
+    },
+    "age:onstage:a32+": {
+      "active": 5079,
+      "resume": 0.0593,
+      "silent": 5413,
+      "frames": 10492,
+      "enter_silence": 0.0274,
+      "change": 0.0626
+    },
+    "situation:recovery_low": {
+      "active": 9450,
+      "resume": 0.0634,
+      "silent": 5392,
+      "frames": 14842,
+      "enter_silence": 0.0384,
+      "change": 0.1221
+    },
+    "situation:onstage_corner": {
+      "active": 9624,
+      "resume": 0.1134,
+      "silent": 4392,
+      "frames": 14016,
+      "enter_silence": 0.0428,
+      "change": 0.1185
+    },
+    "situation:being_edgeguarded": {
+      "active": 10520,
+      "resume": 0.0648,
+      "silent": 6084,
+      "frames": 16604,
+      "enter_silence": 0.0379,
+      "change": 0.1204
+    },
+    "situation:post_kill_neutral": {
+      "active": 25885,
+      "resume": 0.103,
+      "silent": 12939,
+      "frames": 38824,
+      "enter_silence": 0.0514,
+      "change": 0.1379
+    },
+    "situation:escape_action": {
+      "active": 404,
+      "resume": 0.1923,
+      "silent": 26,
+      "frames": 430,
+      "enter_silence": 0.0297,
+      "change": 0.1807
+    },
+    "situation:being_juggled": {
+      "active": 854,
+      "resume": 0.1053,
+      "silent": 399,
+      "frames": 1253,
+      "enter_silence": 0.0445,
+      "change": 0.1042
+    },
+    "situation:in_hitstun": {
+      "active": 6843,
+      "resume": 0.0861,
+      "silent": 2963,
+      "frames": 9806,
+      "enter_silence": 0.0416,
+      "change": 0.1204
+    },
+    "situation:onstage_center": {
+      "active": 80018,
+      "resume": 0.1492,
+      "silent": 28864,
+      "frames": 108882,
+      "enter_silence": 0.0492,
+      "change": 0.1374
+    },
+    "situation:recovery_high": {
+      "active": 2860,
+      "resume": 0.0693,
+      "silent": 1862,
+      "frames": 4722,
+      "enter_silence": 0.0413,
+      "change": 0.1087
+    },
+    "situation:resource_exhausted": {
+      "active": 8154,
+      "resume": 0.0553,
+      "silent": 3907,
+      "frames": 12061,
+      "enter_silence": 0.0331,
+      "change": 0.1237
+    },
+    "age:onstage:a01-03": {
+      "active": 93396,
+      "resume": 0.1491,
+      "silent": 28519,
+      "frames": 121915,
+      "enter_silence": 0.0661,
+      "change": 0.1766
+    },
+    "situation:shield_pressure_theirs": {
+      "active": 3875,
+      "resume": 0.1022,
+      "silent": 998,
+      "frames": 4873,
+      "enter_silence": 0.0286,
+      "change": 0.0957
+    },
+    "situation:retreat": {
+      "active": 49322,
+      "resume": 0.1214,
+      "silent": 20063,
+      "frames": 69385,
+      "enter_silence": 0.0518,
+      "change": 0.1389
+    }
+  }
+}

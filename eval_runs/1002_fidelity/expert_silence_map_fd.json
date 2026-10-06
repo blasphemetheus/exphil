@@ -1,0 +1,1933 @@
+{
+  "character": "fox",
+  "stage": 32,
+  "summary": {
+    "age:onstage:a04-07": {
+      "active": 235023,
+      "resume": 0.126,
+      "silent": 83571,
+      "frames": 318594,
+      "enter_silence": 0.0481,
+      "change": 0.1642
+    },
+    "situation:edge_danger": {
+      "active": 4082,
+      "resume": 0.3527,
+      "silent": 723,
+      "frames": 4805,
+      "enter_silence": 0.0345,
+      "change": 0.1445
+    },
+    "situation:percent_deficit": {
+      "active": 110436,
+      "resume": 0.1015,
+      "silent": 31265,
+      "frames": 141701,
+      "enter_silence": 0.0293,
+      "change": 0.1229
+    },
+    "state:offstage_low_j0": {
+      "active": 46963,
+      "resume": 0.0328,
+      "silent": 3602,
+      "frames": 50565,
+      "enter_silence": 0.0098,
+      "change": 0.1045
+    },
+    "situation:landing_recovery": {
+      "active": 64584,
+      "resume": 0.1274,
+      "silent": 48256,
+      "frames": 112840,
+      "enter_silence": 0.1001,
+      "change": 0.1964
+    },
+    "situation:below_ledge": {
+      "active": 57318,
+      "resume": 0.0577,
+      "silent": 8992,
+      "frames": 66310,
+      "enter_silence": 0.0092,
+      "change": 0.1256
+    },
+    "situation:ledge_trap": {
+      "active": 3158,
+      "resume": 0.0789,
+      "silent": 2180,
+      "frames": 5338,
+      "enter_silence": 0.056,
+      "change": 0.1637
+    },
+    "situation:percent_lead": {
+      "active": 79059,
+      "resume": 0.1027,
+      "silent": 34416,
+      "frames": 113475,
+      "enter_silence": 0.0449,
+      "change": 0.1494
+    },
+    "situation:last_stock_ours": {
+      "active": 159381,
+      "resume": 0.1034,
+      "silent": 56902,
+      "frames": 216283,
+      "enter_silence": 0.0372,
+      "change": 0.1379
+    },
+    "situation:last_stock_theirs": {
+      "active": 173041,
+      "resume": 0.1001,
+      "silent": 66131,
+      "frames": 239172,
+      "enter_silence": 0.0386,
+      "change": 0.1389
+    },
+    "situation:thrown": {
+      "active": 9952,
+      "resume": 0.0904,
+      "silent": 1438,
+      "frames": 11390,
+      "enter_silence": 0.017,
+      "change": 0.1584
+    },
+    "state:offstage_deep_j1+": {
+      "active": 696,
+      "resume": 0.101,
+      "silent": 198,
+      "frames": 894,
+      "enter_silence": 0.0101,
+      "change": 0.1882
+    },
+    "age:offstage:a32+": {
+      "active": 11336,
+      "resume": 0.0152,
+      "silent": 1121,
+      "frames": 12457,
+      "enter_silence": 0.0044,
+      "change": 0.0406
+    },
+    "situation:walljump_zone": {
+      "active": 41812,
+      "resume": 0.0563,
+      "silent": 26122,
+      "frames": 67934,
+      "enter_silence": 0.0349,
+      "change": 0.1354
+    },
+    "situation:tech_chase": {
+      "active": 16657,
+      "resume": 0.0788,
+      "silent": 11013,
+      "frames": 27670,
+      "enter_silence": 0.0528,
+      "change": 0.1527
+    },
+    "situation:knockdown_wait": {
+      "active": 245,
+      "resume": 0.0733,
+      "silent": 2128,
+      "frames": 2373,
+      "enter_silence": 0.0204,
+      "change": 0.0367
+    },
+    "situation:shield_low": {
+      "active": 110,
+      "resume": 0.15,
+      "silent": 20,
+      "frames": 130,
+      "enter_silence": 0.0273,
+      "change": 0.1273
+    },
+    "situation:advantage": {
+      "active": 203796,
+      "resume": 0.0876,
+      "silent": 91136,
+      "frames": 294932,
+      "enter_silence": 0.0402,
+      "change": 0.1517
+    },
+    "situation:jc_window": {
+      "active": 34478,
+      "resume": 0.2326,
+      "silent": 2201,
+      "frames": 36679,
+      "enter_silence": 0.0443,
+      "change": 0.3259
+    },
+    "situation:juggle": {
+      "active": 42420,
+      "resume": 0.0617,
+      "silent": 38616,
+      "frames": 81036,
+      "enter_silence": 0.0534,
+      "change": 0.1489
+    },
+    "age:onstage:a16-31": {
+      "active": 82503,
+      "resume": 0.0799,
+      "silent": 55529,
+      "frames": 138032,
+      "enter_silence": 0.0233,
+      "change": 0.075
+    },
+    "state:ledge_hang": {
+      "active": 13831,
+      "resume": 0.0596,
+      "silent": 21611,
+      "frames": 35442,
+      "enter_silence": 0.0506,
+      "change": 0.089
+    },
+    "situation:walltech_available": {
+      "active": 8405,
+      "resume": 0.078,
+      "silent": 2422,
+      "frames": 10827,
+      "enter_silence": 0.0258,
+      "change": 0.1001
+    },
+    "age:offstage:a08-15": {
+      "active": 21854,
+      "resume": 0.0421,
+      "silent": 3184,
+      "frames": 25038,
+      "enter_silence": 0.0124,
+      "change": 0.098
+    },
+    "situation:combo_active": {
+      "active": 123788,
+      "resume": 0.0771,
+      "silent": 70687,
+      "frames": 194475,
+      "enter_silence": 0.0462,
+      "change": 0.1655
+    },
+    "situation:ledge_option_pending": {
+      "active": 2224,
+      "resume": 0.0939,
+      "silent": 10191,
+      "frames": 12415,
+      "enter_silence": 0.0652,
+      "change": 0.1488
+    },
+    "state:airborne_onstage": {
+      "active": 219384,
+      "resume": 0.1388,
+      "silent": 52657,
+      "frames": 272041,
+      "enter_silence": 0.0417,
+      "change": 0.142
+    },
+    "situation:tech_committed": {
+      "active": 14281,
+      "resume": 0.0488,
+      "silent": 7752,
+      "frames": 22033,
+      "enter_silence": 0.0319,
+      "change": 0.08
+    },
+    "situation:tumble": {
+      "active": 7448,
+      "resume": 0.1012,
+      "silent": 998,
+      "frames": 8446,
+      "enter_silence": 0.0082,
+      "change": 0.1135
+    },
+    "state:grounded_center": {
+      "active": 315897,
+      "resume": 0.1137,
+      "silent": 151628,
+      "frames": 467525,
+      "enter_silence": 0.052,
+      "change": 0.1675
+    },
+    "situation:shine_cancellable": {
+      "active": 14903,
+      "resume": 0.1736,
+      "silent": 1941,
+      "frames": 16844,
+      "enter_silence": 0.0268,
+      "change": 0.2952
+    },
+    "situation:ledge_occupied_by_opp": {
+      "active": 14210,
+      "resume": 0.0925,
+      "silent": 3793,
+      "frames": 18003,
+      "enter_silence": 0.0262,
+      "change": 0.1137
+    },
+    "situation:getup_committed": {
+      "active": 14165,
+      "resume": 0.0556,
+      "silent": 7451,
+      "frames": 21616,
+      "enter_silence": 0.0372,
+      "change": 0.0538
+    },
+    "situation:being_tech_chased": {
+      "active": 27417,
+      "resume": 0.0652,
+      "silent": 13028,
+      "frames": 40445,
+      "enter_silence": 0.031,
+      "change": 0.0782
+    },
+    "situation:pummel_throw_decision": {
+      "active": 19922,
+      "resume": 0.1053,
+      "silent": 10483,
+      "frames": 30405,
+      "enter_silence": 0.0695,
+      "change": 0.1556
+    },
+    "situation:warmup_frames": {
+      "active": 13183,
+      "resume": 0.1341,
+      "silent": 4817,
+      "frames": 18000,
+      "enter_silence": 0.0478,
+      "change": 0.1596
+    },
+    "situation:recaught": {
+      "active": 1493,
+      "resume": 0.1288,
+      "silent": 264,
+      "frames": 1757,
+      "enter_silence": 0.0241,
+      "change": 0.136
+    },
+    "situation:edgeguard": {
+      "active": 84427,
+      "resume": 0.1092,
+      "silent": 42336,
+      "frames": 126763,
+      "enter_silence": 0.0549,
+      "change": 0.1476
+    },
+    "state:offstage_deep_j0": {
+      "active": 6011,
+      "resume": 0.012,
+      "silent": 1749,
+      "frames": 7760,
+      "enter_silence": 0.0073,
+      "change": 0.0832
+    },
+    "situation:respawn_invincible": {
+      "active": 17610,
+      "resume": 0.1809,
+      "silent": 6770,
+      "frames": 24380,
+      "enter_silence": 0.0696,
+      "change": 0.196
+    },
+    "situation:disadvantage": {
+      "active": 261123,
+      "resume": 0.1003,
+      "silent": 96337,
+      "frames": 357460,
+      "enter_silence": 0.0375,
+      "change": 0.1304
+    },
+    "situation:captured": {
+      "active": 11224,
+      "resume": 0.1261,
+      "silent": 2261,
+      "frames": 13485,
+      "enter_silence": 0.0243,
+      "change": 0.1801
+    },
+    "age:onstage:a08-15": {
+      "active": 150025,
+      "resume": 0.0957,
+      "silent": 81663,
+      "frames": 231688,
+      "enter_silence": 0.0441,
+      "change": 0.098
+    },
+    "state:hitstun": {
+      "active": 272275,
+      "resume": 0.0854,
+      "silent": 83442,
+      "frames": 355717,
+      "enter_silence": 0.0254,
+      "change": 0.1104
+    },
+    "state:grounded_edge": {
+      "active": 59571,
+      "resume": 0.0885,
+      "silent": 38117,
+      "frames": 97688,
+      "enter_silence": 0.0479,
+      "change": 0.1536
+    },
+    "age:offstage:a01-03": {
+      "active": 37514,
+      "resume": 0.0968,
+      "silent": 3544,
+      "frames": 41058,
+      "enter_silence": 0.013,
+      "change": 0.1537
+    },
+    "situation:offstage": {
+      "active": 179075,
+      "resume": 0.0625,
+      "silent": 47517,
+      "frames": 226592,
+      "enter_silence": 0.0158,
+      "change": 0.1094
+    },
+    "situation:shield_pressure_ours": {
+      "active": 14762,
+      "resume": 0.1117,
+      "silent": 5452,
+      "frames": 20214,
+      "enter_silence": 0.0428,
+      "change": 0.1771
+    },
+    "state:offstage_low_j1+": {
+      "active": 16555,
+      "resume": 0.0677,
+      "silent": 4267,
+      "frames": 20822,
+      "enter_silence": 0.0185,
+      "change": 0.2205
+    },
+    "situation:approach": {
+      "active": 184694,
+      "resume": 0.1172,
+      "silent": 42941,
+      "frames": 227635,
+      "enter_silence": 0.0309,
+      "change": 0.1329
+    },
+    "state:offstage_high_j1+": {
+      "active": 8335,
+      "resume": 0.0974,
+      "silent": 1664,
+      "frames": 9999,
+      "enter_silence": 0.0281,
+      "change": 0.1061
+    },
+    "situation:cornered": {
+      "active": 51125,
+      "resume": 0.0941,
+      "silent": 23103,
+      "frames": 74228,
+      "enter_silence": 0.0353,
+      "change": 0.1306
+    },
+    "situation:knockdown_followup": {
+      "active": 120,
+      "resume": 0.1064,
+      "silent": 47,
+      "frames": 167,
+      "enter_silence": 0.025,
+      "change": 0.0833
+    },
+    "situation:knockdown_bounce": {
+      "active": 12517,
+      "resume": 0.0629,
+      "silent": 6387,
+      "frames": 18904,
+      "enter_silence": 0.0348,
+      "change": 0.0982
+    },
+    "state:offstage_high_j0": {
+      "active": 34737,
+      "resume": 0.1065,
+      "silent": 1502,
+      "frames": 36239,
+      "enter_silence": 0.0071,
+      "change": 0.0964
+    },
+    "situation:punish_sequence": {
+      "active": 179150,
+      "resume": 0.0845,
+      "silent": 93678,
+      "frames": 272828,
+      "enter_silence": 0.0472,
+      "change": 0.1638
+    },
+    "situation:both_offstage": {
+      "active": 73065,
+      "resume": 0.0517,
+      "silent": 23083,
+      "frames": 96148,
+      "enter_silence": 0.0157,
+      "change": 0.1156
+    },
+    "situation:ledge_hang": {
+      "active": 4119,
+      "resume": 0.0669,
+      "silent": 16023,
+      "frames": 20142,
+      "enter_silence": 0.0862,
+      "change": 0.1139
+    },
+    "situation:near_blastzone": {
+      "active": 7782,
+      "resume": 0.015,
+      "silent": 3866,
+      "frames": 11648,
+      "enter_silence": 0.0149,
+      "change": 0.0916
+    },
+    "age:offstage:a16-31": {
+      "active": 15679,
+      "resume": 0.0473,
+      "silent": 2031,
+      "frames": 17710,
+      "enter_silence": 0.0069,
+      "change": 0.0565
+    },
+    "situation:conversion_open": {
+      "active": 229038,
+      "resume": 0.0886,
+      "silent": 114783,
+      "frames": 343821,
+      "enter_silence": 0.0461,
+      "change": 0.158
+    },
+    "situation:above_stage": {
+      "active": 88545,
+      "resume": 0.1284,
+      "silent": 19184,
+      "frames": 107729,
+      "enter_silence": 0.025,
+      "change": 0.1297
+    },
+    "situation:neutral": {
+      "active": 446979,
+      "resume": 0.1117,
+      "silent": 132519,
+      "frames": 579498,
+      "enter_silence": 0.0325,
+      "change": 0.1331
+    },
+    "age:offstage:a04-07": {
+      "active": 26914,
+      "resume": 0.058,
+      "silent": 3102,
+      "frames": 30016,
+      "enter_silence": 0.0142,
+      "change": 0.1548
+    },
+    "situation:platform_exit": {
+      "active": 302,
+      "resume": 0.0441,
+      "silent": 68,
+      "frames": 370,
+      "enter_silence": 0.0132,
+      "change": 0.1921
+    },
+    "situation:on_platform": {
+      "active": 785,
+      "resume": 0.0962,
+      "silent": 156,
+      "frames": 941,
+      "enter_silence": 0.0217,
+      "change": 0.1554
+    },
+    "age:onstage:a32+": {
+      "active": 29481,
+      "resume": 0.0462,
+      "silent": 27660,
+      "frames": 57141,
+      "enter_silence": 0.0186,
+      "change": 0.0503
+    },
+    "situation:recovery_low": {
+      "active": 102984,
+      "resume": 0.0568,
+      "silent": 34006,
+      "frames": 136990,
+      "enter_silence": 0.0167,
+      "change": 0.1234
+    },
+    "situation:onstage_corner": {
+      "active": 79677,
+      "resume": 0.0839,
+      "silent": 47734,
+      "frames": 127411,
+      "enter_silence": 0.0424,
+      "change": 0.1369
+    },
+    "situation:being_edgeguarded": {
+      "active": 103357,
+      "resume": 0.0645,
+      "silent": 18731,
+      "frames": 122088,
+      "enter_silence": 0.014,
+      "change": 0.1048
+    },
+    "situation:post_kill_neutral": {
+      "active": 85965,
+      "resume": 0.1551,
+      "silent": 27917,
+      "frames": 113882,
+      "enter_silence": 0.0501,
+      "change": 0.1676
+    },
+    "situation:escape_action": {
+      "active": 3604,
+      "resume": 0.2426,
+      "silent": 136,
+      "frames": 3740,
+      "enter_silence": 0.0119,
+      "change": 0.1301
+    },
+    "situation:being_juggled": {
+      "active": 60948,
+      "resume": 0.0731,
+      "silent": 17153,
+      "frames": 78101,
+      "enter_silence": 0.0236,
+      "change": 0.1267
+    },
+    "situation:in_hitstun": {
+      "active": 172830,
+      "resume": 0.0895,
+      "silent": 46285,
+      "frames": 219115,
+      "enter_silence": 0.0246,
+      "change": 0.1172
+    },
+    "situation:onstage_center": {
+      "active": 216855,
+      "resume": 0.1115,
+      "silent": 95175,
+      "frames": 312030,
+      "enter_silence": 0.0465,
+      "change": 0.157
+    },
+    "situation:recovery_high": {
+      "active": 76091,
+      "resume": 0.0769,
+      "silent": 13511,
+      "frames": 89602,
+      "enter_silence": 0.0145,
+      "change": 0.0905
+    },
+    "situation:resource_exhausted": {
+      "active": 109792,
+      "resume": 0.0422,
+      "silent": 11825,
+      "frames": 121617,
+      "enter_silence": 0.0093,
+      "change": 0.0992
+    },
+    "age:onstage:a01-03": {
+      "active": 383926,
+      "resume": 0.124,
+      "silent": 99032,
+      "frames": 482958,
+      "enter_silence": 0.0408,
+      "change": 0.1655
+    },
+    "situation:shield_pressure_theirs": {
+      "active": 20137,
+      "resume": 0.125,
+      "silent": 2903,
+      "frames": 23040,
+      "enter_silence": 0.013,
+      "change": 0.0996
+    },
+    "situation:retreat": {
+      "active": 109251,
+      "resume": 0.1093,
+      "silent": 40877,
+      "frames": 150128,
+      "enter_silence": 0.038,
+      "change": 0.1359
+    }
+  },
+  "games": 150,
+  "halves": [
+    {
+      "age:onstage:a04-07": {
+        "active": 117193,
+        "resume": 0.1243,
+        "silent": 42926,
+        "frames": 160119,
+        "enter_silence": 0.0486,
+        "change": 0.163
+      },
+      "situation:edge_danger": {
+        "active": 2028,
+        "resume": 0.3641,
+        "silent": 379,
+        "frames": 2407,
+        "enter_silence": 0.039,
+        "change": 0.1425
+      },
+      "situation:percent_deficit": {
+        "active": 59102,
+        "resume": 0.1006,
+        "silent": 17262,
+        "frames": 76364,
+        "enter_silence": 0.0301,
+        "change": 0.1215
+      },
+      "state:offstage_low_j0": {
+        "active": 24518,
+        "resume": 0.0291,
+        "silent": 1887,
+        "frames": 26405,
+        "enter_silence": 0.0099,
+        "change": 0.1018
+      },
+      "situation:landing_recovery": {
+        "active": 32159,
+        "resume": 0.1283,
+        "silent": 24967,
+        "frames": 57126,
+        "enter_silence": 0.1008,
+        "change": 0.1989
+      },
+      "situation:below_ledge": {
+        "active": 28363,
+        "resume": 0.0599,
+        "silent": 4510,
+        "frames": 32873,
+        "enter_silence": 0.0096,
+        "change": 0.1199
+      },
+      "situation:ledge_trap": {
+        "active": 1483,
+        "resume": 0.0709,
+        "silent": 1128,
+        "frames": 2611,
+        "enter_silence": 0.0566,
+        "change": 0.1598
+      },
+      "situation:percent_lead": {
+        "active": 35466,
+        "resume": 0.0981,
+        "silent": 16714,
+        "frames": 52180,
+        "enter_silence": 0.0464,
+        "change": 0.1453
+      },
+      "situation:last_stock_ours": {
+        "active": 81898,
+        "resume": 0.1048,
+        "silent": 28848,
+        "frames": 110746,
+        "enter_silence": 0.0372,
+        "change": 0.1368
+      },
+      "situation:last_stock_theirs": {
+        "active": 81891,
+        "resume": 0.095,
+        "silent": 33591,
+        "frames": 115482,
+        "enter_silence": 0.0393,
+        "change": 0.1343
+      },
+      "situation:thrown": {
+        "active": 4656,
+        "resume": 0.0899,
+        "silent": 734,
+        "frames": 5390,
+        "enter_silence": 0.0174,
+        "change": 0.1725
+      },
+      "state:offstage_deep_j1+": {
+        "active": 303,
+        "resume": 0.0902,
+        "silent": 122,
+        "frames": 425,
+        "enter_silence": 0.0165,
+        "change": 0.1782
+      },
+      "age:offstage:a32+": {
+        "active": 6114,
+        "resume": 0.0146,
+        "silent": 478,
+        "frames": 6592,
+        "enter_silence": 0.0046,
+        "change": 0.0397
+      },
+      "situation:walljump_zone": {
+        "active": 21240,
+        "resume": 0.0569,
+        "silent": 13013,
+        "frames": 34253,
+        "enter_silence": 0.0344,
+        "change": 0.1329
+      },
+      "situation:tech_chase": {
+        "active": 8410,
+        "resume": 0.074,
+        "silent": 5594,
+        "frames": 14004,
+        "enter_silence": 0.0515,
+        "change": 0.1542
+      },
+      "situation:knockdown_wait": {
+        "active": 90,
+        "resume": 0.0716,
+        "silent": 1034,
+        "frames": 1124,
+        "enter_silence": 0.0111,
+        "change": 0.0444
+      },
+      "situation:shield_low": {
+        "active": 19,
+        "resume": null,
+        "silent": 0,
+        "frames": 19,
+        "enter_silence": 0.0,
+        "change": 0.2105
+      },
+      "situation:advantage": {
+        "active": 100172,
+        "resume": 0.0843,
+        "silent": 46902,
+        "frames": 147074,
+        "enter_silence": 0.041,
+        "change": 0.1507
+      },
+      "situation:jc_window": {
+        "active": 17290,
+        "resume": 0.2453,
+        "silent": 1113,
+        "frames": 18403,
+        "enter_silence": 0.0438,
+        "change": 0.3233
+      },
+      "situation:juggle": {
+        "active": 20626,
+        "resume": 0.0603,
+        "silent": 20342,
+        "frames": 40968,
+        "enter_silence": 0.0556,
+        "change": 0.1494
+      },
+      "age:onstage:a16-31": {
+        "active": 41347,
+        "resume": 0.0792,
+        "silent": 29265,
+        "frames": 70612,
+        "enter_silence": 0.0244,
+        "change": 0.0734
+      },
+      "state:ledge_hang": {
+        "active": 7436,
+        "resume": 0.0599,
+        "silent": 10718,
+        "frames": 18154,
+        "enter_silence": 0.0479,
+        "change": 0.0886
+      },
+      "situation:walltech_available": {
+        "active": 4386,
+        "resume": 0.0781,
+        "silent": 1408,
+        "frames": 5794,
+        "enter_silence": 0.0253,
+        "change": 0.0958
+      },
+      "age:offstage:a08-15": {
+        "active": 11178,
+        "resume": 0.0428,
+        "silent": 1612,
+        "frames": 12790,
+        "enter_silence": 0.0122,
+        "change": 0.0955
+      },
+      "situation:combo_active": {
+        "active": 60375,
+        "resume": 0.0758,
+        "silent": 36616,
+        "frames": 96991,
+        "enter_silence": 0.048,
+        "change": 0.1652
+      },
+      "situation:ledge_option_pending": {
+        "active": 1214,
+        "resume": 0.0974,
+        "silent": 4793,
+        "frames": 6007,
+        "enter_silence": 0.0577,
+        "change": 0.1483
+      },
+      "state:airborne_onstage": {
+        "active": 110241,
+        "resume": 0.1343,
+        "silent": 27217,
+        "frames": 137458,
+        "enter_silence": 0.0422,
+        "change": 0.1421
+      },
+      "situation:tech_committed": {
+        "active": 6430,
+        "resume": 0.0492,
+        "silent": 3860,
+        "frames": 10290,
+        "enter_silence": 0.0328,
+        "change": 0.0837
+      },
+      "situation:tumble": {
+        "active": 3850,
+        "resume": 0.1188,
+        "silent": 522,
+        "frames": 4372,
+        "enter_silence": 0.0086,
+        "change": 0.1104
+      },
+      "state:grounded_center": {
+        "active": 157079,
+        "resume": 0.1111,
+        "silent": 78885,
+        "frames": 235964,
+        "enter_silence": 0.053,
+        "change": 0.167
+      },
+      "situation:shine_cancellable": {
+        "active": 7278,
+        "resume": 0.1781,
+        "silent": 1112,
+        "frames": 8390,
+        "enter_silence": 0.0309,
+        "change": 0.2929
+      },
+      "situation:ledge_occupied_by_opp": {
+        "active": 6942,
+        "resume": 0.0938,
+        "silent": 1887,
+        "frames": 8829,
+        "enter_silence": 0.0272,
+        "change": 0.1098
+      },
+      "situation:getup_committed": {
+        "active": 7315,
+        "resume": 0.0563,
+        "silent": 3714,
+        "frames": 11029,
+        "enter_silence": 0.0376,
+        "change": 0.0519
+      },
+      "situation:being_tech_chased": {
+        "active": 13293,
+        "resume": 0.0628,
+        "silent": 6655,
+        "frames": 19948,
+        "enter_silence": 0.0302,
+        "change": 0.0805
+      },
+      "situation:pummel_throw_decision": {
+        "active": 10852,
+        "resume": 0.1057,
+        "silent": 5346,
+        "frames": 16198,
+        "enter_silence": 0.0654,
+        "change": 0.1552
+      },
+      "situation:warmup_frames": {
+        "active": 6322,
+        "resume": 0.1277,
+        "silent": 2678,
+        "frames": 9000,
+        "enter_silence": 0.0535,
+        "change": 0.1583
+      },
+      "situation:recaught": {
+        "active": 771,
+        "resume": 0.1277,
+        "silent": 141,
+        "frames": 912,
+        "enter_silence": 0.0208,
+        "change": 0.131
+      },
+      "situation:edgeguard": {
+        "active": 41023,
+        "resume": 0.1062,
+        "silent": 21716,
+        "frames": 62739,
+        "enter_silence": 0.0559,
+        "change": 0.1494
+      },
+      "state:offstage_deep_j0": {
+        "active": 2641,
+        "resume": 0.0081,
+        "silent": 744,
+        "frames": 3385,
+        "enter_silence": 0.0057,
+        "change": 0.0807
+      },
+      "situation:respawn_invincible": {
+        "active": 8876,
+        "resume": 0.1786,
+        "silent": 3533,
+        "frames": 12409,
+        "enter_silence": 0.0708,
+        "change": 0.1984
+      },
+      "situation:disadvantage": {
+        "active": 129635,
+        "resume": 0.099,
+        "silent": 51326,
+        "frames": 180961,
+        "enter_silence": 0.0386,
+        "change": 0.1287
+      },
+      "situation:captured": {
+        "active": 5144,
+        "resume": 0.1189,
+        "silent": 1304,
+        "frames": 6448,
+        "enter_silence": 0.0297,
+        "change": 0.188
+      },
+      "age:onstage:a08-15": {
+        "active": 75038,
+        "resume": 0.0941,
+        "silent": 42461,
+        "frames": 117499,
+        "enter_silence": 0.0454,
+        "change": 0.0979
+      },
+      "state:hitstun": {
+        "active": 135448,
+        "resume": 0.0837,
+        "silent": 44288,
+        "frames": 179736,
+        "enter_silence": 0.0266,
+        "change": 0.1075
+      },
+      "state:grounded_edge": {
+        "active": 29457,
+        "resume": 0.086,
+        "silent": 19818,
+        "frames": 49275,
+        "enter_silence": 0.0479,
+        "change": 0.1517
+      },
+      "age:offstage:a01-03": {
+        "active": 18735,
+        "resume": 0.0899,
+        "silent": 1758,
+        "frames": 20493,
+        "enter_silence": 0.0127,
+        "change": 0.1538
+      },
+      "situation:offstage": {
+        "active": 90977,
+        "resume": 0.0631,
+        "silent": 24036,
+        "frames": 115013,
+        "enter_silence": 0.0158,
+        "change": 0.1066
+      },
+      "situation:shield_pressure_ours": {
+        "active": 7286,
+        "resume": 0.1159,
+        "silent": 2831,
+        "frames": 10117,
+        "enter_silence": 0.0467,
+        "change": 0.1812
+      },
+      "state:offstage_low_j1+": {
+        "active": 8146,
+        "resume": 0.0671,
+        "silent": 2028,
+        "frames": 10174,
+        "enter_silence": 0.0164,
+        "change": 0.2161
+      },
+      "situation:approach": {
+        "active": 93079,
+        "resume": 0.1137,
+        "silent": 21777,
+        "frames": 114856,
+        "enter_silence": 0.0308,
+        "change": 0.1308
+      },
+      "state:offstage_high_j1+": {
+        "active": 4412,
+        "resume": 0.1012,
+        "silent": 899,
+        "frames": 5311,
+        "enter_silence": 0.0288,
+        "change": 0.1052
+      },
+      "situation:cornered": {
+        "active": 26442,
+        "resume": 0.0898,
+        "silent": 12680,
+        "frames": 39122,
+        "enter_silence": 0.0353,
+        "change": 0.1333
+      },
+      "situation:knockdown_followup": {
+        "active": 63,
+        "resume": 0.1905,
+        "silent": 21,
+        "frames": 84,
+        "enter_silence": 0.0159,
+        "change": 0.0635
+      },
+      "situation:knockdown_bounce": {
+        "active": 6603,
+        "resume": 0.0629,
+        "silent": 3195,
+        "frames": 9798,
+        "enter_silence": 0.0312,
+        "change": 0.1018
+      },
+      "state:offstage_high_j0": {
+        "active": 17601,
+        "resume": 0.1096,
+        "silent": 712,
+        "frames": 18313,
+        "enter_silence": 0.0069,
+        "change": 0.0974
+      },
+      "situation:punish_sequence": {
+        "active": 87821,
+        "resume": 0.0835,
+        "silent": 48147,
+        "frames": 135968,
+        "enter_silence": 0.0489,
+        "change": 0.163
+      },
+      "situation:both_offstage": {
+        "active": 34834,
+        "resume": 0.051,
+        "silent": 11184,
+        "frames": 46018,
+        "enter_silence": 0.0156,
+        "change": 0.1139
+      },
+      "situation:ledge_hang": {
+        "active": 2190,
+        "resume": 0.0686,
+        "silent": 7687,
+        "frames": 9877,
+        "enter_silence": 0.0781,
+        "change": 0.116
+      },
+      "situation:near_blastzone": {
+        "active": 3763,
+        "resume": 0.0126,
+        "silent": 2060,
+        "frames": 5823,
+        "enter_silence": 0.0173,
+        "change": 0.0811
+      },
+      "age:offstage:a16-31": {
+        "active": 8117,
+        "resume": 0.0471,
+        "silent": 955,
+        "frames": 9072,
+        "enter_silence": 0.0063,
+        "change": 0.0578
+      },
+      "situation:conversion_open": {
+        "active": 113221,
+        "resume": 0.0872,
+        "silent": 59097,
+        "frames": 172318,
+        "enter_silence": 0.0472,
+        "change": 0.1568
+      },
+      "situation:above_stage": {
+        "active": 44593,
+        "resume": 0.1187,
+        "silent": 10707,
+        "frames": 55300,
+        "enter_silence": 0.0269,
+        "change": 0.129
+      },
+      "situation:neutral": {
+        "active": 226068,
+        "resume": 0.1088,
+        "silent": 68256,
+        "frames": 294324,
+        "enter_silence": 0.0326,
+        "change": 0.1311
+      },
+      "age:offstage:a04-07": {
+        "active": 13477,
+        "resume": 0.0617,
+        "silent": 1589,
+        "frames": 15066,
+        "enter_silence": 0.0142,
+        "change": 0.1514
+      },
+      "situation:platform_exit": {
+        "active": 138,
+        "resume": 0.0,
+        "silent": 36,
+        "frames": 174,
+        "enter_silence": 0.0072,
+        "change": 0.1739
+      },
+      "situation:on_platform": {
+        "active": 325,
+        "resume": 0.0976,
+        "silent": 82,
+        "frames": 407,
+        "enter_silence": 0.0185,
+        "change": 0.1538
+      },
+      "age:onstage:a32+": {
+        "active": 15042,
+        "resume": 0.0435,
+        "silent": 15825,
+        "frames": 30867,
+        "enter_silence": 0.0195,
+        "change": 0.0488
+      },
+      "situation:recovery_low": {
+        "active": 52003,
+        "resume": 0.0573,
+        "silent": 16975,
+        "frames": 68978,
+        "enter_silence": 0.0166,
+        "change": 0.1196
+      },
+      "situation:onstage_corner": {
+        "active": 39590,
+        "resume": 0.0812,
+        "silent": 24864,
+        "frames": 64454,
+        "enter_silence": 0.0426,
+        "change": 0.1354
+      },
+      "situation:being_edgeguarded": {
+        "active": 54744,
+        "resume": 0.0656,
+        "silent": 10131,
+        "frames": 64875,
+        "enter_silence": 0.0142,
+        "change": 0.1016
+      },
+      "situation:post_kill_neutral": {
+        "active": 42537,
+        "resume": 0.1505,
+        "silent": 14679,
+        "frames": 57216,
+        "enter_silence": 0.0516,
+        "change": 0.1684
+      },
+      "situation:escape_action": {
+        "active": 1857,
+        "resume": 0.3043,
+        "silent": 69,
+        "frames": 1926,
+        "enter_silence": 0.0086,
+        "change": 0.1325
+      },
+      "situation:being_juggled": {
+        "active": 29352,
+        "resume": 0.0641,
+        "silent": 9722,
+        "frames": 39074,
+        "enter_silence": 0.0263,
+        "change": 0.1234
+      },
+      "situation:in_hitstun": {
+        "active": 86487,
+        "resume": 0.0859,
+        "silent": 25511,
+        "frames": 111998,
+        "enter_silence": 0.0262,
+        "change": 0.1133
+      },
+      "situation:onstage_center": {
+        "active": 106999,
+        "resume": 0.1091,
+        "silent": 48945,
+        "frames": 155944,
+        "enter_silence": 0.0474,
+        "change": 0.1556
+      },
+      "situation:recovery_high": {
+        "active": 38974,
+        "resume": 0.077,
+        "silent": 7061,
+        "frames": 46035,
+        "enter_silence": 0.0147,
+        "change": 0.0892
+      },
+      "situation:resource_exhausted": {
+        "active": 55662,
+        "resume": 0.0407,
+        "silent": 6074,
+        "frames": 61736,
+        "enter_silence": 0.0094,
+        "change": 0.0969
+      },
+      "age:onstage:a01-03": {
+        "active": 191041,
+        "resume": 0.1217,
+        "silent": 50449,
+        "frames": 241490,
+        "enter_silence": 0.0416,
+        "change": 0.1642
+      },
+      "situation:shield_pressure_theirs": {
+        "active": 10334,
+        "resume": 0.1138,
+        "silent": 1678,
+        "frames": 12012,
+        "enter_silence": 0.0135,
+        "change": 0.0955
+      },
+      "situation:retreat": {
+        "active": 55081,
+        "resume": 0.1074,
+        "silent": 20818,
+        "frames": 75899,
+        "enter_silence": 0.0382,
+        "change": 0.1337
+      }
+    },
+    {
+      "age:onstage:a04-07": {
+        "active": 117830,
+        "resume": 0.1278,
+        "silent": 40645,
+        "frames": 158475,
+        "enter_silence": 0.0476,
+        "change": 0.1655
+      },
+      "situation:edge_danger": {
+        "active": 2054,
+        "resume": 0.3401,
+        "silent": 344,
+        "frames": 2398,
+        "enter_silence": 0.0302,
+        "change": 0.1465
+      },
+      "situation:percent_deficit": {
+        "active": 51334,
+        "resume": 0.1025,
+        "silent": 14003,
+        "frames": 65337,
+        "enter_silence": 0.0283,
+        "change": 0.1245
+      },
+      "state:offstage_low_j0": {
+        "active": 22445,
+        "resume": 0.0367,
+        "silent": 1715,
+        "frames": 24160,
+        "enter_silence": 0.0097,
+        "change": 0.1074
+      },
+      "situation:landing_recovery": {
+        "active": 32425,
+        "resume": 0.1264,
+        "silent": 23289,
+        "frames": 55714,
+        "enter_silence": 0.0995,
+        "change": 0.1938
+      },
+      "situation:below_ledge": {
+        "active": 28955,
+        "resume": 0.0556,
+        "silent": 4482,
+        "frames": 33437,
+        "enter_silence": 0.0088,
+        "change": 0.1311
+      },
+      "situation:ledge_trap": {
+        "active": 1675,
+        "resume": 0.0875,
+        "silent": 1052,
+        "frames": 2727,
+        "enter_silence": 0.0555,
+        "change": 0.1672
+      },
+      "situation:percent_lead": {
+        "active": 43593,
+        "resume": 0.1071,
+        "silent": 17702,
+        "frames": 61295,
+        "enter_silence": 0.0437,
+        "change": 0.1527
+      },
+      "situation:last_stock_ours": {
+        "active": 77483,
+        "resume": 0.1021,
+        "silent": 28054,
+        "frames": 105537,
+        "enter_silence": 0.0372,
+        "change": 0.1391
+      },
+      "situation:last_stock_theirs": {
+        "active": 91150,
+        "resume": 0.1054,
+        "silent": 32540,
+        "frames": 123690,
+        "enter_silence": 0.0379,
+        "change": 0.143
+      },
+      "situation:thrown": {
+        "active": 5296,
+        "resume": 0.0909,
+        "silent": 704,
+        "frames": 6000,
+        "enter_silence": 0.0166,
+        "change": 0.146
+      },
+      "state:offstage_deep_j1+": {
+        "active": 393,
+        "resume": 0.1184,
+        "silent": 76,
+        "frames": 469,
+        "enter_silence": 0.0051,
+        "change": 0.1959
+      },
+      "age:offstage:a32+": {
+        "active": 5222,
+        "resume": 0.0156,
+        "silent": 643,
+        "frames": 5865,
+        "enter_silence": 0.0042,
+        "change": 0.0416
+      },
+      "situation:walljump_zone": {
+        "active": 20572,
+        "resume": 0.0557,
+        "silent": 13109,
+        "frames": 33681,
+        "enter_silence": 0.0354,
+        "change": 0.138
+      },
+      "situation:tech_chase": {
+        "active": 8247,
+        "resume": 0.0838,
+        "silent": 5419,
+        "frames": 13666,
+        "enter_silence": 0.0541,
+        "change": 0.1512
+      },
+      "situation:knockdown_wait": {
+        "active": 155,
+        "resume": 0.075,
+        "silent": 1094,
+        "frames": 1249,
+        "enter_silence": 0.0258,
+        "change": 0.0323
+      },
+      "situation:shield_low": {
+        "active": 91,
+        "resume": 0.15,
+        "silent": 20,
+        "frames": 111,
+        "enter_silence": 0.033,
+        "change": 0.1099
+      },
+      "situation:advantage": {
+        "active": 103624,
+        "resume": 0.091,
+        "silent": 44234,
+        "frames": 147858,
+        "enter_silence": 0.0393,
+        "change": 0.1527
+      },
+      "situation:jc_window": {
+        "active": 17188,
+        "resume": 0.2197,
+        "silent": 1088,
+        "frames": 18276,
+        "enter_silence": 0.0449,
+        "change": 0.3287
+      },
+      "situation:juggle": {
+        "active": 21794,
+        "resume": 0.0633,
+        "silent": 18274,
+        "frames": 40068,
+        "enter_silence": 0.0513,
+        "change": 0.1484
+      },
+      "age:onstage:a16-31": {
+        "active": 41156,
+        "resume": 0.0806,
+        "silent": 26264,
+        "frames": 67420,
+        "enter_silence": 0.0222,
+        "change": 0.0767
+      },
+      "state:ledge_hang": {
+        "active": 6395,
+        "resume": 0.0594,
+        "silent": 10893,
+        "frames": 17288,
+        "enter_silence": 0.0538,
+        "change": 0.0894
+      },
+      "situation:walltech_available": {
+        "active": 4019,
+        "resume": 0.0779,
+        "silent": 1014,
+        "frames": 5033,
+        "enter_silence": 0.0264,
+        "change": 0.1048
+      },
+      "age:offstage:a08-15": {
+        "active": 10676,
+        "resume": 0.0413,
+        "silent": 1572,
+        "frames": 12248,
+        "enter_silence": 0.0126,
+        "change": 0.1006
+      },
+      "situation:combo_active": {
+        "active": 63413,
+        "resume": 0.0784,
+        "silent": 34071,
+        "frames": 97484,
+        "enter_silence": 0.0445,
+        "change": 0.1658
+      },
+      "situation:ledge_option_pending": {
+        "active": 1010,
+        "resume": 0.0908,
+        "silent": 5398,
+        "frames": 6408,
+        "enter_silence": 0.0743,
+        "change": 0.1495
+      },
+      "state:airborne_onstage": {
+        "active": 109143,
+        "resume": 0.1436,
+        "silent": 25440,
+        "frames": 134583,
+        "enter_silence": 0.0412,
+        "change": 0.142
+      },
+      "situation:tech_committed": {
+        "active": 7851,
+        "resume": 0.0483,
+        "silent": 3892,
+        "frames": 11743,
+        "enter_silence": 0.0312,
+        "change": 0.0771
+      },
+      "situation:tumble": {
+        "active": 3598,
+        "resume": 0.0819,
+        "silent": 476,
+        "frames": 4074,
+        "enter_silence": 0.0078,
+        "change": 0.1167
+      },
+      "state:grounded_center": {
+        "active": 158818,
+        "resume": 0.1164,
+        "silent": 72743,
+        "frames": 231561,
+        "enter_silence": 0.051,
+        "change": 0.1681
+      },
+      "situation:shine_cancellable": {
+        "active": 7625,
+        "resume": 0.1677,
+        "silent": 829,
+        "frames": 8454,
+        "enter_silence": 0.023,
+        "change": 0.2974
+      },
+      "situation:ledge_occupied_by_opp": {
+        "active": 7268,
+        "resume": 0.0913,
+        "silent": 1906,
+        "frames": 9174,
+        "enter_silence": 0.0252,
+        "change": 0.1174
+      },
+      "situation:getup_committed": {
+        "active": 6850,
+        "resume": 0.0549,
+        "silent": 3737,
+        "frames": 10587,
+        "enter_silence": 0.0368,
+        "change": 0.0558
+      },
+      "situation:being_tech_chased": {
+        "active": 14124,
+        "resume": 0.0678,
+        "silent": 6373,
+        "frames": 20497,
+        "enter_silence": 0.0317,
+        "change": 0.0761
+      },
+      "situation:pummel_throw_decision": {
+        "active": 9070,
+        "resume": 0.1049,
+        "silent": 5137,
+        "frames": 14207,
+        "enter_silence": 0.0743,
+        "change": 0.1561
+      },
+      "situation:warmup_frames": {
+        "active": 6861,
+        "resume": 0.1421,
+        "silent": 2139,
+        "frames": 9000,
+        "enter_silence": 0.0426,
+        "change": 0.1608
+      },
+      "situation:recaught": {
+        "active": 722,
+        "resume": 0.1301,
+        "silent": 123,
+        "frames": 845,
+        "enter_silence": 0.0277,
+        "change": 0.1413
+      },
+      "situation:edgeguard": {
+        "active": 43404,
+        "resume": 0.1123,
+        "silent": 20620,
+        "frames": 64024,
+        "enter_silence": 0.0538,
+        "change": 0.1459
+      },
+      "state:offstage_deep_j0": {
+        "active": 3370,
+        "resume": 0.0149,
+        "silent": 1005,
+        "frames": 4375,
+        "enter_silence": 0.0086,
+        "change": 0.0852
+      },
+      "situation:respawn_invincible": {
+        "active": 8734,
+        "resume": 0.1835,
+        "silent": 3237,
+        "frames": 11971,
+        "enter_silence": 0.0685,
+        "change": 0.1936
+      },
+      "situation:disadvantage": {
+        "active": 131488,
+        "resume": 0.1018,
+        "silent": 45011,
+        "frames": 176499,
+        "enter_silence": 0.0365,
+        "change": 0.132
+      },
+      "situation:captured": {
+        "active": 6080,
+        "resume": 0.1358,
+        "silent": 957,
+        "frames": 7037,
+        "enter_silence": 0.0197,
+        "change": 0.1735
+      },
+      "age:onstage:a08-15": {
+        "active": 74987,
+        "resume": 0.0974,
+        "silent": 39202,
+        "frames": 114189,
+        "enter_silence": 0.0429,
+        "change": 0.0981
+      },
+      "state:hitstun": {
+        "active": 136827,
+        "resume": 0.0874,
+        "silent": 39154,
+        "frames": 175981,
+        "enter_silence": 0.0243,
+        "change": 0.1132
+      },
+      "state:grounded_edge": {
+        "active": 30114,
+        "resume": 0.0911,
+        "silent": 18299,
+        "frames": 48413,
+        "enter_silence": 0.048,
+        "change": 0.1554
+      },
+      "age:offstage:a01-03": {
+        "active": 18779,
+        "resume": 0.1036,
+        "silent": 1786,
+        "frames": 20565,
+        "enter_silence": 0.0134,
+        "change": 0.1536
+      },
+      "situation:offstage": {
+        "active": 88098,
+        "resume": 0.0619,
+        "silent": 23481,
+        "frames": 111579,
+        "enter_silence": 0.0158,
+        "change": 0.1124
+      },
+      "situation:shield_pressure_ours": {
+        "active": 7476,
+        "resume": 0.1072,
+        "silent": 2621,
+        "frames": 10097,
+        "enter_silence": 0.0391,
+        "change": 0.1731
+      },
+      "state:offstage_low_j1+": {
+        "active": 8409,
+        "resume": 0.0683,
+        "silent": 2239,
+        "frames": 10648,
+        "enter_silence": 0.0206,
+        "change": 0.2248
+      },
+      "situation:approach": {
+        "active": 91615,
+        "resume": 0.1209,
+        "silent": 21164,
+        "frames": 112779,
+        "enter_silence": 0.031,
+        "change": 0.1349
+      },
+      "state:offstage_high_j1+": {
+        "active": 3923,
+        "resume": 0.0928,
+        "silent": 765,
+        "frames": 4688,
+        "enter_silence": 0.0273,
+        "change": 0.1071
+      },
+      "situation:cornered": {
+        "active": 24683,
+        "resume": 0.0992,
+        "silent": 10423,
+        "frames": 35106,
+        "enter_silence": 0.0354,
+        "change": 0.1277
+      },
+      "situation:knockdown_followup": {
+        "active": 57,
+        "resume": 0.0385,
+        "silent": 26,
+        "frames": 83,
+        "enter_silence": 0.0351,
+        "change": 0.1053
+      },
+      "situation:knockdown_bounce": {
+        "active": 5914,
+        "resume": 0.063,
+        "silent": 3192,
+        "frames": 9106,
+        "enter_silence": 0.0389,
+        "change": 0.0942
+      },
+      "state:offstage_high_j0": {
+        "active": 17136,
+        "resume": 0.1038,
+        "silent": 790,
+        "frames": 17926,
+        "enter_silence": 0.0074,
+        "change": 0.0954
+      },
+      "situation:punish_sequence": {
+        "active": 91329,
+        "resume": 0.0856,
+        "silent": 45531,
+        "frames": 136860,
+        "enter_silence": 0.0455,
+        "change": 0.1647
+      },
+      "situation:both_offstage": {
+        "active": 38231,
+        "resume": 0.0524,
+        "silent": 11899,
+        "frames": 50130,
+        "enter_silence": 0.0158,
+        "change": 0.1172
+      },
+      "situation:ledge_hang": {
+        "active": 1929,
+        "resume": 0.0654,
+        "silent": 8336,
+        "frames": 10265,
+        "enter_silence": 0.0954,
+        "change": 0.1115
+      },
+      "situation:near_blastzone": {
+        "active": 4019,
+        "resume": 0.0177,
+        "silent": 1806,
+        "frames": 5825,
+        "enter_silence": 0.0127,
+        "change": 0.1015
+      },
+      "age:offstage:a16-31": {
+        "active": 7562,
+        "resume": 0.0474,
+        "silent": 1076,
+        "frames": 8638,
+        "enter_silence": 0.0075,
+        "change": 0.0551
+      },
+      "situation:conversion_open": {
+        "active": 115817,
+        "resume": 0.0902,
+        "silent": 55686,
+        "frames": 171503,
+        "enter_silence": 0.0449,
+        "change": 0.1592
+      },
+      "situation:above_stage": {
+        "active": 43952,
+        "resume": 0.1406,
+        "silent": 8477,
+        "frames": 52429,
+        "enter_silence": 0.0232,
+        "change": 0.1303
+      },
+      "situation:neutral": {
+        "active": 220911,
+        "resume": 0.1147,
+        "silent": 64263,
+        "frames": 285174,
+        "enter_silence": 0.0323,
+        "change": 0.1352
+      },
+      "age:offstage:a04-07": {
+        "active": 13437,
+        "resume": 0.0542,
+        "silent": 1513,
+        "frames": 14950,
+        "enter_silence": 0.0141,
+        "change": 0.1582
+      },
+      "situation:platform_exit": {
+        "active": 164,
+        "resume": 0.0938,
+        "silent": 32,
+        "frames": 196,
+        "enter_silence": 0.0183,
+        "change": 0.2073
+      },
+      "situation:on_platform": {
+        "active": 460,
+        "resume": 0.0946,
+        "silent": 74,
+        "frames": 534,
+        "enter_silence": 0.0239,
+        "change": 0.1565
+      },
+      "age:onstage:a32+": {
+        "active": 14439,
+        "resume": 0.0499,
+        "silent": 11835,
+        "frames": 26274,
+        "enter_silence": 0.0176,
+        "change": 0.0519
+      },
+      "situation:recovery_low": {
+        "active": 50981,
+        "resume": 0.0563,
+        "silent": 17031,
+        "frames": 68012,
+        "enter_silence": 0.0169,
+        "change": 0.1272
+      },
+      "situation:onstage_corner": {
+        "active": 40087,
+        "resume": 0.0868,
+        "silent": 22870,
+        "frames": 62957,
+        "enter_silence": 0.0422,
+        "change": 0.1383
+      },
+      "situation:being_edgeguarded": {
+        "active": 48613,
+        "resume": 0.0631,
+        "silent": 8600,
+        "frames": 57213,
+        "enter_silence": 0.0137,
+        "change": 0.1083
+      },
+      "situation:post_kill_neutral": {
+        "active": 43428,
+        "resume": 0.1602,
+        "silent": 13238,
+        "frames": 56666,
+        "enter_silence": 0.0486,
+        "change": 0.1669
+      },
+      "situation:escape_action": {
+        "active": 1747,
+        "resume": 0.1791,
+        "silent": 67,
+        "frames": 1814,
+        "enter_silence": 0.0155,
+        "change": 0.1276
+      },
+      "situation:being_juggled": {
+        "active": 31596,
+        "resume": 0.0849,
+        "silent": 7431,
+        "frames": 39027,
+        "enter_silence": 0.021,
+        "change": 0.1299
+      },
+      "situation:in_hitstun": {
+        "active": 86343,
+        "resume": 0.094,
+        "silent": 20774,
+        "frames": 107117,
+        "enter_silence": 0.023,
+        "change": 0.1211
+      },
+      "situation:onstage_center": {
+        "active": 109856,
+        "resume": 0.1141,
+        "silent": 46230,
+        "frames": 156086,
+        "enter_silence": 0.0456,
+        "change": 0.1584
+      },
+      "situation:recovery_high": {
+        "active": 37117,
+        "resume": 0.0767,
+        "silent": 6450,
+        "frames": 43567,
+        "enter_silence": 0.0144,
+        "change": 0.092
+      },
+      "situation:resource_exhausted": {
+        "active": 54130,
+        "resume": 0.0438,
+        "silent": 5751,
+        "frames": 59881,
+        "enter_silence": 0.0092,
+        "change": 0.1016
+      },
+      "age:onstage:a01-03": {
+        "active": 192885,
+        "resume": 0.1263,
+        "silent": 48583,
+        "frames": 241468,
+        "enter_silence": 0.04,
+        "change": 0.1668
+      },
+      "situation:shield_pressure_theirs": {
+        "active": 9803,
+        "resume": 0.1404,
+        "silent": 1225,
+        "frames": 11028,
+        "enter_silence": 0.0124,
+        "change": 0.1039
+      },
+      "situation:retreat": {
+        "active": 54170,
+        "resume": 0.1114,
+        "silent": 20059,
+        "frames": 74229,
+        "enter_silence": 0.0378,
+        "change": 0.1381
+      }
+    }
+  ]
+}

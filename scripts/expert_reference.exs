@@ -6,14 +6,18 @@
 #
 #   mix run scripts/expert_reference.exs [--split SPLIT.json] [--stage 32]
 #     [--max-games 150] [--character fox] [--out eval_runs/1002_fidelity/expert_fd.json]
+#     [--silence-map-out eval_runs/1002_fidelity/expert_silence_map_fd.json]
+#
+# --silence-map-out also writes the expert ExPhil.Eval.SilenceMap (input-change
+# hazards by situation, with split-half hazards as the noise floor; 10-06).
 alias ExPhil.Data.Peppi
-alias ExPhil.Eval.PlayStats
+alias ExPhil.Eval.{PlayStats, SilenceMap}
 alias ExPhil.Sim.GA
 alias ExPhil.Training.Output
 
 {opts, _, bad} =
   OptionParser.parse(System.argv(),
-    strict: [split: :string, stage: :integer, max_games: :integer, character: :string, out: :string])
+    strict: [split: :string, stage: :integer, max_games: :integer, character: :string, out: :string, silence_map_out: :string])
 if bad != [], do: raise("invalid options: #{inspect(bad)}")
 
 split = (opts[:split] || "checkpoints/coh_base/split.json") |> File.read!() |> Jason.decode!()
@@ -53,12 +57,15 @@ per_game =
       |> Peppi.to_training_frames(player_port: own.port, opponent_port: opp.port)
       |> Enum.reject(&(&1.game_state.frame < 0))
       |> Enum.map(&%{own: &1.game_state.players[own.port], opp: &1.game_state.players[opp.port], controller: &1.controller})
-      |> PlayStats.from_game(edge)
+      |> then(fn frames -> {PlayStats.from_game(frames, edge), SilenceMap.from_game(frames, stage: stage, edge: edge)} end)
     end,
     max_concurrency: 8,
     timeout: 300_000
   )
   |> Enum.map(fn {:ok, s} -> s end)
+
+silence_games = Enum.map(per_game, &elem(&1, 1))
+per_game = Enum.map(per_game, &elem(&1, 0))
 
 total = Enum.reduce(per_game, PlayStats.empty(), &PlayStats.merge/2)
 {half_a, half_b} =
@@ -85,3 +92,15 @@ Output.puts("split-half distances (noise floor): " <> Enum.map_join(Enum.sort(fl
 Output.puts("jump_peak hist: #{inspect(Enum.sort_by(summary.hists["jump_peak"], fn {k, _} -> String.to_integer(k) end))}")
 Output.puts("landing_lag hist: #{inspect(Enum.sort_by(summary.hists["landing_lag"], fn {k, _} -> String.to_integer(k) end))}")
 Output.success("wrote #{out}")
+
+if sm_out = opts[:silence_map_out] do
+  pool = fn games -> games |> Enum.reduce(SilenceMap.empty(), &SilenceMap.merge/2) |> SilenceMap.summarize() end
+  {ga, gb} = silence_games |> Enum.with_index() |> Enum.split_with(fn {_, i} -> rem(i, 2) == 0 end)
+  all = pool.(silence_games)
+  File.write!(sm_out, Jason.encode!(%{character: char, stage: stage, games: length(silence_games), summary: all,
+    halves: [pool.(Enum.map(ga, &elem(&1, 0))), pool.(Enum.map(gb, &elem(&1, 0)))]}, pretty: true))
+  states = all |> Enum.filter(fn {k, _} -> String.starts_with?(k, "state:") or String.starts_with?(k, "age:") end) |> Enum.sort()
+  Output.puts("RESULT expert silence map enter_silence by state: " <>
+    Enum.map_join(states, "  ", fn {k, v} -> "#{k} #{v.enter_silence} (n=#{v.active})" end))
+  Output.success("wrote #{sm_out}")
+end

@@ -10,21 +10,25 @@
 #   mix run scripts/fidelity_scorecard.exs --policy P --label L
 #     [--reference eval_runs/1002_fidelity/expert_fd.json] [--opponent self|idle|POLICY]
 #     [--envs 32] [--frames 3600] [--seeds 1001,1002,1003] [--stateful-step]
-#     [--ablate-prev-action] [--out FILE.json]
+#     [--ablate-prev-action] [--out FILE.json] [--silence-reference eval_runs/1002_fidelity/expert_silence_map_fd.json]
+#
+# Also writes silence_map.json beside --out: ExPhil.Eval.SilenceMap hazards by
+# situation, compared with the expert map (where the bot lets go; 10-06).
 #
 # Several --seeds give mean ± sd per number (run-to-run noise of the scorecard).
 # Caveat: the expert reference is Fox vs human opponents of many characters;
 # the sim is a Fox ditto vs the same policy. Own-input and own-movement
 # distributions transfer; damage/kill rates depend on the opponent.
 alias ExPhil.Agents.Agent
-alias ExPhil.Eval.PlayStats
+alias ExPhil.Eval.{PlayStats, SilenceMap}
 alias ExPhil.Sim.{Env, Drill, GA}
 alias ExPhil.Training.{Checkpoint, Output}
 
 {opts, _, bad} =
   OptionParser.parse(System.argv(),
     strict: [policy: :string, label: :string, reference: :string, opponent: :string, envs: :integer,
-             frames: :integer, seeds: :string, stateful_step: :boolean, ablate_prev_action: :boolean, out: :string])
+             frames: :integer, seeds: :string, stateful_step: :boolean, ablate_prev_action: :boolean, out: :string,
+             silence_reference: :string])
 if bad != [], do: raise("invalid options: #{inspect(bad)}")
 
 policy = opts[:policy] || raise("--policy required")
@@ -99,11 +103,17 @@ rollout = fn seed ->
       end
     end)
 
-  (open ++ games)
-  |> Enum.reject(&(&1 == []))
-  |> Enum.map(&PlayStats.from_game(Enum.reverse(&1), edge))
-  |> Enum.reduce(PlayStats.empty(), &PlayStats.merge/2)
-  |> PlayStats.summarize()
+  played = (open ++ games) |> Enum.reject(&(&1 == [])) |> Enum.map(&Enum.reverse/1)
+
+  stats =
+    played
+    |> Enum.map(&PlayStats.from_game(&1, edge))
+    |> Enum.reduce(PlayStats.empty(), &PlayStats.merge/2)
+    |> PlayStats.summarize()
+
+  # Where the bot lets go: input-change hazards by situation (SilenceMap, 10-06)
+  silence = played |> Enum.map(&SilenceMap.from_game(&1, stage: 32, edge: edge)) |> Enum.reduce(SilenceMap.empty(), &SilenceMap.merge/2)
+  {stats, silence}
 end
 
 # Fox-specific derived technique rates from the histograms
@@ -127,10 +137,11 @@ expert_struct = %{hists: expert["hists"]}
 runs =
   for seed <- seeds do
     t0 = System.monotonic_time(:millisecond)
-    s = rollout.(seed) |> jsonify.()
+    {s, silence} = rollout.(seed)
+    s = jsonify.(s)
     d = PlayStats.compare(%{hists: s["hists"]}, expert_struct)
     Output.puts("  seed #{seed}: #{s["rates"]["minutes"]} env-min in #{div(System.monotonic_time(:millisecond) - t0, 1000)} s")
-    %{rates: Map.merge(s["rates"], derived.(s)), dist: d, hists: s["hists"]}
+    %{rates: Map.merge(s["rates"], derived.(s)), dist: d, hists: s["hists"], silence: silence}
   end
 
 stat = fn vals ->
@@ -158,6 +169,46 @@ result = %{label: label, policy: policy, opponent: opts[:opponent] || "self", en
 if out = opts[:out] do
   File.mkdir_p!(Path.dirname(out))
   File.write!(out, Jason.encode!(result, pretty: true))
+end
+
+# Silence map: all seeds pooled; compared with the expert map when the reference exists
+silence_counts = runs |> Enum.map(& &1.silence) |> Enum.reduce(SilenceMap.empty(), &SilenceMap.merge/2)
+silence_model = SilenceMap.summarize(silence_counts)
+silence_ref_path = opts[:silence_reference] || "eval_runs/1002_fidelity/expert_silence_map_fd.json"
+
+silence_ref =
+  case File.read(silence_ref_path) do
+    {:ok, s} -> s |> Jason.decode!() |> Map.fetch!("summary") |> Map.new(fn {k, v} -> {k, Map.new(v, fn {a, b} -> {String.to_atom(a), b} end)} end)
+    _ -> nil
+  end
+
+silence_cmp =
+  if silence_ref do
+    Map.new([:enter_silence, :change, :resume], fn h -> {h, SilenceMap.compare(silence_model, silence_ref, hazard: h, min_n: 200)} end)
+  else
+    %{}
+  end
+
+if out = opts[:out] do
+  sm_out = Path.join(Path.dirname(out), "silence_map.json")
+  File.write!(sm_out, Jason.encode!(%{label: label, policy: policy, seeds: seeds, summary: silence_model,
+    reference: silence_ref && silence_ref_path, compare: silence_cmp}, pretty: true))
+end
+
+fmt_row = fn r -> "#{r.bucket} #{r.model}|#{r.expert} x#{r.ratio} (n=#{r.n})" end
+
+if silence_ref do
+  for {h, rows} <- silence_cmp do
+    worst = rows |> Enum.filter(&(&1.z >= 3)) |> Enum.take(8)
+    Output.puts("RESULT #{label} silence map #{h} model|expert xratio, worst buckets (z>=3): " <> Enum.map_join(worst, "  ", fmt_row))
+  end
+
+  states = silence_cmp[:enter_silence] |> Enum.filter(&String.starts_with?(&1.bucket, "state:")) |> Enum.sort_by(& &1.bucket)
+  Output.puts("RESULT #{label} silence map enter_silence by state: " <> Enum.map_join(states, "  ", fmt_row))
+  ages = silence_cmp[:enter_silence] |> Enum.filter(&String.starts_with?(&1.bucket, "age:")) |> Enum.sort_by(& &1.bucket)
+  Output.puts("RESULT #{label} silence map enter_silence by age: " <> Enum.map_join(ages, "  ", fmt_row))
+else
+  Output.warning("no expert silence map at #{silence_ref_path} (run scripts/expert_reference.exs --silence-map-out); model-only summary written")
 end
 
 Output.puts("RESULT #{label} fidelity distance (mean of #{length(headline)} histograms, 0 = expert-like): #{fid} ± #{fid_sd}")
