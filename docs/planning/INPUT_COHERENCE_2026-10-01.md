@@ -1660,3 +1660,31 @@ head + weight): Q7 jump-in-hand 0.031 vs expert 0.028 — the closest yet
 there — but the ledge band over-holds (0.016 vs 0.024), neutral share
 drifts to 0.169 and recovery is no better than off3 alone (return 0.315);
 the head redistributes, the weight does the work.
+
+**But the silent fall itself did not move — in any arm.** High-band
+decided-trip return (the silent fall's own metric; expert 0.95):
+
+| baseline | off3 s905 | off3 s906 | e3 | mamba | sf20 | dags2 | rel | rel_off3 |
+|---|---|---|---|---|---|---|---|---|
+| 0.40 | 0.40 | 0.41 | 0.29 | 0.29 | 0.14 | 0.27–0.32 | 0.23 | 0.37 |
+
+Both off3 seeds enter silence in danger at the baseline rate (0.05–0.12
+per 3 f vs the expert's 0.017–0.044) and their Q7 floors disagree with
+each other (s905 0.015 / s906 0.027 at −20…−60 jumpless) while their
+closed-loop outcomes agree — the teacher-forced floor is seed-noisy and
+does not predict the loop. off3's gain is means selection (mismatch at
+the floor) and fewer carried-off trips (0.39 → 0.22–0.28), i.e. the lip,
+not the fall.
+
+**Where this leaves the silent fall (22:45):** resistant to loss weights
+(tail or band), to DAgger with a rules labeler, to an explicit release
+decision, and to epochs. The hold/change decision is under-conditioned on
+state on this 256×2 MinGRU testbed; whether that is capacity (the Mamba
+port is larger) or a learning-signal problem is the open question for
+the morning. Candidate next levers, all imitation-side: (1) a dedicated
+danger readout for the hold/release/change logits (y, jumps, distance to
+the edge as head features — the `--event-context` pattern applied to
+state); (2) a targeted hold-weight on offstage frames where the expert
+HOLDS a deflected stick (off3's win, aimed); (3) test the capacity
+hypothesis directly on the Mamba testbed (Q7 + entering-silence hazard
+on `mamba_evt2ctx_ck8`). Decided with Bradley.
