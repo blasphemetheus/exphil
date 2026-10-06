@@ -1648,3 +1648,15 @@ move it. The silent fall is one symptom of that under-conditioning.
 Epochs don't help (e3 worse with the jump in hand). The one lever that
 moved the floor is the offstage LOSS WEIGHT (×3 halved it in the jumpless
 bands) — queue 18 runs ×8 as the dose point.
+
+**`--offstage-weight 3` replicates (22:20, seed 906):** mismatch **0.084**
+(= the expert's split-half floor; s905 0.088), means_js 0.265, return
+**0.394** (s905 0.373; baseline 0.299), decided-trip return 0.487,
+carried-off share 0.222, fidelity 0.198 (s905 0.209), coherence repeat
+0.78 / neutral 0.309. Every recovery number the best of any 1-epoch arm,
+across two seeds. **Into the port recipe**: windowed + prev_q + events +
+context + chunk 8 + `--offstage-weight 3`, ≥ 3 epochs. `rel_off3` (release
+head + weight): Q7 jump-in-hand 0.031 vs expert 0.028 — the closest yet
+there — but the ledge band over-holds (0.016 vs 0.024), neutral share
+drifts to 0.169 and recovery is no better than off3 alone (return 0.315);
+the head redistributes, the weight does the work.
