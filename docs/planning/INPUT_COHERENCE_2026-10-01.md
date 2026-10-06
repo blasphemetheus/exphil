@@ -1726,3 +1726,61 @@ worse everywhere that matters. Remaining imitation-side levers are the
 ones that change what the hold/change decision is conditioned on (danger
 readout features) or where the loop's states come from — and the capacity
 question, being tested now on the Mamba checkpoint (Q7 + traced roll).
+
+### 10-05 23:30 — capacity check on `mamba_evt2ctx_ck8`: same floor, same hazard
+
+Existing checkpoint (Mamba backbone on the testbed recipe, 1.80 M params vs
+the MinGRU's 1.21 M, 1 epoch, val 1.090), no training — Q7 and a traced
+recovery roll only:
+
+| | MinGRU baseline | **Mamba** | expert |
+|---|---|---|---|
+| Q7 −20…−60 jumpless / jump in hand | 0.024 / 0.042 | **0.029 / 0.033** | 0.007 / 0.028 |
+| Q7 < −60 jumpless / jump in hand | 0.026 / 0.027 | **0.036 / 0.023** | 0.000 / 0.000 |
+| Q7 ledge jumpless / jump in hand | 0.030 / 0.071 | 0.024 / 0.071 | 0.024 / 0.046 |
+| P(enter silence) −20…−60 j0 / < −60 j0 | 0.05–0.07 / 0.08–0.10 | **0.059 / 0.103** | 0.019 / 0.034 |
+| P(enter silence) −20…−60 j1+ | 0.085–0.13 | 0.158 | 0.032 |
+| high-band decided return | 0.40 | 0.34 | 0.95 |
+| mismatch / return / carried-off | 0.16 / 0.30 / 0.39 | 0.183 / 0.244 / 0.349 | 0.084 / 0.911 / 0.055 |
+
+Q5/Q6 on the Mamba match the MinGRU story too (resume from silence
+~0.07–0.15 vs expert, state-insensitive to action_frame). A 1.5× larger
+backbone of a different family learns the identical release floor and the
+identical entering-silence hazard. Caveat: this is 1.8 M params at 1
+epoch, not the production Mamba; but if capacity were the limit the
+bigger model should at least bend the floor, and it doesn't move at all.
+**Read: a learning-signal problem, not a capacity problem.** The hold/
+change decision is under-conditioned on danger because the imitation loss
+never asks it to be — ~42 k deep-offstage frames where the expert holds
+are 0.2 % of the epoch and are already fit to within the per-frame noise
+(off8 showed the teacher-forced statistic can be driven to the expert's
+without the loop following).
+
+**Verdict for the morning.** The silent fall is (1) entering silence from
+the bot's OWN states — running off the lip facing out with the stick held
+out, states the expert rarely produces; (2) invisible teacher-forced; (3)
+untouched by loss weights, epochs, backbone size, an explicit release
+head, and a rules-labeled DAgger set. What is left imitation-side, in
+order of my recommendation:
+
+1. **Danger readout for the hold/change logits** — feed y, jumps_left,
+   signed distance to the nearest edge, and speed_y directly into the
+   stick heads' hold/change dense (the `--event-context` pattern applied
+   to state). Cheap (one flag, one arm), tests whether the decision can
+   use danger when handed it instead of having to find it in the trunk.
+   Pass = P(enter silence) −20…−60 j0 ≤ 0.04 AND high-band decided return
+   ≥ 0.6 at fidelity ≤ 0.21.
+2. **Expert-labeled DAgger** — the DAgger plumbing works (fidelity
+   improved with the silent-only set); the labeler was the problem. A
+   labeler = the policy's own expert-trained stick head teacher-forced on
+   the HOLD branch (i.e. relabel the bot's silent frames with "keep
+   holding what you held") is not a rule in the decode sense; it changes
+   training data only. Needs Bradley's ok on the data-pollution concern.
+3. **Approach, not fall** — the bot arrives at the lip running outward
+   (dash in last 30 f 0.68 vs 0.35, facing edge 0.79 vs 0.39). off3's
+   win was the lip. An edge-approach weight (frames within 15 units of the
+   edge, grounded, moving outward where the expert stops/turns) attacks
+   carried-off share directly rather than the fall after it.
+
+Mamba port with the recipe (windowed + prev_q + events + context + chunk
+8 + `--offstage-weight 3`, ≥ 3 ep) and the live look: Bradley's call.

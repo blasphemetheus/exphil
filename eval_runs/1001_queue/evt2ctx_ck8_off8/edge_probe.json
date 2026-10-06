@@ -1,0 +1,66 @@
+{
+  "label": "evt2ctx_ck8_off8",
+  "frames": 85963,
+  "q2": {
+    "control": {
+      "b": 0.029,
+      "edge": 0.136
+    },
+    "base": {
+      "b": 0.029,
+      "edge": 0.136
+    },
+    "x_far": {
+      "b": 0.028,
+      "edge": 0.147
+    },
+    "facing_in": {
+      "b": 0.029,
+      "edge": 0.14
+    }
+  },
+  "q1": {
+    "far/facing_edge": {
+      "n": 9855,
+      "model_b": 0.004,
+      "expert_b": 0.006,
+      "model_edge": 0.244,
+      "expert_edge": 0.24
+    },
+    "far/facing_in": {
+      "n": 10385,
+      "model_b": 0.004,
+      "expert_b": 0.004,
+      "model_edge": 0.138,
+      "expert_edge": 0.143
+    },
+    "mid/facing_edge": {
+      "n": 23852,
+      "model_b": 0.004,
+      "expert_b": 0.004,
+      "model_edge": 0.208,
+      "expert_edge": 0.202
+    },
+    "mid/facing_in": {
+      "n": 25324,
+      "model_b": 0.005,
+      "expert_b": 0.004,
+      "model_edge": 0.106,
+      "expert_edge": 0.109
+    },
+    "near/facing_edge": {
+      "n": 6340,
+      "model_b": 0.005,
+      "expert_b": 0.006,
+      "model_edge": 0.136,
+      "expert_edge": 0.132
+    },
+    "near/facing_in": {
+      "n": 10207,
+      "model_b": 0.006,
+      "expert_b": 0.004,
+      "model_edge": 0.115,
+      "expert_edge": 0.118
+    }
+  }
+}

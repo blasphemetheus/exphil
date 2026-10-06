@@ -1,0 +1,32 @@
+{
+  "label": "evt2ctx_ck8_off8",
+  "policy": "checkpoints/coh_evt2ctx_ck8_off8/model_best_policy.bin",
+  "opponent": "idle",
+  "envs": 32,
+  "deaths_by_verdict": {
+    "kill": 1,
+    "checkmate": 0,
+    "forced": 0,
+    "mixup": 24
+  },
+  "frames_per_env": 1800,
+  "env_minutes": 16.0,
+  "sd_per_min": 1.5,
+  "deaths_per_min": 1.563,
+  "kills_per_min": 0.188,
+  "deaths_by_verdict_per_min": {
+    "kill": 0.063,
+    "checkmate": 0.0,
+    "forced": 0.0,
+    "mixup": 1.5
+  },
+  "damage_dealt_per_min": 22.135,
+  "damage_taken_per_min": 0.063,
+  "offstage_episodes_per_min": 7.438,
+  "recovery_rate": 0.781,
+  "neutral_share": 0.351,
+  "repeat_prev": 0.722,
+  "max_frozen_run": 160,
+  "games_finished": 0,
+  "wall_s": 34.8
+}

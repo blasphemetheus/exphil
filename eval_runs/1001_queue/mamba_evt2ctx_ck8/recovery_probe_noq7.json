@@ -1,0 +1,153 @@
+{
+  "label": "mamba_evt2ctx_ck8",
+  "frames": 15853,
+  "presses": 170,
+  "q1b": {
+    "no_stick_history": {
+      "high": {
+        "up": 0.138,
+        "neutral": 0.666,
+        "n": 12,
+        "side": 0.023
+      },
+      "low": {
+        "up": 0.105,
+        "neutral": 0.787,
+        "n": 21,
+        "side": 0.026
+      },
+      "ledge": {
+        "up": 0.04,
+        "neutral": 0.774,
+        "n": 25,
+        "side": 0.021
+      },
+      "deep": {
+        "up": 0.012,
+        "neutral": 0.931,
+        "n": 11,
+        "side": 0.017
+      }
+    },
+    "neutral_prev_stick": {
+      "high": {
+        "up": 0.138,
+        "neutral": 0.666,
+        "n": 12,
+        "side": 0.023
+      },
+      "low": {
+        "up": 0.105,
+        "neutral": 0.787,
+        "n": 21,
+        "side": 0.026
+      },
+      "ledge": {
+        "up": 0.04,
+        "neutral": 0.774,
+        "n": 25,
+        "side": 0.021
+      },
+      "deep": {
+        "up": 0.012,
+        "neutral": 0.931,
+        "n": 11,
+        "side": 0.017
+      }
+    }
+  },
+  "q3": {
+    "low_ctrl": {
+      "up": 0.454,
+      "side": 0.119
+    },
+    "high_ctrl": {
+      "up": 0.252,
+      "side": 0.515
+    },
+    "q4_event_ablation": {
+      "control": 0.261,
+      "base": 0.262,
+      "n": 63,
+      "y_to_high": 0.22
+    },
+    "low_base": {
+      "up": 0.455,
+      "n": 67,
+      "side": 0.119
+    },
+    "low_y_to_high": {
+      "up": 0.452,
+      "side": 0.121
+    },
+    "high_base": {
+      "up": 0.253,
+      "n": 36,
+      "side": 0.515
+    },
+    "high_y_to_low": {
+      "up": 0.254,
+      "side": 0.511
+    }
+  },
+  "q1": {
+    "high": {
+      "n": 36,
+      "expert_up": 0.333,
+      "model_up": 0.253,
+      "expert_side": 0.5,
+      "model_side": 0.515,
+      "expert_neutral": 0.0,
+      "model_neutral": 0.06
+    },
+    "low": {
+      "n": 55,
+      "expert_up": 0.382,
+      "model_up": 0.356,
+      "expert_side": 0.127,
+      "model_side": 0.143,
+      "expert_neutral": 0.018,
+      "model_neutral": 0.029
+    },
+    "ledge": {
+      "n": 67,
+      "expert_up": 0.373,
+      "model_up": 0.318,
+      "expert_side": 0.343,
+      "model_side": 0.37,
+      "expert_neutral": 0.015,
+      "model_neutral": 0.043
+    },
+    "deep": {
+      "n": 12,
+      "expert_up": 0.917,
+      "model_up": 0.908,
+      "expert_side": 0.0,
+      "model_side": 0.006,
+      "expert_neutral": 0.083,
+      "model_neutral": 0.086
+    }
+  },
+  "q2": {
+    "high": {
+      "press": 0.046,
+      "no_press": 0.014,
+      "expert_rate": 0.01
+    },
+    "low": {
+      "press": 0.116,
+      "no_press": 0.028,
+      "expert_rate": 0.027
+    },
+    "ledge": {
+      "press": 0.053,
+      "no_press": 0.016,
+      "expert_rate": 0.01
+    },
+    "deep": {
+      "press": 0.052,
+      "no_press": 0.009,
+      "expert_rate": 0.029
+    }
+  }
+}
