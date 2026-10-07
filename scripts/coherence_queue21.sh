@@ -16,6 +16,8 @@ pgrep -af '[b]eam.smp' && { echo "a beam is alive; refusing to start"; exit 1; }
 pq=(--prev-action --prev-action-dropout 0.0 --prev-action-quantize)
 ev=(--button-events --stick-events --event-context)
 run() { echo "== $1 ($(date +%H:%M))"; scripts/coherence_experiment.sh "$@"; }
-SEED=906 run evt2ctx_ck8_off3_dur8e_s906 "${pq[@]}" "${ev[@]}" --chunk-horizon 8 --offstage-weight 3 --stick-duration 8
+# Relaunch 10-07 00:30 (stopped at Bradley's request mid-e3-evals): s906 complete,
+# e3 trained (val 3.064) + coherence scored — rerun e3 evals only.
+#SEED=906 run evt2ctx_ck8_off3_dur8e_s906 "${pq[@]}" "${ev[@]}" --chunk-horizon 8 --offstage-weight 3 --stick-duration 8
 EPOCHS=3 run evt2ctx_ck8_off3_dur8e_e3 "${pq[@]}" "${ev[@]}" --chunk-horizon 8 --offstage-weight 3 --stick-duration 8
 echo "QUEUE 21 DONE ($(date +%H:%M))"

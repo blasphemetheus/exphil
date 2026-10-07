@@ -8,7 +8,7 @@
 #   checkpoints/coh_NAME/            trained policy
 #   eval_runs/1001_queue/NAME/       coherence.json, closed_loop.json, recovery.json, *.log
 # MAX_FILES (default 3000) sets the corpus slice; same slice + seed for every
-# variant, so differences are the flags. EPOCHS (default 1), BACKBONE (default min_gru) and
+# variant, so differences are the flags. EPOCHS (default 1), WINDOW (default 80), BACKBONE (default min_gru) and
 # TRAINER (default scripts/train_fox_mamba.exs; scripts/train.exs for the
 # carried-state `--bptt` GRU) select the model and driver — the parser takes
 # a flag's FIRST occurrence, so these cannot be trailing overrides.
@@ -22,7 +22,7 @@ export EDIFICE_FUSED_CUSTOM_CALL=1 EXLA_TARGET=cuda EXPHIL_GPU_MEMORY_FRACTION=0
 trainer=${TRAINER:-scripts/train_fox_mamba.exs}
 
 train_args=(--backbone "${BACKBONE:-min_gru}" --stage-internals --hidden-sizes 256,256
-  --batch-size 128 --precision f32 --window-size 80 --stride 5 --dropout 0.0 --learning-rate 0.0005
+  --batch-size 128 --precision f32 --window-size "${WINDOW:-80}" --stride 5 --dropout 0.0 --learning-rate 0.0005
   --replays replays/erickfm_ranked/v2_filtered --train-character fox --select-character-port
   --max-files "${MAX_FILES:-3000}" --stream-chunk-size 64 --no-cache-streaming --label-delay 0 --epochs "${EPOCHS:-1}"
   --seed "${SEED:-905}" --head autoregressive --save-best --save-every-batches 25000 --label-smoothing 0.0
