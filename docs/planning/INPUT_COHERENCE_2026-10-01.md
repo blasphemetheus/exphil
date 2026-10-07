@@ -1918,15 +1918,23 @@ moved for the first time in any arm, and a new failure appeared.
 Offstage release hazards roughly halved (ratios ×7 → ×3.5, ×4.7 → ×3.4,
 ×3.1 → ×2.0); onstage it now under-releases (×0.67–0.83). But recovery got
 WORSE: return 0.206 (off3 0.37–0.39), mismatch 0.234, decided-trip return
-0.28, fidelity 0.225 — and the death table says why: **`side_b 35 (35†)`**.
-The AR head samples buttons BEFORE sticks; with the main stick committed
-sideways, a B press is an Illusion, where the per-frame model would have
-moved the stick up on the B frame (Firefox). The semi-Markov decision has
-to be the JOINT controller change: a button edge is a decision frame too
-(training mask `event = stick pair changed ∨ any button edge`; sampler:
-committed only if `commit > 0 ∧ no button edge this frame`, an edge
-re-samples the duration; Agent unchanged). Implemented as `dur8e` — next
-arm after dur16 reads.
+0.28, fidelity 0.225 — and I read the death table as the reason:
+**`side_b 35 (35†)`**, buttons sampled BEFORE a committed sideways stick =
+Illusion instead of Firefox. **That reading was WRONG (corrected 10-06
+22:00, after dur8e):** the "by move" table is `carried_off_by_move` — the
+move the bot was performing when it got HIT off, not the first recovery
+move — and off3's own table already said `side_b 33 (32†)`. The
+side-B-then-die mode is the baseline's (the bot Illusions near the edge,
+gets hit, and the carried-off death rate is 0.86–0.95 in EVERY arm vs the
+expert's 0.16). The traces say dur8 actually pressed B with the stick UP
+more than any other arm (45 up-B onsets in died trips vs off3's 11). So
+the edge fix below addresses a real but different thing (a press should
+be free to re-aim the stick — it is what the data does), not dur8's
+recovery drop, whose cause is still open. The semi-Markov decision as the
+JOINT controller change: a button edge is a decision frame too (training
+mask `event = stick pair changed ∨ any button edge`; sampler: committed
+only if `commit > 0 ∧ no button edge this frame`, an edge re-samples the
+duration; Agent unchanged). Implemented as `dur8e`.
 
 **`dur16` read (queue 19, 1 ep, val 3.99, `--chunk-horizon 16`):** the
 dose point adds nothing on the map and confirms the Illusion diagnosis.
@@ -1945,18 +1953,67 @@ dose point adds nothing on the map and confirms the Illusion diagnosis.
 Read: the offstage hazard gains are a property of the semi-Markov
 decision itself, not of C (dur16 ≈ dur8 on every offstage band); the
 onstage under-release is also the same. Recovery sits between dur8 and
-off3 because the longer cap commits the stick for longer, so fewer
-decision frames fall inside a side-B window — fewer Illusions (18 vs 35)
-but every one still dies, 18/18. That is exactly the button-edge
-mechanism: the kill rate per side-B is 100% in both duration arms vs 60%
-for the expert's 5, and off3 had no such mode. Coherence is the best of
-any arm (repeat 0.754, neutral 0.263 — both inside the expert band for
-the first time). Verdict: keep C = 8 (shorter commitments, lower val),
-fix the joint decision → `dur8e` (queue 20, launched 20:43). Pass
-criteria for dur8e are in the queue-20 script header: dur8's offstage map
-kept (deep/high j0 ≤ 0.026/0.024), return ≥ 0.37, side-B deaths back to
-off3's level, mismatch ≤ 0.10, fidelity ≤ 0.21, onstage enter_silence
-ratio ≥ 0.8.
+off3. (The "side-B row" is carried-off-by-move — see the correction
+above; its 18/18 is the baseline's carried-off death rate, not an
+Illusion count.) Coherence is the best of any arm so far (repeat 0.754,
+neutral 0.263 — both inside the expert band for the first time). Kept
+C = 8 (lower val) and ran the joint-decision fix → `dur8e` (queue 20,
+20:43–21:42).
+
+**`dur8e` read (queue 20, 1 ep, val 3.25 — lowest of the three):**
+
+| | off3 | dur8 | dur16 | **dur8e** | expert |
+|---|---|---|---|---|---|
+| enter_silence deep j0 / high j0 / low j0 | 0.047 / 0.032 / 0.029 | 0.026 / 0.024 / 0.020 | 0.027 / 0.027 / 0.018 | **0.025 / 0.023 / 0.028** | 0.007 / 0.007 / 0.010 |
+| enter_silence age 1–3 offstage | 0.059 | 0.039 | 0.045 | **0.059** | 0.013 |
+| onstage grounded centre / airborne (ratio) | 0.94 / 1.33 | 0.67 / 0.83 | 0.76 / 0.94 | **0.86 / 1.10** | 1 |
+| return / mismatch / decided return | 0.37–0.39 / ~0.10 / 0.46 | 0.206 / 0.234 / 0.28 | 0.313 / 0.144 / 0.456 | **0.23 / 0.168 / 0.264** | 0.911 / 0.084 / 0.915 |
+| carried-off share / died | 0.281 / 0.859 | 0.326 / 0.944 | 0.356 / 0.947 | **0.172 / 0.936** | 0.055 / 0.163 |
+| fidelity / repeat / neutral | 0.21 / 0.73 / 0.25 | 0.225 / 0.733 / 0.209 | 0.222 / 0.754 / 0.263 | **0.191 / 0.777 / 0.296** | — / 0.764 / 0.303 |
+
+Against the pass criteria: fidelity ≤ 0.21 ✓ (first arm ever), onstage
+ratio ≥ 0.8 ✓, deep/high j0 kept ✓, coherence inside the expert band ✓
+(the best repeat/neutral of any arm, and val lowest); return ≥ 0.37 ✗
+(0.23), mismatch ≤ 0.10 ✗ (0.168), age 1–3 offstage back to the baseline
+✗. The closed-loop decided-trip hazard (`recovery_enter_silence.js`,
+−20..−60 j0) is 0.070 vs off3 0.055 / dur8 0.047: the button-edge
+decision frames gave the press back its freedom and the offstage
+early-release came back with it.
+
+**What the traces say the deaths ARE (`scripts/recovery_death_shape.js`,
+self-destruct trips, expert = traced FD reference):**
+
+| | expert (104 SDs) | off3 | dur8 | dur16 | dur8e |
+|---|---|---|---|---|---|
+| input changes per died trip (median) | 17 | 8 | 11 | 11 | 9 |
+| died with a jump left | 7 % | 26 % | 15 % | 13 % | **30 %** |
+| B onsets below y −40: stick UP share | **81 %** (48/59) | 24 % | 35 % | 18 % | 17 % |
+| B onsets in died trips, neutral stick (laser) | 3 | 43 | 20 | 22 | 35 |
+| B onsets in died trips, down stick (shine) | 5 | 9 | 31 | 56 | 40 |
+
+The expert's own deaths are long fights (17 changes) that end in Firefox
+attempts; the bot's are short (8–11 changes), one in four ends with a
+jump unused, and when it presses B deep the stick is up a fifth of the
+time — the rest are lasers and shines offstage. This is the 10-05
+`b_press_stick.exs` finding (neutral on the press frame 27.6 % vs 2.5 %)
+seen from the death side, and **no duration arm moved it** (dur8 moved
+the up share most, to 35 %, and died anyway). The duration arms shifted
+the wrong-stick presses from neutral toward down — the shine — which is
+a change of label, not of behaviour.
+
+**Verdict on the semi-Markov stick (lever 2 of Bradley's 10-06 plan):**
+it is a real coherence/fidelity win — `dur8e` is the first arm inside the
+fidelity target and the expert's repeat/neutral band at the same time,
+with the lowest val — and it does not fix recovery. The silence map it
+halved (dur8) did not convert into returns, and the edge-decision variant
+gave the hazard back. The recovery defect has two faces the duration
+head cannot reach: (a) entering silence from the bot's own offstage
+states (the map), and (b) pressing B deep with the wrong stick and dying
+with a jump in hand — both are what the policy decides at rare offstage
+states, i.e. the learning-signal problem of the 10-05 verdict. Keep
+`--stick-duration 8` + edge decisions as a candidate for the port recipe
+on coherence grounds (needs the ≥ 3-epoch replication the recipe got);
+the recovery lever is now lever 3 — attack the shortcut generally.
 
 Note on the Q7 teacher-forced floor for duration arms (dur8 0.078, dur16
 0.097 in the −20..−60 j0 band vs off3's 0.05): Q7 scores the per-frame
