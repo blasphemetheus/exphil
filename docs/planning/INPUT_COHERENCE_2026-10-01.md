@@ -2123,3 +2123,37 @@ same), plausibly credit rather than copying. **(3) The double jump**
 (72 / 72 / 71 % vs 91 %): no arm of any kind has moved it — its own
 mechanism, unexplained. pd15 is the first point on the dropout curve;
 pd50 and nopq (queue 24) complete it; (2) and (3) need their own levers.
+
+### 10-07 15:30 — the double jump: a height-conditioned decision the bot does not condition
+
+Bradley: "look into why the double jump never gets used." From the sim
+traces (all died episodes), per-3-frame hazard of a jump (X/Y edge or
+jumps_left drop) while offstage, falling, jump in hand, by height:
+
+| height | expert | off3 | dur8e | pd15 | e3 | v2 (full, prev-act) | v1 (full, no prev-act) |
+|---|---|---|---|---|---|---|---|
+| 0 … −20 | 15 % | 9 | 6 | 7 | 10 | 10 | 13 |
+| −20 … −40 | **44 %** | 23 | 11 | 18 | 26 | 24 | 18 |
+| −40 … −60 | **60 %** | 26 | 9 | 25 | 26 | 10 | 16 |
+| < −60 | 32 % | 14 | 16 | 29 | 12 | 7 | 16 |
+| frames spent below −60 | 69 | 150 | 358 | 70 | 214 | 553 | 31 |
+
+The expert's jump is a **height decision**: hazard rises 15 → 44 → 60 %
+as it gets low, so it rarely gets deep (69 frames). Every bot's hazard is
+**flat in height** (6–26 % at every band), so it drifts through the band
+where the expert spends the jump and dies with it in hand (28 % of deaths
+vs 10 %). Not an order defect (special-before-jump is a minority), not
+helplessness (those deaths end in plain Fall or mid-aerial, 43/60 with
+≥ 30 offstage frames above −60). Same signature as the enter-silence map:
+a decision under-conditioned on state. The full-scale no-prev-action
+model is the exception on the outcome (jump in hand at death 11 % vs
+v2's 24 %) even though its hazard curve is also flattish — it jumps early
+and never gets deep — so the jump is most likely in the copy-shortcut
+family as well and dropout 0.15 did not free it. **Prediction for queue
+24: `nopq` moves jump-in-hand toward 10 %; `pd50` partway.**
+
+Instrument: probe **Q8** (`interp_recovery_probe.exs`, teacher-forced
+P(X∨Y press) on expert offstage airborne frames with a jump in hand, by
+height, split by expert press / no press) tells whether the head learned
+the height conditioning at all (rising column) or learned it and loses
+it closed-loop (flat column). Lands with w240 / mf9k / nopq / pd50.
