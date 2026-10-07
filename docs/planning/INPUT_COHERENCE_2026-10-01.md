@@ -2053,3 +2053,40 @@ the two faces of the death shape (`scripts/recovery_death_shape.js`)
 barely moved — the recovery *decision* is still not being learned by
 coherence or epochs; lever 3 continues in queues 22/23 (full-scale v1/v2
 scorecard, pd15, window 240, 9k files).
+
+### 10-07 12:50 — the full-scale scorecard names the shortcut
+
+Queue 22 scored the two full-scale Mamba checkpoints (512×2, ALL Fox files,
+1 ep, windowed 80) on the recovery scorecard + silence map + fidelity
+(`EVALS="coherence fidelity recovery_means recovery_probe"`, PROBE_BATCH 64):
+
+| | `fox_mamba_v1` (no prev-action) | `fox_mamba_v2` (prev-action, dropout 0.15) | expert | testbed off3 |
+|---|---|---|---|---|
+| return / decided | **0.518 / 0.558** | 0.202 / 0.241 | 0.911 / 0.915 | 0.37–0.39 / 0.49 |
+| died with a jump left | **11/129 = 9 %** | 94/388 = 24 % | 7 % | 26–30 % |
+| deep-B presses stick-up | **100/212 = 47 %** | 34/198 = 17 % | 81 % | 17–35 % |
+| input changes per died trip (q50) | 23 | 13 | 17 | 8–11 |
+| carried-off died | 0.756 | 0.989 | 0.163 | — |
+| offstage age 1–3 enter-silence | 0.109 (×8.4) | 0.058 (×4.5) | 0.013 | 0.047 |
+| input repeat / fidelity | 0.384 / 0.298 | 0.725 / 0.176 | 0.758 / 0 | 0.73 / 0.198 |
+| sd/min, deaths/min | 1.40, 1.67 | 3.88, 4.34 | 0.44, 0.96 | — |
+
+Same data, same width, one flag apart. The model **without** the
+prev-action channel learns the recovery *decision* — it spends its jump
+like the expert (9 % vs 7 %) and aims B up half the time — and recovers
+0.52; the model **with** the channel is coherent (repeat 0.725) and
+recovers 0.20, dying with a jump in hand a quarter of the time, exactly
+like every testbed arm (all of which carry `--prev-action`). Against the
+queue-22 header (≥ 0.6 ⇒ data/scale, ≤ 0.45 ⇒ not) v1 sits between; the
+v1/v2 split is the finding: **scale and data do not help while the copy
+path exists**. v1's own defect is the one the whole 10-01 program fixed —
+no coherence (enter-silence onstage ×4.9 means it never holds anything,
+which is also *why* it never silently falls).
+
+So the recovery lever and the coherence lever were the same channel
+pulling opposite ways, and the duration head is the first coherence
+mechanism that is not the channel. **Queue 24** (`coherence_queue24.sh`,
+after 23): dur8e WITHOUT `--prev-action` (`dur8e_nopq`) and with dropout
+0.5 (`pd50`); pd15 (queue 22) is the first point. Pass: return ≥ 0.45 or
+dies-with-jump ≤ 15 % with the coherence band kept. If nopq holds the
+band, the prev-action channel leaves the port recipe.
