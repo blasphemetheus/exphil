@@ -210,6 +210,12 @@ defmodule ExPhil.MixProject do
         else: {:exla, "~> 0.11"}
       ),
       {:polaris, "~> 0.1"},
+      # The local nx fork (integration branch, 10-07) requires complex ~> 1.0,
+      # which is Bradley's ../complex fork (hex stops at 0.7).
+      if(local_nx?,
+        do: {:complex, path: "../complex", override: true},
+        else: {:complex, "~> 0.6"}
+      ),
 
       # ML Architecture Library (extracted generic architectures)
       # Uses local path for dev, GitHub for Docker builds
