@@ -143,11 +143,22 @@ Baseline on the branch (`--diagnostic --fnmsubs-profile dolphin-legacy
 | 01_06_10 [=3] Falco + [JAKE] Fox | 7,479 / 9,762 | f 0: Fox takes 3 % |
 | 13_02_35 Marth + Fox | 1,808 / 11,456 | f 6: `shield_hp[1]` 59.16 vs 59.23; f 27 the laser |
 
-So item 3 is exactly one event in 3/4 games — the opening laser connects
-in the sim and whiffs in the recording, at frames −2..0 — and a
-shield-decay difference in the 4th (2.0 recordings carry only the
-*physical* L/R analog; the sim's trigger → shield-tilt path is the first
-suspect). Admission unchanged: these run as `--diagnostic` until a game
+So item 3 is exactly one event in 4/4 games — the opening laser connects
+in the sim and whiffs in the recording (frames −2..0 in three, frame 27 in
+`13_02_35`). The 4th game's earlier `shield_hp` lead is benign: sliding
+`start_frame` 2..18 shows both sides REGENERATING at +0.07/frame with the
+sim exactly one frame ahead (sim f6 = recording f7), converging at 60 by
+f17 — a one-frame-earlier shield release, i.e. the analog-trigger release
+frame crossing the shield threshold differently under `trigger_u8`'s
+rounding of the 2.0 physical L/R lane; self-healing, low priority.
+
+Laser chase plan (needs sim-side item visibility, since 2.0 recordings
+have no item frames): dump the sim's laser spawn position/velocity and
+both fighters' positions/actions for frames −10..0 (runner trace →
+`tools/viewer/msltrace1.js`, or a `--diagnostic` detail dump), and compare
+the fighters' lanes with the recording — positions match to the frame
+before the hit in all four games, so the candidates are the laser's spawn
+offset/velocity on the 2020 build, or the dashing Fox's hurtbox placement. Admission unchanged: these run as `--diagnostic` until a game
 passes and gets a provenance record. Still to do on the branch: the laser
 chase (item 3), the `msl_batch_reinit`/`EnvBatch`/`Seed` declaration
 (rest of item 1), a sceneless-fixture test for upstreaming.
