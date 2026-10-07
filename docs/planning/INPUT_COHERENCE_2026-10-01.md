@@ -2015,6 +2015,15 @@ states, i.e. the learning-signal problem of the 10-05 verdict. Keep
 on coherence grounds (needs the ≥ 3-epoch replication the recipe got);
 the recovery lever is now lever 3 — attack the shortcut generally.
 
+**Replication (queue 21).** `dur8e_s906` (seed 906, 1 ep): val 3.22,
+fidelity **0.202**, repeat **0.776** / neutral **0.235** — the
+coherence/fidelity pass holds on a second seed (off3's seeds gave
+0.21–0.23 / 0.73 / 0.25). Recovery again unmoved: return 0.271, mismatch
+0.171, decided-trip return 0.366, deep-B stick-up 6/37, died with a jump
+left 26/142. Offstage map: deep j0 0.028, high j0 0.021, low j0 0.024
+(the dur8 gains persist on this seed too; age 1–3 0.044). `dur8e_e3`
+(3 ep) pending.
+
 Note on the Q7 teacher-forced floor for duration arms (dur8 0.078, dur16
 0.097 in the −20..−60 j0 band vs off3's 0.05): Q7 scores the per-frame
 head on every frame, but a duration checkpoint is only trained at
