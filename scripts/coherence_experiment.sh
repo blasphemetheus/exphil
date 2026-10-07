@@ -40,24 +40,29 @@ fi
 #   recovery_probe  (10-05) teacher-forced: stick-up event / B hazard by stick zone / y ablation
 #   edge_probe      (10-05) teacher-forced: walk-off hazards near the edge + x/facing ablation
 evals=${EVALS:-coherence closed_loop recovery calibration fidelity recovery_means recovery_probe edge_probe}
+# EVAL_ABLATE=1 (10-07): run every closed-loop eval with the prev-action channel
+# zeroed live. Paired with --prev-action --prev-action-dropout 1.0 at training
+# this is the "no prev-action" arm INSIDE the event recipe (the event heads
+# require use_prev_action, so the channel cannot simply be omitted).
+ablate=(); [ "${EVAL_ABLATE:-0}" = 1 ] && ablate=(--ablate-prev-action)
 want() { case " $evals " in *" $1 "*) return 0;; *) return 1;; esac; }
 policy=$ckpt/model_best_policy.bin
 grep -o 'val_loss=[0-9.]*' "$out/train.log" | tail -1
 
 if want coherence; then
-  $run scripts/offline_input_coherence.exs --policy "$policy" --label "$name" --games 3 \
+  $run scripts/offline_input_coherence.exs --policy "$policy" --label "$name" --games 3 "${ablate[@]}" \
     --split "$ckpt/split.json" --out "$out/coherence.json" > "$out/coherence.log" 2>&1
   grep RESULT "$out/coherence.log" | sed 's/^\[[0-9:]*\] //'
 fi
 
 if want closed_loop; then
-  $run scripts/sim_closed_loop.exs --policy "$policy" --label "$name" --envs 32 --frames 1800 \
+  $run scripts/sim_closed_loop.exs --policy "$policy" --label "$name" --envs 32 --frames 1800 "${ablate[@]}" \
     --out "$out/closed_loop.json" > "$out/closed_loop.log" 2>&1
   grep RESULT "$out/closed_loop.log" | sed 's/^\[[0-9:]*\] //'
 fi
 
 if want recovery; then
-  $run scripts/recovery_drill.exs --policy "$policy" --label "$name" --out "$out/recovery.json" > "$out/recovery.log" 2>&1
+  $run scripts/recovery_drill.exs --policy "$policy" --label "$name" "${ablate[@]}" --out "$out/recovery.json" > "$out/recovery.log" 2>&1
   grep RESULT "$out/recovery.log" | sed 's/^\[[0-9:]*\] //'
 fi
 
@@ -73,12 +78,12 @@ elif want calibration; then
 fi
 
 if want fidelity; then
-  $run scripts/fidelity_scorecard.exs --policy "$policy" --label "$name" --envs 32 --frames 3600 \
+  $run scripts/fidelity_scorecard.exs --policy "$policy" --label "$name" --envs 32 --frames 3600 "${ablate[@]}" \
     --seeds "${FIDELITY_SEEDS:-1001,1002,1003}" --out "$out/fidelity.json" > "$out/fidelity.log" 2>&1
   grep RESULT "$out/fidelity.log" | sed 's/^\[[0-9:]*\] //'
 fi
 if want recovery_means; then
-  $run scripts/recovery_means.exs --policy "$policy" --label "$name" --out "$out/recovery_means.json" > "$out/recovery_means.log" 2>&1
+  $run scripts/recovery_means.exs --policy "$policy" --label "$name" "${ablate[@]}" --out "$out/recovery_means.json" > "$out/recovery_means.log" 2>&1
   grep RESULT "$out/recovery_means.log" | sed 's/^\[[0-9:]*\] //'
 fi
 

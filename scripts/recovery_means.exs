@@ -21,7 +21,8 @@ alias ExPhil.Training.{Checkpoint, Output}
 {opts, files, bad} =
   OptionParser.parse(System.argv(),
     strict: [policy: :string, label: :string, reference: :string, opponent: :string, envs: :integer,
-             frames: :integer, seeds: :string, stateful_step: :boolean, bot_port: :integer, min_bytes: :integer, out: :string])
+             frames: :integer, seeds: :string, stateful_step: :boolean, ablate_prev_action: :boolean,
+             bot_port: :integer, min_bytes: :integer, out: :string])
 if bad != [], do: raise("invalid options: #{inspect(bad)}")
 
 ref = (opts[:reference] || "eval_runs/1002_fidelity/expert_recovery_means_fd.json") |> File.read!() |> Jason.decode!()
@@ -77,7 +78,9 @@ episodes =
     end
 
     Output.config([{"Policy", policy}, {"Opponent", opts[:opponent] || "self"}, {"Envs x frames", "#{n} x #{frames}"}, {"Seeds", inspect(seeds)}])
-    actor_opts = [stateful_step: opts[:stateful_step] || false]
+    # --ablate-prev-action: zero the prev-action channel live (the no-prev-action
+    # arm within the event recipe = trained with dropout 1.0, evaluated ablated)
+    actor_opts = [stateful_step: opts[:stateful_step] || false, ablate_prev_action: opts[:ablate_prev_action] || false]
     actor = start_agent.(policy, actor_opts)
     opponent =
       case opts[:opponent] do
