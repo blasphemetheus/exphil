@@ -2179,3 +2179,47 @@ aim lane); offstage aerial hazard ≤ 2× expert. The death-shape
 decomposition becomes a derived view of this table. Written and
 parse-checked; compile + tests + expert map at the first `mix` gap (the
 scorecard guards on `Code.ensure_loaded?` so the running queue is safe).
+
+Calibration note (17:10, from the 3-frame trace version of the table,
+`scripts/recovery_jump_hazard.js`, all offstage episodes): the expert's
+slope is **8.7** (6 → 39 → 52 %), the arms' 2.2–5.3 — so "slope ≥ 2" is
+too loose a bar; the ledge-band denominator is tiny for everyone. Carry
+the **absolute mid-depth hazard** instead: jump hazard at −20..−40 and
+−40..−60 ≥ 30 % (expert 39/52, every arm 9–24). Recalibrate once the
+compiled per-frame map has the expert reference.
+
+### 10-07 17:10 — `w240` read (queue 23): context is not the lever; a trade
+
+Window 240 on the dur8e recipe, 1 ep, seed 905, vs its header (return
+≥ 0.37 with repeat 0.70–0.80 / neutral 0.22–0.33 / fidelity ≤ 0.21;
+deep-B stick-up > 35 %, dies-with-jump < 20 % = the decision moved):
+
+| | dur8e (w80) | dur8e_e3 | **w240** | header |
+|---|---|---|---|---|
+| val | 3.09 | 3.064 | 3.252 | — |
+| fidelity | 0.191 | 0.175 | **0.219** | ≤ 0.21 ✗ |
+| repeat / neutral | 0.777 / 0.296 | 0.759 / 0.221 | 0.755 / **0.196** | band ✗ (neutral) |
+| return | 0.23 | 0.338 | 0.34 | ≥ 0.37 ✗ |
+| offstage age 1–3 enter-silence | ~0.03 | — | 0.031 (×2.4) | — |
+| deep B onsets stick-up | 17–35 % | — | **4/60 = 7 %** | > 35 % ✗ |
+| died with a jump left | 26–30 % | — | **21/129 = 16 %** | < 20 % ✓ |
+| never special / passive Fall | — | — | 48 % / 27 % | expert 30 / 6 |
+| Firefox aimed toward / started high | — | — | 23 % / 86 % | expert 80 / 26 |
+| jump hazard −20..−40 / −40..−60 | 11 / 9 % | 18 / 21 % | 14 / 17 % | expert 39 / 52 |
+
+Return 0.34 is above dur8e's 1-ep 0.23 and level with e3, but it comes
+with the coherence band broken (neutral 0.196 — the longer window
+makes the bot *busier*, not more expert-like; fidelity 0.219) and the
+recovery decisions unchanged: deep B is now **stick-down 54 / side 35 /
+up 10** of 118 onsets (shine and Illusion offstage, the worst
+stick-up share of any arm), Firefox starts high and aims away half the
+time. The one header number that moved — dies with a jump left 16 % —
+moved for the wrong reason: the bot spends the jump early (hazard flat
+at 14–20 % down to < −60, slope 2.4) and still dies. **Q8** (teacher
+forced): model P(press) on expert-press frames 0.016 → 0.026 → 0.042 →
+0.053 by height vs expert hazard 0.009 → 0.010 → 0.084 → 0.087 — a
+rising column, about 1/2 of the expert's rise, so the head *learns a
+weak version* of the height conditioning and the loop flattens it
+further (same shape as the enter-silence hazard). Verdict: **w240 is a
+trade, not a win**; the recovery is not window-limited (an 80-frame
+window already covers the decision band). Not a port-recipe change.
