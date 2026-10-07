@@ -7,6 +7,12 @@
 // 2026-10-06 read: expert deep B onsets are stick-up 81 %, every arm 17–35 %;
 // expert dies with a jump left 7 %, arms 26–30 %. The duration arms did not
 // move either number.
+// 2026-10-07 decomposition (all died episodes, incl. carried-off): stick
+// toward/away the stage offstage, never used a special, jump used, ended in
+// an aerial vs passive Fall, Firefox aim (toward/away/up) and start depth.
+// pd15 read: the copy-shortcut family (silent holds, direction, Firefox aim
+// and depth) moves; "never commits to a special" (55 % vs expert 30 %) and
+// the double jump (72 % vs 91 %, identical across every arm) do not.
 const fs = require("fs");
 const dir = (sx, sy) => {
   const dx = sx - 0.5, dy = sy - 0.5;
@@ -43,6 +49,30 @@ function shape(eps, label) {
   console.log(`  input changes per died trip q25/50/75: ${q(changes)}  trailing identical-input frames before death q: ${q(tailSilent)}`);
   console.log(`  died holding neutral+no buttons: ${endsSilent}/${died.length}  died with a jump left: ${deadWithJump}/${died.length}`);
   console.log(`  B onsets in died trips by stick dir: ${JSON.stringify(bdir)}  below y-40: ${bAnyDeep}, stick up ${bUpDeep}`);
+  decompose(eps);
+}
+function decompose(eps) {
+  const died = eps.filter(e => e.outcome === "died" && e.trace && e.trace.length > 1);
+  let away = 0, toward = 0, tot = 0, neverSpecial = 0, usedJump = 0, fire = 0, fireAway = 0, fireToward = 0, fireUp = 0, fireDeep = 0, fireHigh = 0, endAttack = 0, endFall = 0;
+  for (const e of died) {
+    const t = e.trace, side = Math.sign(t[0][1] || 1);
+    for (const r of t) if (Math.abs(r[1]) > 85) { tot++; const dx = r[4] - 0.5; if (dx * side > 0.25) away++; else if (dx * side < -0.25) toward++; }
+    const la = t[t.length - 1][0];
+    if ([65, 66, 67, 68, 69].includes(la)) endAttack++;
+    if ([29, 32].includes(la)) endFall++;
+    const sp = t.findIndex(r => r[0] >= 341);
+    if (sp < 0) neverSpecial++;
+    if (la === 35 && sp >= 0 && !(t[sp][0] >= 365 && t[sp][0] <= 368)) {
+      fire++; if (t[sp][2] < -40) fireDeep++; if (t[sp][2] > -10) fireHigh++;
+      let best = null, bm = 0;
+      for (const r of t.slice(sp, sp + 7)) { const dx = r[4] - 0.5, dy = r[5] - 0.5, m = Math.hypot(dx, dy); if (m > bm) { bm = m; best = [dx, dy]; } }
+      if (best) { if (best[0] * side > 0.2) fireAway++; else if (best[0] * side < -0.2) fireToward++; else fireUp++; }
+    }
+    if (t.some(r => r[8] === 0)) usedJump++;
+  }
+  const pct = (a, b) => b ? (100 * a / b).toFixed(0) + "%" : "-";
+  console.log(`  all died ${died.length}: stick toward ${pct(toward, tot)} away ${pct(away, tot)} | never special ${pct(neverSpecial, died.length)} | jump used ${pct(usedJump, died.length)} | ended attacking ${pct(endAttack, died.length)} passive Fall ${pct(endFall, died.length)}`);
+  console.log(`  Firefox deaths ${fire}: aimed toward ${pct(fireToward, fire)} away ${pct(fireAway, fire)} up ${pct(fireUp, fire)} | started deep ${pct(fireDeep, fire)} high ${pct(fireHigh, fire)}`);
 }
 const ex = JSON.parse(fs.readFileSync("eval_runs/1002_fidelity/expert_recovery_means_fd_episodes.json"));
 shape(Array.isArray(ex) ? ex : ex.episodes, "expert (FD reference)");
