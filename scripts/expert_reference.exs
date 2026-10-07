@@ -7,17 +7,18 @@
 #   mix run scripts/expert_reference.exs [--split SPLIT.json] [--stage 32]
 #     [--max-games 150] [--character fox] [--out eval_runs/1002_fidelity/expert_fd.json]
 #     [--silence-map-out eval_runs/1002_fidelity/expert_silence_map_fd.json]
+#     [--decision-map-out eval_runs/1002_fidelity/expert_decision_map_fd.json]
 #
 # --silence-map-out also writes the expert ExPhil.Eval.SilenceMap (input-change
 # hazards by situation, with split-half hazards as the noise floor; 10-06).
 alias ExPhil.Data.Peppi
-alias ExPhil.Eval.{PlayStats, SilenceMap}
+alias ExPhil.Eval.{DecisionMap, PlayStats, SilenceMap}
 alias ExPhil.Sim.GA
 alias ExPhil.Training.Output
 
 {opts, _, bad} =
   OptionParser.parse(System.argv(),
-    strict: [split: :string, stage: :integer, max_games: :integer, character: :string, out: :string, silence_map_out: :string])
+    strict: [split: :string, stage: :integer, max_games: :integer, character: :string, out: :string, silence_map_out: :string, decision_map_out: :string])
 if bad != [], do: raise("invalid options: #{inspect(bad)}")
 
 split = (opts[:split] || "checkpoints/coh_base/split.json") |> File.read!() |> Jason.decode!()
@@ -57,7 +58,7 @@ per_game =
       |> Peppi.to_training_frames(player_port: own.port, opponent_port: opp.port)
       |> Enum.reject(&(&1.game_state.frame < 0))
       |> Enum.map(&%{own: &1.game_state.players[own.port], opp: &1.game_state.players[opp.port], controller: &1.controller})
-      |> then(fn frames -> {PlayStats.from_game(frames, edge), SilenceMap.from_game(frames, stage: stage, edge: edge)} end)
+      |> then(fn frames -> {PlayStats.from_game(frames, edge), SilenceMap.from_game(frames, stage: stage, edge: edge), DecisionMap.from_game(frames, edge: edge)} end)
     end,
     max_concurrency: 8,
     timeout: 300_000
@@ -65,6 +66,7 @@ per_game =
   |> Enum.map(fn {:ok, s} -> s end)
 
 silence_games = Enum.map(per_game, &elem(&1, 1))
+decision_games = Enum.map(per_game, &elem(&1, 2))
 per_game = Enum.map(per_game, &elem(&1, 0))
 
 total = Enum.reduce(per_game, PlayStats.empty(), &PlayStats.merge/2)
@@ -103,4 +105,20 @@ if sm_out = opts[:silence_map_out] do
   Output.puts("RESULT expert silence map enter_silence by state: " <>
     Enum.map_join(states, "  ", fn {k, v} -> "#{k} #{v.enter_silence} (n=#{v.active})" end))
   Output.success("wrote #{sm_out}")
+end
+
+# --decision-map-out: the expert ExPhil.Eval.DecisionMap (recovery-decision
+# onset hazards by height band × jumps left, 10-07), with split halves.
+if dm_out = opts[:decision_map_out] do
+  pool = fn games -> games |> Enum.reduce(DecisionMap.empty(), &DecisionMap.merge/2) |> DecisionMap.summarize() end
+  {ga, gb} = decision_games |> Enum.with_index() |> Enum.split_with(fn {_, i} -> rem(i, 2) == 0 end)
+  all = pool.(decision_games)
+  File.write!(dm_out, Jason.encode!(%{character: char, stage: stage, games: length(decision_games), summary: all,
+    slope: Map.new(DecisionMap.decisions(), fn d -> {d, DecisionMap.slope(all, String.to_atom(d))} end),
+    halves: [pool.(Enum.map(ga, &elem(&1, 0))), pool.(Enum.map(gb, &elem(&1, 0)))]}, pretty: true))
+  Output.puts("RESULT expert decision map jump hazard by bucket: " <>
+    Enum.map_join(Enum.sort(all), "  ", fn {k, v} -> "#{k} #{v.jump} (n=#{v.frames})" end))
+  Output.puts("RESULT expert decision map height slope (-40..-60 / 0..-20, jump in hand): " <>
+    Enum.map_join(~w(jump special_up aerial airdodge), "  ", fn d -> "#{d} #{inspect(DecisionMap.slope(all, String.to_atom(d)))}" end))
+  Output.success("wrote #{dm_out}")
 end

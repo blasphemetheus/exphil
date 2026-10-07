@@ -11,6 +11,7 @@
 #     [--reference eval_runs/1002_fidelity/expert_fd.json] [--opponent self|idle|POLICY]
 #     [--envs 32] [--frames 3600] [--seeds 1001,1002,1003] [--stateful-step]
 #     [--ablate-prev-action] [--out FILE.json] [--silence-reference eval_runs/1002_fidelity/expert_silence_map_fd.json]
+#     [--decision-reference eval_runs/1002_fidelity/expert_decision_map_fd.json]
 #
 # Also writes silence_map.json beside --out: ExPhil.Eval.SilenceMap hazards by
 # situation, compared with the expert map (where the bot lets go; 10-06).
@@ -20,7 +21,10 @@
 # the sim is a Fox ditto vs the same policy. Own-input and own-movement
 # distributions transfer; damage/kill rates depend on the opponent.
 alias ExPhil.Agents.Agent
-alias ExPhil.Eval.{PlayStats, SilenceMap}
+alias ExPhil.Eval.{DecisionMap, PlayStats, SilenceMap}
+# The decision map (10-07) is a new lib module; a queue running this script with
+# --no-compile against an older _build must not fall over it.
+decision_map? = Code.ensure_loaded?(DecisionMap)
 alias ExPhil.Sim.{Env, Drill, GA}
 alias ExPhil.Training.{Checkpoint, Output}
 
@@ -28,7 +32,7 @@ alias ExPhil.Training.{Checkpoint, Output}
   OptionParser.parse(System.argv(),
     strict: [policy: :string, label: :string, reference: :string, opponent: :string, envs: :integer,
              frames: :integer, seeds: :string, stateful_step: :boolean, ablate_prev_action: :boolean, out: :string,
-             silence_reference: :string])
+             silence_reference: :string, decision_reference: :string])
 if bad != [], do: raise("invalid options: #{inspect(bad)}")
 
 policy = opts[:policy] || raise("--policy required")
@@ -113,7 +117,9 @@ rollout = fn seed ->
 
   # Where the bot lets go: input-change hazards by situation (SilenceMap, 10-06)
   silence = played |> Enum.map(&SilenceMap.from_game(&1, stage: 32, edge: edge)) |> Enum.reduce(SilenceMap.empty(), &SilenceMap.merge/2)
-  {stats, silence}
+  # What the bot decides offstage, by height (DecisionMap, 10-07)
+  decisions = if decision_map?, do: played |> Enum.map(&DecisionMap.from_game(&1, edge: edge)) |> Enum.reduce(DecisionMap.empty(), &DecisionMap.merge/2), else: %{}
+  {stats, silence, decisions}
 end
 
 # Fox-specific derived technique rates from the histograms
@@ -137,11 +143,11 @@ expert_struct = %{hists: expert["hists"]}
 runs =
   for seed <- seeds do
     t0 = System.monotonic_time(:millisecond)
-    {s, silence} = rollout.(seed)
+    {s, silence, decisions} = rollout.(seed)
     s = jsonify.(s)
     d = PlayStats.compare(%{hists: s["hists"]}, expert_struct)
     Output.puts("  seed #{seed}: #{s["rates"]["minutes"]} env-min in #{div(System.monotonic_time(:millisecond) - t0, 1000)} s")
-    %{rates: Map.merge(s["rates"], derived.(s)), dist: d, hists: s["hists"], silence: silence}
+    %{rates: Map.merge(s["rates"], derived.(s)), dist: d, hists: s["hists"], silence: silence, decisions: decisions}
   end
 
 stat = fn vals ->
@@ -196,6 +202,51 @@ if out = opts[:out] do
 end
 
 fmt_row = fn r -> "#{r.bucket} #{r.model}|#{r.expert} x#{r.ratio} (n=#{r.n})" end
+
+# Decision map (10-07): recovery-decision onset hazards by height band × jumps
+# left, all seeds pooled, against the expert map when the reference exists.
+# The jump slope (hazard at -40..-60 over 0..-20, jump in hand) is the
+# height-conditioning readout: expert ≈ 4, a flat head ≈ 1.
+if decision_map? do
+decision_counts = runs |> Enum.map(& &1.decisions) |> Enum.reduce(DecisionMap.empty(), &DecisionMap.merge/2)
+decision_model = DecisionMap.summarize(decision_counts)
+decision_ref_path = opts[:decision_reference] || "eval_runs/1002_fidelity/expert_decision_map_fd.json"
+
+decision_ref =
+  case File.read(decision_ref_path) do
+    {:ok, s} -> s |> Jason.decode!() |> Map.fetch!("summary") |> Map.new(fn {k, v} -> {k, Map.new(v, fn {a, b} -> {String.to_atom(a), b} end)} end)
+    _ -> nil
+  end
+
+decision_cmp =
+  if decision_ref,
+    do: Map.new(DecisionMap.decisions(), fn d -> {d, DecisionMap.compare(decision_model, decision_ref, decision: String.to_atom(d), min_n: 100)} end),
+    else: %{}
+
+if out = opts[:out] do
+  dm_out = Path.join(Path.dirname(out), "decision_map.json")
+  File.write!(dm_out, Jason.encode!(%{label: label, policy: policy, seeds: seeds, summary: decision_model,
+    slope: Map.new(DecisionMap.decisions(), fn d -> {d, DecisionMap.slope(decision_model, String.to_atom(d))} end),
+    reference: decision_ref && decision_ref_path, compare: decision_cmp}, pretty: true))
+end
+
+band_order = ~w(y>0 0..-20 -20..-40 -40..-60 <-60)
+by_band = fn rows -> rows |> Enum.filter(&String.ends_with?(&1.bucket, ":j1+")) |> Enum.sort_by(fn r -> Enum.find_index(band_order, &(&1 == String.replace_suffix(r.bucket, ":j1+", ""))) end) end
+slope_txt = fn d -> "#{d} #{inspect(DecisionMap.slope(decision_model, String.to_atom(d)))}|#{inspect(decision_ref && DecisionMap.slope(decision_ref, String.to_atom(d)))}" end
+Output.puts("RESULT #{label} decision map height slope (-40..-60 / 0..-20, jump in hand) model|expert: " <>
+  Enum.map_join(~w(jump special_up aerial airdodge), "  ", slope_txt))
+
+if decision_ref do
+  for d <- ~w(jump special_up special_side aerial airdodge) do
+    rows = by_band.(decision_cmp[d])
+    Output.puts("RESULT #{label} decision map #{d} hazard by height (jump in hand) model|expert xratio: " <> Enum.map_join(rows, "  ", fmt_row))
+  end
+else
+  Output.warning("no expert decision map at #{decision_ref_path} (run scripts/expert_reference.exs --decision-map-out); model-only summary written")
+end
+else
+  Output.warning("ExPhil.Eval.DecisionMap is not compiled into this build; decision map skipped (compile and rerun)")
+end
 
 if silence_ref do
   for {h, rows} <- silence_cmp do
