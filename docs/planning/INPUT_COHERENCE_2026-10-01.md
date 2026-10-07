@@ -2223,3 +2223,38 @@ weak version* of the height conditioning and the loop flattens it
 further (same shape as the enter-silence hazard). Verdict: **w240 is a
 trade, not a win**; the recovery is not window-limited (an 80-frame
 window already covers the decision band). Not a port-recipe change.
+
+### 10-07 17:30 — `mf9k` read (queue 23): 3× data makes the silent fall *worse*
+
+MAX_FILES=9000 on the dur8e recipe, 1 ep, seed 905 — the first point of
+the testbed data-scaling curve. Caveat first: the held-out slice and the
+expert reference band move with the file set (expert neutral here 0.371
+vs 0.303 on 3000 files; val 3.030 is on a different held-out), so the
+coherence numbers are read against *their own* expert column, not the
+w80 table.
+
+| | dur8e (3000) | **mf9k (9000)** | expert |
+|---|---|---|---|
+| fidelity | 0.191 | 0.218 | 0 |
+| repeat / neutral | 0.777 / 0.296 | 0.78 / 0.365 | 0.711 / 0.371 |
+| return | 0.23 | **0.258** | 0.911 |
+| offstage age 1–3 enter-silence | ~0.03 (×2.4) | **0.078 (×6.0)** | 0.013 |
+| died holding neutral+no buttons | ~50 % | **72/95 = 76 %** | 85 % (but *after* a full recovery attempt) |
+| died with a jump left | 26–30 % | **40/95 = 42 %** | 7 % |
+| never special / passive Fall | — | **53 % / 51 %** | 30 / 6 |
+| jump hazard −20..−40 / −40..−60 | 11 / 9 % | **5 / 13 %** | 39 / 52 |
+| input changes per died trip (median) | 9 | **6** | 17 |
+
+Everything in the copy-shortcut family moved the **wrong** way with 3×
+the data at the same recipe: the bot enters silence offstage six times
+as often as the expert on the first frames of a hold, half of its
+deaths are a passive Fall with nothing pressed, and the double jump is
+left in hand on 42 % of deaths. The decided-trip return is the lowest
+of any dur8e arm. Teacher-forced the head is *better* (Q8 press prob on
+expert-press frames 0.035 → 0.046 → 0.075 at low; val lower), which is
+the by-now familiar split: more imitation data sharpens the
+prev-action copy and the loop pays for it. Read next to full-scale v2
+(all files, prev-action, return 0.202): **the data-scaling curve on
+this recipe slopes down for recovery**. That is the strongest evidence
+yet that the port should not carry `--prev-action` as-is (lever 3), and
+it makes queue 24's `nopq` the deciding arm. Not a port-recipe change.
