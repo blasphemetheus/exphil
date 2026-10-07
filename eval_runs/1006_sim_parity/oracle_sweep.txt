@@ -1,0 +1,64 @@
+# melee-sim-light @ 330d0a3c + validator_sceneless_experiment.patch; MSL_DECLARED_SCENE_MAJOR=8; validator --diagnostic
+== ucf_cardinals=1 ucf_shield_drop_084=1
+FAIL            90/11,456  /home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/13_02_35 Marth + Fox (FD).slp
+      mismatch_rows=11,366 prefix=90 suffix=0 first=-32 last=11333 fields=221,718 fingerprint=7293e64a2460423a
+      frame=-32 pos_x[0]: expected=-58.4407501 (0xc269c354) actual=-58.4399986 (0xc269c28f)
+      frame=6 shield_hp[1]: expected=59.1600037 (0x426ca3d8) actual=59.2300034 (0x426ceb86)
+      frame=27 percent[0]: expected=0 (0x00000000) actual=3 (0x40400000)
+FAIL           119/13,159  /home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/00_41_46 [SM] Falco + Fox (FD).slp
+      mismatch_rows=13,040 prefix=119 suffix=0 first=-3 last=13036 fields=297,403 fingerprint=bf47d757de75aa33
+      frame=-3 pos_x[0]: expected=-13.918746 (0xc15eb32f) actual=-13.9199953 (0xc15eb84d)
+      frame=-1 action_id[1]: expected=20 actual=75
+      frame=-1 action_frame[1]: expected=2 actual=1
+FAIL           105/8,838   /home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/00_51_07 [RUDE] Marth + Fox (FD).slp
+      mismatch_rows=8,733 prefix=105 suffix=0 first=-17 last=8715 fields=207,826 fingerprint=16ae77c0c3313942
+      frame=-17 pos_x[0]: expected=-33.8242378 (0xc2074c05) actual=-33.8227348 (0xc2074a7b)
+      frame=-3 percent[0]: expected=0 (0x00000000) actual=3 (0x40400000)
+      frame=-3 last_attack_landed[1]: expected=0 actual=18
+FAIL           117/9,762   /home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/01_06_10 [=3] Falco + [JAKE] Fox (FD).slp
+      mismatch_rows=9,645 prefix=117 suffix=0 first=-5 last=9639 fields=232,208 fingerprint=37c75167a00d2773
+      frame=-5 pos_x[0]: expected=-16.7787437 (0xc1863ade) actual=-16.779995 (0xc1863d6e)
+      frame=0 action_id[1]: expected=42 actual=75
+      frame=0 action_frame[1]: expected=3 actual=1
+== ucf_cardinals=0 ucf_shield_drop_084=1
+FAIL         1,808/11,456  /home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/13_02_35 Marth + Fox (FD).slp
+      mismatch_rows=9,648 prefix=128 suffix=0 first=6 last=11333 fields=218,070 fingerprint=224fb26aa0b8f7fc
+      frame=6 shield_hp[1]: expected=59.1600037 (0x426ca3d8) actual=59.2300034 (0x426ceb86)
+      frame=27 percent[0]: expected=0 (0x00000000) actual=3 (0x40400000)
+      frame=27 last_attack_landed[1]: expected=0 actual=18
+FAIL         3,452/13,159  /home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/00_41_46 [SM] Falco + Fox (FD).slp
+      mismatch_rows=9,707 prefix=121 suffix=0 first=-1 last=13036 fields=219,937 fingerprint=92a50e619b5c4cbd
+      frame=-1 action_id[1]: expected=20 actual=75
+      frame=-1 action_frame[1]: expected=2 actual=1
+      frame=-1 percent[1]: expected=0 (0x00000000) actual=3 (0x40400000)
+FAIL         6,827/8,838   /home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/00_51_07 [RUDE] Marth + Fox (FD).slp
+      mismatch_rows=2,011 prefix=120 suffix=169 first=-2 last=8546 fields=2,861 fingerprint=f3d87f8ec14921ba
+      frame=-2 percent[0]: expected=0 (0x00000000) actual=3 (0x40400000)
+      frame=-2 last_attack_landed[1]: expected=0 actual=18
+      frame=-2 combo_count[1]: expected=0 actual=1
+FAIL         7,455/9,762   /home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/01_06_10 [=3] Falco + [JAKE] Fox (FD).slp
+      mismatch_rows=2,307 prefix=122 suffix=23 first=0 last=9616 fields=3,483 fingerprint=3120ffba6a2432ff
+      frame=0 action_id[1]: expected=42 actual=75
+      frame=0 action_frame[1]: expected=3 actual=1
+      frame=0 percent[1]: expected=0 (0x00000000) actual=3 (0x40400000)
+== ucf_cardinals=0 ucf_shield_drop_084=0
+FAIL         1,808/11,456  /home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/13_02_35 Marth + Fox (FD).slp
+      mismatch_rows=9,648 prefix=128 suffix=0 first=6 last=11333 fields=218,070 fingerprint=224fb26aa0b8f7fc
+      frame=6 shield_hp[1]: expected=59.1600037 (0x426ca3d8) actual=59.2300034 (0x426ceb86)
+      frame=27 percent[0]: expected=0 (0x00000000) actual=3 (0x40400000)
+      frame=27 last_attack_landed[1]: expected=0 actual=18
+FAIL        10,522/13,159  /home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/00_41_46 [SM] Falco + Fox (FD).slp
+      mismatch_rows=2,637 prefix=121 suffix=20 first=-1 last=13016 fields=4,021 fingerprint=2984517bc6cd8323
+      frame=-1 action_id[1]: expected=20 actual=75
+      frame=-1 action_frame[1]: expected=2 actual=1
+      frame=-1 percent[1]: expected=0 (0x00000000) actual=3 (0x40400000)
+FAIL         6,827/8,838   /home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/00_51_07 [RUDE] Marth + Fox (FD).slp
+      mismatch_rows=2,011 prefix=120 suffix=169 first=-2 last=8546 fields=2,861 fingerprint=f3d87f8ec14921ba
+      frame=-2 percent[0]: expected=0 (0x00000000) actual=3 (0x40400000)
+      frame=-2 last_attack_landed[1]: expected=0 actual=18
+      frame=-2 combo_count[1]: expected=0 actual=1
+FAIL         7,455/9,762   /home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/01_06_10 [=3] Falco + [JAKE] Fox (FD).slp
+      mismatch_rows=2,307 prefix=122 suffix=23 first=0 last=9616 fields=3,483 fingerprint=3120ffba6a2432ff
+      frame=0 action_id[1]: expected=42 actual=75
+      frame=0 action_frame[1]: expected=3 actual=1
+      frame=0 percent[1]: expected=0 (0x00000000) actual=3 (0x40400000)

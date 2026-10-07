@@ -1,0 +1,287 @@
+diff --git a/tools/validation/native.c b/tools/validation/native.c
+index da6b19ca..365a7f02 100644
+--- a/tools/validation/native.c
++++ b/tools/validation/native.c
+@@ -131,6 +131,7 @@ typedef struct ReplayView {
+   int64_t raw_length;
+   Primitive frame_id;
+   Primitive frame_seed;
++  int frame_seed_missing; // experiment: no FrameStart event (Slippi < 2.2)
+   const struct ArrowArray* item_list;
+   ReplayItem item;
+   const struct ArrowArray* fod_platform_list;
+@@ -312,6 +313,9 @@ static inline uint16_t get_u16(const Primitive* p, int64_t i) {
+   return ((const uint16_t*)(const void*)p->data)[p->offset + i];
+ }
+ 
++struct ReplayView;
++struct FrameRows;
++static uint32_t frame_seed_at(const struct ReplayView* replay, const struct FrameRows* rows, int64_t logical_pos);
+ static inline uint32_t get_u32(const Primitive* p, int64_t i) {
+   return ((const uint32_t*)(const void*)p->data)[p->offset + i];
+ }
+@@ -374,14 +378,19 @@ static int parse_start(PyObject* start, ReplayView* replay) {
+   }
+   scene = PyDict_GetItemString(start, "scene");
+   value = scene != NULL && PyDict_Check(scene) ? PyDict_GetItemString(scene, "major") : NULL;
+-  if (value == NULL || !PyLong_Check(value)) {
+-    PyErr_SetString(PyExc_ValueError, "replay start scene major is missing");
+-    return -1;
++  {
++    long scene_major;
++    const char* declared = getenv("MSL_DECLARED_SCENE_MAJOR");
++    if (value != NULL && PyLong_Check(value)) {
++      scene_major = PyLong_AsLong(value);
++    } else if (declared != NULL) {
++      scene_major = strtol(declared, NULL, 10);
++    } else {
++      PyErr_SetString(PyExc_ValueError, "replay start scene major is missing");
++      return -1;
++    }
++    replay->online_fnmsubs_zero = scene_major == 8;
+   }
+-  // Scene major 8 proves that the Slippi online code set, including
+-  // BrawlOffscreenDamage, owns this match.
+-  // refs/slippi-ssbm-asm/Output/InjectionLists/list_netplay.json
+-  replay->online_fnmsubs_zero = PyLong_AsLong(value) == 8;
+   replay->brawl_offscreen_damage = replay->online_fnmsubs_zero;
+   replay->freeze_dead_up_fall_physics = replay->online_fnmsubs_zero;
+   replay->whispy_dead_fighter_fix = replay->online_fnmsubs_zero;
+@@ -557,12 +566,42 @@ static int msl_set_fnmsubs_profile(ReplayView* replay, const char* profile) {
+   return 0;
+ }
+ 
++// experiment: names of compare specs whose source column the recording lacks
++static char g_skip_specs[32][40];
++static int g_n_skip = 0;
++static uint8_t g_zero_column[1 << 20]; // zero stand-in for an absent column
++static void skip_spec(const char* name) {
++  for (int i = 0; i < g_n_skip; ++i) if (strcmp(g_skip_specs[i], name) == 0) return;
++  if (g_n_skip < 32) { strncpy(g_skip_specs[g_n_skip], name, 39); g_skip_specs[g_n_skip][39] = 0; g_n_skip++; }
++}
++static int spec_skipped(const char* name) {
++  for (int i = 0; i < g_n_skip; ++i) if (strcmp(g_skip_specs[i], name) == 0) return 1;
++  return 0;
++}
++static int optional_era_field(ArrowNode parent, const char* name, const char* format, Primitive* target,
++                              const char* spec_name, char* error, size_t error_size) {
++  if (primitive_child(parent, name, format, target, error, error_size) == 0) return 0;
++  if (getenv("MSL_DECLARED_SCENE_MAJOR") == NULL) return -1;
++  error[0] = 0;
++  target->validity = NULL;
++  target->data = g_zero_column;
++  target->offset = 0;
++  skip_spec(spec_name);
++  return 0;
++}
++
+ static int load_post_fields(ArrowNode post, ReplayPlayer* player, char* error,
+                             size_t error_size) {
+   ArrowNode node;
+   ArrowNode flags;
+   ArrowNode velocities;
+   int k;
++#define OPT_FIELD(PARENT, NAME, FORMAT, TARGET, SPEC_NAME)                                        \
++  do {                                                                                            \
++    if (optional_era_field((PARENT), (NAME), (FORMAT), &(TARGET), (SPEC_NAME), error, error_size) != 0) { \
++      return -1;                                                                                  \
++    }                                                                                             \
++  } while (0)
+ #define FIELD(PARENT, NAME, FORMAT, TARGET)                                               \
+   do {                                                                                    \
+     if (primitive_child((PARENT), (NAME), (FORMAT), &(TARGET), error, error_size) != 0) { \
+@@ -585,10 +624,10 @@ static int load_post_fields(ArrowNode post, ReplayPlayer* player, char* error,
+   FIELD(post, "ground", "S", player->ground);
+   FIELD(post, "jumps", "C", player->jumps);
+   FIELD(post, "l_cancel", "C", player->l_cancel);
+-  FIELD(post, "hurtbox_state", "C", player->hurtbox);
+-  FIELD(post, "hitlag", "f", player->hitlag);
+-  FIELD(post, "misc_as", "f", player->misc_as);
+-  FIELD(post, "animation_index", "I", player->animation_index);
++  OPT_FIELD(post, "hurtbox_state", "C", player->hurtbox, "hurtbox_state");
++  OPT_FIELD(post, "hitlag", "f", player->hitlag, "hitlag");
++  OPT_FIELD(post, "misc_as", "f", player->misc_as, "hitstun");
++  OPT_FIELD(post, "animation_index", "I", player->animation_index, "animation_index");
+   {
+     ArrowNode value;
+     int present = node_child_optional(post, "last_hit_by_instance", &value, error, error_size);
+@@ -612,22 +651,29 @@ static int load_post_fields(ArrowNode post, ReplayPlayer* player, char* error,
+       player->instance_id_present = 1;
+     }
+   }
+-  FIELD(post, "last_attack_landed", "C", player->last_attack);
+-  FIELD(post, "combo_count", "C", player->combo_count);
+-  FIELD(post, "last_hit_by", "C", player->last_hit_by);
+-  if (node_child(post, "state_flags", &flags, error, error_size) != 0 ||
+-      node_child(post, "velocities", &velocities, error, error_size) != 0) {
++  OPT_FIELD(post, "last_attack_landed", "C", player->last_attack, "last_attack_landed");
++  OPT_FIELD(post, "combo_count", "C", player->combo_count, "combo_count");
++  OPT_FIELD(post, "last_hit_by", "C", player->last_hit_by, "last_hit_by");
++  if (node_child(post, "state_flags", &flags, error, error_size) != 0) {
+     return -1;
+   }
+   for (k = 0; k < MSL_CORE_STATE_FLAGS_BYTES; ++k) {
+     char name[2] = {(char)('0' + k), '\0'};
+     FIELD(flags, name, "C", player->state_flags[k]);
+   }
+-  FIELD(velocities, "self_x_air", "f", player->speed_air_x);
+-  FIELD(velocities, "self_x_ground", "f", player->speed_ground_x);
+-  FIELD(velocities, "self_y", "f", player->speed_y);
+-  FIELD(velocities, "knockback_x", "f", player->speed_x_attack);
+-  FIELD(velocities, "knockback_y", "f", player->speed_y_attack);
++  if (node_child(post, "velocities", &velocities, error, error_size) != 0) {
++    if (getenv("MSL_DECLARED_SCENE_MAJOR") == NULL) return -1;
++    error[0] = 0;
++    Primitive* vs[5] = {&player->speed_air_x, &player->speed_ground_x, &player->speed_y, &player->speed_x_attack, &player->speed_y_attack};
++    const char* names[5] = {"speed_air_x_self", "speed_ground_x_self", "speed_y_self", "speed_x_attack", "speed_y_attack"};
++    for (k = 0; k < 5; ++k) { vs[k]->validity = NULL; vs[k]->data = g_zero_column; vs[k]->offset = 0; skip_spec(names[k]); }
++  } else {
++    FIELD(velocities, "self_x_air", "f", player->speed_air_x);
++    FIELD(velocities, "self_x_ground", "f", player->speed_ground_x);
++    FIELD(velocities, "self_y", "f", player->speed_y);
++    FIELD(velocities, "knockback_x", "f", player->speed_x_attack);
++    FIELD(velocities, "knockback_y", "f", player->speed_y_attack);
++  }
+ #undef FIELD
+   return 0;
+ }
+@@ -862,14 +908,28 @@ static int load_replay(ArrowNode frames, ReplayView* replay, char* error, size_t
+     return -1;
+   }
+   replay->raw_length = frames.array->length;
+-  if (primitive_child(frames, "id", "i", &replay->frame_id, error, error_size) != 0 ||
+-      node_child(frames, "start", &start, error, error_size) != 0 ||
+-      primitive_child(start, "random_seed", "I", &replay->frame_seed, error, error_size) != 0 ||
+-      node_child(frames, "ports", &ports, error, error_size) != 0 ||
+-      node_child(frames, "item", &items, error, error_size) != 0) {
++  if (primitive_child(frames, "id", "i", &replay->frame_id, error, error_size) != 0) {
++    return -1;
++  }
++  replay->frame_seed_missing = 0;
++  if (node_child(frames, "start", &start, error, error_size) != 0 ||
++      primitive_child(start, "random_seed", "I", &replay->frame_seed, error, error_size) != 0) {
++    if (getenv("MSL_DECLARED_SCENE_MAJOR") == NULL) {
++      return -1;
++    }
++    replay->frame_seed_missing = 1;
++    error[0] = 0;
++  }
++  if (node_child(frames, "ports", &ports, error, error_size) != 0) {
+     return -1;
+   }
+-  if (load_items(items, replay, error, error_size) != 0) {
++  replay->item_list = NULL;
++  if (node_child(frames, "item", &items, error, error_size) != 0) {
++    if (!replay->frame_seed_missing) {
++      return -1;
++    }
++    error[0] = 0; // experiment: pre-3.0 recording, no item frames
++  } else if (load_items(items, replay, error, error_size) != 0) {
+     return -1;
+   }
+   if (load_stage_events(frames, replay, error, error_size) != 0) {
+@@ -1070,6 +1130,20 @@ static void build_input(const ReplayView* replay, const FrameRows* rows, int64_t
+   }
+ }
+ 
++// FrameStart seed, or (sceneless experiment) the first present player's
++// pre-frame seed when the recording predates FrameStart events.
++static uint32_t frame_seed_at(const ReplayView* replay, const FrameRows* rows, int64_t logical_pos) {
++  if (!replay->frame_seed_missing) {
++    return get_u32(&replay->frame_seed, rows->raw[logical_pos]);
++  }
++  for (int player = 0; player < replay->num_players; ++player) {
++    if (rows->player_present[player][logical_pos]) {
++      return get_u32(&replay->players[player].random_seed, rows->player_raw[player][logical_pos]);
++    }
++  }
++  return 0;
++}
++
+ static int build_match_config(const ReplayView* replay, const FrameRows* rows,
+                               int ucf_cardinals_1_0_enabled, int ucf_shield_sdi_enabled,
+                               int ucf_sdi_enabled, int ucf_shield_drop_extended_enabled,
+@@ -1098,7 +1172,7 @@ static int build_match_config(const ReplayView* replay, const FrameRows* rows,
+   // Slippi records RNG before the frame's source callbacks. A fresh match
+   // runs row 0 as its hidden warm-up and advances this seed naturally.
+   // refs/slippi-ssbm-asm/Recording/SendFrameStart.s
+-  config->frame_pre_random_seed = get_u32(&replay->frame_seed, rows->raw[0]);
++  config->frame_pre_random_seed = frame_seed_at(replay, rows, 0);
+   // Game info captures the seed restored before stage construction; it is
+   // distinct from online frame seeds.
+   // refs/slippi-ssbm-asm/{Recording/SendGameInfo.asm,
+@@ -1112,6 +1186,15 @@ static int build_match_config(const ReplayView* replay, const FrameRows* rows,
+   config->brawl_offscreen_damage = replay->brawl_offscreen_damage;
+   config->freeze_dead_up_fall_physics = replay->freeze_dead_up_fall_physics;
+   config->whispy_dead_fighter_fix = replay->whispy_dead_fighter_fix;
++  {
++    const char* e;
++    if ((e = getenv("MSL_UCF_CARDINALS")) != NULL) ucf_cardinals_1_0_enabled = atoi(e);
++    if ((e = getenv("MSL_UCF_SHIELD_SDI")) != NULL) ucf_shield_sdi_enabled = atoi(e);
++    if ((e = getenv("MSL_UCF_SDI")) != NULL) ucf_sdi_enabled = atoi(e);
++    if ((e = getenv("MSL_UCF_SHIELD_DROP_EXT")) != NULL) ucf_shield_drop_extended_enabled = atoi(e);
++    if ((e = getenv("MSL_UCF_SHIELD_DROP_084")) != NULL) ucf_shield_drop_084_enabled = atoi(e);
++    if ((e = getenv("MSL_FNMSUBS")) != NULL) config->online_fnmsubs_zero = strcmp(e, "dolphin-legacy") == 0;
++  }
+   config->ucf_cardinals_1_0_enabled = (uint8_t)ucf_cardinals_1_0_enabled;
+   config->ucf_shield_sdi_enabled = (uint8_t)ucf_shield_sdi_enabled;
+   config->ucf_sdi_enabled = (uint8_t)ucf_sdi_enabled;
+@@ -1209,11 +1292,11 @@ static int64_t list_count(const struct ArrowArray* list, int64_t raw) {
+ }
+ 
+ static int64_t item_range_start(const ReplayView* replay, int64_t raw) {
+-  return list_range_start(replay->item_list, raw);
++  return replay->item_list == NULL ? 0 : list_range_start(replay->item_list, raw);
+ }
+ 
+ static int64_t item_count(const ReplayView* replay, int64_t raw) {
+-  return list_count(replay->item_list, raw);
++  return replay->item_list == NULL ? 0 : list_count(replay->item_list, raw);
+ }
+ 
+ static void build_expected(const ReplayView* replay, const FrameRows* rows, int64_t logical_pos,
+@@ -1223,7 +1306,7 @@ static void build_expected(const ReplayView* replay, const FrameRows* rows, int6
+   int64_t raw = rows->raw[logical_pos];
+   memset(expected, 0, sizeof(*expected));
+   expected->frame_id = get_i32(&replay->frame_id, raw);
+-  expected->frame_pre_random_seed = get_u32(&replay->frame_seed, raw);
++  expected->frame_pre_random_seed = frame_seed_at(replay, rows, logical_pos);
+   expected->stage_id = replay->stage_id;
+   expected->num_players = (uint8_t)replay->num_players;
+   expected->is_teams = replay->is_teams;
+@@ -1674,6 +1757,8 @@ static int compare_row(const ReplayView* replay, const FrameRows* rows, int64_t
+   build_expected(replay, rows, logical_pos, &expected);
+   for (field_i = 0; field_i < sizeof(compare_fields) / sizeof(compare_fields[0]); ++field_i) {
+     const FieldSpec* spec = &compare_fields[field_i];
++    if (g_n_skip > 0 && spec_skipped(spec->name)) continue;
++    if (replay->frame_seed_missing && strcmp(spec->name, "frame_pre_random_seed") == 0) continue;
+     const uint8_t* expected_bytes = (const uint8_t*)(const void*)&expected + spec->offset;
+     const uint8_t* actual_bytes = (const uint8_t*)(const void*)actual + spec->offset;
+     size_t width = field_width((FieldKind)spec->kind);
+@@ -1747,7 +1832,7 @@ static int compare_row(const ReplayView* replay, const FrameRows* rows, int64_t
+       }
+     }
+   }
+-  {
++  if (replay->item_list != NULL) {
+     int64_t expected_items = item_count(replay, raw);
+     int actual_items = actual_item_count(actual);
+     if (expected_items != actual_items) {
+@@ -1755,7 +1840,7 @@ static int compare_row(const ReplayView* replay, const FrameRows* rows, int64_t
+                     (uint32_t)actual_items);
+     }
+   }
+-  {
++  if (replay->item_list != NULL) {
+     size_t item_field;
+     int slot;
+     for (slot = 0; slot < MSL_CORE_MAX_ITEMS; ++slot) {
+@@ -1829,7 +1914,7 @@ static void refill_write_buffer(StreamState* state) {
+     if (seed_player == state->replay->num_players) {
+       seed_player = 0;
+     }
+-    frame.frame_pre_random_seed = get_u32(&state->replay->frame_seed, raw);
++    frame.frame_pre_random_seed = frame_seed_at(state->replay, state->rows, logical_pos);
+     frame.stage_events.fighter_pre_random_seed =
+         get_u32(&state->replay->players[seed_player].random_seed,
+                 state->rows->player_raw[seed_player][logical_pos]);
