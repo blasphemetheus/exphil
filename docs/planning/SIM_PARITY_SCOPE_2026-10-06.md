@@ -279,6 +279,74 @@ whole length and three quarters of the rest for ≥ 1.5k frames; the
 next first-mismatch classes (`action_id` at f1k–5k) are the next chase,
 one game at a time, same method (`MSL_DUMP_FRAMES`, seed-step counts).
 
+### 10-07 evening — 1,102 / 1,245 (88.5 %) bit-exact; the code set of the 2019 console build
+
+Bradley's order: (1) corpus-level flag oracle, (2) reconstruct the
+missing FrameStart seed, (3) chase the top first-mismatch class. Sim at
+`97dccfbc`.
+
+**(1) Oracle** — one flag toggled from the 10-06 baseline on the 1,122
+recorder-2.0.1 games (`eval_runs/1007_sim_parity/oracle_*.log`):
+
+| toggle | exact end to end |
+|---|---|
+| baseline (dolphin-legacy key, cardinals off, 0.84 drop off) | 313 |
+| `--no-ucf-sdi` | **486** |
+| `--no-ucf-shield-sdi` | 347 |
+| `--fnmsubs-profile retail` | 314 |
+| `--no-ucf-shield-drop-extended` | 313 |
+| cardinals on | 0 |
+| 0.84 shield drop on | 248 |
+| all of the above combined | **555** |
+
+Same on the 3.9 set: 68 → **113 / 123**. So neither console build had
+the UCF SDI / shield-SDI injections. `validate_replay.py` now derives
+this for manual cases (`_console_era_defaults`: `playedOn` nintendont or
+network, or sceneless, and format < 3.16 ⇒ retail arithmetic + those four
+off); explicit flags still override; `--played-on` for anonymized dumps.
+
+**(2) FrameStart reconstruction — tried, removed.** Two gameplay draws
+fall outside the pre-frame anchor: the hitlag-end launch at proc priority
+0 and a throw release in `Fighter_ProcessHit` (priority 0xE), both the
+`HSD_Randf() < x240` DamageFlyRoll pick. Inverting the LCG over the sim's
+own draw count (`x·214013+2531011`, 214013 odd) is exact only if the span
+between the draw and the next recorded seed is gameplay-exact: the late
+span crosses the launch's hit GFX/SFX draws (headless model approximates
+them) and the early span turned out not exact on every frame either —
+on 1,122 games the early anchor converted 0 and broke 5; the late anchor
+broke frames that were right by luck. Per-frame savestates also blew the
+8 s budget (saves must be trigger-gated). Removed; comment in `scalar.c`.
+The 00_41_46 fix of the morning was the frame-start change, not this.
+
+**(3) The dominant class was a UCF rollout.** Clustering first mismatches
+of the 564 remaining 2.0.1 failures: 330 games recording DamageFall (38)
+vs sim Fall (29), 159 DamageFlyTop (90) vs Fall (29) — the recording stays
+in tumble where the sim wiggles out. `ftCo_DamageFall_IASA` in the hosted
+build routes through `msl_ucf_damagefall_wiggle_check` (UCF
+`tumble.cpp`, one-frame-hold wiggle) **unconditionally**. New wire field
+`ucf_tumble_enabled` (config 65 B, CLI `--[no-]ucf-tumble`); derived off
+for format < 3.0, on for 3.9 (the 2021 UCF had it: 113 vs 63). Result:
+2.0.1 set **989 / 1,122**, 3.9 set 113 / 123.
+
+| class (first mismatch) | games | median rows | reconverge |
+|---|---|---|---|
+| DamageFlyRoll pick 88↔91 (RNG outside the pre anchor) | 71 | 150–180 | 48 |
+| `action_frame` | 13 | 213 | 11 |
+| `char_id` one row (transform frame) | 12 | 1 | 11 |
+| `facing` four rows (3.9 set) | 9 | 4 | 6 |
+| SquatRv 41 → SquatWait 40 | 3 | 6,191 | 0 |
+| runner crash (broken pipe) | 2 | — | — |
+
+So the 2019 console code set, measured: retail arithmetic; UCF 0.73-class
+= dashback + classic shield drop only (no 1.0 cardinals, no 0.84 shield
+drop, no SDI, no shield-SDI, no tumble); recorder hook at the procMap
+epilogue; no FrameStart seed. The 2021 console set differs only by the
+tumble patch and the camera-hook recorder.
+
+Cost note: a 1,122-game sweep is ~30 s at 8 workers; it slows a
+concurrent trainer's CPU data pipeline (23 → 172 ms/it) — Bradley: fine
+as long as it does not break anything.
+
 ## What this buys
 
 Expert labels on the bot's own states from the actual training
