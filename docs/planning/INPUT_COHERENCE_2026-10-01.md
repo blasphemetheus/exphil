@@ -2188,6 +2188,32 @@ the **absolute mid-depth hazard** instead: jump hazard at −20..−40 and
 −40..−60 ≥ 30 % (expert 39/52, every arm 9–24). Recalibrate once the
 compiled per-frame map has the expert reference.
 
+**Compiled + tested 18:30** (12 tests, DecisionMap + SilenceMap) in the
+beam gap after queue 23; expert map written
+(`eval_runs/1002_fidelity/expert_decision_map_fd.json`, 150 FD Fox games,
+`logs/expert_decision_map_1007.log`). The expert's recovery *program*,
+per-frame onset hazard by band (`y>0 / 0..-20 / -20..-40 / -40..-60 / <-60`):
+
+| decision | jump in hand | jump spent |
+|---|---|---|
+| jump | 0.065 / 0.082 / **0.202 / 0.297** / 0.299 (slope 3.63) | — |
+| special_up (Firefox) | 0.000 / 0.002 / 0.001 / 0.001 / 0.003 | 0.009 / 0.020 / 0.021 / **0.056 / 0.056** |
+| special_down (shine) | 0.006 / 0.021 / 0.039 / 0.031 / 0.005 | ~0 |
+| special_side (Illusion) | 0.002 / 0.005 / 0.003 / 0.002 / 0 | 0.007 / 0.016 / 0.003 / 0.003 / 0.003 |
+| aerial / airdodge | ≤ 0.004 everywhere | ≤ 0.011 / ≤ 0.006 |
+
+Two things the bots never show: the expert **does not Firefox with a
+jump in hand** (≤ 0.3 % per frame at every height) — the jump comes
+first, conditioned on height, and *then* Firefox, conditioned on depth
+(2 % → 5.6 % per frame once the jump is gone); and shine offstage with a
+jump in hand is its stall/positioning tool (2–4 % per frame in the
+−20..−60 bands), not a mistake. So the "never commits to a special"
+defect reads as the second stage of the same program: the bot does not
+reach the "jump spent, now up-B" state in the right place. Bars for the
+queue headers, per-frame map: jump hazard at −20..−40 ≥ 0.15 and
+−40..−60 ≥ 0.20 (jump in hand); up-B hazard at −40..−60 ≥ 0.04 (jump
+spent); up-B with a jump in hand ≤ 0.01.
+
 ### 10-07 17:10 — `w240` read (queue 23): context is not the lever; a trade
 
 Window 240 on the dur8e recipe, 1 ep, seed 905, vs its header (return
@@ -2258,3 +2284,21 @@ prev-action copy and the loop pays for it. Read next to full-scale v2
 this recipe slopes down for recovery**. That is the strongest evidence
 yet that the port should not carry `--prev-action` as-is (lever 3), and
 it makes queue 24's `nopq` the deciding arm. Not a port-recipe change.
+
+### 10-07 18:45 — queue 24's `nopq` was not a valid arm; queue 25 `pd100`
+
+`nopq` (dur8e recipe without `--prev-action`) died at config time:
+`button_events / stick_events require ... use_prev_action: true` — the
+event heads are defined on the label sequence through the prev-action
+plumbing, so the channel cannot be omitted inside the event recipe
+(queue 24 went straight on to `pd50`). The equivalent arm keeps the
+channel and never lets the model see it: `--prev-action-dropout 1.0`
+(training zeroes it on every frame) + `EVAL_ABLATE=1` (new hook in
+`coherence_experiment.sh`: every closed-loop eval passes
+`--ablate-prev-action`, which zeroes the same channel live;
+`recovery_means.exs` gained the flag). Queue 25 =
+`evt2ctx_ck8_off3_dur8e_pd100`, chained after queue 24, read against
+queue 24's header + the DecisionMap bars above. Caveat: the
+teacher-forced probes feed the expert's prev input, which this model
+never saw — off-distribution for pd100; its closed-loop numbers are the
+read.
