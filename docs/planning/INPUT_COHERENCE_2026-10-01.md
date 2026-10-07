@@ -1903,3 +1903,63 @@ high-band decided return ≥ 0.6 (0.40); fidelity ≤ 0.21; mismatch ≤ 0.10;
 coherence repeat ≥ 0.70 / neutral 0.22–0.33; no new SD mode (SDs/min,
 dashes/min within the fidelity reference). Dose point: `dur16` with
 `--chunk-horizon 16`.
+
+**`dur8` read (queue 19, 1 ep, val 3.35 — its own likelihood):** the map
+moved for the first time in any arm, and a new failure appeared.
+
+| enter_silence | off3 | **dur8** | expert |
+|---|---|---|---|
+| offstage deep j0 / j1+ | 0.051 / 0.060 | **0.026 / 0.043** | 0.007 / 0.010 |
+| offstage high j0 | 0.033 | **0.024** | 0.007 |
+| offstage low j0 / j1+ | 0.030 / 0.050 | **0.020 / 0.046** | 0.010 / 0.019 |
+| age 1–3 / 4–7 offstage | 0.059 / 0.037 | **0.039 / 0.022** | 0.013 / 0.014 |
+| grounded centre / airborne onstage | 0.048 / 0.054 | 0.035 / 0.035 | 0.052 / 0.042 |
+
+Offstage release hazards roughly halved (ratios ×7 → ×3.5, ×4.7 → ×3.4,
+×3.1 → ×2.0); onstage it now under-releases (×0.67–0.83). But recovery got
+WORSE: return 0.206 (off3 0.37–0.39), mismatch 0.234, decided-trip return
+0.28, fidelity 0.225 — and the death table says why: **`side_b 35 (35†)`**.
+The AR head samples buttons BEFORE sticks; with the main stick committed
+sideways, a B press is an Illusion, where the per-frame model would have
+moved the stick up on the B frame (Firefox). The semi-Markov decision has
+to be the JOINT controller change: a button edge is a decision frame too
+(training mask `event = stick pair changed ∨ any button edge`; sampler:
+committed only if `commit > 0 ∧ no button edge this frame`, an edge
+re-samples the duration; Agent unchanged). Implemented as `dur8e` — next
+arm after dur16 reads.
+
+**`dur16` read (queue 19, 1 ep, val 3.99, `--chunk-horizon 16`):** the
+dose point adds nothing on the map and confirms the Illusion diagnosis.
+
+| | off3 | dur8 | **dur16** | expert |
+|---|---|---|---|---|
+| enter_silence deep j0 / j1+ | 0.051 / 0.060 | 0.026 / 0.043 | **0.027 / 0.054** | 0.007 / 0.010 |
+| enter_silence high j0 / low j0 | 0.033 / 0.030 | 0.024 / 0.020 | **0.027 / 0.018** | 0.007 / 0.010 |
+| enter_silence age 1–3 / 4–7 offstage | 0.059 / 0.037 | 0.039 / 0.022 | **0.045 / 0.025** | 0.013 / 0.014 |
+| onstage grounded centre / airborne | 0.048 / 0.054 | 0.035 / 0.035 | **0.039 / 0.039** | 0.052 / 0.042 |
+| return / mismatch | 0.37–0.39 / ~0.10 | 0.206 / 0.234 | **0.313 / 0.144** | 0.911 / 0.084 |
+| decided-trip return | 0.40 | 0.28 | **0.456** | 0.915 |
+| fidelity / repeat / neutral | 0.21 / 0.73 / 0.25 | 0.225 / 0.733 / 0.209 | **0.222 / 0.754 / 0.263** | — / 0.764 / 0.303 |
+| side-B trips (deaths) | — | 35 (35†) | **18 (18†)** | 5 (3†) |
+
+Read: the offstage hazard gains are a property of the semi-Markov
+decision itself, not of C (dur16 ≈ dur8 on every offstage band); the
+onstage under-release is also the same. Recovery sits between dur8 and
+off3 because the longer cap commits the stick for longer, so fewer
+decision frames fall inside a side-B window — fewer Illusions (18 vs 35)
+but every one still dies, 18/18. That is exactly the button-edge
+mechanism: the kill rate per side-B is 100% in both duration arms vs 60%
+for the expert's 5, and off3 had no such mode. Coherence is the best of
+any arm (repeat 0.754, neutral 0.263 — both inside the expert band for
+the first time). Verdict: keep C = 8 (shorter commitments, lower val),
+fix the joint decision → `dur8e` (queue 20, launched 20:43). Pass
+criteria for dur8e are in the queue-20 script header: dur8's offstage map
+kept (deep/high j0 ≤ 0.026/0.024), return ≥ 0.37, side-B deaths back to
+off3's level, mismatch ≤ 0.10, fidelity ≤ 0.21, onstage enter_silence
+ratio ≥ 0.8.
+
+Note on the Q7 teacher-forced floor for duration arms (dur8 0.078, dur16
+0.097 in the −20..−60 j0 band vs off3's 0.05): Q7 scores the per-frame
+head on every frame, but a duration checkpoint is only trained at
+decision frames, so its mid-hold outputs are unconstrained. Q7 is not a
+valid readout for these arms; the closed-loop map is.

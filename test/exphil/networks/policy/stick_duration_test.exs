@@ -94,6 +94,14 @@ defmodule ExPhil.Networks.Policy.StickDurationTest do
 
       %{mask: mask, duration: d} = Loss.stick_decision_targets(inputs, actions, @cap)
       assert Nx.to_list(mask) == [1.0, 1.0, 0.0, 1.0]
+
+      # a button edge makes a mid-hold frame a decision frame too
+      with_buttons =
+        Map.put(inputs, "prev_buttons", Nx.tensor([[0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0]], type: :f32))
+
+      acts_b = Map.put(actions, :buttons, Nx.tensor([[0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0], [0, 1, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0]], type: :f32))
+      %{mask: mask_b} = Loss.stick_decision_targets(with_buttons, acts_b, @cap)
+      assert Nx.to_list(mask_b) == [1.0, 1.0, 1.0, 1.0]
       # row 0: held through all 3 futures -> "C+" (3); row 1: changes at t+2 -> 1;
       # row 3: game ends after t+1 -> 1
       assert Nx.to_list(d) == [3, 1, 3, 1]
@@ -127,6 +135,11 @@ defmodule ExPhil.Networks.Policy.StickDurationTest do
     in1 = inputs(prev_s, Nx.tensor([2, 9], type: :s64))
     params = init.(in1, Axon.ModelState.empty())
 
+    # no button edge this frame: a random init presses ~half the buttons at
+    # argmax, which would (correctly) make every row a decision frame
+    released = Nx.broadcast(-40.0, Nx.shape(params.data["ar_buttons_logits"]["bias"]))
+    params = %{params | data: put_in(params.data, ["ar_buttons_logits", "bias"], released)}
+
     trunk = Policy.build_temporal_trunk(embed_size: @embed, backbone: :gru, hidden_size: @hidden, num_layers: 1,
       window_size: 6, dropout: 0.0)
     {_, trunk_predict} = Axon.build(trunk, mode: :inference)
@@ -144,6 +157,21 @@ defmodule ExPhil.Networks.Policy.StickDurationTest do
     [c0, c1] = Nx.to_list(out.stick_commit)
     assert c0 == 1
     assert c1 in 0..(@cap - 1)
+
+    # a button edge this frame ends the commitment: force a B press via a huge
+    # press logit bias and check row 0 re-decides (commit re-sampled, not 1)
+    bias = params.data["ar_buttons_logits"]["bias"] |> Nx.put_slice([1], Nx.tensor([40.0]))
+    dbias = params.data["ar_duration_logits"]["bias"] |> Nx.put_slice([@cap - 1], Nx.tensor([40.0]))
+    pressed = %{params | data: params.data |> put_in(["ar_buttons_logits", "bias"], bias) |> put_in(["ar_duration_logits", "bias"], dbias)}
+
+    out2 =
+      Sampling.sample_autoregressive_from_features(pressed, features,
+        deterministic: true, event_prev_buttons: in1["prev_buttons"], event_prev_sticks: prev_s,
+        event_prev_age: in1["prev_age"], stick_commit: Nx.tensor([2, 0], type: :s64))
+
+    assert Nx.to_list(out2.buttons) |> hd() |> Enum.at(1) == 1
+    # row 0 re-decided (duration argmax = C-1 = 3) instead of counting down to 1
+    assert Nx.to_list(out2.stick_commit) == [@cap - 1, @cap - 1]
 
     # the duration checkpoint refuses to sample blind
     assert_raise ArgumentError, ~r/stick_duration/, fn ->

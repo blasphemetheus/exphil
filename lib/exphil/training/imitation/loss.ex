@@ -522,8 +522,12 @@ defmodule ExPhil.Training.Imitation.Loss do
   @doc """
   Decision-frame mask and duration targets for the semi-Markov main stick
   (cap `c`). A frame is a decision frame when the target main-stick pair
-  differs from the previous frame's (`prev_sticks` columns 0/1) or when the
-  previous input has been held a multiple of `c` frames (`prev_age`). The
+  differs from the previous frame's (`prev_sticks` columns 0/1), when any
+  button changes (`prev_buttons` vs the target buttons — the AR head samples
+  buttons before sticks, so a press must be free to re-aim the stick: Fox's
+  B with a committed sideways stick is an Illusion, not a Firefox; queue 19
+  dur8 died 35/35 side-B trips), or when the previous input has been held
+  a multiple of `c` frames (`prev_age`). The
   duration class is how many of the next c - 1 frames (chunk futures) keep
   the target pair: 0 = changes next frame (held 1), ..., c - 1 = still held
   after c - 1 more frames ("c+"). Mask and target are `{batch}`.
@@ -537,6 +541,20 @@ defmodule ExPhil.Training.Imitation.Loss do
     my = Nx.as_type(actions.main_y, :s64)
 
     event = Nx.logical_or(Nx.not_equal(mx, prev_x), Nx.not_equal(my, prev_y))
+
+    event =
+      case inputs["prev_buttons"] do
+        nil ->
+          event
+
+        prev_b ->
+          edge =
+            Nx.not_equal(Nx.greater(Nx.as_type(actions.buttons, :f32), 0.5), Nx.greater(Nx.as_type(prev_b, :f32), 0.5))
+            |> Nx.any(axes: [1])
+
+          Nx.logical_or(event, edge)
+      end
+
     continuation = Nx.logical_and(Nx.greater_equal(age, c), Nx.equal(Nx.remainder(age, c), 0))
     mask = Nx.logical_or(event, continuation) |> Nx.as_type(:f32)
 
@@ -585,6 +603,9 @@ defmodule ExPhil.Training.Imitation.Loss do
   """
   def main_head({{_, _, _, _, _, _} = main, _futures}), do: main
   def main_head({_, _, _, _, _, _} = main), do: main
+  # stick_duration heads: drop the duration logits
+  def main_head({{_, _, _, _, _, _, _} = main7, _futures}), do: elem(split_duration_head(main7), 0)
+  def main_head({_, _, _, _, _, _, _} = main7), do: elem(split_duration_head(main7), 0)
 
   @doc """
   Build the forward-pass input for a policy given the controller head type.

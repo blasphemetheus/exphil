@@ -474,13 +474,29 @@ defmodule ExPhil.Networks.Policy.Sampling do
 
   # Committed rows hold the previous main-stick bucket: their logits are
   # replaced by a one-hot spike on prev so the ordinary sampler draws it.
-  deftransformp ar_commit_force(logits, head, j) do
+  # A button edge this frame (sampled buttons vs the previous frame's) ends
+  # the commitment: the semi-Markov decision is the joint controller change,
+  # and buttons are sampled before sticks in the AR order. {rows} u8.
+  deftransformp ar_button_edge(head, buttons_f32) do
+    case head do
+      %{"ar_event_prev" => %{"value" => prev}} ->
+        Nx.not_equal(Nx.greater(buttons_f32, 0.5), Nx.greater(Nx.broadcast(prev, Nx.shape(buttons_f32)), 0.5))
+        |> Nx.any(axes: [-1])
+
+      _ ->
+        Nx.broadcast(Nx.tensor(0, type: :u8), {Nx.axis_size(buttons_f32, 0)})
+    end
+  end
+
+  deftransformp ar_commit_force(logits, head, j, edge) do
     case head do
       %{"ar_stick_commit" => %{"value" => commit}, "ar_event_prev_sticks" => %{"value" => prev}} ->
         col = prev |> Nx.slice_along_axis(j, 1, axis: 1) |> Nx.squeeze(axes: [1])
         k = Nx.axis_size(logits, -1)
         spike = Nx.select(Nx.equal(Nx.iota({1, k}), Nx.new_axis(col, -1)), 0.0, -1.0e9) |> Nx.broadcast(Nx.shape(logits))
-        committed = Nx.greater(commit, 0) |> Nx.new_axis(-1) |> Nx.broadcast(Nx.shape(logits))
+        rows = Nx.axis_size(logits, 0)
+        committed = Nx.logical_and(Nx.greater(Nx.broadcast(commit, {rows}), 0), Nx.logical_not(edge))
+        committed = committed |> Nx.new_axis(-1) |> Nx.broadcast(Nx.shape(logits))
         Nx.select(committed, spike, logits)
 
       %{"ar_stick_commit" => _} ->
@@ -493,7 +509,7 @@ defmodule ExPhil.Networks.Policy.Sampling do
 
   # Next commitment: committed rows count down; deciding rows take the sampled
   # duration class d (= hold d more frames; class C-1 = "C+", re-decide at C).
-  deftransformp ar_next_commit(head, r3, key, temp, deterministic?) do
+  deftransformp ar_next_commit(head, r3, key, temp, deterministic?, edge) do
     if duration_head?(head) do
       d_l = ar_component(r3, head["ar_duration_hidden"], head["ar_duration_logits"])
 
@@ -506,7 +522,8 @@ defmodule ExPhil.Networks.Policy.Sampling do
           _ -> raise ArgumentError, "stick_duration checkpoint: pass :stick_commit ({rows} s64) to the sampler"
         end
 
-      {Nx.select(Nx.greater(commit, 0), Nx.subtract(commit, 1), d), key}
+      committed = Nx.logical_and(Nx.greater(commit, 0), Nx.logical_not(edge))
+      {Nx.select(committed, Nx.subtract(commit, 1), d), key}
     else
       {Nx.broadcast(Nx.tensor(0, type: :s64), {Nx.axis_size(r3, 0)}), key}
     end
@@ -650,15 +667,16 @@ defmodule ExPhil.Networks.Policy.Sampling do
   defnp ar_stage2_stochastic(head, r0, buttons_f32, b_l, key, {_t_b, t_mx, t_my, t_cx, t_cy, t_sh}) do
     r1 = r0 + Nx.dot(buttons_f32, head["ar_buttons_embed"]["kernel"])
 
+    edge = ar_button_edge(head, buttons_f32)
     mx_l = ar_component(r1, head["ar_main_x_hidden"], ar_stick_params(head, 0)) |> ar_stick_logits(head, 0)
-    {mx, key} = gumbel_argmax(ar_commit_force(mx_l, head, 0), key, t_mx)
+    {mx, key} = gumbel_argmax(ar_commit_force(mx_l, head, 0, edge), key, t_mx)
     r2 = r1 + Nx.take(head["ar_main_x_embed"]["kernel"], mx)
 
     my_l = ar_component(r2, head["ar_main_y_hidden"], ar_stick_params(head, 1)) |> ar_stick_logits(head, 1)
-    {my, key} = gumbel_argmax(ar_commit_force(my_l, head, 1), key, t_my)
+    {my, key} = gumbel_argmax(ar_commit_force(my_l, head, 1, edge), key, t_my)
     r3 = r2 + Nx.take(head["ar_main_y_embed"]["kernel"], my)
 
-    {commit, key} = ar_next_commit(head, r3, key, t_mx, false)
+    {commit, key} = ar_next_commit(head, r3, key, t_mx, false, edge)
 
     cx_l = ar_component(r3, head["ar_c_x_hidden"], ar_stick_params(head, 2)) |> ar_stick_logits(head, 2)
     {cx, key} = gumbel_argmax(cx_l, key, t_cx)
@@ -678,15 +696,16 @@ defmodule ExPhil.Networks.Policy.Sampling do
   defnp ar_stage2_deterministic(head, r0, buttons_f32, b_l) do
     r1 = r0 + Nx.dot(buttons_f32, head["ar_buttons_embed"]["kernel"])
 
+    edge = ar_button_edge(head, buttons_f32)
     mx_l = ar_component(r1, head["ar_main_x_hidden"], ar_stick_params(head, 0)) |> ar_stick_logits(head, 0)
-    mx = Nx.argmax(ar_commit_force(mx_l, head, 0), axis: -1)
+    mx = Nx.argmax(ar_commit_force(mx_l, head, 0, edge), axis: -1)
     r2 = r1 + Nx.take(head["ar_main_x_embed"]["kernel"], mx)
 
     my_l = ar_component(r2, head["ar_main_y_hidden"], ar_stick_params(head, 1)) |> ar_stick_logits(head, 1)
-    my = Nx.argmax(ar_commit_force(my_l, head, 1), axis: -1)
+    my = Nx.argmax(ar_commit_force(my_l, head, 1, edge), axis: -1)
     r3 = r2 + Nx.take(head["ar_main_y_embed"]["kernel"], my)
 
-    {commit, _key} = ar_next_commit(head, r3, Nx.Random.key(0), 1.0, true)
+    {commit, _key} = ar_next_commit(head, r3, Nx.Random.key(0), 1.0, true, edge)
 
     cx_l = ar_component(r3, head["ar_c_x_hidden"], ar_stick_params(head, 2)) |> ar_stick_logits(head, 2)
     cx = Nx.argmax(cx_l, axis: -1)
