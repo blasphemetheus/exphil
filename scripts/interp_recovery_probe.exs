@@ -117,7 +117,9 @@ samples =
       prev = elem(g.actions, t - 1)
       press? = a.buttons.b and not prev.buttons.b
       b_soon? = Enum.any?(0..3, fn j -> elem(g.actions, t + j).buttons.b and not elem(g.actions, t + j - 1).buttons.b end)
-      %{game: gi, t: t, action: a, press: press?, b_soon: b_soon?, prev_b: prev.buttons.b, prev_zone: zone_of.(prev), height: height.(p.y || 0.0), jumps: p.jumps_left || 0, zone: zone_of.(a)}
+      jump_press? = (a.buttons.x and not prev.buttons.x) or (a.buttons.y and not prev.buttons.y)
+      %{game: gi, t: t, action: a, press: press?, b_soon: b_soon?, prev_b: prev.buttons.b, prev_zone: zone_of.(prev), height: height.(p.y || 0.0), jumps: p.jumps_left || 0, zone: zone_of.(a),
+        jump_press: jump_press?, prev_jump_held: prev.buttons.x or prev.buttons.y, airborne: p.on_ground != true}
     end
   end)
 presses = Enum.filter(samples, & &1.press)
@@ -260,6 +262,23 @@ Output.puts("RESULT #{label} Q2c P(B press) by previous stick zone, model mean |
   Enum.map_join([:up, :side, :down, :neutral], "  ", fn z ->
     l = Enum.filter(rows, &(&1.prev_zone == z and not &1.prev_b))
     "#{z} #{mean.(l, :b)} | #{share.(l, & &1.press)} (#{length(l)})"
+  end))
+
+# Q8 (2026-10-07): the double jump. Closed-loop, the expert's per-frame jump
+# hazard offstage with a jump in hand rises steeply with depth (8 % high ->
+# 60 % at y -40..-60) and every arm's is flat (dur8e 6/11/9/16 %), so the bot
+# falls past the band where the jump is spent and dies with it in hand (28 %
+# of deaths vs 10 %). Teacher-forced: on offstage airborne frames with a jump
+# in hand and X/Y up at t-1, the model's P(X or Y press) by height, split by
+# whether the expert presses at t, against the expert's own hazard. A flat
+# model column = the head never learned the height conditioning; a rising one
+# = learned but lost closed-loop. Button presses only (tap jump is the stick).
+Output.puts("RESULT #{label} Q8 P(jump press) offstage, jump in hand, X/Y up at t-1: model on expert-press frames | on non-press frames | expert hazard (n), by height: " <>
+  Enum.map_join([:high, :ledge, :low, :deep], "  ", fn h ->
+    l = Enum.filter(rows, &(&1.height == h and &1.airborne and &1.jumps >= 1 and not &1.prev_jump_held))
+    yes = Enum.filter(l, & &1.jump_press)
+    no = Enum.reject(l, & &1.jump_press)
+    "#{h} #{mean.(yes, :jump)} (n=#{length(yes)}) | #{mean.(no, :jump)} | #{share.(l, & &1.jump_press)} (#{length(l)})"
   end))
 
 # Q4: the stick-UP event offstage (expert goes from not-up to up, no B held): the
