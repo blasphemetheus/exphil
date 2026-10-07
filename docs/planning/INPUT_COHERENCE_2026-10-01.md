@@ -2029,3 +2029,27 @@ Note on the Q7 teacher-forced floor for duration arms (dur8 0.078, dur16
 head on every frame, but a duration checkpoint is only trained at
 decision frames, so its mid-hold outputs are unconstrained. Q7 is not a
 valid readout for these arms; the closed-loop map is.
+
+## 10-07 — `dur8e` at 3 epochs: the port-recipe candidate passes its bar
+
+Queue 21 (seed 905, 3 ep; the s906 1-ep replication is in "10-06").
+Overnight was lost to a mid-edit nx tree (HANDOFF §8d); scored 12:17.
+
+| arm | ep | val | fidelity | repeat | neutral | return | decided | mismatch | off age 1–3 enter-sil. | deep-B stick-up | dies w/ jump |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| expert | — | — | 0 | 0.764 | 0.303 | 0.911 | 0.915 | 0.084 | 0.013 | 81 % | 7 % |
+| off3 (recipe) | 1 | 3.6x | 0.198 | 0.73 | 0.19 | 0.37–0.39 | 0.49 | 0.084–0.088 | 0.047 | 17–35 % | 26–30 % |
+| dur8e | 1 | 3.25 | 0.191 | 0.777 | 0.296 | 0.23 | — | 0.168 | 0.059 | 17 % | 30 % |
+| dur8e s906 | 1 | 3.22 | 0.202 | 0.776 | 0.235 | 0.27 | — | — | — | — | — |
+| **dur8e e3** | **3** | **3.064** | **0.175** | 0.759 | 0.221 | 0.338 | 0.394 | 0.112 | 0.034 | 31 % | 27 % |
+
+(val for duration arms is the decision-frame likelihood, comparable only
+among duration arms.) Read against the queue-21 header: fidelity ≤ 0.21
+✓, repeat 0.70–0.80 ✓, neutral 0.22–0.33 ✓ (at the edge), on both seeds →
+**`--stick-duration 8` + ≥ 3 ep is the port-recipe candidate.** Recovery
+moved the right way with epochs (return 0.23 → 0.34, age 1–3 offstage
+hazard 0.059 → 0.034, mismatch 0.168 → 0.112) without reaching off3, and
+the two faces of the death shape (`scripts/recovery_death_shape.js`)
+barely moved — the recovery *decision* is still not being learned by
+coherence or epochs; lever 3 continues in queues 22/23 (full-scale v1/v2
+scorecard, pd15, window 240, 9k files).

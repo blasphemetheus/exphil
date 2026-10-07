@@ -163,6 +163,92 @@ passes and gets a provenance record. Still to do on the branch: the laser
 chase (item 3), the `msl_batch_reinit`/`EnvBatch`/`Seed` declaration
 (rest of item 1), a sceneless-fixture test for upstreaming.
 
+### 10-07 results — 3 of 4 games bit-exact; the corpus is 2019 console
+
+Sim commit `0dc7d4a5` on `exphil-parity`. Same four games, same flags
+plus `MSL_POST_FRAME_MAP_PASS=1`:
+
+| game | 10-06 baseline | 10-07 |
+|---|---|---|
+| 00_41_46 [SM] Falco + Fox | 10,665 / 13,159 | **13,159 / 13,159** |
+| 01_06_10 [=3] Falco + [JAKE] Fox | 7,479 / 9,762 | **9,762 / 9,762** |
+| 13_02_35 Marth + Fox | 1,808 / 11,456 | **11,456 / 11,456** |
+| 00_51_07 [RUDE] Marth + Fox | 6,827 / 8,838 | 8,796 / 8,838 (42 rows: `action_id[1]` 88 vs 91, f4681–4722, reconverges) |
+
+**The corpus is not 2020 online.** `peppi` metadata: `playedOn:
+nintendont`, `startAt` 2019-05-14 / 05-21 / 09-28, Slippi *recorder*
+version 2.0.1. These are console tournament captures — which is why
+`fnmsubs` made no difference and why UCF 1.0 cardinals / 0.84 shield
+drop are off (UCF 0.73 era). The `dolphin-legacy` profile is only the
+declaration key the validator needs for a sceneless file; the arithmetic
+is retail's.
+
+**Defect A — the recorder hook moved (2020-06-06).** slippi-ssbm-asm
+`9398d52` "move post frame back, was missing some data changes" moved
+`SendGamePostFrame` from GALE01 `0x8006C5D8` (epilogue of
+`Fighter_procMap`, proc priority 6 — before `Fighter_ProcessHit`) to
+`0x8006DA34` (`Fighter_UnkCallCameraCallback`, after the hit pass). The
+sim models the later hook. So in 2019 recordings every hit's
+bookkeeping (percent, last_attack_landed, combo, last_hit_by, hitstun,
+shield_hp regen) appears one frame later than the sim's sample while
+positions already agree — the "opening laser whiffs in the recording"
+of 10-06 was this: `MSL_DUMP_FRAMES=-8:1` shows the laser (sim item type
+54, vx −7) reaching Marth at f−2 in the sim and the recording taking the
+3 % at f−1. Hosted builds can now snapshot each fighter at the procMap
+epilogue (`msl_slippi_post_frame_map_pass_sample`, shadow `Fighter`
+copies outside `MslCoreMatch`); `write_compare` reads the snapshot and
+its `cur_pos`. Effect on 00_51_07 alone: 2,011 mismatching rows → 42.
+
+**Defect B — mine: the frame-start RNG restore.** The runtime restores
+the HSD seed twice per validation frame: at frame start (modern
+`FrameStart` seed) and at the first fighter's pre proc (per-player
+pre-frame seed). My 10-06 fallback fed the pre-frame seed into the
+frame-START slot for sceneless files, so everything scheduled before the
+fighter-pre proc — `Fighter_8006A1BC` (priority 0: hitlag decrement →
+`Fighter_8006D10C` → `ftCo_8008DCE0`, whose `HSD_Randf() < x240` picks
+DamageFlyRoll over DamageFlyN), script GFX jitter at priority 1–2 — ran
+from a state the source never had there. `MslCoreStageEvents` gains
+`frame_random_seed_missing`; `msl_core_match_step_begin` skips the
+frame-start restore when set (wire sizes 133 / 189). Validator tests 9
+passed. With both fixes, three games pass end to end on every compared
+lane (positions, actions, shields, percents, hits, stocks).
+
+**Residual (00_51_07 f4681).** The one event left is the same Roll pick:
+without a FrameStart seed the sim's state at priority 0 is carried from
+the previous frame, where the headless effect model's RNG consumption is
+partial by design (`MSL_SEED_DRIFT=1` reports a differing restore on
+most frames — that is the model's incompleteness, absorbed by the
+restore). Modern recordings are immune (FrameStart seed = retail's state
+at priority 0). Closing it would need the effect model exact for the
+frame preceding a hitlag-end launch — not worth it for seeding; cosmetic
+(animation id only, trajectory identical).
+
+**Dead ends recorded so they are not re-walked.** (1) A "2019 build skips
+scripted GFX jitter / hit-SFX random" model (`MSL_SCRIPT_GFX_OFF`) made
+2/4 games pass and was an artifact of defect B — the drift it "removed"
+was the sim's own early-frame draws being double-counted; reverted.
+(2) The runner is a `subprocess.Popen(stderr=PIPE)` read only at
+shutdown: runtime-side `fprintf(stderr)` probes vanish — use
+`MSL_PROBE_LOG=<path>` (`msl_probe_printf`). (3) `make native` is needed
+for runtime edits; `make validator` only rebuilds `native.c`.
+
+**Instruments kept:** `MSL_DUMP_FRAMES=lo:hi` (recorded vs sim fighter
+lanes, per-player recorded seeds vs sim frame seed, every live sim item),
+`MSL_SEED_DRIFT=1`, `MSL_PROBE_LOG`, `--played-on` (anonymized ranked
+dumps lack `playedOn`), full `mismatch_fields` census under
+`--diagnostic`. Removed after use: RNG backtrace tracer, GFX dispatch
+trace, Roll/SFX probes (recipes in the session log if ever needed).
+
+**Next on the branch:** promote `post_frame_map_pass` and the sceneless
+declaration to `MslCoreMatchConfig` wire fields (≈15 mirrors: wire.c/h,
+api.c, validate_replay.py, suite_io.py, viewer schema, tests), derive
+them from the recording (recorder version < 3.0 ⇒ map-pass hook, no
+FrameStart ⇒ carry RNG), carry them into `msl_batch_reinit`/`EnvBatch`/
+`ExPhil.Sim.Seed`; then the feeder check (`Seed.from_replay` on 2.0.1
+lanes) on the three passing games; then the corpus sweep (~3k FD Fox
+games) for the pass rate. Upstream PR (hook + frame-seed fixes are
+general) only with Bradley.
+
 ## What this buys
 
 Expert labels on the bot's own states from the actual training
