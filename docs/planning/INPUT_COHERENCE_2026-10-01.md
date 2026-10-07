@@ -2090,3 +2090,17 @@ after 23): dur8e WITHOUT `--prev-action` (`dur8e_nopq`) and with dropout
 0.5 (`pd50`); pd15 (queue 22) is the first point. Pass: return ≥ 0.45 or
 dies-with-jump ≤ 15 % with the coherence band kept. If nopq holds the
 band, the prev-action channel leaves the port recipe.
+
+### 10-07 13:52 — `dur8e_pd15` read (queue 22): breaks the silent fall, not a pass
+
+`--prev-action-dropout 0.15` on the dur8e candidate (1 ep, seed 905):
+fidelity 0.213, repeat 0.782, **neutral 0.141** (band 0.22–0.33), return
+0.313, decided 0.388, mismatch 0.144; offstage age 1–3 enter-silence
+**0.031** (dur8e 0.059, expert 0.013); death shape: died holding neutral
+**10/100** (dur8e 84/196, expert 88/104 — the expert dies holding
+neutral because it has already committed), dies with a jump left 25 %,
+deep-B stick-up 31 %. Read: the copy path's removal takes the *silence*
+out of the fall (the hazard halves, deaths are now active) but the bot
+dies doing the wrong active thing, and the expert-like neutral share
+goes with it — the channel was carrying both. First point on the
+dropout curve; pd50 and nopq (queue 24) complete it.
