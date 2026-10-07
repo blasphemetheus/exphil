@@ -249,6 +249,36 @@ lanes) on the three passing games; then the corpus sweep (~3k FD Fox
 games) for the pass rate. Upstream PR (hook + frame-seed fixes are
 general) only with Bradley.
 
+### 10-07 15:00 — corpus sweep: 381 / 1,245 FD Fox games bit-exact
+
+`eval_runs/1007_sim_parity/` (`sweep_v2.log`, `sweep_v3_ucfoff.log`,
+`sweep_v3_default.log`; game lists `fd_fox_v2.txt` / `fd_fox_v3.txt`).
+The ranked FD Fox corpus is two console eras: **1,122 games at recorder
+2.0.1 (2019)** and **123 at 3.9.0 (2021)**, all `playedOn: nintendont`
+(5 say `network`). Sim at `7749e749` (recorder hook derived from the
+format version; era lanes optional below 3.16).
+
+| set | declaration | end to end | with mismatches | error |
+|---|---|---|---|---|
+| 2.0.1 (1,122) | dolphin-legacy key, cardinals off, 0.84 drop off | **313** | 807 | 2 (runner broken pipe) |
+| 3.9.0 (123) | cardinals off, 0.84 drop off | **68** | 55 | 0 |
+| 3.9.0 (123) | suite defaults (UCF 1.0 on) | 2 | 121 | 0 |
+
+So the 2021 console build also had no UCF 1.0 cardinals / 0.84 shield
+drop. Of the 807 non-passing 2.0.1 games: exact prefix q25/50/75 =
+1,561 / 3,042 / 5,498 frames; 355 reconverge to an exact suffix; 275
+have ≤ 100 mismatching rows (cosmetic episodes like the tumble pick);
+the first mismatching field is `action_id` (400) or `pos_x` (281) —
+events, not physics drift. Per opponent (pass/fail): Falco 164/329,
+Marth 101/345, Sheik 48/120, Zelda 0/15. Sweep cost: 30 s wall for
+1,122 games at 8 workers (it starves a concurrent trainer's CPU data
+pipeline — 23 → 172 ms/it — so sweep between queues).
+
+For seeding this is already broad: 31 % of games are exact for their
+whole length and three quarters of the rest for ≥ 1.5k frames; the
+next first-mismatch classes (`action_id` at f1k–5k) are the next chase,
+one game at a time, same method (`MSL_DUMP_FRAMES`, seed-step counts).
+
 ## What this buys
 
 Expert labels on the bot's own states from the actual training

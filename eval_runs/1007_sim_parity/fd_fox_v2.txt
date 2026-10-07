@@ -1,0 +1,1122 @@
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/00_41_46 [SM] Falco + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/00_51_07 [RUDE] Marth + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/00_56_35.789Z Marth + [MS] Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/01_06_10 [=3] Falco + [JAKE] Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/01_12_03.932Z [EASY] Fox + [=P] Marth (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/01_23_04 Fox + Sheik (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/02_24_23 Sheik + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/02_28_35 Sheik + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/07_42_32 Fox + Falco (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/08_01_31 Falco + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/09_58_46 [BOKO] Falco + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/10_21_35 Fox + Marth (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/10_38_20 Fox + Sheik (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/10_42_05 Falco + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/10_53_07 Fox + Marth (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/10_55_37 Falco + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/10_56_35 Fox + Sheik (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/10_57_24 Fox + Marth (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/10_58_50 Fox + Sheik (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/11_00_24 Sheik + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/11_05_33 Fox + Falco (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/11_14_39 Fox + Sheik (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/11_16_49 Fox + Marth (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/11_19_48 Falco + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/11_22_35 Falco + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/11_23_30 Fox + Falco (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/11_23_56 Fox + Marth (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/11_28_14 Fox + Marth (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/11_30_00 Fox + Marth (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/11_30_59 Fox + Marth (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/11_31_54 Fox + Marth (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/11_33_59 Fox + Marth (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/11_36_44 Fox + Falco (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/11_37_20 Fox + Marth (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/11_38_16 Fox + Marth (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/11_40_07 Fox + Falco (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/11_41_27 [LANA] Falco + [314] Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/11_42_14 Falco + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/11_44_04 Sheik + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/11_47_12 Fox + Marth (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/11_49_56 Falco + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/11_50_22 Fox + Falco (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/11_55_00 [HIKU] Marth + [MAC] Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/12_04_23 Falco + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/12_05_57 Fox + Falco (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/12_06_12 [COL] Fox + [SUR] Marth (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/12_07_00 Fox + Falco (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/12_07_21 Zelda + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/12_07_55 Fox + Marth (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/12_11_18 Fox + Marth (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/12_11_49 Marth + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/12_12_57 Falco + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/12_15_35 Marth + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/12_15_39 Fox + Marth (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/12_16_48 Sheik + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/12_19_09 Fox + Falco (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/12_19_11 Fox + Falco (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/12_19_56 Fox + Marth (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/12_20_00 Falco + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/12_20_15 Fox + Marth (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/12_20_17 Marth + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/12_21_05 Fox + Sheik (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/12_22_12 Marth + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/12_24_01 Falco + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/12_29_03 Falco + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/12_29_40 [C2] Falco + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/12_33_42 Falco + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/12_34_37 Fox + Falco (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/12_36_04 Fox + Falco (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/12_37_31 Falco + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/12_37_34 Fox + Marth (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/12_37_35 Falco + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/12_37_46 [C2] Marth + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/12_43_02 Falco + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/12_43_09 [C2] Marth + [DUDE] Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/12_43_28 Fox + Falco (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/12_43_37 Falco + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/12_44_25 Marth + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/12_45_11 Falco + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/12_45_21 Falco + [HAMB] Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/12_45_40 Falco + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/12_45_57 Fox + Falco (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/12_46_30 Marth + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/12_47_03 Sheik + [314] Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/12_47_06 Falco + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/12_47_35 Fox + Sheik (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/12_48_25 Marth + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/12_50_01 Falco + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/12_50_43 Marth + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/12_51_01 Fox + [C2] Falco (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/12_51_12 [C2] Falco + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/12_53_48 Falco + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/12_54_41 Fox + Falco (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/12_54_55 Falco + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/12_55_51 [GLUV] Sheik + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/12_56_25 Sheik + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/12_57_58 Marth + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/12_58_17 Fox + Falco (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/12_58_45 [C2] Marth + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/13_02_04 Sheik + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/13_02_35 Marth + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/13_05_03 Fox + Falco (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/13_05_45 Sheik + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/13_07_54 Fox + Marth (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/13_10_04 [C2] Falco + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/13_10_18 Marth + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/13_11_53 Fox + Marth (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/13_12_38 Falco + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/13_13_50 Falco + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/13_15_55 [COL] Fox + [SUR] Marth (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/13_15_56 Marth + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/13_16_04 [C2] Marth + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/13_16_18 Falco + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/13_16_41 Fox + Falco (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/13_16_55 Falco + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/13_19_51 Fox + Falco (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/13_21_56 Falco + [TM06] Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/13_22_40 Falco + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/13_22_50 Marth + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/13_23_41 Fox + [C2] Marth (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/13_23_48 Marth + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/13_24_27 [C2] Marth + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/13_27_10 Marth + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/13_27_39 Fox + Marth (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/13_28_44 Fox + Falco (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/13_29_48 Fox + Falco (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/13_30_18 Falco + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/13_31_57 Fox + Falco (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/13_32_15 Fox + Marth (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/13_34_32 Falco + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/13_36_03 Fox + Marth (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/13_37_00 Marth + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/13_37_35 Falco + [CUMB] Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/13_38_35 Falco + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/13_39_53 Falco + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/13_39_56 Fox + Falco (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/13_41_53 Marth + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/13_43_42 Fox + Sheik (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/13_44_01 Falco + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/13_46_55 Fox + Falco (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/13_47_34 Fox + Marth (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/13_47_36 [WLGY] Fox + Marth (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/13_48_45 Falco + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/13_48_45 Sheik + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/13_50_17 Fox + Zelda (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/13_50_48 Fox + Falco (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/13_51_12 Sheik + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/13_51_45 Fox + Falco (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/13_52_32 Marth + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/13_54_08 Fox + Falco (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/13_54_19 Falco + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/13_55_29 Fox + Falco (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/13_59_01 Falco + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/13_59_05 Fox + [C2] Falco (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/13_59_10 Fox + Marth (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/13_59_18 [SAG] Fox + [FOX] Marth (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/14_00_56 Fox + Falco (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/14_01_58 Fox + Falco (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/14_05_10 Sheik + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/14_05_41 Falco + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/14_05_55 [INFP] Falco + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/14_07_23 Marth + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/14_10_37 Fox + [SUR] Marth (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/14_12_53 Falco + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/14_13_21 Marth + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/14_13_44 Fox + Falco (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/14_13_48 Falco + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/14_18_42 Fox + Marth (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/14_19_09 Fox + Marth (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/14_20_05 [?] Falco + [314] Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/14_21_13 [INFP] Falco + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/14_21_52 Falco + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/14_24_13 [BBBB] Fox + [C2] Falco (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/14_24_22 Fox + Marth (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/14_25_18 Marth + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/14_25_59 Falco + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/14_30_43 Marth + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/14_32_43 Fox + [C2] Marth (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/14_32_57 Fox + Falco (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/14_34_53 Fox + Falco (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/14_34_56 Fox + Marth (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/14_35_29 Fox + Marth (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/14_36_17 Falco + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/14_36_34 Fox + Falco (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/14_38_29 Sheik + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/14_38_50 Fox + Falco (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/14_39_25 Marth + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/14_40_06 Falco + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/14_41_10 Fox + Falco (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/14_41_11 Sheik + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/14_41_16 Fox + Marth (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/14_42_37 Fox + Falco (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/14_42_42 Fox + Falco (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/14_42_46 Marth + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/14_43_44 Falco + [LI] Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/14_44_20 Fox + Marth (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/14_46_10 Fox + [FEZ] Marth (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/14_46_33 Fox + [C2] Marth (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/14_47_36 Fox + Falco (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/14_47_58 [EASY] Fox + [=P] Marth (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/14_50_46 [RUDE] Marth + [DOOD] Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/14_52_00 Fox + Falco (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/14_52_36 Fox + Marth (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/14_53_36 Falco + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/14_55_15 Falco + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/14_55_35 Fox + Falco (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/14_56_06 Fox + Marth (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/14_56_30 Fox + Falco (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/14_57_18 Marth + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/14_57_35 Fox + [C2] Falco (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/14_58_07 [C2] Marth + [BBBB] Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/14_58_38 Falco + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/15_00_03 Fox + Marth (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/15_02_55 [C2] Marth + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/15_03_23 Zelda + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/15_04_59 Falco + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/15_06_08 Fox + Falco (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/15_06_15 Fox + [FEZ] Sheik (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/15_07_38 Falco + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/15_07_43 Marth + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/15_08_36 Fox + [C2] Marth (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/15_10_09 Fox + Marth (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/15_11_01 Falco + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/15_11_08 Fox + [C2] Marth (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/15_11_16 [HERB] Marth + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/15_11_53 Fox + Falco (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/15_13_06 Falco + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/15_16_57 Marth + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/15_18_04 [OBER] Falco + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/15_18_08 Fox + Marth (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/15_19_38 Falco + [C2] Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/15_19_48 Fox + Marth (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/15_20_19 Fox + Falco (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/15_20_45 Falco + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/15_21_25 Falco + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/15_22_32 Marth + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/15_24_15 Falco + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/15_24_27 Fox + [C2] Marth (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/15_26_19 Marth + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/15_26_21 Falco + [C2] Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/15_26_28 Marth + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/15_26_46 Fox + [FEZ] Sheik (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/15_27_55 Falco + [RAT] Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/15_28_14 [3MLK] Falco + [GOTH] Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/15_28_53 [314] Fox + [C2] Marth (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/15_29_08 Fox + Marth (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/15_31_37 [=P] Marth + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/15_32_18 Fox + Marth (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/15_33_50 [MAKI] Fox + [INFP] Falco (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/15_35_58 Fox + Falco (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/15_36_48 [EASY] Fox + [C2] Marth (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/15_39_36 Fox + Marth (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/15_39_45 Fox + [FEZ] Marth (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/15_40_05 Falco + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/15_40_43 Fox + Falco (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/15_40_44 Sheik + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/15_40_57 [EASY] Fox + [C2] Marth (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/15_44_01 Sheik + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/15_44_24 [LI] Fox + [ABNC] Sheik (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/15_45_08 [=P] Marth + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/15_48_33 Fox + Marth (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/15_49_28 [KFC] Marth + [FEOP] Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/15_50_59 Falco + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/15_53_09 Fox + Marth (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/15_53_28 Fox + Marth (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/15_54_39 [LI] Fox + [ABNC] Marth (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/15_54_47 Fox + Marth (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/15_55_15 Fox + Falco (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/15_56_02 [LI] Fox + [ABNC] Marth (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/15_56_22 Marth + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/15_57_24 [314] Fox + [C2] Marth (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/15_58_08 Fox + Sheik (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/16_03_13 Fox + [PEGA] Marth (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/16_03_16 Fox + Falco (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/16_04_09 Fox + Marth (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/16_05_34 [C2] Marth + [LI] Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/16_07_13 Marth + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/16_13_15 Fox + Marth (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/16_15_47 Fox + Sheik (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/16_16_17 Marth + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/16_16_44 Marth + [CUMB] Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/16_17_00 [SNES] Sheik + [ABNC] Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/16_19_01 Fox + [C2] Falco (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/16_21_24 Fox + Falco (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/16_21_26 Fox + Falco (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/16_24_00 Fox + Falco (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/16_24_16 [FOX] Fox + Falco (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/16_25_24 Marth + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/16_26_35 Marth + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/16_27_05 Fox + Marth (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/16_28_46 Fox + Sheik (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/16_29_57 Fox + [C2] Falco (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/16_31_20 [KFC] Marth + [FEOP] Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/16_35_58 [NEKU] Marth + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/16_36_03 Falco + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/16_36_22 Fox + Marth (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/16_38_27 Falco + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/16_38_42 Fox + Falco (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/16_41_11 Fox + Marth (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/16_42_03 Fox + Falco (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/16_42_09 Falco + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/16_42_28 [C2] Fox + Falco (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/16_42_28 Falco + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/16_42_59 [LITS] Sheik + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/16_43_30 Falco + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/16_43_57 [NELL] Fox + Sheik (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/16_44_39 [C2] Falco + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/16_46_36 Sheik + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/16_48_36 [C2] Falco + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/16_49_19 Falco + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/16_50_01 [C2] Fox + Falco (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/16_50_41 [C2] Marth + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/16_51_59 Fox + [C2] Falco (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/16_52_14 Falco + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/16_53_06 [C2] Marth + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/16_53_54 [C2] Fox + Falco (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/16_54_01 [C2] Falco + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/16_54_31 Fox + Falco (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/16_54_46 Falco + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/16_55_52 Falco + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/16_56_21 Sheik + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/16_56_52 [C2] Fox + Marth (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/16_57_39 [RAGU] Marth + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/16_57_53 Marth + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/16_59_46 [RAGU] Marth + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/17_00_53 Fox + Falco (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/17_00_53 [WIG] Falco + [314] Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/17_01_22 Fox + Falco (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/17_02_05 [C2] Falco + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/17_02_33 Falco + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/17_03_07 Fox + [GUT] Marth (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/17_04_00 Falco + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/17_04_52 Falco + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/17_07_22 Falco + [LITS] Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/17_07_30 Sheik + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/17_09_24 Sheik + [C2] Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/17_10_12 Zelda + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/17_10_41 Fox + Sheik (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/17_11_23 Falco + [LITS] Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/17_11_42 Fox + Falco (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/17_13_13 Falco + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/17_14_07 Fox + Falco (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/17_14_58 [C2] Marth + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/17_15_35 Fox + [314] Marth (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/17_16_04 Marth + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/17_16_08 Falco + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/17_17_44 Falco + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/17_17_53 [C2] Marth + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/17_18_10 Fox + [WORM] Sheik (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/17_19_05 Falco + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/17_19_59 [314] Falco + [C2] Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/17_19_59 Falco + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/17_20_17 [C2] Falco + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/17_21_15 Fox + Falco (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/17_23_13 Falco + [RHOD] Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/17_23_19 Sheik + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/17_23_49 [TYLI] Falco + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/17_24_18 Fox + Falco (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/17_25_50 Fox + Falco (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/17_26_16 Marth + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/17_26_27 Falco + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/17_26_31 Falco + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/17_26_38 [SUR] Marth + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/17_26_45 Fox + [C2] Marth (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/17_27_37 Fox + Marth (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/17_27_58 Falco + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/17_29_01 Marth + [CHAD] Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/17_29_03 Marth + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/17_30_06 Falco + [MS] Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/17_30_27 Fox + Marth (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/17_30_33 Fox + Marth (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/17_30_45 Fox + [SAMI] Sheik (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/17_32_53 Fox + Marth (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/17_33_24 Marth + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/17_34_25 [KHAG] Fox + [314] Falco (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/17_36_30 [C2] Falco + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/17_37_44 [FOX] Fox + [C2] Falco (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/17_37_51 Sheik + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/17_38_48 Falco + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/17_41_13 Falco + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/17_41_23 [PT8O] Fox + [C2] Marth (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/17_41_45 Marth + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/17_42_15 Sheik + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/17_42_21 Fox + Marth (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/17_42_51 Marth + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/17_42_59 Falco + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/17_43_54 Fox + Sheik (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/17_44_23 Fox + Marth (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/17_44_29 Fox + Marth (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/17_45_00 Marth + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/17_45_25 Fox + [ALLY] Marth (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/17_45_26 Sheik + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/17_45_58 Falco + [VIK] Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/17_46_09 Fox + [SAMI] Sheik (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/17_47_22 Marth + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/17_47_36 Falco + [ROLA] Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/17_47_53 Falco + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/17_48_30 [EXID] Falco + [KHAG] Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/17_48_31 Marth + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/17_49_01 Fox + Falco (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/17_49_05 Falco + [NELL] Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/17_49_31 Fox + Falco (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/17_50_16 Falco + [EASY] Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/17_50_58 Fox + Sheik (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/17_51_14 [C2] Fox + Marth (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/17_51_56 [EXID] Falco + [KHAG] Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/17_52_30 [SUR] Marth + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/17_53_18 Fox + Falco (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/17_53_32 [FOX] Fox + [C2] Marth (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/17_54_19 Fox + Sheik (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/17_56_41 Falco + [PAPA] Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/17_57_32 Fox + Falco (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/17_57_53 Falco + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/17_58_25 [GOOS] Marth + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/17_59_17 Marth + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/17_59_49 Falco + [FOX] Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/17_59_51 [C2] Falco + [INFP] Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/17_59_58 Fox + Falco (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/18_00_46 [C2] Marth + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/18_00_47 Fox + Sheik (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/18_00_54 Sheik + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/18_01_47 Fox + [LITS] Zelda (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/18_03_40 [C2] Falco + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/18_03_46 [C2] Fox + [SUR] Marth (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/18_04_52 Fox + [INFP] Falco (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/18_04_54 Fox + Sheik (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/18_05_21 Fox + Marth (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/18_06_17 Sheik + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/18_07_38 Fox + Falco (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/18_08_06 Falco + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/18_08_07 Falco + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/18_08_08 [C2] Falco + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/18_08_16 Fox + Falco (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/18_09_39 Fox + Sheik (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/18_10_15 Sheik + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/18_10_26 Fox + Sheik (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/18_10_29 [C2] Falco + [314] Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/18_10_59 [C2] Marth + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/18_11_22 Fox + Falco (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/18_11_50 [NELL] Marth + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/18_12_07 Sheik + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/18_12_29 Sheik + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/18_12_42 Falco + [KHAG] Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/18_12_52 Fox + Marth (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/18_12_57 [INFP] Falco + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/18_13_21 [FOX] Fox + [C2] Marth (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/18_14_02 Fox + Sheik (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/18_14_04 [C2] Marth + [INFP] Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/18_14_18 Sheik + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/18_14_40 Fox + Falco (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/18_14_55 Falco + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/18_15_17 [PT8O] Fox + [C2] Marth (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/18_15_24 [C2] Marth + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/18_15_53 Falco + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/18_16_06 Falco + [FOX] Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/18_16_15 [3MLK] Falco + [K8W8] Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/18_17_24 Falco + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/18_17_58 Sheik + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/18_18_03 Fox + Marth (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/18_18_42 Marth + [C2] Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/18_19_05 Fox + Sheik (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/18_19_30 Fox + Sheik (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/18_19_35 Falco + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/18_19_40 Fox + Marth (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/18_20_06 [QTPI] Fox + Sheik (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/18_20_49 Fox + Marth (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/18_20_55 Marth + [VIK] Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/18_21_51 Fox + [LITS] Sheik (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/18_22_26 Falco + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/18_22_30 Sheik + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/18_23_18 Falco + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/18_24_22 Falco + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/18_24_27 Falco + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/18_25_23 Fox + Falco (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/18_25_27 Falco + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/18_25_42 Fox + Marth (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/18_25_45 Fox + Marth (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/18_25_58 Sheik + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/18_26_06 Fox + Marth (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/18_26_15 [VEN] Marth + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/18_28_24 [VEN] Marth + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/18_30_03 [C2] Marth + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/18_30_16 [INFP] Fox + Sheik (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/18_30_43 Sheik + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/18_30_49 Fox + [726] Falco (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/18_31_48 Fox + Falco (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/18_31_53 Fox + Marth (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/18_31_59 Fox + Marth (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/18_32_59 Sheik + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/18_33_29 [CUMB] Marth + [XANA] Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/18_34_14 [C2] Marth + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/18_34_20 Fox + Falco (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/18_35_19 Marth + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/18_35_28 [QTPI] Fox + Sheik (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/18_35_33 Sheik + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/18_35_34 [314] Marth + [C2] Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/18_36_21 Marth + [TIME] Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/18_36_32 Fox + Sheik (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/18_36_40 Fox + Sheik (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/18_37_41 Marth + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/18_38_00 Falco + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/18_38_00 Fox + Sheik (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/18_38_14 Marth + [VIK] Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/18_38_41 Fox + Sheik (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/18_38_42 [C2] Fox + [SUR] Marth (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/18_38_42 Fox + Marth (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/18_38_46 [C2] Marth + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/18_38_52 Fox + Marth (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/18_39_49 Marth + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/18_40_03 Marth + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/18_40_21 Sheik + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/18_40_33 Fox + Falco (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/18_41_02 Falco + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/18_42_06 Falco + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/18_42_26 [SUR] Marth + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/18_42_55 Falco + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/18_43_03 [SUR] Marth + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/18_43_41 Fox + Marth (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/18_43_43 Falco + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/18_43_47 Falco + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/18_43_53 Fox + Falco (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/18_43_55 Marth + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/18_44_25 Marth + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/18_44_38 Sheik + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/18_45_23 Falco + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/18_45_27 Marth + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/18_45_50 Falco + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/18_46_12 Fox + Falco (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/18_47_27 Fox + Marth (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/18_47_37 Falco + [4EVA] Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/18_47_39 Marth + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/18_47_43 Falco + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/18_48_56 Falco + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/18_49_51 Marth + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/18_50_17 [FAMU] Marth + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/18_50_25 Fox + [=D] Marth (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/18_50_56 [SUR] Marth + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/18_51_42 Marth + [C2] Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/18_51_47 [C2] Fox + Sheik (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/18_51_56 Falco + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/18_52_37 Falco + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/18_53_13 Fox + Sheik (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/18_53_27 Falco + [FOX] Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/18_54_06 [INFP] Fox + Sheik (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/18_54_32 [C2] Fox + Marth (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/18_55_01 Fox + Marth (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/18_55_17 Marth + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/18_55_20 Fox + Marth (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/18_55_45 [ROCK] Marth + [314] Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/18_56_38 Fox + Falco (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/18_56_50 Fox + Marth (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/18_57_41 Fox + Marth (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/18_57_46 [NELL] Fox + Marth (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/18_57_48 Marth + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/18_57_57 Marth + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/18_58_05 [QTPI] Fox + Sheik (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/18_58_17 Fox + Marth (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/18_58_47 Falco + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/19_00_42 Falco + [SNTA] Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/19_00_47 Fox + Sheik (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/19_00_55 Falco + [CUMB] Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/19_01_04 [SUR] Marth + [PBOY] Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/19_01_12 Falco + [314] Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/19_01_22 Falco + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/19_01_26 Falco + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/19_01_28 [C2] Fox + [EXID] Falco (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/19_01_45 [ROCK] Marth + [314] Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/19_02_02 Marth + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/19_02_19 Sheik + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/19_02_24 Fox + [C2] Marth (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/19_02_28 Fox + Falco (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/19_02_37 Fox + Marth (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/19_02_51 Marth + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/19_02_56 [314] Fox + Falco (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/19_03_02 Marth + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/19_03_03 Sheik + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/19_03_51 [=3] Falco + [CUMB] Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/19_03_58 Fox + Marth (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/19_03_59 Marth + [314] Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/19_04_14 [C2] Falco + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/19_05_27 Sheik + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/19_05_56 Marth + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/19_06_13 Fox + Marth (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/19_06_43 Falco + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/19_07_12 Falco + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/19_07_31 Falco + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/19_07_42 Falco + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/19_07_46 Sheik + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/19_07_51 [VEN] Marth + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/19_07_53 Falco + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/19_08_00 Fox + [=D] Marth (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/19_08_03 Falco + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/19_10_03 Marth + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/19_10_28 Marth + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/19_10_32 Fox + Sheik (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/19_11_44 Fox + Marth (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/19_12_01 Fox + Sheik (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/19_12_07 Marth + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/19_12_29 Sheik + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/19_12_43 Falco + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/19_13_02 Fox + Falco (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/19_13_21 Falco + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/19_13_36 Falco + [4EVA] Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/19_14_06 Fox + Falco (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/19_14_45 Falco + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/19_15_33 Fox + Marth (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/19_16_00 Fox + [314] Falco (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/19_16_46 Falco + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/19_17_12 Fox + Falco (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/19_17_31 Sheik + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/19_17_40 Falco + [TLOZ] Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/19_18_10 Falco + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/19_18_20 [314] Fox + Sheik (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/19_18_33 Marth + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/19_19_29 Sheik + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/19_19_42 Fox + Marth (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/19_19_45 Fox + [=D] Marth (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/19_19_57 Fox + Marth (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/19_20_14 Falco + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/19_20_16 Falco + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/19_20_25 Fox + [BRI] Zelda (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/19_20_27 Fox + Falco (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/19_20_52 Falco + [4EVA] Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/19_21_25 Sheik + [314] Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/19_21_30 [BUGS] Falco + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/19_22_13 Marth + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/19_22_15 Fox + Marth (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/19_22_33 Fox + Marth (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/19_23_21 Falco + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/19_23_32 [LEAN] Fox + [YUNG] Falco (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/19_23_50 Falco + [314] Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/19_24_08 Marth + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/19_24_11 [C2] Marth + [CUMB] Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/19_24_15 Fox + Marth (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/19_24_39 [C2] Fox + Sheik (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/19_24_56 Falco + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/19_25_29 Fox + Falco (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/19_26_26 [ROCK] Falco + [314] Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/19_26_29 Fox + Sheik (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/19_26_37 Fox + Falco (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/19_26_38 Fox + Marth (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/19_26_42 Sheik + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/19_27_10 Sheik + [314] Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/19_28_21 [BUTT] Fox + Falco (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/19_28_36 [314] Fox + Sheik (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/19_28_39 [=P] Falco + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/19_28_58 Fox + Sheik (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/19_29_03 Fox + Falco (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/19_29_10 Fox + Sheik (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/19_29_22 Marth + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/19_29_37 [VEN] Marth + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/19_29_54 Falco + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/19_30_19 [=P] Fox + Marth (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/19_30_24 Fox + Marth (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/19_30_28 Falco + [314] Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/19_30_32 [=3] Falco + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/19_30_48 Fox + [INFP] Sheik (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/19_31_05 [ACE~] Fox + [MIMI] Marth (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/19_31_24 Marth + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/19_31_35 [SUR] Marth + [ZOD] Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/19_32_14 Sheik + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/19_32_15 Fox + [C2] Marth (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/19_32_34 Fox + Falco (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/19_32_47 Marth + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/19_32_48 Falco + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/19_32_48 Fox + Falco (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/19_33_00 Fox + Marth (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/19_33_17 Sheik + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/19_33_47 [THOR] Fox + Falco (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/19_34_36 [BUTT] Fox + Falco (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/19_34_44 Marth + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/19_34_58 Falco + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/19_35_20 [C2] Marth + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/19_35_24 Falco + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/19_35_24 Fox + Falco (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/19_35_33 Falco + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/19_35_47 Fox + Marth (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/19_36_11 Falco + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/19_36_16 Sheik + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/19_36_42 [=3] Falco + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/19_37_19 Marth + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/19_37_39 Fox + Marth (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/19_38_07 Fox + Sheik (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/19_38_07 [LEAN] Fox + [YUNG] Falco (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/19_38_18 Falco + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/19_38_20 Falco + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/19_38_34 [SUR] Marth + [ZOD] Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/19_38_35 Marth + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/19_38_37 Fox + Falco (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/19_39_05 [ROCK] Marth + [314] Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/19_39_47 Falco + [314] Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/19_39_50 Fox + Marth (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/19_39_58 Marth + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/19_40_29 Falco + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/19_40_35 Falco + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/19_40_38 Falco + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/19_40_46 Fox + Marth (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/19_40_56 Sheik + [314] Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/19_41_12 Fox + Marth (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/19_41_36 Falco + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/19_41_50 Falco + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/19_41_50 Fox + Falco (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/19_41_58 Fox + Marth (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/19_42_04 [314] Marth + [C2] Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/19_42_33 Falco + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/19_43_00 Falco + [LI] Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/19_44_16 Fox + Falco (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/19_45_01 Falco + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/19_45_44 Sheik + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/19_45_53 Fox + Marth (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/19_46_03 Falco + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/19_46_08 Sheik + [SHIG] Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/19_46_40 Marth + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/19_47_00 [LEAN] Fox + [YUNG] Falco (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/19_47_09 Fox + Marth (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/19_47_12 [BABY] Fox + Zelda (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/19_47_58 Marth + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/19_48_33 Marth + [WS] Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/19_49_14 Fox + Falco (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/19_49_17 Fox + [UMR] Falco (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/19_49_40 Fox + Marth (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/19_49_47 Fox + Marth (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/19_49_54 Fox + [OG1] Marth (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/19_50_03 Falco + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/19_50_07 Falco + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/19_51_23 Fox + Marth (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/19_51_24 Fox + Falco (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/19_51_52 Fox + Marth (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/19_52_33 Marth + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/19_52_56 Falco + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/19_53_05 Sheik + [MAR] Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/19_53_10 [C2] Fox + Marth (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/19_53_37 Fox + Falco (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/19_53_47 [LEAN] Fox + [YUNG] Falco (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/19_53_52 Marth + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/19_54_22 Falco + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/19_54_22 Fox + Falco (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/19_54_47 Fox + Marth (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/19_54_57 Marth + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/19_56_56 Fox + Falco (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/19_56_59 Fox + Sheik (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/19_57_13 Falco + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/19_58_01 Falco + [CRJ] Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/19_58_02 [BUTT] Fox + Falco (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/19_58_19 Marth + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/19_58_40 Falco + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/19_59_32 Marth + [QNTN] Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/20_00_52 Fox + [OG1] Marth (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/20_01_08 Falco + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/20_01_35 Fox + Sheik (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/20_03_00 Fox + [OG1] Marth (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/20_03_17 [BUGS] Falco + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/20_03_42 [C2] Marth + [MAR] Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/20_04_27 Falco + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/20_04_45 Sheik + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/20_05_01 Marth + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/20_05_07 [USSR] Fox + [3MLK] Falco (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/20_05_27 Fox + [SUR] Marth (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/20_05_47 Marth + [314] Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/20_06_53 Marth + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/20_07_28 Marth + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/20_07_30 [KHAG] Fox + [3MLK] Falco (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/20_07_32 [BUTT] Fox + Falco (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/20_09_15 Falco + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/20_10_05 [C2] Fox + Marth (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/20_10_26 Sheik + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/20_11_02 Falco + [LI] Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/20_11_37 Fox + Marth (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/20_11_38 Fox + [OG1] Marth (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/20_11_43 Marth + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/20_12_16 [1TAP] Sheik + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/20_12_18 Sheik + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/20_12_44 Sheik + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/20_13_14 Fox + [LUST] Sheik (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/20_13_22 Sheik + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/20_13_59 [LUST] Sheik + [314] Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/20_14_22 Falco + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/20_14_39 Falco + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/20_15_04 [RAGU] Marth + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/20_15_22 Falco + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/20_15_48 Fox + Falco (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/20_16_25 Falco + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/20_17_05 Marth + [GOTH] Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/20_17_12 Falco + [401K] Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/20_17_24 Sheik + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/20_17_30 Fox + Falco (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/20_18_19 [VIK] Fox + [SUR] Marth (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/20_19_47 Fox + Marth (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/20_20_54 Falco + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/20_21_06 Falco + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/20_21_39 Sheik + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/20_22_08 [SUR] Marth + [GOTH] Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/20_22_42 Fox + Zelda (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/20_23_39 [EASY] Fox + [1TAP] Sheik (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/20_23_47 [SUR] Falco + [314] Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/20_23_53 Fox + Sheik (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/20_24_52 Sheik + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/20_26_33 [SUR] Falco + [314] Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/20_27_54 Fox + Sheik (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/20_28_19 Sheik + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/20_28_35 [CUMB] Fox + [SUR] Marth (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/20_29_35 [3MLK] Fox + Marth (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/20_29_37 Falco + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/20_30_35 [EASY] Fox + [OI] Marth (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/20_30_43 [=3] Falco + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/20_30_46 [SHKN] Marth + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/20_30_55 Fox + Marth (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/20_31_18 Fox + [OG1] Marth (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/20_31_33 Fox + Falco (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/20_31_57 Fox + Marth (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/20_32_25 Marth + [CUMB] Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/20_32_28 [=3] Falco + [EASY] Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/20_32_49 Falco + [CUMB] Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/20_33_25 Fox + Marth (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/20_33_37 Fox + Marth (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/20_33_44 [=3] Falco + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/20_33_46 Falco + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/20_33_54 Falco + [LI] Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/20_34_36 [GOTH] Fox + Falco (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/20_34_45 Fox + Marth (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/20_35_28 [314] Fox + [LUST] Sheik (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/20_35_29 [3MLK] Falco + [314] Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/20_35_33 Marth + [YG] Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/20_36_08 Falco + [CUMB] Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/20_36_44 Marth + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/20_36_58 Marth + [SUR] Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/20_37_34 [LI] Fox + Falco (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/20_37_36 Sheik + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/20_38_10 Fox + Marth (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/20_38_23 Fox + Zelda (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/20_38_26 Sheik + [LITS] Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/20_38_30 [C2] Marth + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/20_38_53 Marth + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/20_39_10 [3MLK] Falco + [314] Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/20_39_51 Falco + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/20_39_58 Fox + Falco (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/20_40_03 Fox + Marth (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/20_40_11 Marth + [VIK] Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/20_41_03 [GOTH] Fox + Marth (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/20_41_03 Zelda + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/20_41_09 [=P] Falco + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/20_41_20 Fox + Marth (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/20_41_33 [INFP] Fox + Falco (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/20_41_39 Sheik + [MARS] Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/20_42_15 Falco + [SLAY] Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/20_42_37 [3MLK] Falco + [CRJ] Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/20_42_59 Falco + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/20_43_27 [C2] Falco + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/20_43_53 Falco + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/20_43_56 Sheik + [CUMB] Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/20_44_25 Sheik + [MARS] Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/20_44_41 [314] Fox + Falco (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/20_45_34 Marth + [FOX] Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/20_45_41 Sheik + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/20_46_02 [3MLK] Falco + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/20_46_36 [3MLK] Falco + [CRJ] Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/20_46_56 Fox + Marth (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/20_47_01 Marth + [0110] Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/20_47_04 [SMBA] Falco + [CUMB] Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/20_47_18 Sheik + [CUMB] Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/20_47_53 Fox + Marth (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/20_48_12 [=3] Marth + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/20_49_08 Falco + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/20_49_10 [ROCK] Marth + [CUMB] Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/20_50_31 Fox + Sheik (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/20_50_37 [=P] Marth + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/20_50_41 Fox + Marth (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/20_50_48 Falco + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/20_50_59 Fox + Marth (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/20_51_44 Fox + Marth (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/20_51_46 [CHOW] Marth + [UHOH] Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/20_52_04 Marth + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/20_52_20 [SLAY] Marth + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/20_52_39 [SUR] Marth + [BOBO] Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/20_52_56 [3MLK] Falco + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/20_53_40 [=P] Marth + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/20_53_47 Fox + Marth (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/20_54_45 Falco + [BABY] Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/20_55_43 Marth + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/20_55_51 Marth + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/20_56_02 [3MLK] Falco + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/20_56_31 Fox + Marth (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/20_56_35 Falco + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/20_56_50 Falco + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/20_56_52 Falco + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/20_56_59 Fox + Marth (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/20_57_21 [XANA] Fox + Marth (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/20_58_16 Fox + Falco (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/20_58_31 Falco + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/20_59_10 [SUR] Marth + [VIK] Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/21_00_06 Falco + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/21_00_19 Marth + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/21_00_24 [314] Fox + [MECH] Marth (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/21_00_55 Falco + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/21_01_18 Marth + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/21_01_24 [SMBA] Falco + [CUMB] Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/21_01_33 Sheik + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/21_01_41 Fox + Marth (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/21_01_57 Falco + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/21_02_07 [SUR] Marth + [VIK] Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/21_02_10 Marth + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/21_02_27 Falco + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/21_02_42 Fox + [OWO] Marth (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/21_02_43 [INFP] Fox + [SUR] Marth (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/21_02_48 Falco + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/21_03_03 Fox + Marth (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/21_03_10 [3MLK] Falco + [CRJ] Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/21_03_25 Falco + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/21_03_32 Zelda + [LI] Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/21_03_44 [LI] Fox + [C2] Marth (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/21_04_23 Sheik + [314] Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/21_04_25 Fox + Marth (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/21_04_45 Fox + Marth (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/21_05_18 Marth + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/21_05_51 [INFP] Fox + [SUR] Marth (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/21_05_59 Falco + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/21_06_34 [PT] Falco + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/21_06_44 Sheik + [INFP] Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/21_06_57 [NELL] Fox + Falco (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/21_07_06 Fox + Falco (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/21_07_30 Falco + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/21_07_44 Falco + [CUMB] Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/21_07_58.568Z [EXID] Falco + [WU] Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/21_08_22 Sheik + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/21_08_47 Sheik + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/21_09_07 Marth + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/21_09_15 Fox + Falco (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/21_09_36 Falco + [USSR] Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/21_09_51 Marth + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/21_10_47 Falco + [LITS] Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/21_10_54 Marth + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/21_11_03 Falco + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/21_11_26 Falco + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/21_11_30 Fox + Zelda (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/21_11_43 Falco + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/21_11_46 [=3] Falco + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/21_12_09 Falco + [DAD] Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/21_12_14 [SMBA] Falco + [CUMB] Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/21_12_35 Fox + Falco (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/21_12_37 Fox + Marth (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/21_12_51 Sheik + [CUMB] Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/21_14_03 Falco + [LITS] Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/21_14_05 Fox + Falco (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/21_14_39 [3MLK] Falco + [XANA] Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/21_14_47 Fox + [C2] Marth (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/21_14_53 [CUMB] Fox + Falco (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/21_14_58 Marth + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/21_15_13 Fox + Falco (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/21_15_54 [=3] Fox + Falco (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/21_16_08 [C2] Marth + [LI] Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/21_17_17 Fox + [=P] Marth (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/21_17_24 Fox + [ARN] Marth (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/21_17_25 Sheik + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/21_17_29 Fox + Sheik (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/21_17_51 Sheik + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/21_17_56 [=3] Falco + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/21_19_12 Falco + [LITS] Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/21_19_26 Falco + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/21_19_52 Fox + [C2] Marth (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/21_20_12 Falco + [314] Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/21_20_15 [NELL] Fox + Falco (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/21_20_34 Zelda + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/21_20_40 Falco + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/21_21_01 Fox + [C2] Marth (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/21_21_53 Sheik + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/21_22_07 [PT] Falco + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/21_22_13 [JUNK] Falco + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/21_22_35 Sheik + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/21_22_36 [=3] Falco + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/21_22_43 Falco + [LI] Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/21_22_47 Marth + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/21_22_56 [FOX] Fox + [C2] Marth (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/21_22_59 Fox + Marth (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/21_23_14 [PON] Sheik + [ZZZ] Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/21_23_57 Fox + Sheik (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/21_25_15 Fox + Zelda (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/21_25_20 [3MLK] Falco + [CRJ] Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/21_26_37 Fox + Marth (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/21_26_41 Falco + [LI] Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/21_26_52 Falco + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/21_26_57 Falco + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/21_27_15 Sheik + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/21_27_34 Sheik + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/21_27_53 [XIU] Falco + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/21_29_56 Marth + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/21_30_02 Fox + Falco (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/21_30_32 Falco + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/21_31_12 Marth + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/21_31_45 Fox + Falco (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/21_31_54 Falco + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/21_32_24 Falco + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/21_33_50 Falco + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/21_34_47 Fox + [PEGA] Marth (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/21_37_11 Fox + [314] Sheik (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/21_37_36 [EASY] Fox + [C2] Marth (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/21_37_45 Fox + Marth (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/21_37_47 Fox + Falco (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/21_38_31 Marth + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/21_39_20 [XIU] Falco + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/21_39_46 Marth + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/21_40_01 Falco + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/21_40_55 [EASY] Fox + [C2] Marth (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/21_42_15 [C2] Fox + Marth (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/21_42_24 Fox + [C2] Marth (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/21_42_37 Marth + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/21_42_52 [INFP] Sheik + [NELL] Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/21_43_15 Sheik + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/21_44_50 Fox + Falco (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/21_45_14 Marth + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/21_45_16 Fox + [C2] Marth (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/21_45_29 Sheik + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/21_45_31 Fox + Falco (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/21_46_23 Fox + Marth (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/21_46_54 Marth + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/21_47_28 Falco + [TITP] Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/21_47_30 [RUDE] Marth + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/21_48_35 Falco + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/21_49_29 Marth + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/21_49_32 Marth + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/21_50_21 Fox + Falco (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/21_50_33 Marth + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/21_50_43 Marth + [314] Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/21_50_45 Zelda + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/21_51_03 Sheik + [TITP] Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/21_51_08 Falco + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/21_51_09 Fox + Falco (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/21_51_46 Fox + [314] Falco (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/21_52_15 Fox + [RUDE] Marth (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/21_52_24 [31] Marth + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/21_52_35 [C2] Marth + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/21_52_48 Falco + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/21_53_28 Marth + [314] Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/21_53_31 Marth + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/21_54_37 Marth + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/21_54_46 [XIU] Falco + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/21_54_53 [PT] Falco + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/21_55_11 Fox + [RUDE] Marth (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/21_56_48 Fox + Marth (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/21_56_59.968Z [EXID] Falco + [DNCR] Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/21_58_07 Falco + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/21_58_07 Marth + [314] Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/21_58_11 Marth + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/21_58_29 Falco + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/21_58_54 [PT] Falco + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/22_00_21 Marth + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/22_00_55 Marth + [314] Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/22_01_24 Sheik + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/22_01_56 [YOTL] Fox + [EZ] Marth (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/22_02_03 Falco + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/22_02_16 Fox + [314] Falco (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/22_03_14 [C2] Falco + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/22_03_15 [=3] Falco + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/22_04_22 Sheik + [LITS] Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/22_04_29 Marth + [314] Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/22_05_02 Marth + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/22_05_57 Falco + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/22_06_00 Marth + [314] Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/22_06_49 Marth + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/22_07_05 [BRUH] Falco + [314] Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/22_09_01 [GOTH] Falco + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/22_09_52 Marth + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/22_11_11 Falco + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/22_11_16 Marth + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/22_11_23 Marth + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/22_11_31 [JAKE] Marth + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/22_11_46 Fox + Falco (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/22_12_17 Sheik + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/22_12_19 Falco + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/22_14_04 Marth + [314] Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/22_14_06 Marth + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/22_15_16 [MEOW] Marth + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/22_17_36 Fox + [SUR] Marth (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/22_18_30 Sheik + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/22_19_02 Sheik + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/22_20_49 Marth + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/22_21_41 Falco + [C2] Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/22_21_49 Falco + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/22_24_02 Fox + Marth (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/22_25_49 [C2] Marth + [BABY] Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/22_26_22 Fox + Marth (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/22_26_28 [NUBB] Falco + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/22_26_43 Marth + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/22_27_04 [LANA] Falco + [314] Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/22_27_09 [TOPH] Fox + Falco (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/22_28_01 Falco + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/22_30_00 [BOB] Marth + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/22_30_14 Fox + Marth (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/22_30_15 Falco + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/22_30_26 Marth + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/22_33_09 Sheik + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/22_34_56 Falco + [C2] Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/22_35_32 Fox + Marth (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/22_36_54 Marth + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/22_37_41 Fox + Sheik (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/22_38_15 Falco + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/22_38_35.256Z [=3] Falco + [TJOM] Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/22_38_46 Marth + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/22_38_56 [C2] Fox + [FEAR] Sheik (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/22_40_50 Falco + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/22_41_15 Sheik + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/22_42_14 Fox + [C2] Falco (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/22_42_26 [C2] Fox + [FEAR] Sheik (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/22_42_35 Falco + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/22_44_19 Falco + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/22_44_47 [BOB] Marth + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/22_46_17 Falco + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/22_47_35 [BOB] Marth + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/22_47_53 Fox + Marth (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/22_49_22 Falco + [INFP] Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/22_55_00 Falco + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/22_55_07 Sheik + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/22_59_18 Falco + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/23_13_00 Falco + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/23_18_24 Falco + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/23_19_16 Fox + Sheik (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/23_21_57 [C2] Fox + Marth (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/23_22_12 Marth + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/23_22_38 Fox + Marth (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/23_24_18 Fox + Falco (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/23_36_59 Marth + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/23_41_00 [C2] Falco + Fox (FD).slp
+/home/blewf/git/exphil/replays/erickfm_ranked/v2_filtered/23_44_12 Fox + Marth (FD).slp
