@@ -343,6 +343,28 @@ drop, no SDI, no shield-SDI, no tumble); recorder hook at the procMap
 epilogue; no FrameStart seed. The 2021 console set differs only by the
 tumble patch and the camera-hook recorder.
 
+**The Roll-pick class, chased to its floor (sim `d26c23d2`).** With
+`MSL_SEED_TRACE=1` (every fighter-pre restore) and `MSL_GFX_TRACE=1`
+(every effect dispatch with its draw count), `rng_census.js` computes
+retail's RNG draws per frame (LCG distance between consecutive recorded
+seeds) against the sim's. Three games, 27,753 frames: **retail draws
+3–150 per frame on 97 % of frames — from frame −122, fighters still on
+their entry platforms — the sim a median of 0 (max 14)**; 23,747 drift
+frames have no sim effect dispatch at all. The continuous consumer is the
+particle system (live generators/particles step every frame on the
+gameplay RNG; FD's background, every live effect), which the headless
+build does not run (ledger: presentation particles are a deliberate
+exclusion). The per-frame pre restore re-syncs the stream, so this is
+invisible except for a gameplay draw before that restore (hitlag-end
+launch, priority 0) or after the frame's last one (throw release in the
+hit pass): the DamageFlyRoll pick. Modern recordings' FrameStart seed
+covers the first. This is also why the LCG-inversion anchors failed: the
+uncounted particle draws sit inside both spans. **Fix = run particle RNG
+consumption headlessly** (import `sysdolphin/baselib/particle.c`, step
+generators per frame without display, gate it so the batch path does not
+pay) — days of sim work and upstream's call; the residual is 71 games
+(5.7 %), animation id only, trajectories exact. Stopped here.
+
 Cost note: a 1,122-game sweep is ~30 s at 8 workers; it slows a
 concurrent trainer's CPU data pipeline (23 → 172 ms/it) — Bradley: fine
 as long as it does not break anything.
