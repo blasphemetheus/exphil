@@ -2099,8 +2099,27 @@ fidelity 0.213, repeat 0.782, **neutral 0.141** (band 0.22–0.33), return
 **0.031** (dur8e 0.059, expert 0.013); death shape: died holding neutral
 **10/100** (dur8e 84/196, expert 88/104 — the expert dies holding
 neutral because it has already committed), dies with a jump left 25 %,
-deep-B stick-up 31 %. Read: the copy path's removal takes the *silence*
-out of the fall (the hazard halves, deaths are now active) but the bot
-dies doing the wrong active thing, and the expert-like neutral share
-goes with it — the channel was carrying both. First point on the
-dropout curve; pd50 and nopq (queue 24) complete it.
+deep-B stick-up 31 %. Bradley: "how exactly does the bot die actively wrong? this could be a
+separate issue." It is — `recovery_death_shape.js` now decomposes every
+death (all died episodes, bot and expert):
+
+| | expert | dur8e | pd15 | e3 |
+|---|---|---|---|---|
+| offstage frames, stick toward / away the stage | 55 / 6 % | 23 / 17 | **40** / 19 | 22 / 12 |
+| died without ever using a special | 30 % | 59 % | 55 % | 46 % |
+| double jump used before death | 91 % | 72 % | 72 % | 71 % |
+| ended in an aerial attack / passive Fall | 5 / 6 % | 14 / 42 | **21 / 24** | 16 / 38 |
+| Firefox aimed toward / away the stage | 80 / 1 % | 31 / 36 | **63 / 26** | 32 / 39 |
+| Firefox started deep (y<−40) / high (y>−10) | 44 / 26 % | 17 / 69 | **37 / 41** | 11 / 68 |
+
+Three separable defects. **(1) The copy-shortcut family** — silent holds,
+stick held away, Firefox aimed at the blastzone and fired early — moves
+with dropout (pd15) and NOT with epochs (e3): that is what the
+prev-action channel was holding wrong. **(2) "Never commits to a recovery
+special"** (55 % vs 30 %): untouched; pd15 trades passive falling for
+attacking offstage (aerials 14 → 21 %, expert 5 %) — a decision defect
+the data should teach (teacher-forced, an aerial and an up-B score the
+same), plausibly credit rather than copying. **(3) The double jump**
+(72 / 72 / 71 % vs 91 %): no arm of any kind has moved it — its own
+mechanism, unexplained. pd15 is the first point on the dropout curve;
+pd50 and nopq (queue 24) complete it; (2) and (3) need their own levers.
