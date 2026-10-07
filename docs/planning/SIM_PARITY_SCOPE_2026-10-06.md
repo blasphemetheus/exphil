@@ -107,6 +107,51 @@ on `msl-main` `exphil-replay-step` and rebases onto it.
 Not upstreamable / ours only: nothing so far. Efficiency cost: none when
 the profile is not declared (flags already exist in the runtime).
 
+### Branch opened 10-06 22:40 — `exphil-parity` (Bradley's go)
+
+Worktree `~/git/msl-parity` (branch `exphil-parity` off `origin/main`
+`45bae153`, in the `~/git/melee-sim-light` repo; `data` and `.venv` are
+symlinks to the main clone; LFS fixtures materialised with `git lfs
+checkout` inside the sim's `devenv shell`, which is also where `git` and
+`python` run there). **Items 1 + 2 landed in one commit, `2b467dea`**, and
+smaller than scoped: the 2020 online flags were already declarable through
+existing knobs (`playedOn` metadata sets the three Dolphin call-site
+patches; `fnmsubs_profile="dolphin-legacy"` sets the zero-sign one), so
+no new "code set" concept was needed. What changed:
+
+- `parse_start` records `scene_major_missing` instead of failing; a
+  sceneless recording then *requires* `fnmsubs_profile` (the error names
+  it). Modern recordings are untouched.
+- Sceneless only: FrameStart seed → first present fighter's pre-frame
+  seed (`frame_seed_at`), seed lane not compared; no item frames → item
+  compares skipped; absent post-frame columns (`hurtbox_state`, `hitlag`,
+  `animation_index`, the five velocities) read as zeros and their specs
+  (leader + follower) are skipped. Per-replay state on `ReplayView`, no
+  globals. Result gains `skipped_fields` + `scene_major_missing`; the CLI
+  prints "legacy recording (no scene major): not compared: …".
+- CLI `--[no-]ucf-cardinals-1-0`, `--[no-]ucf-shield-drop-084` (+ the
+  other three) for manual/diagnostic runs.
+- Validator tests: 9 passed, 1 skipped (PPC artifacts).
+
+Baseline on the branch (`--diagnostic --fnmsubs-profile dolphin-legacy
+--no-ucf-cardinals-1-0 --no-ucf-shield-drop-084`, 4 ranked FD games):
+
+| game | matching rows | first mismatch |
+|---|---|---|
+| 00_41_46 [SM] Falco + Fox | **10,665 / 13,159** (exp. patch on old base: 10,522) | f −1: Fox takes 3 % (laser lands in sim) |
+| 00_51_07 [RUDE] Marth + Fox | 6,827 / 8,838 | f −2: Marth takes 3 %, Fox `last_attack_landed=18` |
+| 01_06_10 [=3] Falco + [JAKE] Fox | 7,479 / 9,762 | f 0: Fox takes 3 % |
+| 13_02_35 Marth + Fox | 1,808 / 11,456 | f 6: `shield_hp[1]` 59.16 vs 59.23; f 27 the laser |
+
+So item 3 is exactly one event in 3/4 games — the opening laser connects
+in the sim and whiffs in the recording, at frames −2..0 — and a
+shield-decay difference in the 4th (2.0 recordings carry only the
+*physical* L/R analog; the sim's trigger → shield-tilt path is the first
+suspect). Admission unchanged: these run as `--diagnostic` until a game
+passes and gets a provenance record. Still to do on the branch: the laser
+chase (item 3), the `msl_batch_reinit`/`EnvBatch`/`Seed` declaration
+(rest of item 1), a sceneless-fixture test for upstreaming.
+
 ## What this buys
 
 Expert labels on the bot's own states from the actual training
