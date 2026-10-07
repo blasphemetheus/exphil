@@ -2157,3 +2157,25 @@ P(X∨Y press) on expert offstage airborne frames with a jump in hand, by
 height, split by expert press / no press) tells whether the head learned
 the height conditioning at all (rising column) or learned it and loses
 it closed-loop (flat column). Lands with w240 / mf9k / nopq / pd50.
+
+### 10-07 16:00 — new eval: `ExPhil.Eval.DecisionMap` (Bradley: "should this mean a new eval?")
+
+Yes, as the SilenceMap's sibling rather than a fourth script. The map
+asks "what does the player decide offstage, by state" for every recovery
+decision at once: onset hazard per eligible frame (free-falling offstage,
+actionable, not in a special) of **jump**, **special_up / side / down /
+neutral** (special onset by the stick zone it was started with —
+character-agnostic), **airdodge**, **aerial**, bucketed by height band
+(`y>0`, `0..-20`, `-20..-40`, `-40..-60`, `<-60`) × jumps left; model vs
+expert with binomial z; and the **height slope** of a decision (hazard at
+−40..−60 over 0..−20 with a jump in hand) as the single conditioning
+readout — expert jump ≈ 4, a flat head ≈ 1. `fidelity_scorecard.exs`
+writes `decision_map.json` beside `silence_map.json` and prints the
+slope line + per-decision hazard-by-height lines; the expert map comes
+from `expert_reference.exs --decision-map-out`. Pass criteria to carry
+into queue headers: **jump slope ≥ 2**; up-B start deep share ≥ 30 % and
+aimed toward ≥ 60 % (from the death decomposition until the map has an
+aim lane); offstage aerial hazard ≤ 2× expert. The death-shape
+decomposition becomes a derived view of this table. Written and
+parse-checked; compile + tests + expert map at the first `mix` gap (the
+scorecard guards on `Code.ensure_loaded?` so the running queue is safe).
