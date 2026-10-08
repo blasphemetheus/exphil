@@ -214,6 +214,7 @@ if report = opts[:report] do
   File.write!(report, Jason.encode!(%{
     "policy" => policy, "seeds" => seeds, "runs" => length(frame_lists), "frames" => total,
     "policy_silent_share" => Float.round(silent_actual / max(total, 1), 3),
+    "hold_share" => Float.round(hold_share, 3),
     "label_b_share" => Float.round(label_b / max(total, 1), 3), "label_jump_share" => Float.round(label_jump / max(total, 1), 3),
     "run_len_median" => median.(runs_len)
   }, pretty: true))

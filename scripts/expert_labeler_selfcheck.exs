@@ -18,7 +18,7 @@ alias ExPhil.Data.Peppi
 alias ExPhil.Sim.GA
 alias ExPhil.Training.Output
 
-{opts, _, _} = OptionParser.parse(System.argv(), strict: [split: :string, index: :string, games: :integer])
+{opts, _, _} = OptionParser.parse(System.argv(), strict: [split: :string, index: :string, games: :integer, out: :string])
 split = opts[:split] || raise("--split required")
 files = split |> File.read!() |> Jason.decode!() |> Map.fetch!("validation")
 index = L.load(opts[:index] || "data/silent_fall/expert_recovery_index.bin")
@@ -82,3 +82,16 @@ Output.puts("RESULT labeler self-check n=#{n}: hold share actual #{pct.(Enum.cou
 Output.puts("RESULT labeler self-check jump edge, jump in hand, y<-20 (n=#{length(in_hand)}): actual #{pct.(Enum.count(in_hand, &edge?.(&1, jump?)), length(in_hand))} | label #{pct.(Enum.count(in_hand, &ledge?.(&1, jump?)), length(in_hand))}")
 Output.puts("RESULT labeler self-check stick-up onset, jump spent, y<-20 (n=#{length(spent)}): actual #{pct.(Enum.count(spent, &edge?.(&1, up?)), length(spent))} | label #{pct.(Enum.count(spent, &ledge?.(&1, up?)), length(spent))}")
 Output.puts("RESULT labeler self-check B edge, jump spent, y<-20: actual #{pct.(Enum.count(spent, &edge?.(&1, b?)), length(spent))} | label #{pct.(Enum.count(spent, &ledge?.(&1, b?)), length(spent))}")
+
+if out = opts[:out] do
+  File.mkdir_p!(Path.dirname(out))
+  rate = fn l, f -> if l == [], do: 0.0, else: Enum.count(l, f) / length(l) end
+  File.write!(out, Jason.encode!(%{
+    n: n, games: length(games),
+    hold_actual: rate.(rows, &L.same_input?(&1.actual, &1.prev)), hold_label: rate.(rows, &L.same_input?(&1.label, &1.prev)),
+    agreement: rate.(rows, &L.same_input?(&1.label, &1.actual)),
+    actual_jump: rate.(in_hand, &edge?.(&1, jump?)), label_jump: rate.(in_hand, &ledge?.(&1, jump?)),
+    actual_up: rate.(spent, &edge?.(&1, up?)), label_up: rate.(spent, &ledge?.(&1, up?)),
+    actual_b: rate.(spent, &edge?.(&1, b?)), label_b: rate.(spent, &ledge?.(&1, b?))
+  }, pretty: true))
+end
