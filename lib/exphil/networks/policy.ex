@@ -279,7 +279,8 @@ defmodule ExPhil.Networks.Policy do
             stick_events_prev: if(opts[:stick_events], do: Axon.input("prev_sticks", shape: {nil, 4})),
             event_context: opts[:event_context] == true,
             stick_release: opts[:stick_release] == true,
-            stick_duration: opts[:stick_duration]
+            stick_duration: opts[:stick_duration],
+            danger_context: danger_context_node(opts)
           )
 
         other ->
@@ -302,6 +303,27 @@ defmodule ExPhil.Networks.Policy do
   # off the prev-action slot and zeroes the slot
   # (Imitation.Loss.policy_forward_inputs/4), the agent embeds without it.
   defp button_events_prev_node, do: Axon.input("prev_buttons", shape: {nil, 8})
+
+  # Danger context (2026-10-08, `danger_columns: [int]`): the CURRENT frame's
+  # own-player danger features, sliced from the window's last row of the
+  # same "state_sequence" input the trunk reads (Axon coalesces same-named
+  # inputs onto one key, so no new input and no new plumbing in the loss,
+  # the probes or the exports). The live sampler gets the same k values as
+  # `:danger` (Agent slices its newest embedded frame at these columns).
+  defp danger_context_node(opts) do
+    case opts[:danger_columns] do
+      cols when is_list(cols) and cols != [] ->
+        window_size = Keyword.get(opts, :window_size, 60)
+        embed_size = Keyword.fetch!(opts, :embed_size)
+        # the index tensor is built inside the layer fn (GOTCHA #3: no
+        # captured tensors in a graph that is also differentiated)
+        Axon.input("state_sequence", shape: {nil, window_size, embed_size})
+        |> Axon.nx(fn x -> x[[.., -1]] |> Nx.take(Nx.tensor(cols, type: :s64), axis: -1) end, name: "ar_danger_slice")
+
+      _ ->
+        nil
+    end
+  end
 
   @doc """
   Build the contiguous-BPTT temporal policy (BPTT_LOADER_DESIGN.md planks
@@ -384,6 +406,10 @@ defmodule ExPhil.Networks.Policy do
 
     if opts[:stick_duration] do
       raise ArgumentError, "stick_duration (semi-Markov main stick) is implemented on the windowed path only, not BPTT"
+    end
+
+    if opts[:danger_columns] do
+      raise ArgumentError, "danger_context is implemented on the windowed path only, not BPTT"
     end
 
     # chunk targets (training only): `{{head, futures}, final_hidden}`; the

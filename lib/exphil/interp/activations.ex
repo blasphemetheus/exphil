@@ -202,7 +202,8 @@ defmodule ExPhil.Interp.Activations do
         stick_events: Map.get(config, :stick_events, false) == true,
         event_context: Map.get(config, :event_context, false) == true,
         stick_release: Map.get(config, :stick_release, false) == true,
-        stick_duration: Map.get(config, :stick_duration)
+        stick_duration: Map.get(config, :stick_duration),
+        danger_columns: Map.get(config, :danger_columns)
       )
 
     {_init_fn, predict_fn} = Utils.build_compiled(model, mode: :inference)

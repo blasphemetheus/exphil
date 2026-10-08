@@ -424,6 +424,10 @@ defmodule ExPhil.Training.Imitation.Checkpointing do
         event_context: trainer.config[:event_context] || false,
         stick_release: trainer.config[:stick_release] || false,
         stick_duration: trainer.config[:stick_duration],
+        # Danger-context heads: the live agent slices its newest embedded
+        # frame at these columns and hands the values to the sampler
+        danger_context: trainer.config[:danger_context] || false,
+        danger_columns: trainer.config[:danger_columns],
         prev_action_offset: trainer.config[:prev_action_offset],
         # Queue-as-input layout (2026-07-31): the live agent must rebuild
         # the exact channel layout (K committed-action slots + delay

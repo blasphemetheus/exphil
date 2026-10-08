@@ -134,6 +134,10 @@ defmodule ExPhil.Agents.Agent do
     # committed to it. Batch rows keep theirs in batch.stick_runs.
     :stick_duration,
     :stick_run,
+    # Danger-context heads (2026-10-08): embedding columns of the own-player
+    # danger features (y, jumps, on_ground, speed_y, ledge distance) the
+    # sampler is handed from the newest embedded frame; nil = plain head.
+    :danger_columns,
     # Temporal inference config
     :temporal,
     :backbone,
@@ -792,6 +796,7 @@ defmodule ExPhil.Agents.Agent do
       sample_opts =
         ExPhil.Agents.Decode.sample_opts(state, opts)
         |> event_prev_opts(state, state.batch.last_controllers, state.batch.stick_runs)
+        |> danger_opts(state, state.batch[:last_frames])
       action = Networks.Policy.sample_autoregressive_from_features(state.policy_params, features, sample_opts)
       # one device->host copy per head, then host-side row slicing (to_controller_state
       # does ~7 Nx.to_number calls per row — 128 rows x 7 device reads was the tail)
@@ -965,6 +970,7 @@ defmodule ExPhil.Agents.Agent do
       ExPhil.Agents.Decode.sample_opts(state, [])
       |> Keyword.delete(:prev_buttons)
       |> event_prev_opts(state, [nil], [{0, 0}])
+      |> danger_opts(state, :zeros)
 
     # AR-head checkpoints warm the sequential sampler instead — the same
     # program the live loop hits (stage1/stage2 kernels + trunk).
@@ -1824,6 +1830,7 @@ defmodule ExPhil.Agents.Agent do
     sample_opts =
       ExPhil.Agents.Decode.sample_opts(state, opts)
       |> event_prev_opts(state, [state.last_controller], [state.stick_run || {0, 0}])
+      |> danger_opts(state, Nx.reshape(embedded, {1, Nx.size(embedded)}))
 
     action =
       if state.head == :autoregressive do
@@ -1929,6 +1936,7 @@ defmodule ExPhil.Agents.Agent do
     step_sample_opts =
       ExPhil.Agents.Decode.sample_opts(state, opts)
       |> event_prev_opts(state, [state.last_controller], [state.stick_run || {0, 0}])
+      |> danger_opts(state, frame)
 
     action =
       if state.head == :autoregressive do
@@ -2117,6 +2125,23 @@ defmodule ExPhil.Agents.Agent do
   defp fresh_trunk_state(state, n),
     do: init_trunk_state(state.trunk_step_params, state.embed_config, state.backbone, n)
 
+  # Danger-context heads: the newest embedded frames ({rows, embed}) sliced at
+  # the checkpoint's danger columns -> :danger ({rows, k} f32) for the sampler.
+  # :zeros (warmup) hands a single all-zero row. No columns = plain head.
+  defp danger_opts(sample_opts, %{danger_columns: cols}, _frames) when not is_list(cols) or cols == [],
+    do: sample_opts
+
+  defp danger_opts(sample_opts, %{danger_columns: cols}, :zeros),
+    do: Keyword.put(sample_opts, :danger, Nx.broadcast(Nx.tensor(0.0, type: :f32), {1, length(cols)}))
+
+  defp danger_opts(sample_opts, %{danger_columns: cols}, %Nx.Tensor{} = frames) do
+    danger = frames |> Nx.take(Nx.tensor(cols, type: :s64), axis: -1) |> Nx.as_type(:f32)
+    Keyword.put(sample_opts, :danger, danger)
+  end
+
+  defp danger_opts(_sample_opts, _state, nil),
+    do: raise(ArgumentError, "danger-context checkpoint: the batch has no embedded frames to slice (batch_trunk_step must run first)")
+
   # Press/release event button head: hand the sampler the previous emitted
   # buttons ({rows, 8}; nil controller = all up), in the embedding's order.
   defp event_prev_opts(sample_opts, state, controllers, runs) do
@@ -2250,7 +2275,7 @@ defmodule ExPhil.Agents.Agent do
       end
 
     features = state.predict_fn.(Utils.ensure_model_state(state.policy_params), window)
-    {features, %{state | batch: %{b | window: window, cold_rows: MapSet.new()}}}
+    {features, %{state | batch: Map.put(%{b | window: window, cold_rows: MapSet.new()}, :last_frames, frames)}}
   end
 
   # Embed every row with the agent's own config, stack to {n, dim}, run ONE
@@ -2277,7 +2302,7 @@ defmodule ExPhil.Agents.Agent do
       end
 
     {features, new_trunk} = trunk_step_fn(state.backbone).(state.trunk_step_params, trunk, frames)
-    {features, %{state | batch: %{b | trunk_state: new_trunk, cold: false}}}
+    {features, %{state | batch: Map.put(%{b | trunk_state: new_trunk, cold: false}, :last_frames, frames)}}
   end
 
   # Incremental GatedSSM inference with state caching (O(1) per frame)
@@ -3191,6 +3216,7 @@ defmodule ExPhil.Agents.Agent do
         button_events: Map.get(config, :button_events, false) == true,
         stick_events: Map.get(config, :stick_events, false) == true,
         stick_duration: Map.get(config, :stick_duration) != nil,
+        danger_columns: Map.get(config, :danger_columns),
         stick_run: nil,
         last_controller: nil,
         controller_queue: [],

@@ -372,6 +372,7 @@ defmodule ExPhil.Training.Config.Parser do
     {"--stick-duration", :stick_duration, :int},
     {"--stick-duration-weight", :stick_duration_weight, :float},
     {"--event-context", :event_context, :flag},
+    {"--danger-context", :danger_context, :flag},
     {"--prev-action-dropout", :prev_action_dropout, :float},
     {"--prev-action-dropout-block", :prev_action_dropout_block, :int},
     {"--prev-action-quantize", :prev_action_quantize, :flag},

@@ -171,6 +171,37 @@ defmodule ExPhil.Embeddings.Player do
     base_size + speed_size + frame_info_size + bucket_size + stock_size + ledge_size + nana_size
   end
 
+  @doc """
+  Column indices, within one player's embedding, of the DANGER features the
+  recovery decisions depend on (`danger_context`, 2026-10-08): `y`,
+  `jumps_left` (normalized), `on_ground`, `speed_y_self`, `ledge_distance`.
+  Columns whose block is off in `config` (or jumps as a one-hot) are
+  omitted. Mirrors the layout in `embed/3` + `embed_base/2`; the test checks
+  it against a perturbation of the real embedding.
+  """
+  @spec danger_columns(config()) :: [non_neg_integer()]
+  def danger_columns(config \\ default_config()) do
+    action_size = if config.action_mode == :one_hot, do: Primitives.embedding_size(:action), else: 0
+    character_size = if config.character_mode == :one_hot, do: Primitives.embedding_size(:character), else: 0
+    jumps_size = if config.jumps_normalized, do: 1, else: Primitives.embedding_size(:jumps_left)
+
+    # percent, facing, x, y | action | character | invulnerable, jumps, shield, on_ground
+    y = 3
+    jumps = 4 + action_size + character_size + 1
+    on_ground = jumps + jumps_size + 1
+    base = base_embedding_size(config)
+    # speeds: air_x, ground_x, y, attack_x, attack_y
+    speed_y = if config.with_speeds, do: base + 2
+    after_speeds = base + if(config.with_speeds, do: 5, else: 0)
+    frame_info = if config.with_frame_info, do: 2, else: 0
+    buckets = config.action_frame_buckets || 0
+    stock = if config.with_stock, do: 1, else: 0
+    ledge = if config.with_ledge_distance, do: after_speeds + frame_info + buckets + stock
+
+    [y, if(config.jumps_normalized, do: jumps), on_ground, speed_y, ledge]
+    |> Enum.reject(&is_nil/1)
+  end
+
   # Compact Nana embedding size (~39 dims instead of 455)
   # Preserves all info needed for IC tech: handoffs, regrabs, desyncs
   defp compact_nana_embedding_size do

@@ -42,6 +42,9 @@ defmodule ExPhil.Networks.Policy.Heads do
   # 24-31, 32+.
   @age_buckets 11
   @age_edges [1, 2, 3, 4, 6, 8, 12, 16, 24, 32]
+  # Danger readout width (`danger_context`): k state features -> 32 -> residual
+  @danger_hidden 32
+  def danger_hidden, do: @danger_hidden
 
   @doc """
   Build the autoregressive controller head.
@@ -284,6 +287,31 @@ defmodule ExPhil.Networks.Policy.Heads do
           end
 
         Enum.reduce([ctx_buttons | ctx_sticks], r0, fn ctx, acc -> Axon.add(acc, ctx) end)
+      else
+        r0
+      end
+
+    # Danger context (2026-10-08): the current frame's own-player danger
+    # features (y, jumps left, on_ground, speed_y, ledge distance — an Axon
+    # node `{batch, k}` sliced from the state input by Policy) handed to the
+    # heads DIRECTLY, through a small ReLU readout whose output layer is
+    # zero-initialised. The recovery decisions are height decisions the
+    # expert conditions on state (DecisionMap: jump hazard 0.08 → 0.30 by
+    # band, Firefox only once the jump is spent) and every arm left flat at
+    # every prev-action dose — the trunk has the features but the decision
+    # logits never learned to read them (INPUT_COHERENCE "10-05 23:30" lever
+    # 1, "10-07 20:30"). Absent params = the plain head.
+    danger_context = Keyword.get(opts, :danger_context)
+
+    r0 =
+      if danger_context do
+        ctx =
+          danger_context
+          |> Axon.dense(@danger_hidden, name: "ar_danger_hidden")
+          |> Axon.relu()
+          |> Axon.dense(residual_size, name: "ar_danger_embed", use_bias: false, kernel_initializer: :zeros)
+
+        Axon.add(r0, ctx)
       else
         r0
       end

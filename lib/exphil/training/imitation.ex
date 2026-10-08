@@ -303,6 +303,27 @@ defmodule ExPhil.Training.Imitation do
       raise ArgumentError, "stick_release requires stick_events: true"
     end
 
+    # Danger context (2026-10-08): the heads read the current frame's own
+    # danger features (y, jumps, on_ground, speed_y, ledge distance) straight
+    # off the state input. The column indices depend on the embedding
+    # config, so they are derived here and carried in the config (the
+    # checkpoint saves them; the live agent slices its newest frame at them).
+    config =
+      if config[:danger_context] do
+        cond do
+          not config.temporal or head != :autoregressive ->
+            raise ArgumentError, "danger_context requires temporal: true and head: :autoregressive"
+
+          config[:bptt] ->
+            raise ArgumentError, "danger_context is not implemented on the BPTT path"
+
+          true ->
+            Map.put(config, :danger_columns, Embeddings.Player.danger_columns(embed_config.player))
+        end
+      else
+        config
+      end
+
     # Semi-Markov main stick: the duration targets (how long the pair just
     # chosen is held, capped at C) are read off the chunk-target futures, so
     # the chunk horizon must reach C - 1 frames ahead.
@@ -346,6 +367,7 @@ defmodule ExPhil.Training.Imitation do
           event_context: config[:event_context] || false,
           stick_release: config[:stick_release] || false,
           stick_duration: config[:stick_duration],
+          danger_columns: config[:danger_columns],
           prev_action_offset: config[:prev_action_offset],
           embed_size: embed_size,
           backbone: config.backbone,

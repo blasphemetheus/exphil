@@ -1594,6 +1594,13 @@ defmodule ExPhil.Training.Config do
       button_events: false,
       stick_events: false,
       event_context: false,
+      # Danger context (2026-10-08): the current frame's own y / jumps left /
+      # on_ground / speed_y / ledge distance as a FEATURE of the AR heads
+      # (ReLU readout, zero-initialised output) — the recovery decisions are
+      # height decisions the heads never learned to read from the trunk.
+      # Windowed path only. Imitation.new derives :danger_columns from the
+      # embed config and the checkpoint carries them for the live agent.
+      danger_context: false,
       # Stick RELEASE as an explicit decision beside hold (2026-10-05): the
       # change softmax's centre mass is the onstage prior and left a ~2.5 %/frame
       # release floor offstage where the expert never lets go (recovery probe
@@ -2659,6 +2666,7 @@ defmodule ExPhil.Training.Config do
       button_events: opts[:button_events],
       stick_events: opts[:stick_events],
       event_context: opts[:event_context],
+      danger_context: opts[:danger_context],
       stick_release: opts[:stick_release],
       stick_duration: opts[:stick_duration],
       stick_duration_weight: opts[:stick_duration_weight],

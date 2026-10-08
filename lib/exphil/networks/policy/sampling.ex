@@ -449,9 +449,35 @@ defmodule ExPhil.Networks.Policy.Sampling do
         _ -> head
       end
 
-    case Keyword.get(opts, :stick_commit) do
-      %Nx.Tensor{} = c -> Map.put(head, "ar_stick_commit", %{"value" => Nx.as_type(c, :s64)})
+    head =
+      case Keyword.get(opts, :stick_commit) do
+        %Nx.Tensor{} = c -> Map.put(head, "ar_stick_commit", %{"value" => Nx.as_type(c, :s64)})
+        _ -> head
+      end
+
+    # Danger context (Heads: `danger_context`): the current frame's own-player
+    # danger features ({rows, k} f32), sliced by the Agent at the checkpoint's
+    # danger_columns.
+    case Keyword.get(opts, :danger) do
+      %Nx.Tensor{} = d -> Map.put(head, "ar_danger", %{"value" => Nx.as_type(d, :f32)})
       _ -> head
+    end
+  end
+
+  # Danger readout (Heads: danger_context): k features -> ReLU hidden ->
+  # zero-initialised projection added to r0. Rows broadcast over tiled
+  # features like the event context does.
+  deftransformp ar_danger_context(r0, head) do
+    case head do
+      %{"ar_danger_hidden" => hidden, "ar_danger_embed" => %{"kernel" => k}, "ar_danger" => %{"value" => d}} ->
+        h = d |> Nx.dot(hidden["kernel"]) |> Nx.add(hidden["bias"]) |> Nx.max(0)
+        Nx.add(r0, Nx.dot(h, k))
+
+      %{"ar_danger_embed" => _} ->
+        raise ArgumentError, "this checkpoint has a danger-context head — pass :danger ({rows, k}) to the sampler"
+
+      _ ->
+        r0
     end
   end
 
@@ -639,7 +665,7 @@ defmodule ExPhil.Networks.Policy.Sampling do
   end
 
   defnp ar_stage1(head, features) do
-    r0 = ar_dense(features, head["ar_residual_proj"]) |> ar_prev_context(head) |> ar_age_context(head)
+    r0 = ar_dense(features, head["ar_residual_proj"]) |> ar_prev_context(head) |> ar_age_context(head) |> ar_danger_context(head)
     b_l =
       ar_component(r0, head["ar_buttons_hidden"], head["ar_buttons_logits"])
       |> ar_button_logits(head)
@@ -651,7 +677,7 @@ defmodule ExPhil.Networks.Policy.Sampling do
   # XLA program (features pre-tiled to {n, hidden} by the caller — the only
   # eager op left in the n>1 path).
   defnp ar_tiled_stochastic(head, features_n, key, temps) do
-    r0 = ar_dense(features_n, head["ar_residual_proj"]) |> ar_prev_context(head) |> ar_age_context(head)
+    r0 = ar_dense(features_n, head["ar_residual_proj"]) |> ar_prev_context(head) |> ar_age_context(head) |> ar_danger_context(head)
     b_l =
       ar_component(r0, head["ar_buttons_hidden"], head["ar_buttons_logits"])
       |> ar_button_logits(head)
