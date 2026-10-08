@@ -2756,6 +2756,34 @@ deep, band kept, onstage jump hazard (y>0, jump in hand) ≤ 0.15.
   decided 0.479, jump-in-hand deaths 22 %, side-B 19. Two seeds now put
   the jump rows at the expert with the bar met → **`--onset-weight 30`
   is a replicated recipe term.**
+- **13:45 — Q9 aim probe (queue 31): the aim is LEARNED, exactly; the
+  loop deficit is distribution shift.** `scripts/recovery_aim_probe.exs`
+  on held-out expert frames, jump spent, below the ledge, previous stick
+  not up. Per frame the model over-aims (P(up) 0.07–0.09 vs expert share
+  0.024; 0.53–0.61 on the frames where the expert aimed vs 0.06–0.08
+  elsewhere) — but under `--stick-duration` the stick head is trained and
+  sampled only at **decision frames** (pair change, any button edge, every
+  C-th frame of a hold; `Loss.stick_decision_targets`), and on those:
+
+  | Q9b decision frames (n=318) | expert share up | model P(up) |
+  |---|---|---|
+  | `dur8e_e3` | 0.088 | 0.093 |
+  | `on30u_e3` | 0.088 | **0.087** |
+
+  Calibrated to the third decimal on the expert's states; 1/4 of the
+  expert's onset rate on the bot's own (aim_vs_press: 3.4 % vs 12.3 % per
+  3 f). The imitation signal for the aim is not the problem; **the states
+  are** — after its own jump the bot is somewhere the expert never was
+  (and/or reaches fewer decision frames there: a silent hold consults the
+  stick head once per 8 frames, the expert's recovery has an edge every
+  ~3). This is the textbook DAgger case: the expert's labels on the
+  **bot's** offstage states. On the parity sim (88.5 % bit-exact) that is
+  exactly runnable — expert-labeled relabel needs Bradley's ok (standing).
+  The one in-imitation lever left for the aim is decision frequency:
+  **`--stick-duration 4`** (a hold re-decides twice as often; dur4 was not
+  in the 10-06 series — dur8/dur16 were) with `--onset-weight 30`, arm
+  `on30u_dur4_e3`; pass = loop up-onset ≥ 7 % / 3 f with on30u_e3's rows
+  and band kept. Queued as 32 with `on30u_e3_s906`.
 - **Recipe claim now = `on30u` (extended onset) rather than `on30`**: same
   flag (`--onset-weight 30`; `onset?/3` is the shipped definition), ≥ 3
   ep. `on30_e3_s906` (running from 11:52) is the seed replication of the

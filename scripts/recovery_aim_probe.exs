@@ -98,6 +98,8 @@ zone_of = fn a ->
   cond do cy >= 0.33 -> :up; cy <= -0.33 -> :down; abs(cx) >= 0.33 -> :side; true -> :neutral end
 end
 
+stick_c = Map.get(config, :stick_duration, Map.get(json_cfg, "stick_duration"))
+stick_c = if is_binary(stick_c), do: String.to_integer(stick_c), else: stick_c
 samples =
   games
   |> Enum.with_index()
@@ -110,7 +112,16 @@ samples =
       press? = a.buttons.b and not prev.buttons.b
       b_soon? = Enum.any?(0..3, fn j -> elem(g.actions, t + j).buttons.b and not elem(g.actions, t + j - 1).buttons.b end)
       jump_press? = (a.buttons.x and not prev.buttons.x) or (a.buttons.y and not prev.buttons.y)
-      %{game: gi, t: t, action: a, press: press?, b_soon: b_soon?, prev_b: prev.buttons.b, prev_zone: zone_of.(prev), height: height.(p.y || 0.0), jumps: p.jumps_left || 0, zone: zone_of.(a),
+      # semi-Markov decision frame (Loss.stick_decision_targets): the pair
+      # changes, any button changes, or the previous pair has been held a
+      # multiple of C frames
+      pair = fn q -> {q.main_x, q.main_y} end
+      age = Enum.reduce_while(1..min(t, 200), 0, fn k, acc ->
+        if pair.(elem(g.actions, t - k)) == pair.(prev), do: {:cont, acc + 1}, else: {:halt, acc}
+      end)
+      btn_edge? = Enum.any?([:a, :b, :x, :y, :z, :l, :r, :start], fn k -> Map.get(a.buttons, k) != Map.get(prev.buttons, k) end)
+      decision? = pair.(a) != pair.(prev) or btn_edge? or (stick_c != nil and age >= stick_c and rem(age, stick_c) == 0)
+      %{game: gi, t: t, decision: decision?, age: age, action: a, press: press?, b_soon: b_soon?, prev_b: prev.buttons.b, prev_zone: zone_of.(prev), height: height.(p.y || 0.0), jumps: p.jumps_left || 0, zone: zone_of.(a),
         jump_press: jump_press?, prev_jump_held: prev.buttons.x or prev.buttons.y, airborne: p.on_ground != true}
     end
   end)
@@ -229,6 +240,14 @@ Output.puts("RESULT #{label} Q9 aim onset (jump spent, low+deep) by previous zon
     l = Enum.filter(aim, &(&1.prev_zone == z))
     "#{z} #{share.(l, &(&1.zone == :up))}|#{mean.(l, :up)} (#{length(l)})"
   end))
+# Q9b: DECISION frames only — the frames the semi-Markov stick head is trained
+# and sampled on (the per-frame rows above include frames it never sees)
+dec = Enum.filter(aim, & &1.decision)
+Output.puts("RESULT #{label} Q9b aim onset at DECISION frames (jump spent, prev stick not up) expert share up | model P(up) (n): " <>
+  Enum.map_join([:low, :deep], "  ", fn h ->
+    l = by.(dec, h)
+    "#{h} #{share.(l, &(&1.zone == :up))}|#{mean.(l, :up)} (#{length(l)})"
+  end) <> "  all #{share.(dec, &(&1.zone == :up))}|#{mean.(dec, :up)} (#{length(dec)})")
 # and the model P(up) on the frames where the expert DID aim vs did not
 did = Enum.filter(aim, &(&1.zone == :up)); not_did = Enum.reject(aim, &(&1.zone == :up))
 Output.puts("RESULT #{label} Q9 model P(up) where the expert aimed | where it did not: #{mean.(did, :up)} (#{length(did)}) | #{mean.(not_did, :up)} (#{length(not_did)})")

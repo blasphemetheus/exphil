@@ -7,14 +7,11 @@
 set -uo pipefail
 cd /home/blewf/git/exphil
 export EDIFICE_LOCAL_NX=1
-while systemctl --user is-active --quiet exphil-queue30; do sleep 60; done
-echo "== queue 30 finished ($(date +%H:%M))"
 # another session's beam may be alive (13:20: a scratch probe); wait for it
 # rather than refuse — this queue only reads checkpoints, no training
 while pgrep -f '[b]eam.smp' > /dev/null; do sleep 60; done
 echo "== beam free ($(date +%H:%M))"
-for a in dur8e_e3 on30_e3 on30u_e3; do
-  arm=evt2ctx_ck8_off3_dur8e_$a
+for arm in "${@:-evt2ctx_ck8_off3_dur8e_e3 evt2ctx_ck8_off3_dur8e_on30u_e3}"; do
   echo "== aim probe $arm ($(date +%H:%M))"
   mix run --no-compile scripts/recovery_aim_probe.exs --policy checkpoints/coh_$arm/model_policy.bin --label $arm \
     --out eval_runs/1001_queue/$arm/aim_probe.json 2>&1 | grep -E "RESULT|error|Error|\*\*" | cut -c1-600
