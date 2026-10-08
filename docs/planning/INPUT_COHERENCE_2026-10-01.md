@@ -2871,3 +2871,30 @@ deep, band kept, onstage jump hazard (y>0, jump in hand) ≤ 0.15.
   deleted. Truncated set removed, log kept as
   `logs/exphil-queue33_enospc.log`, queue 33 relaunched 16:58 (gate
   passed again, rollout running).
+- **18:35 — `on30u_dagx2_e3` (queue 33, set r1 ×2): the expert labels on
+  the bot's states move the closed loop the right way, NOT to the aim
+  bar.** Set r1 (`data/silent_fall/sim_dagger_expert_r1.frames`): 490
+  offstage runs, 18,619 relabelled frames + 44,100 context, policy silent
+  on 22 %, labels B 13.3 % / jump 10.5 %, hold share **0.793** (in band).
+  On the bot's own states the labels carry the expert's hazards
+  (`scripts/dagger_set_label_hazards.exs`): stick-up onset once spent
+  **3.08 %** (expert held-out 3.1 %), jump edge in hand 6.3 % (8.8 %), B
+  edge 0.56 % — but that is **71 up-onsets and 152 jump edges** in the
+  whole set; at ×2 oversample the arm saw ~10 % more onset examples than
+  the corpus already holds. Arm: val 2.396 (on30u_e3 2.273 — the mix
+  costs likelihood), fidelity 0.170, repeat 0.739, **neutral 0.21** (band
+  floor 0.22), jump rows 0.141 / 0.270 / **0.294** (−20..−40 a hair under
+  the 0.15 bar; <−60 the best yet, ×0.99 expert). **Aim: up-onset once
+  spent 3.9 %/3 f (3.4 % → bar 7 %), Firefox-once-spent 0.006 / 0.007 at
+  ≤ −40 (0.0035 / 0.0095 → bar 0.04)** — FAIL, direction right at
+  −20..−60, flat deep. P(B|up) 17.4 % (26.7 % → expert 14.7 %). Closed
+  loop improved across the board: offstage return rate 0.814 (s906
+  0.708), deaths/min 1.29 (1.61), SD/min 1.14 (1.39), wavedashes/min 4.18
+  (1.56; expert 4.63), damage 60/min (48), jump-in-hand deaths 13/105 =
+  **12 %** (on30u_e3 19 %, expert 7 %), died holding neutral 35 %, up-B
+  first-means 5 (2), recovery-means return 0.439 / decided 0.569. New
+  defect: `airdodge_with_jump` 0.125 (expert 0.006; airdodge deaths 13)
+  — the labels teach "act" and the bot picks the wrong act sometimes.
+  `dagx4_e3` (×4 dose) running from 18:33; the dose being 71 onsets is
+  the reading → queue 34 = 12 rollout seeds (4× set) as DAgger round 2
+  from the newest policy, oversample 4.
