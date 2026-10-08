@@ -2530,3 +2530,59 @@ same-dose, same-epoch control `pd15` (`logs/exphil-queue27.log`):
   10-06 read: "a probe not a fix") and the lever is the training signal:
   expert-labeled relabel / DAgger on the sim (needs Bradley's ok) or
   search-distilled labels.
+
+### 10-08 06:10 — `dur8e_dng_e3` read (queue 28): the head on the real recipe makes the silent fall WORSE — lever CLOSED
+
+The last word on `--danger-context`: the real recipe (no dropout), 3 ep,
+against the bar-passer `dur8e_e3` (`logs/exphil-queue28.log`):
+
+| | `dur8e_e3` | `dur8e_dng_e3` | expert |
+|---|---|---|---|
+| val | 3.064 | 3.054 | — |
+| repeat / neutral / fidelity | 0.759 / 0.221 / 0.175 | 0.728 / 0.217 / 0.193 | 0.764 / 0.303 / 0 |
+| offstage a1–3 enter-silence | 0.0338 | **0.0608** (×4.7) | 0.013 |
+| jump hazard, jump in hand (trace) −20..−40 / −40..−60 / <−60 | 18 / 21 / 11 % (slope 5.3) | **8 / 7 / 2 %** (slope 1.8) | 39 / 52 / 35 % |
+| DecisionMap jump −20..−40 / −40..−60 / <−60 | — | 0.033 / 0.033 / 0.022 (slope 0.59) | 0.202 / 0.297 / 0.299 |
+| Firefox once spent (any band) | — | ≤ 0.0015 | 0.02–0.056 |
+| died holding neutral / w/ jump left / passive Fall | 49 % / 27 % / 38 % | **91 % / 40 % / 46 %** | 85 % / 7 % / 6 % |
+| return / decided | 0.338 / — | **0.278** / 0.351 | 0.911 / 0.915 |
+
+- Teacher-forced numbers are unchanged (val within 0.01, fidelity inside
+  the bar, neutral in band) and **every closed-loop recovery row is worse**:
+  the jump decision is the flattest of any coherent arm (0.033 at every
+  depth; `pd50` had 0.113 at −40..−60), Firefox-once-spent is at the floor,
+  and 91 % of deaths end holding neutral with no buttons — the silent fall,
+  stronger than before the whole program started.
+- The head is live and larger than at 1 ep (`ar_danger_embed` mean |w|
+  0.070; hidden mass jumps 11.1, speed_y 6.7, on_ground 5.8, ledge 4.6,
+  y 1.5). It learned something: **given the danger features, the
+  likelihood-optimal lesson in this corpus is "offstage and falling → hold
+  what you are holding"**, because the expert's recovery is 97 % holds and
+  the onsets are a few hundred frames per game. The head sharpened the hold
+  prior in exactly the states where we wanted a decision — val loss went
+  down by the same margin the closed loop went up.
+- **Verdict: lever 1 ("a head that sees danger") CLOSED, and closed in the
+  informative direction.** Information was never the bottleneck (pd15_dng);
+  with the information made easy the BC objective uses it *against* the
+  decision (dur8e_dng_e3). This is the mechanism behind every earlier
+  negative too (offstage weight ×8, silent-fall loss weight, 3× data,
+  epochs): the teacher-forced likelihood of the expert's offstage frames is
+  dominated by holds, and every lever that optimises that likelihood harder
+  learns the hold harder. `--danger-context` stays in the tree
+  off-by-default as a probe (as Bradley read it on 10-06).
+- **What is left is the training signal itself**, and the three candidates
+  all change what the label is, not how it is read: (a) **expert-labeled
+  relabel / DAgger on the parity sim** — the bot's own offstage states with
+  the expert's (or a search's) decision as the label, so the onset frames
+  are over-represented where the bot actually is (needs Bradley's ok; the
+  parity branch is 88.5 % bit-exact for exactly this); (b) **search-
+  distilled labels** — a Firefox/jump that makes it back under the sim is a
+  label even where the expert held; (c) **onset-weighted loss on the
+  decision heads only** (weight the frames where jumps_left or the
+  special_up button changes, not the whole offstage slice — offstage weight
+  ×3/×8 weighted the holds too, which is why it moved the Q7 floor and
+  nothing else). (c) is the only one that needs no sim and no ok; it is a
+  one-flag build (`--onset-weight W` on the frames where the expert's
+  jumps-left drops or B+up starts, within the offstage slice) and the
+  DecisionMap rows are the pass bar. Not launched: Bradley's call in the
+  morning which of the three.
