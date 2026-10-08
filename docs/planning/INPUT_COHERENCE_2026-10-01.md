@@ -2857,3 +2857,17 @@ deep, band kept, onstage jump hazard (y>0, jump in hand) ≤ 0.15.
   `n_in_hand`). Queue 33 relaunched 16:49 (first log kept as
   `logs/exphil-queue33_gate1.log`, one-game JSON as
   `labeler_selfcheck_1game.json`).
+- **16:56 — second queue 33 run died of ENOSPC (root disk 100 %, 11 MB
+  free; GOTCHA #116 again).** The rollout itself worked (3 seeds × ~188
+  offstage runs, 71,012 relabelled frames) and the set's `File.write!`
+  stopped at exactly 4 MiB with no report; `dagx2_e3` / `dagx4_e3` then
+  `TRAIN_FAILED` at once. Not a labeler or sim defect. Freed 6.3 GB
+  reversibly: the 82 testbed arm directories `checkpoints/coh_*` were
+  MOVED to `/data/exphil/checkpoints_coh/` with symlinks left in
+  `checkpoints/` (every queue path still resolves; `/` now 6.4 GB free,
+  99 %). The remaining 554 GB is older work (`checkpoints/` 49 GB,
+  `eval_runs/` 43 GB: `0921_evals` 8.2 GB, `0921_step8` 7.4 GB,
+  `0924_mewtwo_ppo` 5.6 GB …) — **Bradley's to triage**; nothing
+  deleted. Truncated set removed, log kept as
+  `logs/exphil-queue33_enospc.log`, queue 33 relaunched 16:58 (gate
+  passed again, rollout running).
