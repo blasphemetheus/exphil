@@ -2438,3 +2438,51 @@ Bradley: "let's continue overnight." Three queues chained on the testbed:
   lever is real and needs the coherence fix alongside; no move = the heads
   were not the bottleneck either → the training signal (expert-labeled
   DAgger relabel, lever 2, needs Bradley's ok).
+
+### 10-08 03:30 — queue 26 read: no dropout dose keeps neutral; `pd15` does NOT join the recipe
+
+Both arms against the header (`logs/exphil-queue26.log`;
+`eval_runs/1001_queue/evt2ctx_ck8_off3_dur8e_{pd30,pd15_e3}`):
+
+| arm | val | repeat | neutral | fidelity | offstage a1–3 enter-silence | died holding neutral | died w/ jump left | return | decided return |
+|---|---|---|---|---|---|---|---|---|---|
+| expert | — | 0.764 | 0.303 | 0 | 0.013 | 88/104 (85 %) | 7 % | 0.911 | 0.915 |
+| `dur8e_e3` (no dropout, the bar-passer) | — | 0.759 | **0.221** | **0.175** | **0.0338** | 49 % | 27 % | 0.338 | — |
+| `pd15` (1 ep) | — | 0.782 | 0.141 | 0.213 | 0.0313 | **10 %** | 25 % | 0.313 | — |
+| **`pd30`** (1 ep) | 3.78 | 0.770 | 0.118 | 0.229 | 0.0359 | 20 % | 23 % | 0.319 | 0.359 |
+| **`pd15_e3`** | 3.34 | 0.734 | 0.156 | 0.195 | 0.0363 | 37 % | 17 % | **0.395** | **0.496** |
+
+- **`pd30` fails** (neutral 0.118, fidelity 0.229). The dose series is now
+  monotone on neutral: 0.221 (none) → 0.141 (0.15) → 0.118 (0.3) → 0.097
+  (0.5) → there is **no dropout dose that keeps neutral in band**; the
+  channel's "stand still" prior and its copy shortcut are the same
+  prior, and dropout dilutes both together.
+- **`pd15_e3` fails the port bar** on neutral (0.156 vs ≥ 0.22) and fails
+  the silent-fall criterion it was supposed to keep: died holding neutral
+  **37 %** (pd15 at 1 ep: 10 %; dur8e_e3: 49 %; bar ≤ 20 %) and offstage
+  enter-silence 0.0363 (bar ≤ 0.035; dur8e_e3 without dropout already
+  0.0338). **The 1-ep silence cure does not survive two more epochs**: with
+  more training the policy re-learns the hold prior through the 85 % of
+  the channel it still sees. Fidelity 0.195 is inside the bar but behind
+  dur8e_e3's 0.175.
+- What `pd15_e3` does show, and the reason it is worth keeping as a
+  reference arm: **best in-band testbed return so far** (0.395; decided
+  trips 0.496 — pd100's 0.418 came with repeat 0.19), died-with-a-jump-left
+  down to 17 % (nearest the expert's 7 % of any coherent arm), and the
+  **first non-floor Firefox-once-spent row**: special_up at `-40..-60:j0`
+  0.0205, `<-60:j0` 0.0159 (pd50 0.002–0.003, pd30 0.004, expert 0.056) —
+  still 1/3 of the expert but a 5–10× move, and it came from EPOCHS, not
+  dose. Jump-in-hand rows: 0.124 / 0.156 in the mid bands (pd50 0.035 /
+  0.113; bar 0.15 / 0.20), slope 2.54 (expert 3.63) — the jump decision
+  moved toward height-tracking at 3 ep too. New failure mode on the death
+  table: side-B deaths 27 of 114 (pd15: ~0; the bot now commits to a
+  special and picks the wrong one from high, "started high 70 %").
+- **Verdict:** the port recipe stays **`dur8e` ≥ 3 ep without prev-action
+  dropout**; dropout is a diagnostic (it names the copy-shortcut family)
+  not a recipe term. The two decision rows move with epochs and not with
+  dose, which is consistent with "10-07 20:30": they are conditioning /
+  signal-limited. Queue 27's `pd15_dng` was launched with pd15 in it (set
+  before this read); it is read against `pd15` 1-ep as its control (same
+  dose, same epochs), and if the danger head moves a row the 3-ep
+  follow-up carries dropout too — a `dur8e_dng_e3` without dropout is the
+  arm to add after that, since the recipe no longer contains pd15.
