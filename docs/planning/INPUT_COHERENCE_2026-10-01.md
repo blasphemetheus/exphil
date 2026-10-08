@@ -2605,3 +2605,43 @@ Queue 29 (`scripts/coherence_queue29.sh`, started 06:05): `on10`, `on30` at
 fidelity ≤ 0.25 required) at 3 ep vs `dur8e_e3`. Pass as in the 06:10
 section: jump ≥ 0.15 / 0.20 in the mid bands, Firefox once spent ≥ 0.04
 deep, band kept, onstage jump hazard (y>0, jump in hand) ≤ 0.15.
+
+### 10-08 08:00 — `on10` / `on30` read (queue 29, 1 ep): **the jump rows MOVE for the first time**; Firefox does not
+
+| | `dur8e` (1 ep) | `on10` | `on30` | expert |
+|---|---|---|---|---|
+| val | — | 3.253 | 3.273 | — |
+| repeat / neutral / fidelity | — | 0.782 / 0.257 / 0.210 | 0.781 / **0.222** / 0.223 | 0.764 / 0.303 / 0 |
+| DecisionMap jump, jump in hand: y>0 / 0..−20 / −20..−40 / −40..−60 / <−60 | — | 0.053 / 0.066 / 0.065 / 0.113 / 0.147 | **0.102 / 0.129 / 0.163 / 0.207 / 0.351** | 0.065 / 0.082 / 0.202 / 0.297 / 0.299 |
+| jump trace (−20..−40 / −40..−60 / <−60) | 11 / 9 / 13 % | 12 / 14 / 18 % | **21 / 21 / 23 %** | 39 / 52 / 35 % |
+| Firefox once spent (−40..−60 / <−60) | — | 0.006 / 0.003 | 0.000 / 0.0005 | 0.056 / 0.056 |
+| offstage a1–3 enter-silence | — | 0.049 | 0.042 | 0.013 |
+| died holding neutral / w/ jump left | — | 41 % / 20 % | 26 % / **12 %** | 85 % / 7 % |
+| recovery mismatch (expert split-half 0.084) | — | 0.162 | **0.053** | — |
+| return / decided | — | 0.333 / 0.407 | **0.358 / 0.48** | 0.911 / 0.915 |
+| deaths by move | — | side_b 24, attack 17 | **side_b 38**, attack 29 | attack 78, up_b 11, side_b 5 |
+
+- **`on30` passes the jump half of the bar at 1 ep** (0.163 ≥ 0.15 at
+  −20..−40, 0.207 ≥ 0.20 at −40..−60; below −60 it is above the expert) with
+  the band kept (repeat 0.781, neutral 0.222 — in band for the first time
+  on a 1-ep arm — fidelity 0.223, onstage y>0 jump 0.102 ≤ 0.15). Deaths
+  with a jump in hand fall to 12 % (expert 7 %) and the recovery-means
+  mismatch is 0.053, *below* the expert's own split-half floor. Height
+  slope is still shallow (1.6 vs 3.63: it jumps early too — 0..−20 at ×1.57)
+  — a dose/epochs matter; the queue picked W=30 and `on30_e3` is running
+  from 07:57.
+- **Firefox once the jump is spent did not move at all** (0.000 / 0.0005),
+  and side-B is now the dominant death (38 of 156): the B-edge weight
+  teaches "press B offstage", and with the semi-Markov stick already held
+  toward the stage that press is an Illusion into the wall. The expert's
+  Firefox is two onsets — the stick goes UP a few frames before B — and
+  `--stick-duration` supervises the stick only at its change events, so
+  weighting the B frame never weights the stick-up change that aims it.
+  Fix (not yet applied — lib files are frozen while queue 29's eval
+  stages still invoke `mix run`): extend `onset?` to (i) the main stick
+  entering UP (y ≥ 0.75) from not-up while offstage and the jump is spent,
+  and (ii) count a B edge only with the stick up (a Firefox onset); a
+  side-B press stays at the offstage weight. Arm `on30u` (W=30 with the
+  extended onset) after queue 29 — pass = the Firefox-once-spent row
+  ≥ 0.04 deep with the jump rows kept where `on30` has them and side-B
+  deaths back under 15.
