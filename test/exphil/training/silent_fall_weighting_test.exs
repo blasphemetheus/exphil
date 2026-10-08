@@ -7,14 +7,14 @@ defmodule ExPhil.Training.SilentFallWeightingTest do
              button_z: false, button_l: false, button_r: false}
   @up %{@neutral | main_stick: %{x: 0.5, y: 0.95}}
 
-  defp frame(num, x, on_ground, ctrl, action \\ nil) do
+  defp frame(num, x, on_ground, ctrl, action \\ nil, jumps_left \\ 1) do
     action = action || if(on_ground, do: 14, else: 29)
 
     %{
       game_state: %{
         frame: num,
         stage: 32,
-        players: %{1 => %{x: x, y: if(on_ground, do: 0.0, else: -20.0), on_ground: on_ground, action: action, hitstun_frames_left: 0}}
+        players: %{1 => %{x: x, y: if(on_ground, do: 0.0, else: -20.0), on_ground: on_ground, action: action, hitstun_frames_left: 0, jumps_left: jumps_left}}
       },
       controller: ctrl
     }
@@ -74,6 +74,20 @@ defmodule ExPhil.Training.SilentFallWeightingTest do
 
     # composes with offstage_weight by max
     assert SFW.frame_weights(Enum.take(frames, 3), offstage_weight: 3.0, onset_weight: 5.0) == [3.0, 5.0, 3.0]
+  end
+
+  test "a Firefox is two onsets (stick up once the jump is spent, then B with the stick up); side-B is none" do
+    side = %{@neutral | main_stick: %{x: 0.95, y: 0.5}}
+    side_b = %{side | button_b: true}
+    up_b = %{@up | button_b: true}
+    # jump spent: hold side, side-B edge, release, stick up (aim), up-B edge, held
+    ctrls = [side, side_b, @neutral, @up, up_b, up_b]
+    spent = for {c, i} <- Enum.with_index(ctrls), do: frame(i, 100.0, false, c, nil, 0)
+    assert SFW.frame_weights(spent, onset_weight: 5.0) == [1.0, 1.0, 1.0, 5.0, 5.0, 1.0]
+
+    # with a jump in hand the aim alone is not an onset; B with the stick up still is
+    in_hand = for {c, i} <- Enum.with_index(ctrls), do: frame(i, 100.0, false, c, nil, 1)
+    assert SFW.frame_weights(in_hand, onset_weight: 5.0) == [1.0, 1.0, 1.0, 1.0, 5.0, 1.0]
   end
 
   test "neutral? respects the deadzone and buttons" do

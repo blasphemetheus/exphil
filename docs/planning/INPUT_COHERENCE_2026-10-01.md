@@ -2645,3 +2645,39 @@ deep, band kept, onstage jump hazard (y>0, jump in hand) ≤ 0.15.
   extended onset) after queue 29 — pass = the Firefox-once-spent row
   ≥ 0.04 deep with the jump rows kept where `on30` has them and side-B
   deaths back under 15.
+
+### 10-08 09:30 — `on30_e3` read (queue 29): **passes the port bar AND the jump rows — new recipe candidate**
+
+| | `dur8e_e3` (old candidate) | **`on30_e3`** | expert |
+|---|---|---|---|
+| val | 3.064 | 3.110 | — |
+| repeat / neutral / **fidelity** | 0.759 / 0.221 / 0.175 | 0.780 / **0.304** / **0.162** | 0.764 / 0.303 / 0 |
+| DecisionMap jump, jump in hand: y>0 / 0..−20 / −20..−40 / −40..−60 / <−60 | — | 0.097 / 0.070 / **0.176 / 0.282 / 0.258** | 0.065 / 0.082 / 0.202 / 0.297 / 0.299 |
+| height slope (jump) | — | **4.01** | 3.63 |
+| jump trace (−20..−40 / −40..−60 / <−60) | 18 / 21 / 11 % | 23 / 27 / 10 % | 39 / 52 / 35 % |
+| Firefox once spent (−20..−40 / −40..−60 / <−60) | — | 0.005 / 0.005 / 0.007 | 0.021 / 0.056 / 0.056 |
+| offstage a1–3 enter-silence | 0.034 | 0.044 | 0.013 |
+| died holding neutral / w/ jump left / passive Fall | 49 % / 27 % / 38 % | 50 % / **19 %** / 38 % | 85 % / 7 % / 6 % |
+| return / decided | 0.338 / — | **0.389 / 0.481** | 0.911 / 0.915 |
+| deaths by move | — | side_b 27, attack 17, airdodge 7, up_b 2 | attack 78, up_b 11, side_b 5 |
+
+- **Port bar passed with margin**: fidelity 0.162 is the lowest of any arm
+  (bar ≤ 0.21), neutral 0.304 sits on the expert's 0.303, repeat 0.78.
+  Val is 0.05 *higher* than dur8e_e3 — the weight trades a little
+  likelihood for behaviour, the opposite of the danger head.
+- **Jump rows at 0.86–0.95× the expert in every offstage band, slope 4.0
+  (expert 3.6)** — the double jump is now a height decision. Onstage leak
+  stays inside the check (y>0 0.097 ≤ 0.15; 0..−20 *below* the expert, so
+  the early jumping of the 1-ep arm went away with epochs).
+- Still open: **Firefox once spent 0.005** (1/10 expert), side-B the top
+  death (27), offstage enter-silence 0.044 (×3.4; dur8e_e3 0.034) — the
+  bot now jumps like the expert and then still falls silently or
+  Illusions into the wall. That is the stick-up half of the onset
+  (08:00 section): applied as `onset?/3` (stick entering UP once the
+  jump is spent; B edge only with the stick up; 8.1 onsets per game),
+  8 weighting tests pass. **Queue 30**: `on30u` (1 ep), `on30u_e3` if the
+  jump row is kept, and **`on30_e3_s906`** (seed replication of this
+  candidate; the recipe claim needs it before the port).
+- **Recipe candidate (pending s906 + on30u):** windowed + prev_q (no
+  dropout) + events + context + chunk 8 + `--offstage-weight 3` +
+  `--stick-duration 8` + **`--onset-weight 30`**, ≥ 3 ep.

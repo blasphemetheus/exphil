@@ -71,7 +71,7 @@ defmodule ExPhil.Training.SilentFallWeighting do
               else: w
 
           w =
-            if off? and on_w != nil and prev_c != nil and falling?(frame) and onset?(prev_c, c),
+            if off? and on_w != nil and prev_c != nil and falling?(frame) and onset?(prev_c, c, jumps_left(frame)),
               do: max(w, on_w * 1.0),
               else: w
 
@@ -83,20 +83,48 @@ defmodule ExPhil.Training.SilentFallWeighting do
     end
   end
 
+  # main stick y (0..1) at or above this is "up" — a Firefox aim
+  @stick_up 0.75
+
   @doc """
   True when this frame's controller starts a recovery decision the previous
-  frame had not: a jump button (X or Y) or B pressed now and neither pressed
-  before (for the jump: no jump button held on the previous frame; for B: B
-  released on the previous frame).
-  """
-  @spec onset?(map() | nil, map() | nil) :: boolean()
-  def onset?(nil, _), do: false
-  def onset?(_, nil), do: false
+  frame had not:
 
-  def onset?(prev, c) do
+    * a jump button (X or Y) pressed now with no jump button held before;
+    * a Firefox onset: B pressed now (released before) WITH the stick up, or
+      the stick entering UP from not-up once the double jump is spent
+      (`jumps_left` 0) — the expert aims a few frames before the press and
+      `--stick-duration` supervises the stick only at its change events, so
+      the aim is its own onset (INPUT_COHERENCE "10-08 08:00").
+
+  A B press with the stick elsewhere (side-B, neutral-B) is not an onset.
+  """
+  @spec onset?(map() | nil, map() | nil, integer() | nil) :: boolean()
+  def onset?(prev, c, jumps_left \\ nil)
+  def onset?(nil, _, _), do: false
+  def onset?(_, nil, _), do: false
+
+  def onset?(prev, c, jumps_left) do
     jump_now = Map.get(c, :button_x) || Map.get(c, :button_y)
     jump_prev = Map.get(prev, :button_x) || Map.get(prev, :button_y)
-    !!((jump_now && !jump_prev) || (Map.get(c, :button_b) && !Map.get(prev, :button_b)))
+    b_edge = Map.get(c, :button_b) && !Map.get(prev, :button_b)
+    up_edge = stick_up?(c) and not stick_up?(prev)
+
+    !!((jump_now && !jump_prev) || (b_edge && stick_up?(c)) || (up_edge && jumps_left == 0))
+  end
+
+  @doc false
+  def stick_up?(nil), do: false
+
+  def stick_up?(c) do
+    ms = Map.get(c, :main_stick) || %{x: 0.5, y: 0.5}
+    (ms[:y] || 0.5) >= @stick_up
+  end
+
+  defp jumps_left(frame) do
+    gs = frame[:game_state] || frame.game_state
+    p = gs && gs.players && gs.players[1]
+    p && Map.get(p, :jumps_left)
   end
 
   @doc "True when the controller is centred with no button held."
