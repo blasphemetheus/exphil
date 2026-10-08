@@ -9,7 +9,10 @@ cd /home/blewf/git/exphil
 export EDIFICE_LOCAL_NX=1
 while systemctl --user is-active --quiet exphil-queue30; do sleep 60; done
 echo "== queue 30 finished ($(date +%H:%M))"
-pgrep -af '[b]eam.smp' && { echo "a beam is alive; refusing to start"; exit 1; }
+# another session's beam may be alive (13:20: a scratch probe); wait for it
+# rather than refuse — this queue only reads checkpoints, no training
+while pgrep -f '[b]eam.smp' > /dev/null; do sleep 60; done
+echo "== beam free ($(date +%H:%M))"
 for a in dur8e_e3 on30_e3 on30u_e3; do
   arm=evt2ctx_ck8_off3_dur8e_$a
   echo "== aim probe $arm ($(date +%H:%M))"

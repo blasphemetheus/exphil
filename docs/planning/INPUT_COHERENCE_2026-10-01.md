@@ -2749,6 +2749,13 @@ deep, band kept, onstage jump hazard (y>0, jump in hand) ≤ 0.15.
   not-yet-up frames, model vs expert: same ≈ the loop states differ
   (DAgger on the parity sim, needs Bradley's ok); lower = never learned
   (aim-onset weight up, or the aim as its own event).
+- **13:20 — `on30_e3_s906` (seed replication) HOLDS:** fidelity 0.174,
+  repeat 0.75, neutral 0.217 (at the band's edge), DecisionMap jump
+  **0.194 / 0.302 / 0.397** (expert 0.202 / 0.297 / 0.299; onstage y>0
+  0.108 ≤ 0.15, though 0..−20 at ×1.5 — slope 2.5), return 0.429 /
+  decided 0.479, jump-in-hand deaths 22 %, side-B 19. Two seeds now put
+  the jump rows at the expert with the bar met → **`--onset-weight 30`
+  is a replicated recipe term.**
 - **Recipe claim now = `on30u` (extended onset) rather than `on30`**: same
   flag (`--onset-weight 30`; `onset?/3` is the shipped definition), ≥ 3
   ep. `on30_e3_s906` (running from 11:52) is the seed replication of the
