@@ -2813,6 +2813,17 @@ deep, band kept, onstage jump hazard (y>0, jump in hand) ≤ 0.15.
     (on30u_e3 3.4 %, expert 12.3 %) AND Firefox-once-spent ≥ 0.04 deep
     (on30u_e3 0.004) with the jump rows, the band and the closed-loop
     rates (SDs/min, dashes/min) kept.
+- **15:20 — `dur4e_on30u_e3` (queue 32): decision frequency is NOT the
+  lever.** Loop up-onset once spent **2.8 %** / 3 f (on30u_e3 3.4 %, bar
+  ≥ 7 %), stick-up share 11.5 %, side-B deaths 40 (worst), jump rows
+  0.141 / 0.287 / 0.184 (the <−60 row fell), fidelity 0.176, repeat 0.757,
+  neutral 0.239, return 0.424 / decided 0.571 (the decided number is the
+  best yet — it commits more and dies by side-B). Re-deciding the stick
+  twice as often did not raise the aim: the policy is not being *asked*
+  too rarely, it answers "not up" on its own states. That closes the
+  in-imitation list for the aim and leaves queue 33 (expert relabel on
+  the bot's states) as the test of the coverage reading. `--stick-duration
+  8` stays.
 - **Recipe claim now = `on30u` (extended onset) rather than `on30`**: same
   flag (`--onset-weight 30`; `onset?/3` is the shipped definition), ≥ 3
   ep. `on30_e3_s906` (running from 11:52) is the seed replication of the
