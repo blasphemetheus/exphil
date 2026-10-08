@@ -2584,5 +2584,24 @@ against the bar-passer `dur8e_e3` (`logs/exphil-queue28.log`):
   nothing else). (c) is the only one that needs no sim and no ok; it is a
   one-flag build (`--onset-weight W` on the frames where the expert's
   jumps-left drops or B+up starts, within the offstage slice) and the
-  DecisionMap rows are the pass bar. Not launched: Bradley's call in the
-  morning which of the three.
+  DecisionMap rows are the pass bar. (a) and (b) wait for Bradley; (c) is
+  built and running — next section.
+
+### 10-08 06:50 — `--onset-weight` built; queue 29 running (`on10`, `on30`, better W at 3 ep)
+
+`SilentFallWeighting.onset?/2` + `onset_weight` (commit 012aabfd; parser /
+config / flag docs / TRAINING.md; 7 weighting tests + config tests pass at
+the gap): an offstage, falling (not ledge / helpless / hitstun) frame whose
+label presses a jump button (X/Y) or B that the previous frame did not
+gets `max(w, W)`; the holds keep the recipe's offstage ×3. Measured on 20
+training replays (`scratchpad/onset_check.exs`, mix-free): **9.5 onsets per
+game, 1.8 % of offstage frames** — so at W=10 the decision frames carry ~6 %
+of the offstage loss mass (from 1.8 %), at W=30 ~15 %. That is the dose
+range; if `on30` moves the rows and keeps the band, 100 is the next rung,
+if it leaks (onstage jump hazard, fidelity) 10 is the ceiling.
+
+Queue 29 (`scripts/coherence_queue29.sh`, started 06:05): `on10`, `on30` at
+1 ep on the recipe, then the better W (by the −40..−60 jump-in-hand row,
+fidelity ≤ 0.25 required) at 3 ep vs `dur8e_e3`. Pass as in the 06:10
+section: jump ≥ 0.15 / 0.20 in the mid bands, Firefox once spent ≥ 0.04
+deep, band kept, onstage jump hazard (y>0, jump in hand) ≤ 0.15.
