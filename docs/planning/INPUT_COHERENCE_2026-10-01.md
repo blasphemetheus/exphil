@@ -2408,3 +2408,33 @@ whole:
 
 Queue 24/25 headers: no arm passed. `dur8e` + ≥ 3 ep stays the
 port-recipe candidate; the recovery stays lever 3 with a named target.
+
+### 10-08 01:30 — overnight: dose bracket, the candidate at 3 ep, and the danger-readout head
+
+Bradley: "let's continue overnight." Three queues chained on the testbed:
+
+- **Queue 26** (no code): `pd30` (dropout 0.3, 1 ep — is there a dose that
+  keeps neutral in band with died-holding-neutral ≤ 20 %?) and
+  **`pd15_e3`** (the port-recipe candidate `dur8e` + the silent-fall cure at
+  3 ep; pass = port bar + offstage age 1–3 enter-silence ≤ 0.035 + died
+  holding neutral ≤ 20 % → pd15 joins the recipe). DecisionMap rows are
+  the control here (expected flat).
+- **Queue 27** (code, compiled + tested at the gap): **`--danger-context`**
+  — lever 1 of "10-05 23:30", built now that "10-07 20:30" has shown the
+  two recovery decisions are conditioning defects. The AR heads get the
+  current frame's own **y, jumps left, on_ground, speed_y, ledge distance**
+  (`Player.danger_columns/1`, sliced in-graph from the same
+  `state_sequence` input the trunk reads — Axon coalesces same-named
+  inputs, so no new input, no loss/probe/export plumbing) through a
+  32-wide ReLU readout whose output layer is zero-initialised (starts as
+  the plain head). Live: `Sampling` mirrors it (`ar_danger_context`) and
+  the Agent hands the newest embedded frame's columns as `:danger`; the
+  checkpoint carries `danger_columns`. Windowed AR path only. Arm
+  `pd15_dng` (1 ep), then `pd15_dng_e3` if a decision row moves ≥ 1.5×.
+  **Pass** (per-frame DecisionMap): jump hazard with a jump in hand ≥ 0.15
+  at −20..−40 and ≥ 0.20 at −40..−60 (pd50 0.035 / 0.113); Firefox once
+  spent ≥ 0.04 below −40 (pd50 0.002); enter-silence offstage age 1–3
+  ≤ 0.035; with the coherence band kept. Rows move without the band = the
+  lever is real and needs the coherence fix alongside; no move = the heads
+  were not the bottleneck either → the training signal (expert-labeled
+  DAgger relabel, lever 2, needs Bradley's ok).
