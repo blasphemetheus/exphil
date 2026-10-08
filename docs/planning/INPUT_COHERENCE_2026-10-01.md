@@ -2302,3 +2302,48 @@ queue 24's header + the DecisionMap bars above. Caveat: the
 teacher-forced probes feed the expert's prev input, which this model
 never saw — off-distribution for pd100; its closed-loop numbers are the
 read.
+
+### 10-07 19:40 — `pd50` read (queue 24): over-corrects the silence, first DecisionMap read
+
+`--prev-action-dropout 0.5` on the dur8e recipe, 1 ep, seed 905, vs the
+queue-24 header (return ≥ 0.45 or dies-with-jump ≤ 15 % with repeat
+≥ 0.70 / neutral 0.22–0.33 / fidelity ≤ 0.23):
+
+| | dur8e | pd15 | **pd50** | header |
+|---|---|---|---|---|
+| val | 3.09 | — | **3.73** | — |
+| fidelity | 0.191 | 0.213 | **0.244** | ≤ 0.23 ✗ |
+| repeat / neutral | 0.777 / 0.296 | 0.782 / 0.141 | 0.729 / **0.097** | neutral band ✗ |
+| return / decided | 0.23 / — | 0.313 / — | 0.311 / 0.366 | ≥ 0.45 ✗ |
+| offstage age 1–3 enter-silence | ×2.4 | 0.031 | 0.044 (×3.4) | — |
+| died holding neutral, nothing pressed | ~50 % | 10 % | **13 %** | expert 85 % |
+| died with a jump left | 26–30 % | — | 22 % | ≤ 15 % ✗ |
+| never special / passive Fall | — | 55 % | **65 % / 30 %** | expert 30 / 6 |
+| trailing identical frames before death (median) | 9 | — | **3** | expert 27 |
+
+The dropout dose-response is monotone and goes past the target: at 0.5
+the bot *never stops inputting* (neutral 0.097, 3 identical frames
+before death vs the expert's 27, airdodges offstage 36–46× the expert's
+rate near the ledge) and the teacher-forced loss pays for the half-blind
+channel (val 3.73). The copy-shortcut family is gone; the two decision
+defects are untouched — and the **first DecisionMap read** puts numbers
+on both (per-frame hazard, model | expert):
+
+| | 0..−20 | −20..−40 | −40..−60 | < −60 |
+|---|---|---|---|---|
+| jump, jump in hand | 0.043 \| 0.082 | **0.035 \| 0.202** | **0.113 \| 0.297** | 0.100 \| 0.299 |
+| Firefox, jump spent | 0 \| 0.020 | 0.006 \| 0.021 | **0.002 \| 0.056** | **0.003 \| 0.056** (n = 1,394) |
+| shine, jump in hand | 0.002 \| 0.021 | 0.005 \| 0.039 | 0.003 \| 0.031 | 0.001 \| 0.005 |
+| airdodge, jump in hand | **0.007 \| 0.0002** | 0.004 \| 0 | 0.003 \| 0 | 0.002 \| 0 |
+
+Stage one (the jump) runs at 1/3–1/6 of the expert's hazard in the two
+bands that matter; stage two (Firefox once the jump is spent) at
+**1/20** — 1,394 frames below −60 with no jump and a 0.3 % per-frame
+chance of pressing up-B. Both stages are under-conditioned in the same
+direction (too rare where the expert acts), and neither moved with
+dropout 0.15 → 0.5, so they are **not** in the copy-shortcut family.
+The slope (2.6) is misleading here, as predicted — read the absolute
+rows. `pd100` (queue 25, channel fully absent) is the clean test of
+whether the prev-action channel is what suppresses them; if its rows
+look like these, the lever is elsewhere (danger-readout features /
+offstage-conditioned heads, doc "10-05 23:30" first pick).
