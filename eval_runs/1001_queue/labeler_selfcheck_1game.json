@@ -1,0 +1,13 @@
+{
+  "n": 1500,
+  "games": 1,
+  "hold_actual": 0.88,
+  "hold_label": 0.882,
+  "agreement": 0.7926666666666666,
+  "actual_jump": 0.08,
+  "label_jump": 0.02666666666666667,
+  "actual_up": 0.03296703296703297,
+  "label_up": 0.0,
+  "actual_b": 0.01098901098901099,
+  "label_b": 0.0
+}

@@ -87,7 +87,7 @@ if out = opts[:out] do
   File.mkdir_p!(Path.dirname(out))
   rate = fn l, f -> if l == [], do: 0.0, else: Enum.count(l, f) / length(l) end
   File.write!(out, Jason.encode!(%{
-    n: n, games: length(games),
+    n: n, games: length(games), n_spent: length(spent), n_in_hand: length(in_hand),
     hold_actual: rate.(rows, &L.same_input?(&1.actual, &1.prev)), hold_label: rate.(rows, &L.same_input?(&1.label, &1.prev)),
     agreement: rate.(rows, &L.same_input?(&1.label, &1.actual)),
     actual_jump: rate.(in_hand, &edge?.(&1, jump?)), label_jump: rate.(in_hand, &ledge?.(&1, jump?)),

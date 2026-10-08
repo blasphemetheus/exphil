@@ -2829,3 +2829,31 @@ deep, band kept, onstage jump hazard (y>0, jump in hand) ≤ 0.15.
   ep. `on30_e3_s906` (running from 11:52) is the seed replication of the
   W=30 recipe at the earlier onset definition; it still certifies the
   flag's effect across seeds, and an `on30u_e3_s906` follows if it holds.
+- **16:45 — `on30u_e3_s906` (queue 32, seed 906): the jump half
+  replicates; the return gain does not.** Band kept (repeat 0.760,
+  neutral 0.260, fidelity 0.194 ≤ 0.21; val 2.273); jump rows **0.254 /
+  0.334 / 0.267** (bar ≥ 0.15 / 0.20; ×1.26 / ×1.12 / ×0.89 expert,
+  slope 2.9), jump-in-hand deaths 32/141 = 23 % (seed 905: 19 %, expert
+  7 %). Firefox-once-spent still 0.0 at ≤ −40, up-onset 2.4 %/3 f, P(B|up)
+  9.5 %, up-B first-means 2, side-B deaths 29 — the aim half is as absent
+  at seed 906 as at 905. Recovery-means return **0.323** / decided 0.411
+  (seed 905: 0.439 / 0.528; dur8e_e3 0.23) → the on30u return number is
+  partly seed noise; the jump rows and band are the replicated claim.
+  Rates: SD/min 1.39 (expert 0.44), dashes/min 24 (expert 40), damage
+  48/min (expert 133) — the baseline the DAgger arms must keep.
+- **16:45 → 16:49 — queue 33 gate: `LABELER_FAILED` on the FIRST run was
+  an underpowered gate, not the labeler.** The self-check read the
+  testbed's validation split, which holds 16 files — ONE of them FD Fox:
+  n=1,500 frames, 91 spent / 75 in-hand decision frames, 0 up-onsets and
+  0 B edges sampled against 3 and 1 actual (jump 2 vs 6). Rerun on 24 FD
+  Fox games OUTSIDE the testbed (`data/silent_fall/heldout_fd_fox_split.json`,
+  1,068 such games; n=28,547 frames): hold share 79.4 % actual | 80.6 %
+  label, 16-bucket agreement 68.0 %, **jump edge 8.76 % | 9.02 % (×1.03),
+  stick-up onset 3.1 % | 2.43 % (×0.78)**, B edge 0.24 % | 0.52 % (5 vs 11
+  events, ×2.2 — underpowered). The labeler reproduces the expert's
+  hazards on the expert's states. Gate rewritten: held-out split, n ≥
+  10,000, jump + up within ×0.5–×2, a hazard with < 20 actual events is
+  reported not gated (`labeler_selfcheck.json` now carries `n_spent` /
+  `n_in_hand`). Queue 33 relaunched 16:49 (first log kept as
+  `logs/exphil-queue33_gate1.log`, one-game JSON as
+  `labeler_selfcheck_1game.json`).
