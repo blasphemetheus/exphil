@@ -2784,6 +2784,35 @@ deep, band kept, onstage jump hazard (y>0, jump in hand) ≤ 0.15.
   in the 10-06 series — dur8/dur16 were) with `--onset-weight 30`, arm
   `on30u_dur4_e3`; pass = loop up-onset ≥ 7 % / 3 f with on30u_e3's rows
   and band kept. Queued as 32 with `on30u_e3_s906`.
+- **14:30 — Bradley's ok: expert-labeled relabel on the bot's own offstage
+  states on the parity sim** ("if we need to fix the parity sim further
+  for this to work, let me know"). Built as queue 33 (chained after 32):
+  - **Labeler = the expert distribution itself**, not rules
+    (`scripts/lib/expert_recovery_labeler.exs`): an index of every
+    offstage airborne frame of 176 training-split FD Fox games (214k
+    rows, hold share 0.785, B 18.9 %, jump 11.1 %, stick up 28.4 %) as a
+    mirrored, scaled feature vector — y, distance past the edge, speeds
+    toward the stage, jumps left, facing, action class (special / hitstun
+    / airdodge / jump), action frame, previous stick and buttons, opponent
+    offset — with that frame's input and whether it was a hold. For a bot
+    state + its previous label, one of the k=8 nearest rows is **sampled**:
+    a hold keeps the previous label, a change becomes that expert input on
+    the bot's side. Sampling (not voting) keeps the expert's hazards
+    hazards; conditioning on the previous label keeps the hold share.
+  - **Rollout** (`scripts/sim_recovery_dagger_expert.exs`): `on30u_e3` in
+    the sim, 3 seeds × 32 envs × 3600 f self-play, every offstage airborne
+    frame relabelled in order inside a trip (prev = previous label), 90
+    input-only context frames per trip — the 10-05 plumbing unchanged.
+  - **Gate** before any arm trains: the labeler on 24 held-out expert
+    games must reproduce the expert's own hazards on the same frames
+    (jump edge with a jump in hand, stick-up onset and B edge once spent)
+    within ×0.5–×2 (`scripts/expert_labeler_selfcheck.exs`), and the
+    set's hold share must be ~0.76–0.80.
+  - **Arms**: `on30u_dagx2_e3`, `on30u_dagx4_e3` (mix oversample 2 / 4,
+    interleaved, 3 ep). **Pass**: loop up-onset once spent ≥ 7 %/3 f
+    (on30u_e3 3.4 %, expert 12.3 %) AND Firefox-once-spent ≥ 0.04 deep
+    (on30u_e3 0.004) with the jump rows, the band and the closed-loop
+    rates (SDs/min, dashes/min) kept.
 - **Recipe claim now = `on30u` (extended onset) rather than `on30`**: same
   flag (`--onset-weight 30`; `onset?/3` is the shipped definition), ≥ 3
   ep. `on30_e3_s906` (running from 11:52) is the seed replication of the
