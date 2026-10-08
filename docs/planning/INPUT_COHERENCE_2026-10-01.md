@@ -2681,3 +2681,52 @@ deep, band kept, onstage jump hazard (y>0, jump in hand) ≤ 0.15.
 - **Recipe candidate (pending s906 + on30u):** windowed + prev_q (no
   dropout) + events + context + chunk 8 + `--offstage-weight 3` +
   `--stick-duration 8` + **`--onset-weight 30`**, ≥ 3 ep.
+
+### 10-08 12:00 — `on30u` / `on30u_e3` read (queue 30): the jump half is SOLVED; the Firefox half is not a label problem
+
+| | `on30_e3` | `on30u` (1 ep) | **`on30u_e3`** | expert |
+|---|---|---|---|---|
+| val | 3.110 | 3.279 | 3.133 | — |
+| repeat / neutral / **fidelity** | 0.780 / 0.304 / 0.162 | 0.764 / 0.240 / 0.226 | 0.755 / 0.240 / **0.156** | 0.764 / 0.303 / 0 |
+| DecisionMap jump, jump in hand: y>0 / −20..−40 / −40..−60 / <−60 | 0.097 / 0.176 / 0.282 / 0.258 | 0.179 / 0.147 / 0.267 / 0.269 | **0.074 / 0.181 / 0.286 / 0.385** | 0.065 / 0.202 / 0.297 / 0.299 |
+| height slope (jump) | 4.0 | 1.5 | **4.1** | 3.6 |
+| jump trace (−20..−40 / −40..−60 / <−60) | 23 / 27 / 10 % | 12 / 30 / 25 % | **27 / 35 / 18 %** (slope 5.0) | 39 / 52 / 35 % |
+| Firefox once spent (−20..−40 / −40..−60 / <−60) | 0.005 / 0.005 / 0.007 | 0.002 / 0.007 / 0.001 | 0.002 / 0.004 / 0.010 | 0.021 / 0.056 / 0.056 |
+| died holding neutral / w/ jump left | 50 % / 19 % | 29 % / **6 %** | 41 % / 18 % | 85 % / 7 % |
+| return / decided | 0.389 / 0.481 | 0.386 / 0.463 | **0.439 / 0.528** | 0.911 / 0.915 |
+| deaths by move | side_b 27, attack 17, airdodge 7, up_b 2 | side_b 24, attack 23, airdodge 14, up_b 10 | attack 18, **side_b 17**, airdodge 12, up_b 4 | attack 78, up_b 11, side_b 5 |
+
+- **`on30u_e3` is the best arm of the program on every coherence and
+  recovery number but one**: fidelity 0.156 (new floor), band kept
+  (repeat 0.755, neutral 0.240), jump rows 0.90–0.96× the expert in the
+  mid bands and above it below −60, slope 4.1, onstage leak 0.074 (the
+  1-ep arm's 0.179 was epoch noise, as with on30), **return 0.439 /
+  decided 0.528** (dur8e_e3: 0.338). Side-B deaths halved from on30_e3
+  (27 → 17, bar < 15 — close), up-B deaths back to 4.
+- **The Firefox row did not move** (0.004 at −40..−60 — 1/15 of the
+  expert; 0.010 below −60 — 1/6) even with the stick-up change weighted
+  as its own onset and B counted only with the stick up. Two full
+  attempts at the label side (B frame; aim frame + B-with-aim) have
+  moved the jump to the expert and left the up-B where it was, so
+  **the Firefox defect is not a label-weight problem**. The mechanism the
+  08:00 section named is structural: inside a `--stick-duration` hold the
+  button head samples B *blind* to the stick it cannot re-aim (AR order
+  buttons → main stick, the same as slippi-ai's, but slippi-ai re-predicts
+  the stick every frame, so it has no hold to be trapped in). The
+  weighted aim frames are learned teacher-forced (the row is non-zero now
+  where it was 0.000 on `on30`) but in the loop the aim and the press
+  have to be chosen in the same hold, and nothing in the head couples
+  them.
+- **Proposal for Bradley (not built): put the stick event BEFORE the
+  buttons in the AR order** on the windowed semi-Markov head — sample the
+  stick change (direction + duration) first, then buttons conditioned on
+  it — so "aim up now" and "press B" are one decision. It is a head
+  ordering change (training + sampler + tests), not a decode rule; pass
+  = the Firefox-once-spent row ≥ 0.04 deep with on30u_e3's rows and band
+  kept. Alternative with the same aim: a dedicated "special" event head
+  (direction × B) alongside the stick-duration head.
+- **Recipe claim now = `on30u` (extended onset) rather than `on30`**: same
+  flag (`--onset-weight 30`; `onset?/3` is the shipped definition), ≥ 3
+  ep. `on30_e3_s906` (running from 11:52) is the seed replication of the
+  W=30 recipe at the earlier onset definition; it still certifies the
+  flag's effect across seeds, and an `on30u_e3_s906` follows if it holds.
