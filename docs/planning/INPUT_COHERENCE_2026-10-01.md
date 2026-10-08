@@ -2486,3 +2486,47 @@ Both arms against the header (`logs/exphil-queue26.log`;
   dose, same epochs), and if the danger head moves a row the 3-ep
   follow-up carries dropout too — a `dur8e_dng_e3` without dropout is the
   arm to add after that, since the recipe no longer contains pd15.
+
+### 10-08 04:40 — `pd15_dng` read (queue 27): the danger head is LIVE and the decision rows do not move
+
+Queue 27 compiled and passed the four targeted test files (17 tests, 0
+failures — `danger_context_test` included) before the arm. `pd15_dng` vs its
+same-dose, same-epoch control `pd15` (`logs/exphil-queue27.log`):
+
+| | `pd15` | `pd15_dng` | expert |
+|---|---|---|---|
+| val | — | 3.54 | — |
+| repeat / neutral / fidelity | 0.782 / 0.141 / 0.213 | 0.775 / 0.146 / 0.227 | 0.764 / 0.303 / 0 |
+| offstage a1–3 enter-silence | 0.0313 | **0.0267** | 0.013 |
+| DecisionMap jump, jump in hand, −20..−40 / −40..−60 / <−60 | (trace 13 % / 14 % / 15 %) | 0.090 / 0.084 / 0.048 (trace 13 / 14 / 7 %) | 0.202 / 0.297 / 0.299 |
+| height slope (jump) | 2.8 (trace) | 1.51 | 3.63 |
+| Firefox once spent, −40..−60 / <−60 | — | 0.0022 / 0.0025 | 0.056 / 0.056 |
+| died w/ jump left / holding neutral / passive Fall | 25 % / 10 % / 24 % | 31 % / 24 % / 42 % | 7 % / 85 % / 6 % |
+| return / decided | 0.313 / — | 0.335 / 0.39 | 0.911 / 0.915 |
+
+- **No decision row moved** (the queue's own check said "no"; the 3-ep
+  follow-up with dropout did not run — queue 28 is the no-dropout 3-ep arm
+  instead). The jump rows are *flatter* than pd15's (slope 1.5, deep band
+  halved), Firefox-once-spent is at the pd50 floor, jump-in-hand deaths went
+  up. The one gain is a smaller offstage enter-silence at age 1–3 (0.027, the
+  best of any arm with the channel) — the readout does feed the hold/change
+  decision a little.
+- **The head is not dead.** Reading the checkpoint directly
+  (`scratchpad/danger_norms.exs`, `Edifice.Checkpoint.load` on the ebins, no
+  mix): `ar_danger_embed.kernel` mean |w| 0.044 after one epoch from zero
+  (the prev-stick embeds sit at 0.08–0.12, c_y at 0.039), and the hidden
+  layer's weight mass per input column is **jumps 14.6**, speed_y 6.7,
+  on_ground 6.3, ledge 5.8, y 2.5 — the readout leans on jumps-left and
+  barely on height. So the AR heads were handed height and jumps directly,
+  used them (mostly jumps), and still did not learn "jump deeper / Firefox
+  once spent". **Conditioning was not the bottleneck; the teacher-forced
+  signal for those decisions is** (the "no move" branch of the 01:30 plan).
+- Caveat before closing the lever: 1 ep at dropout 0.15. Queue 28
+  (`dur8e_dng_e3`, the real recipe, 3 ep, control `dur8e_e3`) is the last
+  word — pd15_e3 showed the Firefox-once-spent row moves with epochs
+  (0.021), so the e3 arm can still show the head helping where the 1-ep arm
+  could not. If `dur8e_dng_e3` leaves the rows where `dur8e_e3` has them,
+  `--danger-context` stays in the tree as an off-by-default probe (Bradley's
+  10-06 read: "a probe not a fix") and the lever is the training signal:
+  expert-labeled relabel / DAgger on the sim (needs Bradley's ok) or
+  search-distilled labels.
