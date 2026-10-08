@@ -2725,6 +2725,30 @@ deep, band kept, onstage jump hazard (y>0, jump in hand) ≤ 0.15.
   = the Firefox-once-spent row ≥ 0.04 deep with on30u_e3's rows and band
   kept. Alternative with the same aim: a dedicated "special" event head
   (direction × B) alongside the stick-duration head.
+- **13:00 — the AR-order proposal is withdrawn; the missing half is the
+  AIM, not the press.** `scripts/recovery_aim_vs_press.js` over the loop
+  traces (jump spent, falling, y < −20, every 3 f):
+
+  | | stick-up share | up-onset / 3 f | P(B \| up) | P(B \| not up) |
+  |---|---|---|---|---|
+  | expert | 42.5 % | 12.3 % | 14.7 % | 2.6 % |
+  | `dur8e_e3` | 14.9 % | 1.9 % | 8.1 % | 3.6 % |
+  | `on30_e3` | 13.4 % | 2.1 % | 4.7 % | 2.7 % |
+  | `on30u_e3` | 13.5 % | 3.4 % | **26.7 %** | 2.6 % |
+
+  `on30u` fixed the press (P(B | stick up) 4.7 → 26.7 %, above the
+  expert); the bot moves the stick UP once spent at 1/4 the expert's onset
+  rate and holds it up 1/3 as often (hold lengths match, ≈ 10–12 f). The
+  aim is a stick-head decision and sits in the same place in either AR
+  order, and with `--event-context` the button head already sees the held
+  stick — so stick-before-buttons would trade the common cases (stick
+  conditioned on jump/shine/aerial buttons) for a blind spot that is not
+  the one we have. Bradley asked the trade-off; answered in chat. Next
+  read: **Q9 `scripts/recovery_aim_probe.exs`** (queue 31, after 30) —
+  teacher-forced P(stick → up) on the expert's own jump-spent, deep,
+  not-yet-up frames, model vs expert: same ≈ the loop states differ
+  (DAgger on the parity sim, needs Bradley's ok); lower = never learned
+  (aim-onset weight up, or the aim as its own event).
 - **Recipe claim now = `on30u` (extended onset) rather than `on30`**: same
   flag (`--onset-weight 30`; `onset?/3` is the shipped definition), ≥ 3
   ep. `on30_e3_s906` (running from 11:52) is the seed replication of the
