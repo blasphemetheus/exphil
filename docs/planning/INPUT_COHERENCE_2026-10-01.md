@@ -2347,3 +2347,64 @@ rows. `pd100` (queue 25, channel fully absent) is the clean test of
 whether the prev-action channel is what suppresses them; if its rows
 look like these, the lever is elsewhere (danger-readout features /
 offstage-conditioned heads, doc "10-05 23:30" first pick).
+
+### 10-07 20:30 — `pd100` read (queue 25): the channel out — prediction holds, coherence collapses
+
+`--prev-action-dropout 1.0` + ablated evals (the channel is zero at every
+training frame and live), dur8e recipe, 1 ep, seed 905:
+
+| | dur8e | pd15 | pd50 | **pd100** | expert |
+|---|---|---|---|---|---|
+| val | 3.09 | — | 3.73 | 3.80 | — |
+| fidelity | 0.191 | 0.213 | 0.244 | **0.349** | 0 |
+| repeat (offline / closed loop) | 0.777 / — | 0.782 | 0.729 | **0.19 / 0.22** | 0.764 / 0.758 |
+| neutral | 0.296 | 0.141 | 0.097 | 0.234 | 0.303 |
+| return / decided | 0.23 / — | 0.313 | 0.311 / 0.366 | **0.418 / 0.515** | 0.911 / 0.915 |
+| died with a jump left | 26–30 % | — | 22 % | **8/90 = 9 %** | 7 % |
+| deep B onsets stick-up | 17–35 % | — | 22 % | **36/80 = 45 %** | 81 % |
+| Firefox aimed toward / started high | — | — | 29 / 76 % | **59 / 77 %** | 80 / 26 % |
+| passive-Fall deaths / never special | — | — | 30 / 65 % | 9 / 52 % | 6 / 30 % |
+| input changes per died trip (median) | 9 | — | 12 | **19** | 17 |
+
+**The prediction held**: jump-in-hand deaths 9 % (written: "toward
+10 %"), and it is the highest testbed return (0.418; v1 full-scale
+0.518). Firefox is the most expert-like of any arm (stick-up 45 %, aimed
+toward 59 %). And the arm is unusable as a recipe: without the channel
+the inputs flicker (repeat 0.19 — the expert holds 76 % of frames; the
+duration head does not carry the buttons and did not replace the
+channel for the sticks either), fidelity 0.349, enter-silence hazard
+×16 because every neutral blip counts as an entry. DecisionMap rows
+(per frame, model | expert):
+
+| | y>0 | 0..−20 | −20..−40 | −40..−60 | < −60 |
+|---|---|---|---|---|---|
+| jump, jump in hand | **0.183 \| 0.065** | **0.133 \| 0.082** | 0.060 \| 0.202 | 0.149 \| 0.297 | 0.154 \| 0.299 |
+| Firefox, jump spent | 0.001 \| 0.009 | 0.001 \| 0.020 | 0.010 \| 0.021 | **0.013 \| 0.056** | **0.011 \| 0.056** |
+| shine, jump in hand | 0.005 \| 0.006 | 0.006 \| 0.021 | 0.004 \| 0.039 | 0.006 \| 0.031 | 0 \| 0.005 |
+
+So the channel *was* suppressing both stages partly: with it gone the
+jump fires (but **early and flat** — 0.18 above the stage, 0.13 at the
+ledge, slope 1.1; the bot spends it at once rather than at −20..−60, the
+v1 pattern exactly) and Firefox-once-spent rises **5×** (0.003 → 0.013
+deep) — still 1/4 of the expert. Neither decision became
+height-conditioned. Reading the dose series pd15 → pd50 → pd100 as a
+whole:
+
+1. **The copy-shortcut family** (silent holds, direction, Firefox aim)
+   is cured by dropout 0.15–0.5 and over-cured at 0.5.
+2. **Input coherence is carried only by the channel** on this recipe —
+   remove it and repeat falls 0.78 → 0.19. The port recipe keeps
+   `--prev-action` (dropout ~0.15, quantized); "the channel leaves the
+   recipe" is ruled out.
+3. **The two decision defects are conditioning defects**, not channel
+   defects: the channel accounts for part of their suppression (5× on
+   Firefox) but at no dose do the jump or the up-B track height. The
+   lever is a head that sees danger: height / jumps-left / distance into
+   the decision logits (danger-readout features, doc "10-05 23:30" first
+   pick), or an offstage-conditioned mixture for the hold/change
+   decision. Pass bar for that arm = the DecisionMap rows (jump ≥ 0.15 /
+   0.20 at −20..−60 with a jump in hand; up-B ≥ 0.04 deep when spent)
+   **with repeat ≥ 0.70 kept**.
+
+Queue 24/25 headers: no arm passed. `dur8e` + ≥ 3 ep stays the
+port-recipe candidate; the recovery stays lever 3 with a named target.
