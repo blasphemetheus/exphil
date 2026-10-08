@@ -1706,6 +1706,13 @@ defmodule ExPhil.Training.Config do
       # tail behind the bot's input-free offstage deaths. nil = off.
       silent_fall_weight: nil,
       silent_fall_min: 13,
+      # Decision-onset weight (2026-10-08, SilentFallWeighting): offstage
+      # falling frames whose label STARTS a jump (X/Y edge) or a B press get
+      # max(weight, onset_weight); the holds around them stay 1.0. The
+      # offstage slice is ~97 % holds, so weights over the whole slice teach
+      # the hold harder; this weights only the frames where the expert
+      # decides. nil = off.
+      onset_weight: nil,
       # AWBC (advantage-weighted BC) loss weights: reweight the imitation loss
       # by observed outcomes. --awbc-reward standard uses Rewards.Standard
       # (stock + damage); default :shine is the multishine specialist signal.

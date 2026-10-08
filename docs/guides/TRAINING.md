@@ -399,6 +399,7 @@ These options apply to multiple new architectures:
 | `--offstage-weight X` | nil | Per-frame loss weight for OFFSTAGE frames (subject airborne beyond the stage ledge): `max(weight, X)`. Rare-state coverage for recovery — offstage is rare in expert play, so the model gets few reps where it fails. Added 2026-09-08 (bptt path); windowed path since 2026-10-05. |
 | `--silent-fall-weight X` | nil | Per-frame loss weight for offstage frames where the subject's controller has been NEUTRAL for >= `--silent-fall-min` previous frames: `max(weight, X)`. The data-starved tail behind the bot's input-free offstage deaths (INPUT_COHERENCE 10-05 12:55). Weights both outcomes (keep waiting / act) alike. Windowed path. Added 2026-10-05. |
 | `--silent-fall-min K` | 13 | Silence length (frames of neutral controller before the frame) at which `--silent-fall-weight` applies. |
+| `--onset-weight X` | nil | Per-frame loss weight for offstage falling frames whose label STARTS a recovery decision (jump button X/Y or B pressed, released on the previous frame): `max(weight, X)`. Holds stay 1.0 — weights the expert's decisions, not the offstage slice (10-08). |
 | `--frame-delay N` (training) | 0 | **Label convention (INVARIANTS.md item 1, GOTCHA #113).** Slippi records each input on the frame whose state it produced, so the raw same-frame pair is leaked. Since 2026-09-09 `Peppi.to_training_frames` ALWAYS pairs state[t] with the input issued from it (raw controller[t+1]); N is reaction delay on top, so N=0 is the causal pairing and the leak cannot be built. Deploy law: a policy trained at reaction k plays at live `--frame-delay k+1` (`ExPhil.Data.LabelConvention`; legacy unstamped checkpoints counted delay d = reaction d-1, and the Agent translates). |
 
 **Augmented Embedding Cache (Recommended)**
@@ -1639,6 +1640,7 @@ Regenerate: `mix run -e 'ExPhil.Training.Config.FlagDocs.write!()'`.
 | `--offstage-weight` | float | `nil` | Per-frame loss weight for OFFSTAGE frames (subject airborne beyond the stage ledge): `max(weight, X)`. Rare-state coverage for recovery — offstage is rare in expert play, so the model gets few reps where it fails. Added 2026-09-08 (bptt path); windowed path since 2026-10-05 (SilentFallWeighting). |
 | `--silent-fall-weight` | float | `nil` | Per-frame loss weight for offstage frames where the subject's controller has been NEUTRAL for >= --silent-fall-min previous frames: `max(weight, X)`. The data-starved tail behind the bot's input-free offstage deaths (INPUT_COHERENCE 10-05 12:55). Windowed path. Added 2026-10-05. |
 | `--silent-fall-min` | int | `13` | Silence length (frames of neutral controller before the frame) at which --silent-fall-weight applies. |
+| `--onset-weight` | float | `nil` | Per-frame loss weight for offstage falling frames whose label STARTS a recovery decision (jump X/Y or B edge): `max(weight, X)`; holds stay 1.0. |
 | `--awbc` | flag | `false` | _(undocumented)_ |
 | `--awbc-reward` | atom | `:shine` | _(undocumented)_ |
 | `--awbc-beta` | float | `nil` | _(undocumented)_ |

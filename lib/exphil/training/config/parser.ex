@@ -396,6 +396,7 @@ defmodule ExPhil.Training.Config.Parser do
     {"--offstage-weight", :offstage_weight, :float},
     {"--silent-fall-weight", :silent_fall_weight, :float},
     {"--silent-fall-min", :silent_fall_min, :int},
+    {"--onset-weight", :onset_weight, :float},
     {"--awbc", :awbc, :flag},
     {"--awbc-reward", :awbc_reward, {:atom, [:shine, :standard]}},
     {"--awbc-beta", :awbc_beta, :float},

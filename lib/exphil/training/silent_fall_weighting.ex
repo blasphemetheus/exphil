@@ -13,13 +13,23 @@ defmodule ExPhil.Training.SilentFallWeighting do
     * `offstage_weight` — every frame where the subject is airborne beyond
       the ledge (the `--offstage-weight` knob, previously bptt-only);
     * `silent_fall_weight` — offstage frames where the subject's controller
-      has been NEUTRAL for at least `silent_fall_min` previous frames.
+      has been NEUTRAL for at least `silent_fall_min` previous frames;
+    * `onset_weight` (2026-10-08, INPUT_COHERENCE "10-08 06:10") — offstage
+      falling frames whose label is a recovery DECISION ONSET: a jump button
+      (X/Y) or B going from released on the previous frame to pressed on
+      this one. The two weights above sharpen P(input | state) over the
+      whole offstage slice — which is ~97 % holds, so every lever that fits
+      that slice harder learns the hold harder (the danger-context head made
+      the silent fall worse). This one weights only the frames where the
+      expert decides, leaving the holds at 1.0, so the decision rows of
+      `ExPhil.Eval.DecisionMap` (jump by height, Firefox once the jump is
+      spent) are what gets more gradient.
 
-  Both outcomes of such a frame (the expert keeps waiting / the expert acts)
-  are weighted alike, so the conditional P(input | silent k) is sharpened,
-  not biased. Weights are `max(1.0, w)` per frame; frames outside the
-  regimes stay 1.0. The silence counter resets at replay boundaries
-  (frame-number jumps) and whenever the controller is active.
+  The first two weight both outcomes of a frame alike, so the conditional
+  P(input | silent k) is sharpened, not biased; `onset_weight` deliberately
+  biases toward acting in danger. Weights are `max(1.0, w)` per frame;
+  frames outside the regimes stay 1.0. The silence counter and the previous
+  controller reset at replay boundaries (frame-number jumps).
   """
 
   alias ExPhil.Training.Data
@@ -36,16 +46,20 @@ defmodule ExPhil.Training.SilentFallWeighting do
   def frame_weights(frames, opts) do
     off_w = Keyword.get(opts, :offstage_weight)
     sf_w = Keyword.get(opts, :silent_fall_weight)
+    on_w = Keyword.get(opts, :onset_weight)
     k_min = Keyword.get(opts, :silent_fall_min, 13)
 
-    if off_w == nil and sf_w == nil do
+    if off_w == nil and sf_w == nil and on_w == nil do
       nil
     else
-      {weights, _silence, _prev_frame} =
-        Enum.reduce(frames, {[], 0, nil}, fn frame, {acc, silence, prev_num} ->
+      {weights, _silence, _prev_frame, _prev_controller} =
+        Enum.reduce(frames, {[], 0, nil, nil}, fn frame, {acc, silence, prev_num, prev_c} ->
           num = frame_number(frame)
-          # the silence seen BEFORE this frame: previous frames' controllers
-          silence = if continuous?(prev_num, num), do: silence, else: 0
+          cont? = continuous?(prev_num, num)
+          # the silence / controller seen BEFORE this frame: previous frames'
+          silence = if cont?, do: silence, else: 0
+          prev_c = if cont?, do: prev_c, else: nil
+          c = frame[:controller] || frame.controller
           off? = Data.frame_offstage?(frame)
 
           w = 1.0
@@ -56,12 +70,33 @@ defmodule ExPhil.Training.SilentFallWeighting do
               do: max(w, sf_w * 1.0),
               else: w
 
-          silence = if neutral?(frame[:controller] || frame.controller), do: silence + 1, else: 0
-          {[w | acc], silence, num}
+          w =
+            if off? and on_w != nil and prev_c != nil and falling?(frame) and onset?(prev_c, c),
+              do: max(w, on_w * 1.0),
+              else: w
+
+          silence = if neutral?(c), do: silence + 1, else: 0
+          {[w | acc], silence, num, c}
         end)
 
       Enum.reverse(weights)
     end
+  end
+
+  @doc """
+  True when this frame's controller starts a recovery decision the previous
+  frame had not: a jump button (X or Y) or B pressed now and neither pressed
+  before (for the jump: no jump button held on the previous frame; for B: B
+  released on the previous frame).
+  """
+  @spec onset?(map() | nil, map() | nil) :: boolean()
+  def onset?(nil, _), do: false
+  def onset?(_, nil), do: false
+
+  def onset?(prev, c) do
+    jump_now = Map.get(c, :button_x) || Map.get(c, :button_y)
+    jump_prev = Map.get(prev, :button_x) || Map.get(prev, :button_y)
+    !!((jump_now && !jump_prev) || (Map.get(c, :button_b) && !Map.get(prev, :button_b)))
   end
 
   @doc "True when the controller is centred with no button held."

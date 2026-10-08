@@ -54,6 +54,28 @@ defmodule ExPhil.Training.SilentFallWeightingTest do
     assert ws == [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 3.0]
   end
 
+  test "onset_weight lifts only the offstage frame where a jump button or B is first pressed" do
+    jump = %{@neutral | button_x: true}
+    firefox = %{@up | button_b: true}
+    # hold, jump edge, jump held, release, up-B edge, up-B held
+    ctrls = [@neutral, jump, jump, @neutral, firefox, firefox]
+    frames = for {c, i} <- Enum.with_index(ctrls), do: frame(i, 100.0, false, c)
+    assert SFW.frame_weights(frames, onset_weight: 5.0) == [1.0, 5.0, 1.0, 1.0, 5.0, 1.0]
+
+    # the same edges onstage, on the ledge, or helpless are not weighted
+    onstage = for {c, i} <- Enum.with_index(ctrls), do: frame(i, 10.0, true, c)
+    assert SFW.frame_weights(onstage, onset_weight: 5.0) == List.duplicate(1.0, 6)
+    ledge = for {c, i} <- Enum.with_index(ctrls), do: frame(i, 100.0, false, c, 253)
+    assert SFW.frame_weights(ledge, onset_weight: 5.0) == List.duplicate(1.0, 6)
+
+    # a replay boundary has no previous controller: the first frame is never an onset
+    assert SFW.frame_weights([frame(0, 100.0, false, jump)], onset_weight: 5.0) == [1.0]
+    assert SFW.frame_weights([frame(7, 100.0, false, @neutral), frame(0, 100.0, false, jump)], onset_weight: 5.0) == [1.0, 1.0]
+
+    # composes with offstage_weight by max
+    assert SFW.frame_weights(Enum.take(frames, 3), offstage_weight: 3.0, onset_weight: 5.0) == [3.0, 5.0, 3.0]
+  end
+
   test "neutral? respects the deadzone and buttons" do
     assert SFW.neutral?(@neutral)
     assert SFW.neutral?(%{@neutral | main_stick: %{x: 0.6, y: 0.4}})
