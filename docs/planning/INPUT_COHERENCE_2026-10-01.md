@@ -3046,3 +3046,46 @@ deep, band kept, onstage jump hazard (y>0, jump in hand) ≤ 0.15.
   coverage question (queue 36, same ×4 oversample on the gated r3g) is
   the remaining lever in flight; next doses should ADD SEEDS at ×1, not
   oversample.
+- **03:34 — `on30u_dag3g_x4_e3` (queue 36; gated v2 round r3g ×4 ≈ 130k,
+  the same dose as dag2x2): THE COVERAGE GATE IS THE LEVER — the aim half
+  of the bar passes with the press intact and the closed loop kept; the
+  Firefox itself still does not fire.** Aim: **loop up-onset once spent
+  9.7 %/3 f (bar 7; dag2x2 at the same dose 5.1)**, stick-up share
+  33.6 % (expert 42.5), **P(B|up) 14.3 % (expert 14.7)**, P(B|not up)
+  0.6 %. Band: repeat 0.760, neutral 0.254, fidelity 0.174 — inside.
+  Closed loop: **SD/min 1.23, dashes/min 30.1, damage/min 47.8 — all
+  pass**; deaths/min 1.29, return 0.785, decided return 0.641 (best),
+  mismatch 0.109, side-B deaths 45 (43†), airdodge_with_jump 0.073.
+  Jump rows 0.122 / **0.265** / 0.240 (−20..−40 ×0.6 fails 0.15; the
+  deeper rows pass). Side by side with dag2x2 (ungated, same 134k):
+  up-onset 5.1 → 9.7, P(B|up) 7.9 → 14.3, SD/min 1.68 → 1.23, dashes
+  25 → 30, side-B deaths 53 → 45. **Removing the 30 % of states beyond
+  the expert's own range turned the dose into aim without the press and
+  style damage — the damage at ×2/×4 was extrapolated labels, not dose.**
+  **What still fails: Firefox-once-spent 0.0027 / 0 / 0.0042 / 0.0061
+  (bar 0.04; expert 0.02 / 0.02 / 0.056 / 0.056).** Per-frame special
+  onsets of any kind in `<−60:j0` sum to 0.0084 vs the expert's 0.06.
+  Trace check (jump-spent, y < −20, every 3 f; helpless = FallSpecial
+  35–37, aerials 65–69): **the bot is HELPLESS on 54–62 % of its
+  spent-low samples (expert 31 %)** — the side-B / airdodge / early
+  Firefox that preceded; on the actionable remainder its fresh B-press
+  rate per sample is 2.2 % (dag3g; dagx4 4.7 %, expert 4.8 %), 10 of 12
+  with the stick up (expert 94 / 105), and its HELD B-down samples were
+  pressed inside an aerial (prev action 65–69: 14 of 16; expert 9 of 65)
+  — a press that lands during an attack does nothing and is then held
+  into the fall, where a held B never fires. The labels agree with that
+  defect: in r3g the labelled B edges once spent (129; 116 with the
+  stick up, so the direction is right) start **28 % inside an aerial**
+  (36 / 129 at action 65–69; the expert's own fresh presses 11 %) —
+  the labeler has `jumping` / `airdodge` / `hitstun` / `special` dims
+  but no ATTACKING dim, so a bot mid-fair matches an expert in free fall
+  at the same height and inherits the press. Labelled B edges by band
+  0.95 / 1.5 / 2.6 % (−20..−40 / −40..−60 / <−60), so the labels carry
+  height conditioning (×1.6; the expert's onsets ×2.8). Two things
+  follow, both label-side: **labeler v3 = `attacking` dim** (+ helpless
+  36/37 excluded from `labelable?`, 35 already was) and a gated v3 round
+  from dag3g_x4_e3's own states; the model-side question (the AR head
+  decodes buttons before the stick — the HELD reorder) stays with
+  Bradley. The helpless share is the other half: what the bot does
+  BEFORE the press (side-B 45 deaths, airdodge) — read next from the
+  r3g labels on those states.

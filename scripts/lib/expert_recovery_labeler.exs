@@ -36,6 +36,12 @@ defmodule ExPhil.Agents.ExpertRecoveryLabeler do
     {:hitstun, 1.0, 2.0},
     {:airdodge, 1.0, 1.5},
     {:jumping, 1.0, 1.5},
+    # v3 (10-09 04:00): aerial attack in progress (65..69). Without it a bot
+    # mid-fair matched an expert in free fall at the same height and
+    # inherited the B press — 28 % of r3g's labelled B edges once spent
+    # started inside an aerial (the expert's own 11 %), where a press does
+    # nothing and is then held into the fall.
+    {:attacking, 1.0, 1.5},
     {:action_frame, 30.0, 0.7},
     {:prev_sx, 1.0, 1.5},
     {:prev_sy, 1.0, 1.5},
@@ -51,10 +57,10 @@ defmodule ExPhil.Agents.ExpertRecoveryLabeler do
   @doc "Direction of the stage from the player: +1 (player is left of centre) or -1."
   def toward(p), do: if((p.x || 0.0) < 0.0, do: 1.0, else: -1.0)
 
-  @doc "Offstage, airborne, not on the ledge, not dead/helpless: a labelable state."
+  @doc "Offstage, airborne, not on the ledge, not dead/helpless (FallSpecial 35..37): a labelable state."
   def labelable?(p, edge) do
     p.on_ground != true and (abs(p.x || 0.0) > edge or (p.y || 0.0) < -5.0) and
-      (p.action || 0) > 13 and (p.action || 0) != 35 and (p.action || 0) not in 252..263
+      (p.action || 0) > 13 and (p.action || 0) not in 35..37 and (p.action || 0) not in 252..263
   end
 
   @doc """
@@ -82,6 +88,7 @@ defmodule ExPhil.Agents.ExpertRecoveryLabeler do
       hitstun: if((p.hitstun_frames_left || 0) > 0, do: 1.0, else: 0.0),
       airdodge: if(a == 236, do: 1.0, else: 0.0),
       jumping: if(a in 25..28, do: 1.0, else: 0.0),
+      attacking: if(a in 65..69, do: 1.0, else: 0.0),
       action_frame: p.action_frame || 0,
       prev_sx: ((ms[:x] || 0.5) - 0.5) * 2.0 * t,
       prev_sy: ((ms[:y] || 0.5) - 0.5) * 2.0,
