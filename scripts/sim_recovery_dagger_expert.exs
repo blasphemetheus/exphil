@@ -85,7 +85,7 @@ relabel = fn history ->
 
       _ = offstage_or_below
       _ = ledge
-      labeled = ExpertRecoveryLabeler.labelable?(p, edge) and (not only_silent or SilentFallWeighting.neutral?(c1))
+      labeled = ExpertRecoveryLabeler.labelable?(p, edge, index.window) and (not only_silent or SilentFallWeighting.neutral?(c1))
       # the label is filled in per trip below (sequentially: it conditions on the previous label)
       %{game_state: %{s1 | own_port: 1}, controller: c1, prev_controller: c0, player_tag: nil, actual: c1, labeled: labeled, prev_player: s0.players[1]}
     end)

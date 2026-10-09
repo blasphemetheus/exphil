@@ -50,17 +50,38 @@ defmodule ExPhil.Agents.ExpertRecoveryLabeler do
     {:opp_dx, 60.0, 0.5},
     {:opp_dy, 60.0, 0.5}
   ]
+  # v4 (10-09 18:40, queue 40): the `:wide` window adds the state BEFORE
+  # offstage — grounded or airborne within @near_edge of the edge (the sim's
+  # carried-off share 0.27–0.35 vs the expert's 0.055 starts there: ground
+  # side-B / airdodge off the edge, no DI). Grounded gets weight 3 so a
+  # grounded query never borrows an airborne label through the gate.
+  @near_edge 15.0
+  @wide_dims @dims ++ [{:grounded, 1.0, 3.0}, {:shield, 1.0, 1.5}, {:dash, 1.0, 1.0}]
 
   def k, do: @k
-  def dim_names, do: Enum.map(@dims, &elem(&1, 0))
+  @doc "Feature dims of a window: `:offstage` (v1–v3 indexes) or `:wide` (v4)."
+  def dims(:wide), do: @wide_dims
+  def dims(_), do: @dims
+  def dim_names(window \\ :offstage), do: Enum.map(dims(window), &elem(&1, 0))
+  def near_edge, do: @near_edge
 
   @doc "Direction of the stage from the player: +1 (player is left of centre) or -1."
   def toward(p), do: if((p.x || 0.0) < 0.0, do: 1.0, else: -1.0)
 
-  @doc "Offstage, airborne, not on the ledge, not dead/helpless (FallSpecial 35..37): a labelable state."
-  def labelable?(p, edge) do
-    p.on_ground != true and (abs(p.x || 0.0) > edge or (p.y || 0.0) < -5.0) and
-      (p.action || 0) > 13 and (p.action || 0) not in 35..37 and (p.action || 0) not in 252..263
+  @doc """
+  A labelable state. `:offstage` (default): offstage, airborne, not on the
+  ledge, not dead/helpless (FallSpecial 35..37). `:wide`: that OR any state
+  (grounded too) within `near_edge/0` of the edge, same exclusions.
+  """
+  def labelable?(p, edge, window \\ :offstage) do
+    a = p.action || 0
+    alive = a > 13 and a not in 35..37 and a not in 252..263
+    offstage = p.on_ground != true and (abs(p.x || 0.0) > edge or (p.y || 0.0) < -5.0)
+
+    case window do
+      :wide -> alive and (offstage or abs(p.x || 0.0) > edge - @near_edge)
+      _ -> alive and offstage
+    end
   end
 
   @doc """
@@ -95,12 +116,16 @@ defmodule ExPhil.Agents.ExpertRecoveryLabeler do
       prev_b: if(prev.button_b, do: 1.0, else: 0.0),
       prev_jump: if(prev.button_x or prev.button_y, do: 1.0, else: 0.0),
       opp_dx: if(opp, do: ((opp.x || 0.0) - (p.x || 0.0)) * t, else: 0.0),
-      opp_dy: if(opp, do: (opp.y || 0.0) - (p.y || 0.0), else: 0.0)
+      opp_dy: if(opp, do: (opp.y || 0.0) - (p.y || 0.0), else: 0.0),
+      # :wide dims (unused by :offstage indexes)
+      grounded: if(p.on_ground == true, do: 1.0, else: 0.0),
+      shield: if(a in 178..182, do: 1.0, else: 0.0),
+      dash: if(a in 20..23, do: 1.0, else: 0.0)
     }
   end
 
-  @doc "Scaled, weighted feature list in `@dims` order."
-  def vector(feats), do: for({name, scale, w} <- @dims, do: feats[name] / scale * w)
+  @doc "Scaled, weighted feature list in the window's dims order."
+  def vector(feats, window \\ :offstage), do: for({name, scale, w} <- dims(window), do: feats[name] / scale * w)
 
   @doc """
   A controller as a flat row in the TOWARD frame (sticks' x mirrored by `t`):
@@ -147,7 +172,7 @@ defmodule ExPhil.Agents.ExpertRecoveryLabeler do
   input at t as the label and the input at t-1 as the previous input.
   Returns `[{vector, controller_row, hold?}]`.
   """
-  def index_rows(frames, stage) do
+  def index_rows(frames, stage, window \\ :offstage) do
     edge = GA.stage_edge(stage)
 
     frames
@@ -155,9 +180,9 @@ defmodule ExPhil.Agents.ExpertRecoveryLabeler do
     |> Enum.flat_map(fn [f0, f1] ->
       p = f1.game_state.players[1]
 
-      if f1.game_state.frame == f0.game_state.frame + 1 and labelable?(p, edge) do
+      if f1.game_state.frame == f0.game_state.frame + 1 and labelable?(p, edge, window) do
         t = toward(p)
-        v = features(p, f0.controller, f1.game_state.players[2], edge, f0.game_state.players[1]) |> vector()
+        v = features(p, f0.controller, f1.game_state.players[2], edge, f0.game_state.players[1]) |> vector(window)
         [{v, controller_row(f1.controller, t), same_input?(f1.controller, f0.controller)}]
       else
         []
@@ -180,13 +205,16 @@ defmodule ExPhil.Agents.ExpertRecoveryLabeler do
   def save(index, path) do
     File.mkdir_p!(Path.dirname(path))
 
+    window = Map.get(index, :window, :offstage)
+
     File.write!(path, :erlang.term_to_binary(%{
-      dims: dim_names(), k: @k, n: index.n,
+      dims: dim_names(window), k: @k, n: index.n, window: window,
       x: Nx.to_binary(index.x), labels: Nx.to_binary(index.labels), hold: Nx.to_binary(index.hold),
       meta: Map.get(index, :meta, %{})
     }, [:compressed]))
   end
 
+  @doc "Loads an index; `index.window` is its labelable window (v1–v3 files have none: `:offstage`)."
   def load(path) do
     m = path |> File.read!() |> :erlang.binary_to_term()
     d = length(m.dims)
@@ -197,7 +225,7 @@ defmodule ExPhil.Agents.ExpertRecoveryLabeler do
       # labels / holds are read per neighbour on the Elixir side: tuples
       labels: Nx.from_binary(m.labels, :f32) |> Nx.reshape({m.n, 12}) |> Nx.to_list() |> List.to_tuple(),
       hold: Nx.from_binary(m.hold, :u8) |> Nx.to_list() |> List.to_tuple(),
-      n: m.n, k: m.k, dims: m.dims, meta: m.meta
+      n: m.n, k: m.k, dims: m.dims, meta: m.meta, window: Map.get(m, :window, :offstage)
     }
   end
 
@@ -242,7 +270,7 @@ defmodule ExPhil.Agents.ExpertRecoveryLabeler do
   @doc "Squared distance from each `{player, prev, opponent}` state to its nearest expert row."
   def nearest_d2_batch(index, states, edge) do
     states
-    |> Enum.map(&(query_features(&1, edge) |> vector()))
+    |> Enum.map(&(query_features(&1, edge) |> vector(index[:window] || :offstage)))
     |> Enum.chunk_every(256)
     |> Enum.flat_map(fn q -> nearest_d2(index, q, 1) |> elem(1) |> Nx.to_list() end)
   end
@@ -257,7 +285,7 @@ defmodule ExPhil.Agents.ExpertRecoveryLabeler do
   """
   def label_batch(index, states, edge, opts \\ []) do
     max_d2 = opts[:max_d2]
-    queries = Enum.map(states, &(query_features(&1, edge) |> vector()))
+    queries = Enum.map(states, &(query_features(&1, edge) |> vector(index[:window] || :offstage)))
     # distance matrices in chunks of 256 queries (256 x n floats each)
     {idx, d2} =
       queries

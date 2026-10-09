@@ -50,7 +50,7 @@ expert_d2 =
         states =
           frames
           |> Enum.chunk_every(2, 1, :discard)
-          |> Enum.filter(fn [f0, f1] -> f1.game_state.frame == f0.game_state.frame + 1 and L.labelable?(f1.game_state.players[1], edge) end)
+          |> Enum.filter(fn [f0, f1] -> f1.game_state.frame == f0.game_state.frame + 1 and L.labelable?(f1.game_state.players[1], edge, index.window) end)
           |> Enum.map(fn [f0, f1] -> {f1.game_state.players[1], f0.controller, f1.game_state.players[2], f0.game_state.players[1]} end)
         L.nearest_d2_batch(index, states, edge)
       end)
@@ -92,7 +92,7 @@ if set_rows != [] do
     # far state and its nearest expert row (scaled, weighted space = the
     # distance's own units; the dims sum to the mean d2)
     sample = far |> Enum.shuffle() |> Enum.take(4000) |> Enum.map(&elem(&1, 0))
-    qvecs = Enum.map(sample, fn f -> L.features(f.game_state.players[1], f.prev_controller, f.game_state.players[2], edge, f[:prev_player]) |> L.vector() end)
+    qvecs = Enum.map(sample, fn f -> L.features(f.game_state.players[1], f.prev_controller, f.game_state.players[2], edge, f[:prev_player]) |> L.vector(index.window) end)
     {idx, _} = qvecs |> Enum.chunk_every(256) |> Enum.map(&L.nearest_d2(index, &1, 1)) |> Enum.reduce({[], []}, fn {i, d}, {is, ds} -> {is ++ Nx.to_list(i), ds ++ Nx.to_list(d)} end)
     xs = index.x |> Nx.to_list() |> List.to_tuple()
     per_dim =
@@ -100,7 +100,7 @@ if set_rows != [] do
       |> Enum.map(fn {q, [j]} -> Enum.zip(q, elem(xs, j)) |> Enum.map(fn {a, b} -> (a - b) * (a - b) end) end)
       |> Enum.zip_with(fn col -> Enum.sum(col) / length(col) end)
     Output.puts("RESULT far-state d2 by feature (mean sq diff to nearest expert row, n=#{length(sample)}): " <>
-      (Enum.zip(L.dim_names(), per_dim) |> Enum.sort_by(&(-elem(&1, 1))) |> Enum.map(fn {n, v} -> "#{n} #{Float.round(v, 3)}" end) |> Enum.join("  ")))
+      (Enum.zip(L.dim_names(index.window), per_dim) |> Enum.sort_by(&(-elem(&1, 1))) |> Enum.map(fn {n, v} -> "#{n} #{Float.round(v, 3)}" end) |> Enum.join("  ")))
   end
 end
 

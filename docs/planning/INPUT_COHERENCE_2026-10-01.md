@@ -3338,3 +3338,26 @@ deep, band kept, onstage jump hazard (y>0, jump in hand) ≤ 0.15.
   and the angle tail (q75 55°, 46 % die after firing) is NOT the knob's:
   it is the late/close fire with the stick wandering through the charge,
   which no onset arm has moved. on30b / on5u / on0 s906 to read.
+- **18:55 — labeler v4 (`:wide` window) + queue 40 queued behind 39
+  (`scripts/coherence_queue40.sh`, unit `exphil-queue40`).** The window
+  is now a property of the index (`index.window`; v1–v3 files load as
+  `:offstage`, nothing changes for them): `labelable?(p, edge, :wide)` =
+  the offstage rule OR any live state (grounded too) within
+  `near_edge/0` = 15 units of the edge, ledge/helpless/dead excluded;
+  `:wide` dims = the 18 + `grounded` (weight 3 — a grounded query cannot
+  borrow an airborne label through the gate), `shield` (178..182, 1.5),
+  `dash` (20..23, 1.0). `build_expert_recovery_index.exs --window wide`;
+  selfcheck / distance / sim_recovery_dagger_expert read the window off
+  the index. CPU check: grounded at |x| 75 and airborne above the stage
+  at 80 labelable under `:wide` only, ledge/helpless/dead never, vectors
+  18/21, save/load round-trip. Queue 40 (after `QUEUE 39 DONE`, ~23:00):
+  index v4 (same 176-game split) → self-check (x0.5–x2) → held-out q95
+  gate → gated round r6w from the queue-39 winner
+  (`eval_runs/1001_queue/queue40_winner.sh`, default on0; set by hand
+  after the 39 reads) → arms `dag3456w_x1_e3` (r345g + r6w) and
+  `dag6w_x1_e3` (the wide round alone). Pass = queue 39's bar AND the
+  upstream number moves: carried-off share ≤ 0.20 (0.35; expert 0.055),
+  carried-off died ≤ 0.60 (0.87; 0.16), airdodge_with_jump ≤ 0.06 (0.12;
+  0.006), side-B deaths by move down from 40. Dose caveat: a wide round
+  labels more frames (near-edge grounded time); r345g + r6w may cross the
+  ×1 cliff (~150k) — the `dag6w` arm is the control for that.

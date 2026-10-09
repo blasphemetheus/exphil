@@ -53,7 +53,7 @@ rows =
       frames
       |> Enum.chunk_every(2, 1, :discard)
       |> Enum.filter(fn [f0, f1] ->
-        f1.game_state.frame == f0.game_state.frame + 1 and L.labelable?(f1.game_state.players[1], edge)
+        f1.game_state.frame == f0.game_state.frame + 1 and L.labelable?(f1.game_state.players[1], edge, index.window)
       end)
 
     states = Enum.map(pairs, fn [f0, f1] -> {f1.game_state.players[1], f0.controller, f1.game_state.players[2], f0.game_state.players[1]} end)
