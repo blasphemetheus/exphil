@@ -3144,3 +3144,31 @@ deep, band kept, onstage jump hazard (y>0, jump in hand) ≤ 0.15.
   4.5-vs-9.7 split on one seed each is suggestive, not settled. The
   ×4 arms are the ones to carry forward; `dag34g_x2_e3` (r3g + r4g3 ×2
   = 75k relabelled ×2 ≈ 150k) reads next.
+- **11:01 — `on30u_dag34g_x2_e3` (r3g v2 + r4g3 v3, 74,547 relabelled ×2
+  ≈ 150k): THE AIM HALF IS AT THE EXPERT, THE FIREFOX AT HALF THE BAR,
+  THE BAND AT ITS EDGE.** Aim: **up-onset once spent 12.1 %/3 f (expert
+  12.3; bar 7), stick-up share 47.7 % (42.5), P(B|up) 20.5 % (14.7)**,
+  P(B|not up) 4.4 %. **Firefox-once-spent 0.0027 / 0.0117 / 0.0199 /
+  0.0137** (expert 0.02 / 0.02 / 0.056 / 0.056; bar 0.04 at ≤ −40) —
+  the −40..−60 row is now the expert's −20..−40 value; the series at
+  −40..−60: dagx4 0.0085 → dag3g 0.004 → dag4g3 0.015 → dag34g 0.020.
+  Death shape: B onsets in died trips **up 75 / side 39 / down 16 /
+  neutral 4 (expert 79 / 47 / 5 / 3), 96 below −40 with 65 stick-up
+  (expert 59 / 48)** — the bot now dies pressing up-B like the expert,
+  and no longer dies holding nothing (10 / 106 vs dag3g 35, dag4g3 66;
+  the expert's 88 / 104 are trips already lost). "never special" 44 %
+  (expert 30) is the residual. Jump rows 0.093 / 0.220 / 0.281 (the
+  −20..−40 row fails 0.15 again; deeper rows pass). Closed loop:
+  **SD/min 1.03, deaths/min 1.09, return 0.83** (the best since dagx4),
+  damage/min 57 (pass), **dashes/min 21.1 (bar 22, marginal fail)**,
+  decided return 0.636, mismatch 0.192, side-B deaths 32, airdodge 14
+  (11†), airdodge_with_jump 0.148, side_b_low 0.2. **Band at its edge:
+  repeat 0.708 (bar 0.70), neutral 0.192 (bar 0.22, fail), fidelity
+  0.221 (bar 0.21, marginal fail)**, short-hop share 0.284 (expert
+  0.405). Reading: two gated rounds compound — the aim is done, the
+  Firefox hazard doubles per round, and the dose (150k at ×2) is where
+  the style starts to pay (neutral/fidelity), exactly as the r1+r2
+  series showed at ×2. Next dose = a third gated round (v3, from
+  dag34g_x2's own states) at **×1** of r3g + r4g3 + r5g (≈ 115k
+  relabelled), plus the seed replicate this program has been owing
+  (dag34g_x2 at s906) — queue 38.
