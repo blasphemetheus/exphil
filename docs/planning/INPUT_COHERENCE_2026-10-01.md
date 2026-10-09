@@ -3207,3 +3207,61 @@ deep, band kept, onstage jump hazard (y>0, jump in hand) ≤ 0.15.
   "stick without the press" shape from the dose series, now from more
   rounds instead of more copies. The repeat-share fall (0.64) is the new
   style cost. dag345g_x2 and the s906 replicate still to read.
+- **12:56–13:05 — LIVE LOOK (Bradley, `dag34g_x2_e3`, 5 games BF/FoD/FD/DL/FD,
+  `eval_runs/local_recording_temp_1_20261009_125549`):** "interesting, it
+  seemed to make progress on the problem … it would airdodge sometimes
+  offstage, side-B from stage to offstage, up-B slightly out of range, do
+  the wrong up-B angle, etc. but it was certainly better at recovering than
+  predecessors." Death trips pulled from the .slp (scratch
+  `live_death_trips.exs`: action changes from the last on-stage frame to
+  death, with x/y/stick/buttons), 18 stocks lost: **Firefox fired at the
+  wrong angle 8** (away ×3, straight down ×1, straight up from 45 units
+  out ×1, so shallow it flew under the stage ×3), ground side-B straight
+  off the edge with no jumps 2, side-B too low / into the underside /
+  short 3, airdodge offstage away from the stage 2 (+1 overlap), Firefox
+  too late / out of range 2 (one with B *held* since a laser so no new
+  press until y −138; one started at −129 with the double-jump unused),
+  legit edgeguard 1. In 5 of the 8 angle deaths the stick was fine at
+  charge start and **wandered during the ~42-frame charge** (FoD f1063
+  up-toward → down; FD f831 up-toward → up-away; DL f4972 up → sideways).
+  17 of 18 deaths had an input attempt — the silent fall is mostly gone;
+  the attempt is wrong. **The pass metric (Firefox-once-spent) scores the
+  press only and is blind to the angle.**
+- **13:50 — Firefox angle instrument `scripts/recovery_firefox_angle.js`
+  (per 354 charge run in the traces: stick on the last charge row vs the
+  unit vector to the near ledge, bucket toward-up / vertical / horizontal /
+  away / down / neutral, charge stability = share of charge rows on the
+  fire row's 16-bucket stick):**
+
+  | | Firefox / eps | angle err q50 / q75 | > 60° | away | down | neutral | died after Firefox | first == fire | jump in hand at charge |
+  |---|---|---|---|---|---|---|---|---|---|
+  | expert (FD) | 365 / 1788 (20 %) | 19° / 34° | 7 % | 0 % | 12 % | 2 % | 16 % | 15 % | 2 % |
+  | dagx4 | 17 / 165 | 46° / 63° | 29 % | 12 % | 12 % | 18 % | 47 % | 24 % | 18 % |
+  | dag3g_x4 | 19 / 229 | 24° / 51° | 11 % | 5 % | 0 | 21 % | 42 % | 11 % | 11 % |
+  | dag4g3_x4 | 24 / 238 | **15° / 31°** | 4 % | 0 | 0 | 8 % | 38 % | 29 % | 8 % |
+  | dag34g_x2 | 26 / 213 | 35° / 41° | 15 % | **12 %** | 4 % | 0 | 46 % | 31 % | 19 % |
+  | dag345g_x1 | 35 / 180 (19 %) | 35° / 55° | 20 % | 3 % | 14 % | 14 % | 57 % | 9 % | 20 % |
+
+  Reading: the sim agrees with the live look — the bot's Firefox dies
+  3× as often as the expert's (46–57 % vs 16 %) and the angle is why
+  (q50 35° vs 19°; > 60° 15–20 % vs 7 %; "away" 12 % in the arm Bradley
+  played, expert 0). **The expert also moves the stick during the charge
+  (first == fire 15 %, ≥ 3 distinct sticks 82 %)** — wander per se is
+  normal; the difference is where it ends. Usage is at the expert's rate
+  in dag345g_x1 (19 % of episodes). dag4g3_x4 had the best angle (15°) and
+  the worst aim — the two halves have traded across the series. Jump in
+  hand at charge 8–20 % (expert 2 %) is the standing jump-row miss seen
+  from the Firefox side. n = 17–35 per arm: direction, not decimals.
+  **Label side (scratch `label_firefox_angle.exs`, charges inside the
+  gated sets r3g / r4g3 / r5g3):** 122 / 142 / 158 labelled charges, fire
+  bucket toward-up 42–46 %, vertical 20–35 %, horizontal 8–20 %, neutral
+  ~7 %, down 5–8 %, **away ≤ 1 %**, same-as-fire share 0.67–0.73 (held
+  better than the expert's own 0.43). So the labels do NOT carry the
+  wrong angle — the away/down fires are the policy's, i.e. a
+  generalisation miss on the fire-frame stick, not a label artefact. No
+  left/right asymmetry (away+down L 2/10 R 2/16 in dag34g_x2). Next: put
+  the instrument in every readout (queue 39+), and weigh a fire-frame
+  weight (the last charge frame's stick is the decision; `--onset-weight`
+  weights the press, nothing weights the fire) against a label-side
+  "hold the fire stick through the charge" — the labels already hold it
+  at 0.7, so the model-side weight is the cheaper first test.
