@@ -20,13 +20,22 @@ while pgrep -f '[b]eam.smp' > /dev/null; do sleep 60; done
 echo "== beam free ($(date +%H:%M)); rollout policy $pol"
 r2=data/silent_fall/sim_dagger_expert_r2.frames
 both=data/silent_fall/sim_dagger_expert_r1r2.frames
-echo "== rollout + relabel, 12 seeds ($(date +%H:%M))"
-mix run --no-compile scripts/sim_recovery_dagger_expert.exs --policy $pol --index data/silent_fall/expert_recovery_index.bin \
-  --seeds 2011,2012,2013,2014,2015,2016,2017,2018,2019,2020,2021,2022 --label-seed 8 \
-  --out $r2 --report eval_runs/1001_queue/sim_dagger_expert_r2.json 2>&1 | grep -E "RESULT|seed |error|Error|\*\*" | cut -c1-500
-[ -s eval_runs/1001_queue/sim_dagger_expert_r2.json ] || { echo "DAGGER_FAILED (no report)"; exit 1; }
-hold=$(node -e 'const r=JSON.parse(require("fs").readFileSync("eval_runs/1001_queue/sim_dagger_expert_r2.json"));console.log(r.hold_share ?? "nan")')
-echo "== set r2 hold share: $hold"
+# 12 seeds in ONE beam died of GPU RESOURCE_EXHAUSTED at seed 8 (20:17 —
+# something accumulates on the GPU per seed; 3 seeds are fine), so four
+# 3-seed beams, concatenated. Raw logs kept (the grep hid the first error).
+echo "== rollout + relabel, 12 seeds in 4 beams ($(date +%H:%M))"
+parts=()
+for grp in 2011,2012,2013 2014,2015,2016 2017,2018,2019 2020,2021,2022; do
+  part=data/silent_fall/sim_dagger_expert_r2_${grp%%,*}.frames
+  mix run --no-compile scripts/sim_recovery_dagger_expert.exs --policy $pol --index data/silent_fall/expert_recovery_index.bin \
+    --seeds $grp --label-seed 8 --out $part --report eval_runs/1001_queue/sim_dagger_expert_r2_${grp%%,*}.json \
+    > logs/dagger_r2_${grp%%,*}.log 2>&1
+  grep -E "RESULT|seed |RESOURCE_EXHAUSTED|\*\*" logs/dagger_r2_${grp%%,*}.log | cut -c1-400
+  [ -s eval_runs/1001_queue/sim_dagger_expert_r2_${grp%%,*}.json ] || { echo "DAGGER_FAILED (seeds $grp, see logs/dagger_r2_${grp%%,*}.log)"; exit 1; }
+  parts+=("$part")
+done
+elixir -pa '_build/dev/lib/*/ebin' scripts/dagger_set_concat.exs "${parts[@]}" $r2 2>&1 | grep -E "RESULT|error|\*\*" | cut -c1-300
+[ -s $r2 ] || { echo "DAGGER_FAILED (no r2 concat)"; exit 1; }
 elixir -pa '_build/dev/lib/*/ebin' scripts/dagger_set_label_hazards.exs $r2 2>&1 | grep RESULT | cut -c1-300
 # r1 + r2 in one file (same export shape; frame_lists concatenated)
 elixir -pa '_build/dev/lib/*/ebin' scripts/dagger_set_concat.exs data/silent_fall/sim_dagger_expert_r1.frames $r2 $both 2>&1 | grep -E "RESULT|error|\*\*" | cut -c1-300
