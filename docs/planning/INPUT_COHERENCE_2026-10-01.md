@@ -3130,3 +3130,17 @@ deep, band kept, onstage jump hazard (y>0, jump in hand) ≤ 0.15.
   oscillates with the set; the press itself (B edge 1.35 % in the
   labels) is now over-supplied relative to the expert's own rate and
   the bot's passive-fall deaths rose with it.
+- **09:31 — `on30u_dag3g_x2_e3` (gated r3g at ×2 ≈ 65k): the aim does not
+  survive the half dose.** Up-onset **4.5 %** (×4: 9.7), stick-up share
+  13.2 % (33.6), P(B|up) 9.9 %, Firefox-once-spent 0 / 0.0045 / 0.0074 /
+  0.0093 (×4: 0.003–0.006; dag4g3 0.015–0.019). Jump rows 0.137 / 0.178 /
+  0.306. Band and closed loop all pass (repeat 0.760, neutral 0.278,
+  fidelity 0.172; SD/min 1.26, dashes/min 27.4, damage/min 61,
+  deaths/min 1.38, return 0.79); airdodge deaths 13 (12†),
+  airdodge_with_jump 0.102. So on the gated set the aim is a ×4 effect
+  (as on r1: dagx2 3.9 → dagx4 4.6 was the same direction, smaller) —
+  with the caveat that every arm here is one training seed (905) and
+  the s906 replicate of on30u_e3 moved the return rate by 0.12, so a
+  4.5-vs-9.7 split on one seed each is suggestive, not settled. The
+  ×4 arms are the ones to carry forward; `dag34g_x2_e3` (r3g + r4g3 ×2
+  = 75k relabelled ×2 ≈ 150k) reads next.
