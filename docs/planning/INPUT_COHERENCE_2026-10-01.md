@@ -3023,3 +3023,26 @@ deep, band kept, onstage jump hazard (y>0, jump in hand) ≤ 0.15.
   waits for queue 35 to finish (dag2x1_e3 is training) and runs
   `on30u_dag3g_x4_e3` on `sim_dagger_expert_r3g_split.frames` ×4, readout
   vs dagx4 / dag2x2. Unit `exphil-queue36`, log `logs/exphil-queue36.log`.
+- **02:06 — `on30u_dag2x1_e3` (r1+r2 ×1 = 67k): not at the bar, but the
+  best Firefox-once-spent of the series and the dose reading is now
+  clear.** Aim: up-onset **5.5 %/3 f** (bar 7), stick-up share 18.1 %,
+  **P(B|up) 18.8 %** (expert 14.7; dag2x2 7.9, dag2x4 4.9),
+  **Firefox-once-spent 0.0116 / 0.0128 / 0.009 / 0.0145** by band (bar
+  0.04; dagx4 0.0085, dag2x2 0.0085/0.0048). Jump rows 0.078 / **0.259** /
+  0.179 (the −20..−40 row ×0.39 fails 0.15; −40..−60 ×0.87 passes). Band:
+  repeat 0.763, neutral 0.242, fidelity 0.168 — inside. Closed loop:
+  **SD/min 1.22 (passes), deaths/min 1.30, damage/min 71 (best of the
+  series), dashes/min 23.6 (passes), return 0.785**, recovery-means
+  return 0.527 / decided 0.613 (dagx4 0.491 / 0.623), mismatch 0.141,
+  side-B deaths 22/22, died trips 81 with trailing-identical q50 3
+  (expert 27 — the bot dies while still changing inputs, not silent).
+  Dose series on r1+r2 (×1 / ×2 / ×4 = 67k / 134k / 268k): up-onset 5.5 /
+  5.1 / 8.3, P(B|up) 18.8 / 7.9 / 4.9, SD/min 1.22 / 1.68 / 1.04,
+  damage/min 71 / 47 / 16, fidelity 0.168 / 0.181 / 0.278. **Reading:
+  oversampling the relabelled set past ×1 buys stick-up share at the
+  price of the press and of style; at ×1 the set carries aim +0.9 pt over
+  dagx4 with the press intact.** What is missing at every dose is the
+  Firefox itself (≤ 0.015 vs 0.04), and the −20..−40 jump row. The
+  coverage question (queue 36, same ×4 oversample on the gated r3g) is
+  the remaining lever in flight; next doses should ADD SEEDS at ×1, not
+  oversample.
