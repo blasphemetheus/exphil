@@ -2898,3 +2898,30 @@ deep, band kept, onstage jump hazard (y>0, jump in hand) ≤ 0.15.
   `dagx4_e3` (×4 dose) running from 18:33; the dose being 71 onsets is
   the reading → queue 34 = 12 rollout seeds (4× set) as DAgger round 2
   from the newest policy, oversample 4.
+- **20:00 — `on30u_dagx4_e3` (queue 33, r1 ×4): the dose is MONOTONE and
+  the closed loop is the best of the program; the aim bar is still far.**
+  Band fully kept: repeat 0.767, neutral 0.283, fidelity 0.179. Aim:
+  up-onset once spent **4.6 %**/3 f (on30u_e3 3.4 → dagx2 3.9 → dagx4
+  4.6; bar 7, expert 12.3), stick-up share 21.5 % (13.5 → 14.4 → 21.5;
+  expert 42.5), Firefox-once-spent **0.0085** at −40..−60 / **0.0131**
+  deep (0.0035/0.0095 → 0.006/0.007 → 0.0085/0.0131; bar 0.04, expert
+  0.056) — every aim number rises with dose, none near the bar. Jump
+  rows 0.226 / 0.183 / 0.249 (−40..−60 under the 0.20 bar, ×0.62 —
+  the mix shifts the jump height distribution; slope 2.4). Closed loop:
+  deaths/min **1.01** (expert 0.96; s906 1.61), SD/min **0.92** (1.39),
+  offstage return rate 0.821, **dashes/min 44** (24 → 44; expert 40),
+  wavedashes 2.48, damage 55/min, recovery-means return **0.491** /
+  decided **0.623** (n=122), mismatch **0.097** (expert split-half
+  0.084), means_js 0.321 (floor 0.174) — all program bests. Deaths: 81
+  decided, side-B 24 (top; `side_b_low` 0.2), attack 13, airdodge 6
+  (`airdodge_with_jump` 0.062, halved from dagx2), jump-in-hand 17/81 =
+  21 % (dagx2 12 %, on30u_e3 19 %), died holding neutral 40 %. Reading:
+  the expert labels on the bot's own states are the first lever that
+  moves the Firefox aim at all, and they do it in proportion to how many
+  onset examples they carry; the closed-loop gains (dashes, SDs, deaths)
+  come free. **Queue 34 launched 20:02**: DAgger round 2 — `dagx4_e3`
+  rolled out on 12 seeds (`--label-seed 8`, set r2 ≈ 4× r1), r1 + r2
+  concatenated (`scripts/dagger_set_concat.exs`), one arm
+  `on30u_dag2x4_e3` (oversample 4 ≈ 5× dagx4's onset examples). Same
+  pass bar. If it rises again without reaching the bar, the next dose is
+  more rounds/seeds, not a new mechanism.
