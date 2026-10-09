@@ -3265,3 +3265,44 @@ deep, band kept, onstage jump hazard (y>0, jump in hand) ≤ 0.15.
   weights the press, nothing weights the fire) against a label-side
   "hold the fire stick through the charge" — the labels already hold it
   at 0.7, so the model-side weight is the cheaper first test.
+- **14:30 — the knob, not the fire frame (angle instrument over every
+  onset arm, no DAgger data, same recipe otherwise):** `dur8e_e3` (no
+  onset weight) **13° / away 0 %**; `on10` 34° / 6 %; `on30_e3` 31° / 0 %,
+  its s906 30° / 9 %; `on30u_e3` 30° / 14 %, its s906 **51° / 15 %**. Any
+  onset weight costs angle; the stick-enters-up term (`y ≥ 0.75`, blind to
+  x — `silent_fall_weighting.ex:107-114`) costs the most. A fire-frame
+  weight would be a Fox-specific patch on a general knob's side effect
+  (Bradley's "is it overtuning?" — yes); the arms are to remove or narrow
+  the knob. Also Bradley: the state BEFORE the offstage one is probably
+  the better target — and the sim has had the number all week: **carried-
+  off share 0.27–0.33 vs expert 0.055, carried-off died 0.8–0.9 vs 0.16**;
+  plus the ground side-B off the edge and the airdodge-off-the-stage
+  deaths start in states the labeler never sees (`labelable?` = airborne
+  past the ledge). → queue 40 = widen the label window to grounded /
+  above-stage near-edge states.
+- **15:05 — `on30u_dag345g_x2_e3` (three rounds at ×2 ≈ 228k): the dose
+  law a third time.** dashes/min **11.7**, offstage eps/min 4.8, Firefox-
+  once-spent 0 / 0.005 / **0.003** / 0.016, P(B|up) 7.0 %, drill 0.438,
+  return 0.78, repeat 0.70, neutral 0.201, fidelity 0.226, carried-off
+  died 0.91; angle 27° / away 10 %. ×1 is the dose.
+- **16:37 — `on30u_dag34g_x2_e3_s906` (the seed replicate of the arm
+  Bradley played): SEED VARIANCE IS LARGE.** Same recipe, same data, seed
+  906 vs 905: **SD/min 1.50 vs 1.03, deaths/min 1.66 vs 1.09, drill 0.424
+  vs 0.49, Firefox-once-spent −40..−60 0.0082 vs 0.0199**, stick-up share
+  30 % vs 48 %, P(B|up) 13.7 vs 20.5, angle err 44° vs 35°, neutral-fire
+  22 % vs 0 — but **up-onset 11.7 % vs 12.1 %** (the aim replicates),
+  jump rows 0.125 / 0.274 / 0.355 (deeper rows pass, better than s905),
+  fidelity **0.159**, neutral 0.32, repeat 0.761, dashes 23.5, damage 47
+  (the band passes on this seed), side_b_low 0.0, airdodge 16 (15†).
+  Reading: what survives two seeds — the aim at ~12 %, the dose law
+  (three pairs), gated ≫ ungated (large effects), the angle being bad
+  (35–44°). What does NOT — "Firefox at half the bar" (0.020 is one seed;
+  0.008 on the other), SD/min 1.03, the band failing/passing. The
+  program's single-seed reads this week are within seed noise on the
+  press and style axes; queue 39 carries its own replicate (on0 s906).
+- **16:38 — queue 39 started** (`scripts/coherence_queue39.sh`; patch
+  `--onset-buttons-only` applied in its beam-free window, compiled): arms
+  `dur8e_dag345g_x1_e3` (no onset weight), `on30b_dag345g_x1_e3` (press
+  edges only), `on5u_dag345g_x1_e3`, `dur8e_dag345g_x1_e3_s906`; readout
+  + `recovery_firefox_angle.js`; bar = queue 38's + angle err q50 ≤ 25°,
+  away ≤ 3 %, died after Firefox ≤ 30 %.
