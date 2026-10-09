@@ -3089,3 +3089,44 @@ deep, band kept, onstage jump hazard (y>0, jump in hand) ≤ 0.15.
   Bradley. The helpless share is the other half: what the bot does
   BEFORE the press (side-B 45 deaths, airdodge) — read next from the
   r3g labels on those states.
+- **03:42–05:43 — labeler v3 + queue 37.** v3 = `attacking` dim (65..69,
+  weight 1.5) + helpless 36/37 not labelable; index v3 (same 176 games,
+  214,443 rows). Held-out self-check passes: jump ×1.17, up-onset ×1.20,
+  B ×1.58, hold 0.808 vs 0.794, agreement 68 %. v3 gate (held-out q95)
+  0.814. Lost two hours: the queue ran the self-check mix-free, which
+  leaves Nx on BinaryBackend (no config loaded) — the 214k-row nearest
+  kernel crawled on one core with no output (`logs/exphil-queue37_cpuhang.log`);
+  GPU-side labeler reads go through `mix run --no-compile` (the queue
+  only runs with no other beam alive; `mf` stays for the CPU-only set
+  tools). Queue 37: gated v3 round r4g3 from dag3g_x4_e3's own states
+  (12 seeds) → `dag4g3_x4_e3`, then `dag3g_x2_e3` (dose middle on the
+  gated r3g), `dag34g_x2_e3` (r3g + r4g3 ×2).
+- **08:03 — r4g3 + `on30u_dag4g3_x4_e3`: the Firefox moves for the first
+  time (×3), height-conditioned, still under the bar; the aim gives
+  back; style slips.** r4g3: 1,918 runs, **42,014 relabelled** (29–36 %
+  gated), hazards jump edge 7.5 % (expert 8.8), up-onset 4.34 % (3.1;
+  5.9 % below −40), **B edge 1.35 % (expert held-out 0.24; r3g 0.52)** —
+  the v3 labels press B on the bot's deep states at 5× the expert's
+  held-out rate, which the self-check (×1.58 on the expert's own states)
+  did not show: the bot's spent-low states are where the expert presses.
+  Coverage: 8 of 42,014 beyond the gate. Arm: **Firefox-once-spent
+  0.0017 / 0.005 / 0.0151 / 0.0186 by band (expert 0.02 / 0.02 / 0.056 /
+  0.056; bar 0.04 at ≤ −40; dag3g 0.0027 / 0 / 0.0042 / 0.0061)** — the
+  first arm with a height-conditioned Firefox (×3 at −40..−60, ×3 below
+  −60). Jump rows **0.202 / 0.384 / 0.507 — pass** (above the expert's
+  0.20 / 0.30 / 0.30). But aim: up-onset 6.7 % (bar 7; dag3g 9.7),
+  stick-up share 25.3 % (33.6), P(B|up) 7.5 % (14.3). Band: repeat 0.768,
+  fidelity 0.181, neutral **0.216** (bar 0.22, marginal). Closed loop:
+  SD/min 1.28 (pass), damage/min 63 (pass), **dashes/min 19.9 (bar 22,
+  fail)**, deaths/min 1.43, return 0.80, decided return 0.585, mismatch
+  0.122, side-B deaths 28 (dag3g 45), up-B deaths 6 (6†), died trips
+  112 with 66 holding neutral (dag3g 35/110; "passive Fall" 31 % vs
+  20 %), stick toward 21 % / away 19 % (dag3g 42 / 12). Two things
+  changed at once here (labeler v3, and round 4 = labels on dag3g's
+  states), so which moved the Firefox is not separated; `dag34g_x2_e3`
+  (r3g v2 + r4g3 v3 at ×2) is the mix of both. Reading so far: the
+  gated rounds move the Firefox and the jump rows monotonically
+  (0.006 → 0.019 at <−60 across r3g → r4g3) while the stick aim
+  oscillates with the set; the press itself (B edge 1.35 % in the
+  labels) is now over-supplied relative to the expert's own rate and
+  the bot's passive-fall deaths rose with it.

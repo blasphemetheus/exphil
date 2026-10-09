@@ -25,6 +25,9 @@ pq=(--prev-action --prev-action-dropout 0.0 --prev-action-quantize)
 rec=(--chunk-horizon 8 --offstage-weight 3 --stick-duration 8 --onset-weight 30)
 run() { echo "== $1 ($(date +%H:%M))"; scripts/coherence_experiment.sh "$@"; }
 mf() { elixir -pa '_build/dev/lib/*/ebin' "$@"; }
+# GPU-side labeler reads need EXLA as the default backend = the mix config; the
+# mix-free path runs the 214k-row nearest kernel on BinaryBackend (2 h, no output, 05:42).
+mx() { mix run --no-compile "$@"; }
 idx=data/silent_fall/expert_recovery_index_v3.bin
 held=data/silent_fall/heldout_fd_fox_split.json
 readout() {
@@ -36,11 +39,11 @@ readout() {
 # 1. labeler v3 self-check + gate
 [ -s $idx ] || { echo "LABELER_FAILED (no v3 index)"; exit 1; }
 echo "== labeler v3 self-check ($(date +%H:%M))"
-mf scripts/expert_labeler_selfcheck.exs --split $held --index $idx --games 24 --out eval_runs/1001_queue/labeler_selfcheck_v3.json 2>&1 | grep -E "RESULT|error|Error|\*\*" | cut -c1-400
+mx scripts/expert_labeler_selfcheck.exs --split $held --index $idx --games 24 --out eval_runs/1001_queue/labeler_selfcheck_v3.json 2>&1 | grep -E "RESULT|error|Error|\*\*" | cut -c1-400
 ok=$(node -e 'try{const r=JSON.parse(require("fs").readFileSync("eval_runs/1001_queue/labeler_selfcheck_v3.json"));const w=(a,b,n)=>b*n<20||(b>0&&a/b>=0.5&&a/b<=2.0);console.log(r.n>=10000&&w(r.label_up,r.actual_up,r.n_spent)&&w(r.label_jump,r.actual_jump,r.n_in_hand)&&w(r.label_b,r.actual_b,r.n_spent)?"yes":"no")}catch(e){console.log("no")}')
 echo "== labeler v3 within x0.5-x2 of the expert: $ok"
 [ "$ok" = yes ] || { echo "LABELER_FAILED"; exit 1; }
-mf scripts/expert_labeler_distance.exs --split $held --index $idx --games 24 --out eval_runs/1001_queue/labeler_distance_v3_heldout.json 2>&1 | grep -E "RESULT|\*\*" | cut -c1-400
+mx scripts/expert_labeler_distance.exs --split $held --index $idx --games 24 --out eval_runs/1001_queue/labeler_distance_v3_heldout.json 2>&1 | grep -E "RESULT|\*\*" | cut -c1-400
 gate=$(node -e 'const r=JSON.parse(require("fs").readFileSync("eval_runs/1001_queue/labeler_distance_v3_heldout.json"));console.log(r.gate_q95?r.gate_q95.toFixed(3):"")')
 [ -n "$gate" ] || { echo "LABELER_FAILED (no gate)"; exit 1; }
 echo "== v3 coverage gate d2 <= $gate (held-out q95)"
@@ -61,7 +64,7 @@ done
 mf scripts/dagger_set_concat.exs "${parts[@]}" $r4 2>&1 | grep -E "RESULT|error|\*\*" | cut -c1-300
 [ -s $r4 ] || { echo "DAGGER_FAILED (no r4g3 concat)"; exit 1; }
 mf scripts/dagger_set_label_hazards.exs $r4 2>&1 | grep RESULT | cut -c1-300
-mf scripts/expert_labeler_distance.exs --split $held --index $idx --games 24 --set $r4 --out eval_runs/1001_queue/labeler_distance_v3_r4g3.json 2>&1 | grep -E "RESULT|\*\*" | cut -c1-400
+mx scripts/expert_labeler_distance.exs --split $held --index $idx --games 24 --set $r4 --out eval_runs/1001_queue/labeler_distance_v3_r4g3.json 2>&1 | grep -E "RESULT|\*\*" | cut -c1-400
 r4s=data/silent_fall/sim_dagger_expert_r4g3_split.frames
 mf scripts/dagger_set_split_gated.exs $r4 $r4s 2>&1 | grep RESULT | cut -c1-300
 [ -s $r4s ] || { echo "DAGGER_FAILED (no r4g3 split)"; exit 1; }
