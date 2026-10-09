@@ -57,8 +57,16 @@ defmodule ExPhil.Agents.ExpertRecoveryLabeler do
       (p.action || 0) > 13 and (p.action || 0) != 35 and (p.action || 0) not in 252..263
   end
 
-  @doc "Raw (unscaled) feature map for a player state, previous input and opponent."
-  def features(p, prev, opp, edge) do
+  @doc """
+  Raw (unscaled) feature map for a player state, previous input and opponent.
+  `prev_p` = the player's state one frame earlier: velocity is the POSITION
+  DELTA (v2, 10-08 22:30). v1 read `speed_y_self` / `speed_air_x_self`, which
+  Slippi only records from 3.5 — on this corpus the index columns were all
+  zero while the sim fills them, so the bot's every state looked "far" (77 %
+  beyond the expert's q95, d2 carried by vy 1.35 + vx 0.58). Ranking was
+  unaffected (a constant per query), the distances were not.
+  """
+  def features(p, prev, opp, edge, prev_p \\ nil) do
     t = toward(p)
     a = p.action || 0
     ms = prev.main_stick || %{x: 0.5, y: 0.5}
@@ -66,8 +74,8 @@ defmodule ExPhil.Agents.ExpertRecoveryLabeler do
     %{
       y: p.y || 0.0,
       dist: abs(p.x || 0.0) - edge,
-      vx: (p.speed_air_x_self || 0.0) * t,
-      vy: p.speed_y_self || 0.0,
+      vx: if(prev_p, do: ((p.x || 0.0) - (prev_p.x || 0.0)) * t, else: 0.0),
+      vy: if(prev_p, do: (p.y || 0.0) - (prev_p.y || 0.0), else: 0.0),
       jumps: p.jumps_left || 0,
       facing: (p.facing || 1) * t,
       special: if(a >= 341, do: 1.0, else: 0.0),
@@ -142,7 +150,7 @@ defmodule ExPhil.Agents.ExpertRecoveryLabeler do
 
       if f1.game_state.frame == f0.game_state.frame + 1 and labelable?(p, edge) do
         t = toward(p)
-        v = features(p, f0.controller, f1.game_state.players[2], edge) |> vector()
+        v = features(p, f0.controller, f1.game_state.players[2], edge, f0.game_state.players[1]) |> vector()
         [{v, controller_row(f1.controller, t), same_input?(f1.controller, f0.controller)}]
       else
         []
@@ -192,14 +200,44 @@ defmodule ExPhil.Agents.ExpertRecoveryLabeler do
   k-nearest index rows for a batch of query vectors: `{batch, k}` s64 indices
   (brute force; the index is ~10^5 rows and the query batches are small).
   """
-  def nearest(index, queries, k \\ @k) do
+  def nearest(index, queries, k \\ @k), do: nearest_d2(index, queries, k) |> elem(0)
+
+  @doc """
+  Like `nearest/3` but also returns the squared distance to the NEAREST row,
+  `{idx {batch, k}, d2 {batch}}` — the coverage readout: a query far from
+  every expert row is a state the expert never visits, and its sampled label
+  is an extrapolation (10-08 22:12: `airdodge_with_jump` labels on the bot's
+  low, jump-in-hand states).
+  """
+  def nearest_d2(index, queries, k \\ @k) do
     q = Nx.tensor(queries, type: :f32)
+    # one jitted call: the {batch, n} distance matrix (256 x 214k f32 = 219 MB)
+    # lives only inside the executable. Eagerly it was a device buffer per
+    # chunk freed only at the beam's next GC — the 10-08 22:16 RESOURCE_EXHAUSTED
+    # after ~100 chunks (and the 12-seed rollout's death at seed 8).
+    {idx, d2} = Nx.Defn.jit(&nearest_kernel/3).(q, index.x, k: k)
+    :erlang.garbage_collect()
+    {idx, d2}
+  end
+
+  import Nx.Defn
+
+  defn nearest_kernel(q, x, opts \\ []) do
+    k = opts[:k]
     # squared distances via |q|^2 - 2 q.x + |x|^2
-    qq = Nx.sum(Nx.multiply(q, q), axes: [1]) |> Nx.new_axis(1)
-    xx = Nx.sum(Nx.multiply(index.x, index.x), axes: [1]) |> Nx.new_axis(0)
-    d2 = qq |> Nx.subtract(Nx.multiply(2.0, Nx.dot(q, [1], index.x, [1]))) |> Nx.add(xx)
-    {_, idx} = Nx.top_k(Nx.negate(d2), k: k)
-    idx
+    qq = Nx.sum(q * q, axes: [1]) |> Nx.new_axis(1)
+    xx = Nx.sum(x * x, axes: [1]) |> Nx.new_axis(0)
+    d2 = qq - 2.0 * Nx.dot(q, [1], x, [1]) + xx
+    {neg, idx} = Nx.top_k(-d2, k: k)
+    {idx, -(neg |> Nx.slice_along_axis(0, 1, axis: 1) |> Nx.squeeze(axes: [1]))}
+  end
+
+  @doc "Squared distance from each `{player, prev, opponent}` state to its nearest expert row."
+  def nearest_d2_batch(index, states, edge) do
+    states
+    |> Enum.map(&(query_features(&1, edge) |> vector()))
+    |> Enum.chunk_every(256)
+    |> Enum.flat_map(fn q -> nearest_d2(index, q, 1) |> elem(1) |> Nx.to_list() end)
   end
 
   @doc """
@@ -207,24 +245,39 @@ defmodule ExPhil.Agents.ExpertRecoveryLabeler do
   its k nearest expert rows is sampled; a hold keeps `prev_label`, a change
   becomes that expert input on the player's side. Returns `[controller]`.
   Sampling uses the process `:rand` state (seed it for reproducibility).
+  `max_d2:` (optional) — a state whose nearest expert row is farther than
+  this gets `nil` (no label: the expert has not been there).
   """
-  def label_batch(index, states, edge) do
-    queries = Enum.map(states, fn {p, prev, opp} -> features(p, prev, opp, edge) |> vector() end)
+  def label_batch(index, states, edge, opts \\ []) do
+    max_d2 = opts[:max_d2]
+    queries = Enum.map(states, &(query_features(&1, edge) |> vector()))
     # distance matrices in chunks of 256 queries (256 x n floats each)
-    idx = queries |> Enum.chunk_every(256) |> Enum.flat_map(fn q -> nearest(index, q, index.k) |> Nx.to_list() end)
+    {idx, d2} =
+      queries
+      |> Enum.chunk_every(256)
+      |> Enum.map(fn q -> nearest_d2(index, q, index.k) end)
+      |> Enum.reduce({[], []}, fn {i, d}, {is, ds} -> {is ++ Nx.to_list(i), ds ++ Nx.to_list(d)} end)
+
     labels = index.labels
     holds = index.hold
 
-    Enum.zip(states, idx)
-    |> Enum.map(fn {{p, prev, _opp}, neighbours} ->
+    Enum.zip([states, idx, d2])
+    |> Enum.map(fn {state, neighbours, best} ->
+      {p, prev} = {elem(state, 0), elem(state, 1)}
       j = Enum.at(neighbours, :rand.uniform(length(neighbours)) - 1)
 
-      if elem(holds, j) == 1,
-        do: prev,
-        else: row_controller(elem(labels, j), toward(p), prev)
+      cond do
+        max_d2 != nil and best > max_d2 -> nil
+        elem(holds, j) == 1 -> prev
+        true -> row_controller(elem(labels, j), toward(p), prev)
+      end
     end)
   end
 
-  @doc "One label (see label_batch/3)."
-  def label(index, p, prev, opp, edge), do: hd(label_batch(index, [{p, prev, opp}], edge))
+  @doc "One label (see label_batch/4); `nil` when gated by `max_d2:`."
+  def label(index, p, prev, opp, edge, opts \\ []), do: hd(label_batch(index, [{p, prev, opp, opts[:prev_p]}], edge, opts))
+
+  @doc "A query state is `{player, prev_input, opponent}` or `{player, prev_input, opponent, prev_player}`."
+  def query_features({p, prev, opp}, edge), do: features(p, prev, opp, edge)
+  def query_features({p, prev, opp, prev_p}, edge), do: features(p, prev, opp, edge, prev_p)
 end

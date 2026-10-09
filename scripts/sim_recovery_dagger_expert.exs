@@ -19,7 +19,8 @@ alias ExPhil.Training.{Checkpoint, Output, SilentFallWeighting}
 {opts, _, bad} =
   OptionParser.parse(System.argv(),
     strict: [policy: :string, out: :string, envs: :integer, frames: :integer, seeds: :string, opponent: :string,
-             report: :string, action_delay: :integer, only_silent: :boolean, index: :string, label_seed: :integer])
+             report: :string, action_delay: :integer, only_silent: :boolean, index: :string, label_seed: :integer,
+             max_d2: :float])
 if bad != [], do: raise("invalid options: #{inspect(bad)}")
 
 # --only-silent (16:50): relabel ONLY the frames where the policy's actual
@@ -36,6 +37,7 @@ n = opts[:envs] || 32
 frames_per = opts[:frames] || 3600
 seeds = (opts[:seeds] || "2001,2002,2003") |> String.split(",") |> Enum.map(&String.to_integer/1)
 action_delay = opts[:action_delay] || 0
+max_d2 = opts[:max_d2]
 edge = GA.stage_edge(32)
 neutral = Drill.neutral()
 index = ExpertRecoveryLabeler.load(opts[:index] || "data/silent_fall/expert_recovery_index.bin")
@@ -76,7 +78,7 @@ relabel = fn history ->
     history
     |> Enum.reverse()
     |> Enum.chunk_every(2, 1, :discard)
-    |> Enum.map(fn [{_s0, c0}, {s1, c1}] ->
+    |> Enum.map(fn [{s0, c0}, {s1, c1}] ->
       p = s1.players[1]
       offstage_or_below = p.on_ground != true and (abs(p.x || 0.0) > edge or (p.y || 0.0) < -5.0)
       ledge = (p.action || 0) in 252..263
@@ -85,7 +87,7 @@ relabel = fn history ->
       _ = ledge
       labeled = ExpertRecoveryLabeler.labelable?(p, edge) and (not only_silent or SilentFallWeighting.neutral?(c1))
       # the label is filled in per trip below (sequentially: it conditions on the previous label)
-      %{game_state: %{s1 | own_port: 1}, controller: c1, prev_controller: c0, player_tag: nil, actual: c1, labeled: labeled}
+      %{game_state: %{s1 | own_port: 1}, controller: c1, prev_controller: c0, player_tag: nil, actual: c1, labeled: labeled, prev_player: s0.players[1]}
     end)
     |> List.to_tuple()
 
@@ -128,13 +130,18 @@ relabel = fn history ->
     # actual press at t-1 (what really preceded it).
     # expert label per frame, in order: prev = the previous label (the first
     # frame's prev is the real press at t-1), state = the bot's own
+    # --max-d2 (22:30): a state farther than this from every expert row gets
+    # NO label — it stays in the trip as input-only context (the bot's own
+    # press, unsupervised) and the next frame's prev is that real press.
     {trip, _} =
       Enum.map_reduce(trip, nil, fn f, prev_label ->
         prev = prev_label || f.prev_controller
         p = f.game_state.players[1]
-        label = ExpertRecoveryLabeler.label(index, p, prev, f.game_state.players[2], edge)
-        f = %{f | controller: label, prev_controller: prev}
-        {f, label}
+
+        case ExpertRecoveryLabeler.label(index, p, prev, f.game_state.players[2], edge, max_d2: max_d2, prev_p: f.prev_player) do
+          nil -> {f |> Map.put(:input_only, true) |> Map.put(:gated, true), f.controller}
+          label -> {%{f | controller: label, prev_controller: prev}, label}
+        end
       end)
 
     ctx ++ trip
@@ -186,7 +193,8 @@ end
 frame_lists = Enum.flat_map(seeds, rollout)
 all = frame_lists |> List.flatten() |> Enum.reject(&(&1[:input_only] == true))
 total = length(all)
-ctx_total = (frame_lists |> List.flatten() |> length()) - total
+gated = frame_lists |> List.flatten() |> Enum.count(&(&1[:gated] == true))
+ctx_total = (frame_lists |> List.flatten() |> length()) - total - gated
 
 # what the relabel changed: the policy was silent, the expert says act
 silent_actual = Enum.count(all, &SilentFallWeighting.neutral?(&1.actual))
@@ -213,6 +221,7 @@ if report = opts[:report] do
   File.mkdir_p!(Path.dirname(report))
   File.write!(report, Jason.encode!(%{
     "policy" => policy, "seeds" => seeds, "runs" => length(frame_lists), "frames" => total,
+    "max_d2" => max_d2, "gated_frames" => gated, "gated_share" => Float.round(gated / max(total + gated, 1), 3),
     "policy_silent_share" => Float.round(silent_actual / max(total, 1), 3),
     "hold_share" => Float.round(hold_share, 3),
     "label_b_share" => Float.round(label_b / max(total, 1), 3), "label_jump_share" => Float.round(label_jump / max(total, 1), 3),
@@ -220,5 +229,6 @@ if report = opts[:report] do
   }, pretty: true))
 end
 
-Output.puts("RESULT sim dagger: #{length(frame_lists)} offstage runs (median #{median.(runs_len)} f incl. prefix), #{total} relabeled frames + #{ctx_total} input-only context; " <>
+Output.puts("RESULT sim dagger: #{length(frame_lists)} offstage runs (median #{median.(runs_len)} f incl. prefix), #{total} relabeled frames + #{ctx_total} input-only context" <>
+  if(max_d2, do: " + #{gated} gated (d2 > #{max_d2}, #{Float.round(100 * gated / max(total + gated, 1), 1)} % of labelable)", else: "") <> "; " <>
   "policy was silent on #{Float.round(100 * silent_actual / max(total, 1), 1)} %; expert label: B #{Float.round(100 * label_b / max(total, 1), 1)} %, jump #{Float.round(100 * label_jump / max(total, 1), 1)} %; hold share (label vs prev) #{Float.round(hold_share, 3)} -> #{out}")

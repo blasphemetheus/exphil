@@ -56,7 +56,7 @@ rows =
         f1.game_state.frame == f0.game_state.frame + 1 and L.labelable?(f1.game_state.players[1], edge)
       end)
 
-    states = Enum.map(pairs, fn [f0, f1] -> {f1.game_state.players[1], f0.controller, f1.game_state.players[2]} end)
+    states = Enum.map(pairs, fn [f0, f1] -> {f1.game_state.players[1], f0.controller, f1.game_state.players[2], f0.game_state.players[1]} end)
     labels = L.label_batch(index, states, edge)
 
     Enum.zip(pairs, labels)
