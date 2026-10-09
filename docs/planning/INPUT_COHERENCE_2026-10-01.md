@@ -3306,3 +3306,35 @@ deep, band kept, onstage jump hazard (y>0, jump in hand) ≤ 0.15.
   edges only), `on5u_dag345g_x1_e3`, `dur8e_dag345g_x1_e3_s906`; readout
   + `recovery_firefox_angle.js`; bar = queue 38's + angle err q50 ≤ 25°,
   away ≤ 3 %, died after Firefox ≤ 30 %.
+- **18:13 — `dag345g_x1_e3` (queue 39 arm 1: the ×1 three-round set with
+  NO onset weight): THE GATED LABELS CARRY THE PRESS WITHOUT THE KNOB,
+  THE ANGLE MEDIAN HALVES, THE TAIL DOES NOT, FIREFOX AT −40..−60 IS THE
+  LOWEST YET.** Aim: **up-onset 9.8 %/3 f (expert 12.3; bar 7 — no
+  overshoot, on30u was 19.0), stick-up share 35.7 % (42.5), P(B|up)
+  23.1 % (14.7; on30u 8.4)** — with the knob off, the stick goes up less
+  and the B follows it more, i.e. the "stick without the press" shape
+  was the knob's. Angle: **err q50 23° (bar 25, pass; on30u 35, dur8e_e3
+  13) but q75 55° (same as on30u), > 60° 18 %, away 5 % (bar 3, fail),
+  died after Firefox 18/39 = 46 % (bar 30, fail)**; fire bucket
+  toward-up only 18 % (expert 48), vertical 33, neutral 18; the deaths
+  fire at q50 55° and wander (first ≠ fire 83 %); charge stability
+  same-as-fire 0.36 (expert 0.43), **jump in hand at charge 26 % (expert
+  2 %), fire distance q50 10 units (expert 35)** — it fires late and close,
+  a quarter of the time with a jump still unused. Press: **Firefox-once-
+  spent 0.0034 / 0.0152 / 0.0026 / 0.0156 — the −40..−60 row is the
+  lowest of the series (bar 0.04; the on30 arms sat at 0.015–0.020)**;
+  jump rows 0.05 / 0.17 / 0.16 / 0.14 (bar 0.15 / 0.20 — one of two);
+  jump hazard with a jump in hand x0.55 / x0.41 / x0.61 of the expert at
+  −20 and below. Closed loop: **SD/min 1.54 (bar 1.4, fail; on30u 0.83
+  — but the 10-09 16:37 seed read says 0.5 of SD/min is one seed)**,
+  deaths/min 1.77, return 0.765, drill decided return 0.512, dashes
+  24.8 (pass), damage 51.9 (pass), **repeat 0.736 (pass; teacher-forced
+  0.747), neutral 0.354 closed loop (bar 0.33, fail; teacher-forced
+  0.24), fidelity 0.192 (pass)**; airdodge_with_jump 0.124, side_b_low
+  0.0; carried-off share 0.347 / died 0.874 (unchanged — the queue-40
+  number). val 3.079. Reading: removing the knob fixes the two things
+  it broke (aim overshoot, angle median) and nothing else — the B at
+  −40..−60 is now at 0.003, so the knob was holding that row at 0.02,
+  and the angle tail (q75 55°, 46 % die after firing) is NOT the knob's:
+  it is the late/close fire with the stick wandering through the charge,
+  which no onset arm has moved. on30b / on5u / on0 s906 to read.
