@@ -3004,3 +3004,22 @@ deep, band kept, onstage jump hazard (y>0, jump in hand) ≤ 0.15.
   17–23 %. Expected r3g ≈ 33k relabelled frames ×4 ≈ 132k effective — the
   same dose as dag2x2 with the extrapolated 30 % removed, so
   `dag3g_x4_e3` vs `dag2x2_e3` isolates coverage from dose.
+- **00:38–00:50 — r3g complete; `dag3g_x4_e3` died at the loader; queue
+  36.** r3g: 1,821 runs, **32,533 relabelled frames** (fourth beam 35.6 %
+  gated), label hazards jump edge 8.05 % (expert 8.76), up-onset 2.91 %
+  (3.1; 4.4 % below −40), B edge 0.52 % (0.24) — the gated labels keep
+  the expert's edge rates. Coverage readout on the gated set: bot states
+  q50 0.20 / q95 0.67 / q99 0.75 vs expert 0.09 / 0.78 / 1.86, 1 of 32,533
+  beyond the gate (the gate works by construction; the residual far state
+  is a prev-stick mismatch). The arm then failed in 4 s:
+  `Data.from_frame_lists/2` requires each list to be `[input-only prefix,
+  targets]` and raises on an input-only frame AFTER a target — the gate
+  marks frames input-only in the MIDDLE of a trip. Fix without touching
+  lib (queue live): `scripts/dagger_set_split_gated.exs` re-cuts each trip
+  into one list per maximal target run with the trip's earlier frames as
+  input-only context (1,821 → 2,421 lists, targets unchanged, context
+  180k → 260k; written `[:compressed]` — the first uncompressed write was
+  686 MB on a root disk with 4 GB free). `scripts/coherence_queue36.sh`
+  waits for queue 35 to finish (dag2x1_e3 is training) and runs
+  `on30u_dag3g_x4_e3` on `sim_dagger_expert_r3g_split.frames` ×4, readout
+  vs dagx4 / dag2x2. Unit `exphil-queue36`, log `logs/exphil-queue36.log`.
