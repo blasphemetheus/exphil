@@ -2977,3 +2977,30 @@ deep, band kept, onstage jump hazard (y>0, jump in hand) ≤ 0.15.
   and `--max-d2 0.78` → r3g (+ its label hazards and coverage readout) →
   `on30u_dag3g_x4_e3`; (A′) `on30u_dag2x1_e3` (×1 = 67k). Same pass bar
   plus damage/min ≥ 45. Read-out ~04:30.
+- **10-09 00:30 — `on30u_dag2x2_e3` (dose middle, r1+r2 ×2 = 134k): FAILS,
+  and the dose curve is not the whole story.** Aim: loop up-onset once
+  spent **5.1 %/3 f** (bar 7; dagx4 4.6, dag2x4 8.3), stick-up share
+  21.0 % (dagx4 21.5, dag2x4 42.0), P(B|up) 7.9 %, Firefox-once-spent
+  0.0085 / 0.0048 / 0.0043 (bar 0.04). Jump rows 0.11 / 0.186 / 0.179
+  (rows −40..−60 and <−60 ×0.6 of the expert). Band: repeat 0.748,
+  neutral 0.21 (bar 0.22), fidelity 0.181 — just inside. **Closed loop
+  WORSE than dagx4: SD/min 1.68 (bar 1.4; dagx4 0.92), deaths/min 1.79
+  (dagx4 1.01), offstage eps/min 7.9 (5.7), return 0.77 (0.82),
+  side-B deaths 53/53 (dagx4 24/24), carried-off share 0.32 (0.26),
+  decided return 0.469 (0.623), mismatch 0.153 (0.097).** Damage/min 47
+  and dashes/min 25 pass. So at 134k effective frames the aim moved
+  +0.5 pt over dagx4 while the closed loop regressed to dagx2's level —
+  the r2 set (labels on dagx4's states, 2.7 % up-onset) buys aim only at
+  the 5× dose and costs recoveries at every dose. Dose curve: 37k 3.9 %,
+  74k 4.6 %, 134k 5.1 %, 268k 8.3 %. Reading: the r2 labels are not the
+  r1 labels — r2's states are deeper / further and 36 % of them are
+  beyond the expert's own q95 (22:16), i.e. the extra dose is partly
+  extrapolated labels (side-B, airdodge). The gated round is the test.
+- **00:27 — gated v2 rollout (round r3g) runs clean:** three of four
+  3-seed beams done (no `RESOURCE_EXHAUSTED` — the jitted kernel + GC
+  hold), each ≈ 450–470 runs, **7.9–8.4k relabelled + 40–42k input-only
+  + 3.3–3.7k gated (28.5–30.7 % of labelable; forecast was 36 %)**, hold
+  share 0.79–0.81, label B 7.7–9.3 %, jump 8.7–10.3 %, policy silent on
+  17–23 %. Expected r3g ≈ 33k relabelled frames ×4 ≈ 132k effective — the
+  same dose as dag2x2 with the extrapolated 30 % removed, so
+  `dag3g_x4_e3` vs `dag2x2_e3` isolates coverage from dose.
