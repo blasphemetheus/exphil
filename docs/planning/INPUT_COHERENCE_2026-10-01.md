@@ -3172,3 +3172,38 @@ deep, band kept, onstage jump hazard (y>0, jump in hand) ≤ 0.15.
   dag34g_x2's own states) at **×1** of r3g + r4g3 + r5g (≈ 115k
   relabelled), plus the seed replicate this program has been owing
   (dag34g_x2 at s906) — queue 38.
+- **11:55 — gated v3 round 5 (`sim_dagger_expert_r5g3`, from
+  dag34g_x2_e3's own states, 12 seeds, gate 0.814):** 2206 runs, 39,367
+  relabelled, gated 31–40 % of labelable (r4g3: similar), policy silent
+  on 10–11 %, label hold share 0.80–0.82. Label hazards: jump edge 7.1 %
+  (expert held-out 8.8), stick-up onset 2.6 % (3.1), **B edge 0.61 %
+  (expert 0.24; r4g3 was 1.35 — v3 labels converge toward the expert's
+  rate as the states get nearer)**, near|far edges 1.4|0 / 1.2|0 / 1.1|0.
+  Split 2206 → 2944 lists; r345g_split = 8411 runs, 113,914 relabelled.
+- **13:31 — `on30u_dag345g_x1_e3` (r3g + r4g3 + r5g3 at ×1 ≈ 114k):
+  BEST CLOSED LOOP OF THE SERIES, FIREFOX AT −40..−60 STUCK AT 0.019,
+  THE REPEAT SHARE FALLS OUT OF THE BAND.** Closed loop: **SD/min 0.83
+  (best; expert 0.44), deaths/min 0.98 (expert 0.96), return 0.852,
+  drill recovery 0.559 (best; never 1, always 2), dashes/min 24.7
+  (pass), damage/min 54 (pass), fidelity 0.208 (pass), neutral 0.243
+  (pass)**, side_b_low 0.125 (expert 0.107; was 0.2), decided return
+  0.583, side-B deaths 21, airdodge 9 (8†), airdodge_with_jump 0.127.
+  **Fails: input repeat share 0.643 closed loop (bar 0.70; teacher-forced
+  0.703)** — trailing identical frames before death q25/50/75 = 0/0/6
+  (expert 12/27/36), i.e. the bot now keeps changing inputs to the last
+  frame; jump rows 0.099 / 0.140 / 0.198 (bar 0.15 / 0.20 — all three
+  deep rows now miss, dag34g_x2 passed the deeper two). Aim: **up-onset
+  19.0 %/3 f (expert 12.3 — overshoot), stick-up share 47.3 %, P(B|up)
+  8.4 % (14.7; dag34g_x2 20.5)** — the stick goes up more and the B
+  follows it less. **Firefox-once-spent 0.0057 / 0.0018 / 0.0188 /
+  0.0350** — the −40..−60 row is the third arm in a row at 0.015–0.020
+  (bar 0.04), the < −60 row 0.035 is the best of the series (expert
+  0.056). Death shape: B onsets up 50 / side 37 / neutral 12 / down 10,
+  65 below −40 with 35 stick-up; died holding nothing 22 / 89. Reading:
+  the ×1 three-round set buys the closed loop (SD, drill, return, band
+  on neutral/fidelity) and the deep Firefox row, but the B press at
+  −40..−60 is a level the gated rounds have not moved since r4g3 — the
+  aim keeps rising past the expert while P(B|up) halves, which is the
+  "stick without the press" shape from the dose series, now from more
+  rounds instead of more copies. The repeat-share fall (0.64) is the new
+  style cost. dag345g_x2 and the s906 replicate still to read.
