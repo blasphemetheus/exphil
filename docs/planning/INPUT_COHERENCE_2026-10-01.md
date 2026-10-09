@@ -2925,3 +2925,55 @@ deep, band kept, onstage jump hazard (y>0, jump in hand) ≤ 0.15.
   `on30u_dag2x4_e3` (oversample 4 ≈ 5× dagx4's onset examples). Same
   pass bar. If it rises again without reaching the bar, the next dose is
   more rounds/seeds, not a new mechanism.
+- **22:12 — `on30u_dag2x4_e3` (queue 34; round 2, r1 + r2 = 66,884
+  relabelled frames ×4 ≈ 5× dagx4's dose): the AIM HALF PASSES and the
+  dose overshoots.** (Queue 34's first run died at seed 8 of a 12-seed
+  rollout: GPU `RESOURCE_EXHAUSTED` — see 22:16 below; rerun as four
+  3-seed beams.) Set r2: 1,808 runs / 48,265 frames, labels stick-up onset
+  2.74 % (expert 3.1 %), jump edge 6.6 %, B edge 0.42 %, 190 up-onsets +
+  316 jump edges. Arm: **loop up-onset once spent 8.3 %/3 f (bar 7;
+  expert 12.3), stick-up share 42.0 % (expert 42.5)** — the bot now aims
+  up at the expert's rate on its own states. But **P(B|up) 4.9 %**
+  (expert 14.7; dagx4 24.7) — it holds up and does not press —
+  Firefox-once-spent 0.005 / 0.0068 (bar 0.04, unchanged); and the mix
+  damaged the rest: fidelity **0.278** (bar 0.21), neutral 0.18, repeat
+  0.727, damage/min **16** (dagx4 55), dashes/min **16** (44), jump rows
+  collapsed 0.038 / 0.12 / 0.20, `airdodge_with_jump` **0.316** with
+  airdodge the top first-means (45) and 18 airdodge deaths; deaths/min
+  1.07, return rate 0.83, recovery-means return 0.365 / decided 0.479.
+  Dose curve so far (effective mix frames → up-onset): 37k 3.9 %, 74k
+  4.6 %, 268k 8.3 % + damage. Two readings to settle: the dose middle
+  (×1, ×2 of r1+r2 = 67k / 134k) and whether the airdodge/side-B labels
+  are k-NN extrapolation on states the expert never visits.
+- **22:16–22:27 — coverage readout, a labeler bug, and labeler v2.**
+  `scripts/expert_labeler_distance.exs` (nearest expert row's squared
+  distance, held-out expert states vs the bot's states in a set, with a
+  per-feature decomposition). First run: 77 % of r2's states beyond the
+  expert's own q95, d² carried by **vy 1.35 + vx 0.58** — and
+  `scripts/dagger_set_speed_check.exs` showed why: **the index's vy/vx
+  columns are ALL ZERO** (`speed_y_self` / `speed_air_x_self` exist in
+  Slippi ≥ 3.5 only; this corpus has none) while the sim fills them. A
+  constant per query, so the neighbour RANKING — and every label so far —
+  was unaffected; the distances were inflated. **v2**: velocity = position
+  delta (`prev_p` in `features/5`; `{p, prev, opp, prev_p}` query states;
+  index rebuilt → `expert_recovery_index_v2.bin`, same 214,443 rows;
+  self-check on 24 held-out games jump ×1.16 / up ×1.14 / B ×1.4 — passes;
+  sets now carry `prev_player`). Also found and fixed the **GPU leak**:
+  each 256-query chunk made a 256×214k f32 distance matrix (219 MB) as an
+  eager EXLA buffer freed only at the beam's next GC → `RESOURCE_EXHAUSTED`
+  after ~100 chunks (the 12-seed death, and the diag itself at 22:16);
+  now one jitted `defn` kernel (distance + top-k inside the executable) +
+  `:erlang.garbage_collect()` per chunk. With real velocity on both sides
+  (one full v2 seed): bot states q50 0.41 / q95 2.88 vs expert 0.09 /
+  0.78; **36 % beyond the expert's q95, carried by the OPPONENT's
+  relative position (opp_dx 0.48 + opp_dy 0.22 of ~1.9) then own height
+  / edge distance (0.20 / 0.19)** — self-play puts the other bot where no
+  human edgeguarder stands, and the bot goes deeper than the expert ever
+  does. `--max-d2` gate added to the rollout (a gated frame stays in the
+  trip as input-only context; report carries `gated_share`).
+- **22:27 — queue 35 launched** (`scripts/coherence_queue35.sh`): (A)
+  `on30u_dag2x2_e3` (r1+r2 ×2 = 134k, the dose middle); (B) gated v2
+  round: `dagx4_e3` rolled out on 12 seeds in 4 beams with the v2 index
+  and `--max-d2 0.78` → r3g (+ its label hazards and coverage readout) →
+  `on30u_dag3g_x4_e3`; (A′) `on30u_dag2x1_e3` (×1 = 67k). Same pass bar
+  plus damage/min ≥ 45. Read-out ~04:30.
