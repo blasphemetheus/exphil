@@ -3402,3 +3402,21 @@ deep, band kept, onstage jump hazard (y>0, jump in hand) ≤ 0.15.
   of the knob moves is the −40..−60 B row (0.003–0.020 across on0 / on5 /
   on30) and the fire distance (10–13 units vs the expert's 35). Queue 40
   rolls from this arm (`queue40_winner.sh`: on5u, `--onset-weight 5`).
+- **22:53 — `dag345g_x1_e3_s906` (queue 39 arm 4: on0 on seed 906) —
+  "THE GATED LABELS CARRY THE PRESS ALONE" DOES NOT REPLICATE; THE BAND
+  DOES.** Aim: **up-onset 4.5 % (s905: 9.8), stick-up share 17.8 %
+  (35.7), P(B|up) 8.6 % (23.1)** — a 2× swing on the aim between seeds
+  with no knob. Firefox-once-spent 0 / 0 / 0.004 / 0.010; jump rows 0.06
+  / 0.21 / 0.29 / 0.19 (pass); angle q50 14° / q75 43° on n = 16 fires
+  (s905: 23°/55° on 39), fire distance q50 6. Closed loop: SD/min 1.24
+  (s905 1.54), return 0.799, repeat 0.747, neutral 0.287 (0.354),
+  fidelity **0.158** (0.192), dashes 28.9 (24.8), damage 56.9 — the band
+  passes on 906 and fails on 905, exactly the 16:37 pattern. Carried-off
+  share 0.237 / died 0.872, airdodge_with_jump 0.13, side-B deaths 20.
+  Reading: without the knob the aim is seed-set (4.5–9.8 %); with ×30 it
+  was 12.1 / 11.7 across two seeds (10-09 16:37) and 19.0 on dag345g; ×5
+  gave 10.7 on one seed. So the knob is what makes the aim reproducible,
+  and ×5 is the dose that does it without the overshoot — pending its
+  own replicate (`on5u_dag345g_x1_e3_s906`, first item of queue 41).
+  Firefox at −40..−60 is 0–0.02 on every arm and seed. **QUEUE 39 DONE
+  22:53; queue 40 started 22:54 from on5u (index v4 first).**
