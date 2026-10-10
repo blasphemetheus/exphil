@@ -398,6 +398,7 @@ defmodule ExPhil.Training.Config.Parser do
     {"--silent-fall-min", :silent_fall_min, :int},
     {"--onset-weight", :onset_weight, :float},
     {"--onset-buttons-only", :onset_buttons_only, :flag},
+    {"--veto-weight", :veto_weight, :float},
     {"--awbc", :awbc, :flag},
     {"--awbc-reward", :awbc_reward, {:atom, [:shine, :standard]}},
     {"--awbc-beta", :awbc_beta, :float},

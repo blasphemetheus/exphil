@@ -76,6 +76,29 @@ defmodule ExPhil.Training.SilentFallWeightingTest do
     assert SFW.frame_weights(Enum.take(frames, 3), offstage_weight: 3.0, onset_weight: 5.0) == [3.0, 5.0, 3.0]
   end
 
+  test "veto_weight lifts the relabelled frame where the bot pressed X/Y/B and the label holds — on or off stage" do
+    side_b = %{@neutral | main_stick: %{x: 0.95, y: 0.5}, button_b: true}
+    side = %{@neutral | main_stick: %{x: 0.95, y: 0.5}}
+    with_actual = fn f, a -> Map.put(f, :actual, a) end
+    # bot: hold, side-B edge, side-B held, release; label: holds the stick sideways, never B
+    bot = [@neutral, side_b, side_b, @neutral]
+    frames = for {a, i} <- Enum.with_index(bot), do: with_actual.(frame(i, 80.0, true, side), a)
+    assert SFW.frame_weights(frames, veto_weight: 8.0) == [1.0, 8.0, 1.0, 1.0]
+    # the label agreeing (B pressed too) is not a veto; a bot HOLD is never one
+    agree = List.update_at(frames, 1, &%{&1 | controller: side_b})
+    assert SFW.frame_weights(agree, veto_weight: 8.0) == List.duplicate(1.0, 4)
+    # frames without the bot's own input (plain replay frames) are untouched; nil when only this knob is unset
+    assert SFW.frame_weights(Enum.map(frames, &Map.delete(&1, :actual)), veto_weight: 8.0) == List.duplicate(1.0, 4)
+    assert SFW.frame_weights(frames, []) == nil
+    # the first frame after a boundary has no previous own input
+    assert SFW.frame_weights([with_actual.(frame(0, 80.0, true, side), side_b)], veto_weight: 8.0) == [1.0]
+    # composes with the other knobs by max, offstage too
+    off = for {a, i} <- Enum.with_index(bot), do: with_actual.(frame(i, 100.0, false, side), a)
+    assert SFW.frame_weights(off, offstage_weight: 3.0, veto_weight: 8.0) == [3.0, 8.0, 3.0, 3.0]
+    assert SFW.veto?(@neutral, %{@neutral | button_x: true}, @neutral)
+    refute SFW.veto?(@neutral, %{@neutral | button_a: true}, @neutral)
+  end
+
   test "a Firefox is two onsets (stick up once the jump is spent, then B with the stick up); side-B is none" do
     side = %{@neutral | main_stick: %{x: 0.95, y: 0.5}}
     side_b = %{side | button_b: true}

@@ -20,7 +20,7 @@ alias ExPhil.Training.{Checkpoint, Output, SilentFallWeighting}
   OptionParser.parse(System.argv(),
     strict: [policy: :string, out: :string, envs: :integer, frames: :integer, seeds: :string, opponent: :string,
              report: :string, action_delay: :integer, only_silent: :boolean, index: :string, label_seed: :integer,
-             max_d2: :float])
+             max_d2: :float, keep_actual: :boolean])
 if bad != [], do: raise("invalid options: #{inspect(bad)}")
 
 # --only-silent (16:50): relabel ONLY the frames where the policy's actual
@@ -30,6 +30,10 @@ if bad != [], do: raise("invalid options: #{inspect(bad)}")
 # frame, B on 35 % of frames) shifted the policy globally even
 # teacher-forced (neutral share 0.26 -> 0.10, B presses 14 -> 40/min).
 only_silent = opts[:only_silent] || false
+# --keep-actual (10-10): keep the bot's own input on every frame (`:actual`)
+# so training can weight the frames where it pressed and the label holds
+# (`--veto-weight`, SilentFallWeighting.veto?/3). Off = the old sets.
+keep_actual = opts[:keep_actual] || false
 
 policy = opts[:policy] || raise("--policy required")
 out = opts[:out] || raise("--out required")
@@ -214,7 +218,8 @@ File.write!(out, :erlang.term_to_binary(%{
   policy: policy,
   action_delay: action_delay,
   label_convention: ExPhil.Data.LabelConvention.current(),
-  frame_lists: Enum.map(frame_lists, fn l -> Enum.map(l, &Map.delete(&1, :actual)) end)
+  keep_actual: keep_actual,
+  frame_lists: if(keep_actual, do: frame_lists, else: Enum.map(frame_lists, fn l -> Enum.map(l, &Map.delete(&1, :actual)) end))
 }, [:compressed]))
 
 if report = opts[:report] do

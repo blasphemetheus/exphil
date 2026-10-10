@@ -25,6 +25,19 @@ defmodule ExPhil.Training.SilentFallWeighting do
       `ExPhil.Eval.DecisionMap` (jump by height, Firefox once the jump is
       spent) are what gets more gradient.
 
+    * `veto_weight` (2026-10-10, INPUT_COHERENCE "10-10 10:20") — on a
+      relabelled DAgger frame that still carries the bot's own input
+      (`:actual`, kept by `sim_recovery_dagger_expert.exs --keep-actual`),
+      a frame where the BOT pressed a decision button (X/Y/B edge against
+      its own previous input) and the expert label holds it released. The
+      onset weight is asymmetric: it weights the expert's presses, never the
+      expert's hold at a state where the learner pressed — and the one
+      death mode that replicated on every seed (an on-stage Illusion fired
+      at the edge, 100 % fatal) is a 0.04 %-per-frame excess the unweighted
+      loss cannot see although the labels already say "don't". This is
+      DAgger's standard emphasis on learner-error states, at the press
+      level; it applies on and off stage.
+
   The first two weight both outcomes of a frame alike, so the conditional
   P(input | silent k) is sharpened, not biased; `onset_weight` deliberately
   biases toward acting in danger. Weights are `max(1.0, w)` per frame;
@@ -48,19 +61,22 @@ defmodule ExPhil.Training.SilentFallWeighting do
     sf_w = Keyword.get(opts, :silent_fall_weight)
     on_w = Keyword.get(opts, :onset_weight)
     buttons_only = Keyword.get(opts, :onset_buttons_only, false)
+    veto_w = Keyword.get(opts, :veto_weight)
     k_min = Keyword.get(opts, :silent_fall_min, 13)
 
-    if off_w == nil and sf_w == nil and on_w == nil do
+    if off_w == nil and sf_w == nil and on_w == nil and veto_w == nil do
       nil
     else
-      {weights, _silence, _prev_frame, _prev_controller} =
-        Enum.reduce(frames, {[], 0, nil, nil}, fn frame, {acc, silence, prev_num, prev_c} ->
+      {weights, _silence, _prev_frame, _prev_controller, _prev_actual} =
+        Enum.reduce(frames, {[], 0, nil, nil, nil}, fn frame, {acc, silence, prev_num, prev_c, prev_a} ->
           num = frame_number(frame)
           cont? = continuous?(prev_num, num)
           # the silence / controller seen BEFORE this frame: previous frames'
           silence = if cont?, do: silence, else: 0
           prev_c = if cont?, do: prev_c, else: nil
+          prev_a = if cont?, do: prev_a, else: nil
           c = frame[:controller] || frame.controller
+          actual = frame[:actual]
           off? = Data.frame_offstage?(frame)
 
           w = 1.0
@@ -77,12 +93,37 @@ defmodule ExPhil.Training.SilentFallWeighting do
               do: max(w, on_w * 1.0),
               else: w
 
+          w =
+            if veto_w != nil and veto?(prev_a, actual, c),
+              do: max(w, veto_w * 1.0),
+              else: w
+
           silence = if neutral?(c), do: silence + 1, else: 0
-          {[w | acc], silence, num, c}
+          {[w | acc], silence, num, c, actual}
         end)
 
       Enum.reverse(weights)
     end
+  end
+
+  @veto_buttons [:button_x, :button_y, :button_b]
+
+  @doc """
+  True when the bot's own input (`actual`) presses a decision button (X, Y
+  or B) that it did not hold on its previous own input (`prev_actual`) and
+  the label `c` holds that button released — the learner pressed where the
+  expert would not. False without a previous own input (trip start after a
+  boundary) or on frames with no `:actual` (plain replay frames).
+  """
+  @spec veto?(map() | nil, map() | nil, map() | nil) :: boolean()
+  def veto?(nil, _, _), do: false
+  def veto?(_, nil, _), do: false
+  def veto?(_, _, nil), do: false
+
+  def veto?(prev_actual, actual, c) do
+    Enum.any?(@veto_buttons, fn b ->
+      Map.get(actual, b) && !Map.get(prev_actual, b) && !Map.get(c, b)
+    end)
   end
 
   # main stick y (0..1) at or above this is "up" — a Firefox aim

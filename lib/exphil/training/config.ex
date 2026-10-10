@@ -1718,6 +1718,11 @@ defmodule ExPhil.Training.Config do
       # "flick up" (y >= 0.75, blind to x) and bent the Firefox fire angle
       # (recovery_firefox_angle.js: 13° without an onset weight, 30–51° with).
       onset_buttons_only: false,
+      # --veto-weight W (2026-10-10): on relabelled DAgger frames that keep the
+      # bot's own input (`:actual`), weight the frames where the bot pressed
+      # X/Y/B and the expert label holds it released (SilentFallWeighting
+      # `veto?/3`). nil = off.
+      veto_weight: nil,
       # AWBC (advantage-weighted BC) loss weights: reweight the imitation loss
       # by observed outcomes. --awbc-reward standard uses Rewards.Standard
       # (stock + damage); default :shine is the multishine specialist signal.
