@@ -3646,3 +3646,37 @@ deep, band kept, onstage jump hazard (y>0, jump in hand) ≤ 0.15.
   side-B trips; veto30 (≈ 94k) almost certainly will. If veto10 fails
   on dose, the next arm is the veto restricted to B (the Illusion mode)
   or a smaller W, not a bigger one.
+- **13:15 — veto10 s905 FAILS; queue 42 stopped after its first arm;
+  queue 43 = the no-veto control alone (`scripts/coherence_queue43.sh`,
+  unit `exphil-queue43`, 13:16 → ~14:45).** `on5u_dag7w_veto10_x1_e3`:
+  **carried side-B trips 15** (dag6w 13 / 20 — unchanged; the
+  teacher-forced `press∧stick→edge` moved 0.0004–0.0008 → 0.0003 and
+  the trips not at all), carried-off died 0.895, **the Firefox trained
+  out**: stick-up share 12.4 % (dag6w 34.9 / 32.3, expert 42.5),
+  up-onset 4.1 %, Firefox in 10 / 167 episodes (26 / 131, 51 / 270),
+  "never special" 51 % of deaths (expert 30 %), −40..−60 row 0.003,
+  airdodge_with_jump 0.19, drill 0.406. Band held (SD/min 1.06, dashes
+  20.8, damage 59, repeat 0.72, neutral 0.25, fidelity 0.20) — the dose
+  prediction was wrong in direction: it was the CONTENT of the weighted
+  frames. Mechanism flaw, visible in the code: the veto selects a frame
+  by a button disagreement, but `loss_weights` is per frame — all six
+  heads of the 3,246 frames got ×10, and on a frame where the expert
+  declines to press, its stick is mostly not-up; two thirds of the
+  vetoes are jump presses, so the net lesson was "don't jump, don't aim
+  up" at the states the bot reaches. A press-only version would need a
+  per-head weight channel (a lib change: the loss multiplies each head's
+  per-frame loss by the one weight). Not pursued yet, because the
+  side-B trips also did not respond to the B third (356 near-edge
+  facing-out "no B" frames at ×10): the bot's per-frame P(B) at those
+  states is already the expert's (0.006 | 0.006), the deadly joint
+  (press ∧ stick→edge ∧ no jump ∧ facing out) is ~1 in 3,000 frames,
+  and the closed-loop excess looks like a STATE-DISTRIBUTION excess —
+  the bot reaches "jump spent, above stage, at the edge, facing out"
+  far more than the expert (every carried trip starts with no jump;
+  approach 25>350>351 = jump → Illusion; 2,092 of the 3,246 vetoes are
+  jump presses the expert holds through). That is the failure state
+  before the Illusion. Next instrument: the on-stage double-jump spend
+  rate near the edge, model vs expert, from the eval traces — the
+  upstream number Bradley asked for ("another failure state before
+  that"). The dag7w control (r7w = r6w re-rolled) is the baseline for
+  whatever arm follows and the roll's own replicate.
