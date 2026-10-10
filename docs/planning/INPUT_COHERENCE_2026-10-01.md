@@ -3449,3 +3449,35 @@ deep, band kept, onstage jump hazard (y>0, jump in hand) ≤ 0.15.
   near-edge labels did not move the carried-off state at this dose.
   Reading: cannot separate "the window does nothing" from "256k is past
   the cliff" here; `dag6w` (142k, 02:45 → ~04:25) is the arm that can.
+- **04:18 — `on5u_dag6w_x1_e3` (queue 40 arm 2: the wide round ALONE,
+  142k): THE BEST CLOSED LOOP OF THE PROGRAM — BY GOING OFFSTAGE LESS —
+  AND THE OFFSTAGE PRESS REGRESSES.** Closed loop: **SD/min 0.844 (best;
+  expert 0.44), deaths/min 0.927 (expert 0.956 — at the expert), return
+  0.829 (best), damage/min 66.2 (best), offstage trips/min 5.56 (every
+  other arm 6.8–7.6; expert 8.9)**, drill decided return 0.519 (n = 106,
+  fewest trips). **Carried-off share 0.191 (the queue-40 target ≤ 0.20;
+  was 0.35 / 0.17 on on5u) but carried-off died 0.88 (unchanged)**,
+  airdodge_with_jump 0.151 (worse), side_b_low 0.077, side-B deaths 13,
+  airdodge 6, attack 6. Band: repeat 0.775, **neutral 0.357 (fail)**,
+  fidelity 0.182, dashes 23.9. Press: **aim 5.0 % (on5u 10.7), P(B|up)
+  12.3 %, Firefox-once-spent 0.002 / 0 / 0.003 / 0.002 (lowest)**, jump
+  rows 0.03 / 0.18 / 0.18 / 0.24 (−40 row a hair under); angle q50 23°
+  / q75 43°, away 8 %, died after Firefox 9/26 = 35 %, fire distance 12,
+  same-as-fire 0.50 (best), jump in hand at charge 8 %. Reading: the
+  near-edge labels are a real upstream effect — the bot leaves the stage
+  less and dies less — but one wide round carries one round's worth of
+  offstage labels (its offstage frames are a subset of r6w) where r345g
+  carries three, and the press axes fall back to the no-knob / seed
+  levels; once carried off it dies the same. Two caveats: a single seed
+  (SD/min moves 0.5 between seeds), and the compounding version (arm 1)
+  is past the cliff. **QUEUE 40 DONE 04:18.**
+- **04:40 — queue 41 launched (`scripts/coherence_queue41.sh`, unit
+  `exphil-queue41`, ~09:30):** (1) `on5u_dag345g_x1_e3_s906` — the
+  queue-39 winner's replicate; (2) `on5u_dag345g_r6n6_x1_e3` — r345g +
+  the NEAR-EDGE labels only of r6w seeds 2091–2096 (new
+  `scripts/dagger_set_keep_near_edge.exs`: a wide set's offstage-window
+  labels → input-only, re-cut; 67 % of r6w's labels are near-edge, 22k
+  per 3-seed part, 76 % of those grounded) ≈ 158k — the window's addition
+  on top of the three offstage rounds at the ×1 dose; (3)
+  `on5u_dag6w_x1_e3_s906` — the best closed loop's replicate. Readout vs
+  on5u_dag345g_x1 and on5u_dag6w_x1; bar = queue 40's.
