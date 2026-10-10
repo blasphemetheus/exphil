@@ -3862,3 +3862,40 @@ deep, band kept, onstage jump hazard (y>0, jump in hand) ≤ 0.15.
   (the label content check), then count the set's lifted frames.
   Pass: carried side-B trips ≤ 5 per run on two seeds, carried-off
   share ≤ 0.15 (0.20–0.32 today, expert 0.055), band held.
+
+- **18:55 — queue 45 (labeler v5 `:air`) STOPPED at its label-content
+  gate before any roll: the lever is empty, and the reason closes the
+  per-frame lane on this defect.** Index v5 built (456,983 rows, +66k
+  drift rows; self-check within ×0.5–2; held-out gate 0.602).
+  `scripts/expert_index_drift_cell.exs` on the bot's sub-cell
+  (airborne over the stage, no jump, −80..−15, previous stick outward
+  ≥ 0.6, moving out; n=9,043 expert rows): the expert's label keeps
+  the stick outward **93.3–93.6 %** per frame, releases 3 %, fast-falls
+  18 %, B 0.3–0.5 %. The bot's own input in the same sub-cell (r7w
+  `:actual`, n=3,323): keeps outward **93.1 %**, releases 3.6 %, down
+  23.5 %, B 4.2 %. Height there: bot y q25/50/75 14 / 32 / 44, expert
+  23 / 40 / 52 — the expert drifts out from a full hop too, higher.
+  The whole chain now matches the expert per frame: the double-jump
+  hazard (0.62 vs 0.60 %/frame), the drift inputs, the height. The
+  one place the bot's conditional differs is the press at the edge
+  (13:38: B∧stay-outward 0.30–0.66 %/frame vs the labels' 0 and the
+  corpus 0.06–0.19 %; the stick at the double jump 2–3× more outward
+  is the only upstream excess, itself a 0.1 %-per-frame event). A
+  per-frame label at the bot's states cannot move a 0.3 % press whose
+  "don't" frames are already 62 % labelled, and the drift labels would
+  teach what the bot already does. **Closed: `--veto-weight` (queue
+  42), `--onset-edge-window` (44), the `:air` window (45, by its gate,
+  no GPU spent); the carried side-B count 13–22 per run stands.** What
+  is left on the Illusion is not a label — it is a sequence-level
+  excess of a rare press on the bot's own distribution, which is the
+  thing per-frame imitation at ×1 does not reach (and the ×2 dose
+  fails the band). **The larger number was always the other one:
+  decided-trip deaths — decided trips return 0.44–0.60 vs the expert's
+  0.915 (n ≈ 100–220 per run; ~50 deaths per run vs 14–22 carried):
+  died after Firefox 33–45 %, Firefox fired from dist 6–13 vs 35,
+  −40..−60 row at the floor, angle err q50 23–40° vs 14°. That lane
+  has examples (the labels' Firefox rows, the angle instrument) and
+  the pass bar is a rate (decided-trip return ≥ 0.75 on two seeds).**
+  Gate design lesson: a per-frame "turn" share can never reach 25 %
+  (hold share 0.76); the right gate is label-vs-bot's-own-input in the
+  same cell, which is what decided it here (93 vs 93).
