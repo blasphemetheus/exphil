@@ -3540,3 +3540,32 @@ deep, band kept, onstage jump hazard (y>0, jump in hand) ≤ 0.15.
   (Firefox row, jump rows, angle) is not helped by near-edge labels in
   any dose — those remain the offstage rounds' job and are still open.
   Arm 3 (dag6w s906) started 07:29 (~09:05).
+- **09:01 — `on5u_dag6w_x1_e3_s906` (queue 41 arm 3: the best closed
+  loop on seed 906): THE BEST CLOSED LOOP WAS A SEED.** SD/min **1.657**
+  (s905 0.844), deaths/min 1.88 (0.93), **offstage trips 7.66/min
+  (5.56)**, return 0.749 (0.829), damage 47.9 (66.2), drill decided
+  0.454; band repeat 0.759, neutral 0.243 (s905 0.357 — the neutral
+  "fail" was the seed too), fidelity 0.182, **dashes 18.2 (23.9)**.
+  Press: aim 9.6 %, P(B|up) 11.3 % (s905 5.0 / 12.3), Firefox-once-spent
+  0.004 / 0.010 / 0.009 / 0.015, jump rows 0.06 / 0.08 / 0.15 / 0.18,
+  angle q50 26° / q75 49°, away 4 %, died after Firefox 23/51 = 45 %,
+  fire distance 13, jump in hand at charge 18 %, start y −51. Upstream:
+  carried-off share 0.233 (0.191), **carried-off died 0.778**,
+  airdodge_with_jump 0.144, by move attack 26 (14 died), **side_b 20
+  (20)**, airdodge 12 (11), up_b 5 (4). **QUEUE 41 DONE 09:01.**
+  **Queue 41 reading (the four replicate-able numbers):** two-seed means
+  are on5u_dag345g SD/min 1.48 / trips 7.1 vs dag6w 1.25 / 6.6 — inside
+  the seed spread (±0.4 / ±1.0), so the wide window's "fewer trips"
+  cannot be claimed from two seeds; the 159.5k arm's 5.4 is a seed-905
+  number too. What replicates across every on5u arm and both seeds:
+  **(1) up-onset 9.6–12.3 % (the knob); (2) carried-off died 0.78–0.88;
+  (3) side-B offstage trips die 100 % (13 / 71 / 15 / 20 of them per
+  16 env-min — the expert's side-B trips die 3 of 5 but are 5 of 98);
+  (4) died after Firefox 33–45 % with the angle err 40–64° on those;
+  (5) the −40..−60 Firefox row at the floor (0.003–0.034 vs 0.056).**
+  Everything SD/min-sized on this testbed is seed-sized: a single-seed
+  arm read resolves ~0.7 SD/min / 2 trips/min at best. Next move is an
+  instrument, not GPU: what the side-B trips look like (height, x, jump
+  in hand, facing at fire; where they end) — the one death mode that is
+  100 % fatal on every seed and the biggest single row of carried-off
+  died.
