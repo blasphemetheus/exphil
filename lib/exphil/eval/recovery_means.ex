@@ -45,14 +45,16 @@ defmodule ExPhil.Eval.RecoveryMeans do
             hit? -> nil
             now_off and not stun?(p1) and (stun?(p0) or not e.off) ->
               # a re-actionable frame inside the same trip keeps the trip's approach
-              {p1, i, if(e.actionable == nil, do: Enum.take([f0 | e.hist], 30), else: elem(e.actionable, 2))}
+              {p1, i, if(e.actionable == nil, do: Enum.take([f0 | e.hist], 90), else: elem(e.actionable, 2))}
             true -> e.actionable
           end
 
         path = if actionable == nil, do: [], else: [f1 | e.path]
         last_hit = if hit?, do: i, else: e.last_hit
-        # the 30 frames before the decision frame, frozen when the trip starts
-        hist = Enum.take([f0 | e.hist], 30)
+        # the 90 frames before the decision frame, frozen when the trip starts
+        # (the approach fields read the last 30; pre_trace keeps all 90 so the
+        # jump spend before a carried-off trip is on the record — 10-10)
+        hist = Enum.take([f0 | e.hist], 90)
 
         cond do
           died? and e.actionable != nil ->
@@ -76,7 +78,8 @@ defmodule ExPhil.Eval.RecoveryMeans do
 
   defp episode({p, _i, pre}, path, outcome, sd?, edge) do
     {means, first_at, first_y} = means_sequence(p, path)
-    pre = Enum.reverse(pre)
+    pre_all = Enum.reverse(pre)
+    pre = Enum.take(pre_all, -30)
     sign = if (p.x || 0.0) >= 0, do: 1, else: -1
     toward = fn f -> f.controller != nil and (f.controller.main_stick.x - 0.5) * sign >= 0.33 end
     pre_speed = fn f -> abs((Map.get(f.own, :speed_ground_x_self) || 0.0) + (Map.get(f.own, :speed_air_x_self) || 0.0)) end
@@ -106,7 +109,11 @@ defmodule ExPhil.Eval.RecoveryMeans do
       # the crime scene: every 3rd frame of the trip, so a died trip can be
       # read offline (drifting away? stick frozen? fast-falling?) without
       # re-rolling the sim
-      trace: path |> Enum.take_every(3) |> Enum.map(&trace_frame/1)
+      trace: path |> Enum.take_every(3) |> Enum.map(&trace_frame/1),
+      # the approach in the same row format, every 3rd of the 90 frames before
+      # the decision frame (oldest first): where the double jump went before a
+      # carried-off trip (scripts/recovery_jump_spend.js)
+      pre_trace: pre_all |> Enum.reverse() |> Enum.take_every(3) |> Enum.reverse() |> Enum.map(&trace_frame/1)
     }
   end
 

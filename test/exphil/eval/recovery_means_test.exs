@@ -79,6 +79,30 @@ defmodule ExPhil.Eval.RecoveryMeansTest do
     assert Enum.map(eps, &{&1.height, &1.first, &1.outcome}) == [{:low, :side_b, :died}]
   end
 
+  test "pre_trace keeps the 90 frames before the decision frame (every 3rd, oldest first, newest last); the approach fields read the last 30" do
+    # 100 grounded frames at the edge; the double jump is spent 50 frames before the trip (jumps 1 -> 0 at an
+    # aerial action), then a carried-off side-B trip with no jump
+    idle = for i <- 0..49, do: frame(p(%{x: 80.0 + i * 0.1, action: 14}))
+    spent = for _ <- 0..49, do: frame(p(%{x: 85.0, y: 10.0, on_ground: false, jumps_left: 0, action: 27}))
+    launched = frame(p(%{x: 90.0, y: 5.0, on_ground: false, jumps_left: 0, action: 350, percent: 0.0}))
+    path = for _ <- 1..5, do: frame(p(%{x: 120.0, y: -30.0, on_ground: false, jumps_left: 0, action: 350}))
+    dead = frame(p(%{x: 120.0, y: -200.0, on_ground: false, jumps_left: 0, stock: 3}))
+    [ep] = RecoveryMeans.episodes(idle ++ spent ++ [launched] ++ path ++ [dead, frame(p(%{stock: 3}))], @edge)
+    assert ep.jumps == 0 and ep.first == :side_b and ep.first_at == 0
+    assert length(ep.pre_trace) == 30
+    # row = [action, x, y, speed_y, stick_x, stick_y, b, jump, jumps_left]; the newest row is the frame before the decision frame
+    assert List.last(ep.pre_trace) |> Enum.at(0) == 27
+    assert List.last(ep.pre_trace) |> Enum.at(8) == 0
+    # the oldest rows are the grounded approach with the jump still in hand
+    assert List.first(ep.pre_trace) |> Enum.at(0) == 14
+    assert List.first(ep.pre_trace) |> Enum.at(8) == 1
+    # the approach fields still read the last 30 frames only
+    assert ep.pre_actions == [27]
+    # a trip with a short history has a short pre_trace
+    [short] = RecoveryMeans.episodes(trip(110.0, -40.0, 1, [{29, 1}, {350, 1}], :died), @edge)
+    assert length(short.pre_trace) <= 2
+  end
+
   test "an episode with no actionable frame (died in stun) is not scored" do
     stun = frame(p(%{x: 120.0, y: -30.0, on_ground: false, hitstun_frames_left: 9, percent: 90.0}))
     dead = frame(p(%{x: 120.0, y: -200.0, on_ground: false, percent: 90.0, stock: 3}))

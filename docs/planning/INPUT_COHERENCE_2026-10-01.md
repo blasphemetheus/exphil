@@ -3774,7 +3774,7 @@ deep, band kept, onstage jump hazard (y>0, jump in hand) ≤ 0.15.
   knob so far (that number IS replicable). Queue-42 arms 3–4 (veto30)
   stay cancelled.
 
-- **18:05 — queue 44 DONE (17:57): `--onset-edge-window 15` is a NULL
+- **18:00 — queue 44 DONE (17:57): `--onset-edge-window 15` is a NULL
   on both seeds, and the dose measurement says why.** edge15 s905 /
   s906: **carried side-B trips 14 / 14** (bar ≤ 5; dag7w 22, dag6w
   13 / 20), 100 % fatal, pre stick→edge q50 0.43, carried-off died
@@ -3810,3 +3810,55 @@ deep, band kept, onstage jump hazard (y>0, jump in hand) ≤ 0.15.
   Next instrument = on-stage double-jump spend near the edge, model vs
   expert, from the eval traces (HANDOFF item 8, 13:15) — a count, not
   an arm.
+
+- **18:35 — the failure state before the Illusion, measured: the bot
+  spends its double jump 45–67 units INSIDE the edge with the stick
+  held outward, and that frame — and the whole drift from there to the
+  edge — is outside the labeler's window.** Instrument:
+  `RecoveryMeans` now keeps 90 frames of approach per episode as
+  `pre_trace` (same row format as `trace`, every 3rd frame, oldest
+  first; test added), the expert episodes regenerated
+  (`expert_recovery_means_fd_episodes.json`, 1,788, unchanged
+  counts) and `recovery_means` re-rolled on five arms (dag7w, dag6w
+  s905 / s906, edge15 s905 / s906; the old files kept as
+  `recovery_means_pre1010.json`; carried-off died on the re-roll 0.80–
+  0.93, trips 17–21 — the number holds on a fresh roll).
+  `scripts/recovery_jump_spend.js` reads where `jumps_left` dropped
+  before each carried side-B trip. **Bot, every arm: the jump was spent
+  24–30 f before the trip (q25/50/75 ≈ 21–24 / 27–30 / 30–39), at dist
+  q50 −34 to −67 past the edge (q25 −55 to −73), y ≈ 6–15, from action
+  25 / 26 / 24 (JumpF / JumpB / jumpsquat: a full jump and an immediate
+  double jump), stick toward the edge ≥ 0.6 at the spend 61–87 %;
+  the last grounded row 33–36 f before the trip at −44 to −65.**
+  Expert, all near trips starting with no jump (n=120): spent 39 f
+  before (q25/75 27/60) at dist q50 **0.1** (q25 −10.8, q75 9.2), y 0,
+  from 25 / 29 (falling), stick toward the edge 25 %; the 5 carried
+  trips spent it 48–60 f before at +42 (already offstage) — the expert
+  reaches the edge line with the jump and spends it there or past it.
+  Then `scripts/expert_onstage_double_jump.exs` (150 FD games vs r7w's
+  bot states, `:actual`): **the double-jump hazard per
+  airborne-with-jump frame is the expert's — 0.62 vs 0.60 %/frame, flat
+  by band (−80..−50: 0.65 vs 0.54; −50..−30: 0.45 vs 0.60; −30..−15:
+  0.41 vs 0.62; −15..0: 0.93 vs 0.75) — but the stick at the spend is
+  not: toward the edge ≥ 0.6 on 33 / 47 / 40 % of the bot's spends at
+  −30..−15 / −50..−30 / −80..−50 vs the expert's 13 / 20 / 19 %.** The
+  chain: double jump mid-stage with the stick out (2–3× the expert) →
+  drift to the edge with no jump (bot stick outward 17–31 % at −80..−15
+  vs 6 % at −15..0) → Illusion facing out. Coverage (r7w): airborne
+  over the stage with no jump = 40,384 frames (8.9 %); labelled 62 % at
+  −15..0, 25 % at −30..−15, **3 / 1 / 1 % at −50..−30 / −80..−50 /
+  <−80** (18.8k / 9.0k / 4.6k / 6.6k / 1.5k frames); the on-stage
+  double-jump spends 510, of which 323 beyond −15 and **0–1 labelled**.
+  So the state Bradley pointed at is real, replicable on every arm,
+  measured against the expert, and — unlike the Illusion cell — has
+  examples: ~20k bot frames per round in the drift cell, and the expert
+  corpus has 190k airborne-with-jump frames over the stage. **Proposed
+  lever (not launched): labeler v5 window `:air` = wide ∪ (airborne
+  over the stage, double jump spent, |x| > edge − 80, actionable)** —
+  the expert's labels in the drift say what the bot never sees (land /
+  turn in / fast-fall vs keep drifting out). Dose: r7w 145k → ~165k
+  targets at ×1 (below the ×2 cliff). Before the roll: build index v5
+  and read the expert's stick / fast-fall / landing shares in the cell
+  (the label content check), then count the set's lifted frames.
+  Pass: carried side-B trips ≤ 5 per run on two seeds, carried-off
+  share ≤ 0.15 (0.20–0.32 today, expert 0.055), band held.
