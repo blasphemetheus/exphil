@@ -3481,3 +3481,33 @@ deep, band kept, onstage jump hazard (y>0, jump in hand) ≤ 0.15.
   on top of the three offstage rounds at the ×1 dose; (3)
   `on5u_dag6w_x1_e3_s906` — the best closed loop's replicate. Readout vs
   on5u_dag345g_x1 and on5u_dag6w_x1; bar = queue 40's.
+- **05:54 — `on5u_dag345g_x1_e3_s906` (queue 41 arm 1: the queue-39
+  winner on seed 906): THE AIM REPLICATES, THE BAND AND THE CLOSED LOOP
+  DO NOT — AND A NEW DEATH MODE SHOWS UP (SIDE-B OFF, 71 OF 71 DIED).**
+  Sets built first: near-edge-only parts 2091 / 2094 = 22,162 / 23,468
+  targets (16.8k / 17.5k grounded), re-cut to 839 / 930 lists → r6n6 =
+  45,630 labels; r345g + r6n6 = **159,544 relabeled frames** (at the
+  edge of the ×1 dose). Arm 1 read: press — **up-onset 9.6 % (s905
+  10.7; the knob's aim holds across seeds)**, stick-up 47 %, **P(B|up)
+  6.3 % (s905 14.3, expert 14.7)**, Firefox-once-spent 0.015 / 0.022 /
+  **0.034** / 0.029 (the −40..−60 row's best ever — bar 0.04, expert
+  0.056), jump rows 0.10 / 0.12 / 0.19 / 0.25 (both bar rows a hair
+  under), special_up slope 1.68 (expert 0.57); angle q50 41° / q75 59°,
+  > 60° 20 %, away 7 %, died after Firefox 19/44 = 43 % (angle err 64°
+  on those), fire distance 10, jump in hand at charge 25 %, start y −34.
+  Band: repeat 0.669 (fail), neutral 0.257, fidelity 0.207 (edge),
+  **dashes 19.0 (fail)**, damage 47. Closed loop: **SD/min 1.58 (s905
+  1.37), deaths/min 1.73, return 0.764**, drill decided 0.53. Upstream:
+  **carried-off share 0.47 (s905 0.172 — the worst of the program),
+  carried-off died 0.881**, airdodge_with_jump 0.198, **by move: side_b
+  71 (71 died), airdodge 28 (23), up_b 20 (16), attack 15 (8)** vs s905's
+  attack 22 / side_b 13 / airdodge 10. Reading: (a) what the knob buys
+  is the stick-up onset, reproducibly (9.6–10.7 % on two seeds vs 4.5–9.8
+  % without); the B press on top of it, the band and the SD/min are
+  seed-set, as the 10-09 variance said; (b) this seed's deaths are a
+  different animal from s905's — a side-B offstage trip that never
+  returns, 71 times in 16 env-minutes — so the per-move table, not SD/min,
+  is the number to replicate on; (c) the −40..−60 Firefox row moving to
+  0.034 here while the angle got worse (41°) says the late press and the
+  bent angle are not the same lever. Arm 2 (r345g + r6n6, 159.5k) started
+  05:54 (~07:30), arm 3 ~09:05.
