@@ -57,10 +57,18 @@ defmodule ExPhil.Agents.ExpertRecoveryLabeler do
   # grounded query never borrows an airborne label through the gate.
   @near_edge 15.0
   @wide_dims @dims ++ [{:grounded, 1.0, 3.0}, {:shield, 1.0, 1.5}, {:dash, 1.0, 1.0}]
+  # v5 (10-10 18:35, queue 45): the `:air` window adds the drift — airborne
+  # over the stage with the double jump spent, within @air_reach of the edge.
+  # Every carried-off Illusion starts there (recovery_jump_spend.js: the jump
+  # is spent 45–67 units inside the edge with the stick held outward, 24–30 f
+  # before the trip), and the wide window never labelled it (1–3 % of those
+  # frames). Same dims as :wide (jumps is already a dim, weight 3).
+  @air_reach 80.0
 
   def k, do: @k
-  @doc "Feature dims of a window: `:offstage` (v1–v3 indexes) or `:wide` (v4)."
+  @doc "Feature dims of a window: `:offstage` (v1–v3 indexes), `:wide` (v4) or `:air` (v5, wide dims)."
   def dims(:wide), do: @wide_dims
+  def dims(:air), do: @wide_dims
   def dims(_), do: @dims
   def dim_names(window \\ :offstage), do: Enum.map(dims(window), &elem(&1, 0))
   def near_edge, do: @near_edge
@@ -71,18 +79,25 @@ defmodule ExPhil.Agents.ExpertRecoveryLabeler do
   @doc """
   A labelable state. `:offstage` (default): offstage, airborne, not on the
   ledge, not dead/helpless (FallSpecial 35..37). `:wide`: that OR any state
-  (grounded too) within `near_edge/0` of the edge, same exclusions.
+  (grounded too) within `near_edge/0` of the edge, same exclusions. `:air`:
+  `:wide` OR airborne over the stage with no double jump left within
+  `air_reach/0` of the edge (the drift before a carried-off trip).
   """
   def labelable?(p, edge, window \\ :offstage) do
     a = p.action || 0
     alive = a > 13 and a not in 35..37 and a not in 252..263
     offstage = p.on_ground != true and (abs(p.x || 0.0) > edge or (p.y || 0.0) < -5.0)
+    near = abs(p.x || 0.0) > edge - @near_edge
+    drift = p.on_ground != true and (p.jumps_left || 0) == 0 and abs(p.x || 0.0) > edge - @air_reach
 
     case window do
-      :wide -> alive and (offstage or abs(p.x || 0.0) > edge - @near_edge)
+      :air -> alive and (offstage or near or drift)
+      :wide -> alive and (offstage or near)
       _ -> alive and offstage
     end
   end
+
+  def air_reach, do: @air_reach
 
   @doc """
   Raw (unscaled) feature map for a player state, previous input and opponent.

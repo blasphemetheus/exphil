@@ -27,7 +27,14 @@ out = opts[:out] || "data/silent_fall/expert_recovery_index.bin"
 want = opts[:games] || 400
 stage = opts[:stage] || 32
 # --window wide (v4, 10-09): also grounded / above-stage states within L.near_edge() of the edge
-window = if opts[:window] == "wide", do: :wide, else: :offstage
+# --window air (v5, 10-10): wide + the airborne no-jump drift within L.air_reach() of the edge
+window =
+  case opts[:window] do
+    "wide" -> :wide
+    "air" -> :air
+    nil -> :offstage
+    other -> raise("--window #{other}: expected wide | air")
+  end
 
 files = split |> File.read!() |> Jason.decode!() |> Map.fetch!("train")
 Output.banner("Expert recovery index")
