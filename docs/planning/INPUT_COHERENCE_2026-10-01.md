@@ -3630,3 +3630,19 @@ deep, band kept, onstage jump hazard (y>0, jump in hand) ≤ 0.15.
   carried side-B trips ≤ 5 per recovery_means run (dag6w 13 / 20),
   carried-off died ≤ 0.6, band / dashes / aim unchanged, Firefox
   −40..−60 row not worse.
+- **11:40 — r7w rolled (144,638 targets, 3,067 runs, 18.3–19.2 % gated,
+  hold share 0.80: the r6w roll reproduced) and the veto count is 32×
+  the estimate: 3,246 veto frames (2.2 % of targets; B 1,154, jump
+  2,092), near-edge facing-out 1,076 (B 356).** The "~100 per 142k" of
+  09:10 counted only the Illusion precursor state against the previous
+  LABEL; against the bot's own previous input, every press the expert
+  holds through counts — and two thirds of them are JUMP presses (the
+  bot spends the double jump where the expert keeps it: the
+  airdodge-with-jump / jump-hazard rows, the other replicated number).
+  Dose reading, on the record before the arms: W = 10 adds ≈ 3,246 × 9
+  ≈ 29k frame-equivalents of gradient to a 145k mix that already sits
+  at the dose line (150–160k over) — veto10 may show the dose signature
+  (dashes < 20, damage < 45) on top of whatever it does to the
+  side-B trips; veto30 (≈ 94k) almost certainly will. If veto10 fails
+  on dose, the next arm is the veto restricted to B (the Illusion mode)
+  or a smaller W, not a bigger one.
