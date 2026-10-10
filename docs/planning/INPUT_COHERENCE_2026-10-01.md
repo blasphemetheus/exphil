@@ -3511,3 +3511,32 @@ deep, band kept, onstage jump hazard (y>0, jump in hand) ≤ 0.15.
   0.034 here while the angle got worse (41°) says the late press and the
   bent angle are not the same lever. Arm 2 (r345g + r6n6, 159.5k) started
   05:54 (~07:30), arm 3 ~09:05.
+- **07:29 — `on5u_dag345g_r6n6_x1_e3` (queue 41 arm 2: r345g + the
+  near-edge-only labels of six r6w seeds, 159,544 frames): THE WIDE
+  WINDOW'S UPSTREAM EFFECT REPRODUCES ON TOP OF THE THREE OFFSTAGE ROUNDS
+  — AND THE DOSE SIGNATURE COMES WITH IT.** Closed loop: **SD/min 0.917
+  (second best after dag6w's 0.844), deaths/min 1.08, return 0.797,
+  offstage trips 5.41/min (lowest yet)**, but **damage/min 39.1 (bar
+  45), dashes 16.1 (bar 22 — worse than dag3456w's 19.4 at 256k),
+  ground jumps 25/min (expert 33.5), wavedashes 1.6 (4.6)**, repeat
+  0.678 (fail), neutral 0.286, fidelity 0.210 (edge). Press: **aim 12.3
+  % (best), P(B|up) 22.3 % (overshoot; expert 14.7)**, Firefox-once-spent
+  0.012 / 0.008 / 0.010 / 0.024 (back to the floor), jump rows 0.03 /
+  0.10 / 0.18 / 0.25, special_up slope 9.2; angle q50 31° / q75 49°,
+  > 60° 24 %, away 10 %, died after Firefox 9/21 = 43 %, fire distance
+  15, jump in hand at charge 19 %, start y −47. Upstream: carried-off
+  share 0.272 (between on5u's 0.17 and s906's 0.47), **carried-off died
+  0.84 (fourth arm in a row at 0.77–0.88)**, airdodge_with_jump 0.204,
+  by move airdodge 18 (18 died), side_b 15 (15), attack 13 (6), up_b 4
+  (3) — 134 decided trips, the fewest. Reading: (a) the near-edge labels
+  do what they did in dag6w — fewer trips, fewer SDs — whichever set
+  they ride on, so the effect is the window's, not the seed's; (b) the
+  dashes/damage/ground-jump drop is the dose signature at 159.5k, the
+  edge of the law, and it is harsher than at 256k with all of r6w — the
+  near-edge-only parts are 76 % grounded expert states (stand / shield /
+  hold) and cost on-stage activity per frame more than offstage labels
+  do; dag6w carried the same labels at 142k with dashes 23.9, so the
+  budget, not the label kind, is what tipped; (c) the offstage press
+  (Firefox row, jump rows, angle) is not helped by near-edge labels in
+  any dose — those remain the offstage rounds' job and are still open.
+  Arm 3 (dag6w s906) started 07:29 (~09:05).
