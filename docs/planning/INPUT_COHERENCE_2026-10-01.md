@@ -3361,3 +3361,23 @@ deep, band kept, onstage jump hazard (y>0, jump in hand) ≤ 0.15.
   0.006), side-B deaths by move down from 40. Dose caveat: a wide round
   labels more frames (near-edge grounded time); r345g + r6w may cross the
   ×1 cliff (~150k) — the `dag6w` arm is the control for that.
+- **19:47 — `on30b_dag345g_x1_e3` (queue 39 arm 2: `--onset-weight 30
+  --onset-buttons-only`): THE PRESS-EDGE TERMS ALONE BUY THE JUMP ROWS
+  AND LOSE THE AIM; THE ANGLE IS THE WORST OF THE FOUR.** Aim: up-onset
+  **5.4 %** (bar 7, fail; on0 9.8, expert 12.3), stick-up share 22 %,
+  P(B|up) 8.3 %. Firefox-once-spent 0.011 / 0.007 / 0.007 / 0.011 (fail).
+  **Jump rows 0.08 / 0.20 / 0.30 / 0.28 — the first arm of the series to
+  pass both deep rows (bar 0.15 / 0.20)**, jump hazard x0.6 / x0.72 /
+  x0.77 of the expert. Angle: **err q50 39° / q75 51°, > 60° 22 %, away
+  9 %, died after Firefox 15/23 = 65 %** (all fail); fire distance q50
+  13, jump in hand at charge 9 %. Closed loop: SD/min 1.34 (pass),
+  return 0.793, drill decided 0.424, repeat 0.699 (bar 0.70 — a hair
+  under), neutral 0.229 (pass), fidelity 0.185 (pass), dashes 21.6 (bar
+  22, fail), damage 50 (pass); airdodge_with_jump 0.17 (worst), carried-
+  off share 0.261 / died 0.878; side-B deaths 15 (on0 42), airdodge 13.
+  val 3.110. Reading: the ×30 on the jump edge is what the jump rows
+  were always waiting for (they pass here and nowhere else), but the B
+  term is `b_edge && stick_up?` — it is ALSO blind to x, and this arm's
+  39° says the fire-angle bend was never only the stick-enters-up term:
+  weighting "B with the stick up" ×30 teaches the up-stick at the press
+  and the charge holds it. The buttons-only flag is not the knob's fix.
