@@ -3435,3 +3435,17 @@ deep, band kept, onstage jump hazard (y>0, jump in hand) ≤ 0.15.
   design of the compounding line, so `dag3456w` is the dose control and
   `dag6w` (142k ≈ r345g's 114k) is the fair test of the window.** Arm 1
   started 01:18 (~03:00), arm 2 ~04:40.
+- **02:45 — `on5u_dag3456w_x1_e3` (queue 40 arm 1: r345g + r6w = 256k
+  relabeled): WORSE THAN on5u ON EVERY PASS ITEM, THE UPSTREAM NUMBERS
+  INCLUDED.** Aim 4.8 % (on5u 10.7), stick-up 31.5 %, P(B|up) 22.8 %;
+  Firefox-once-spent 0.010 / 0.011 / 0.015 / 0.010; jump rows 0.07 /
+  0.24 / 0.18 / 0.12 (−40 row fails); angle q50 40° / q75 57°, > 60°
+  23 %, away 10 %, died after Firefox 15/39 = 38 %, fire distance 16.
+  Closed loop: SD/min 1.44 (bar 1.4), return 0.756, drill decided 0.48,
+  **dashes 19.4 (bar 22 — the dose signature, milder than the ×2 arms'
+  11.7)**, repeat 0.754, neutral 0.221, fidelity 0.177, damage 61.
+  **Upstream: carried-off share 0.252 / died 0.831 (on5u 0.172 / 0.766),
+  airdodge_with_jump 0.086 (0.056), side-B deaths 20 (13)** — the
+  near-edge labels did not move the carried-off state at this dose.
+  Reading: cannot separate "the window does nothing" from "256k is past
+  the cliff" here; `dag6w` (142k, 02:45 → ~04:25) is the arm that can.
