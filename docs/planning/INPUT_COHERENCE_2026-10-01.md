@@ -3569,7 +3569,7 @@ deep, band kept, onstage jump hazard (y>0, jump in hand) ≤ 0.15.
   in hand, facing at fire; where they end) — the one death mode that is
   100 % fatal on every seed and the biggest single row of carried-off
   died.
-- **10:20 — the side-B deaths read (`scripts/recovery_sideb_trips.js`,
+- **09:10 — the side-B deaths read (`scripts/recovery_sideb_trips.js`,
   new; + a CPU read of the wide DAgger sets): THEY ARE ON-STAGE
   ILLUSIONS FIRED AT THE EDGE FACING OUT, AND THE EXPERT LABELS ALREADY
   SAY "DON'T" — THE LOSS CANNOT SEE A 0.04 %-PER-FRAME ERROR.** First,
@@ -3613,3 +3613,20 @@ deep, band kept, onstage jump hazard (y>0, jump in hand) ≤ 0.15.
   band / dashes / aim unchanged, Firefox row not worse. Second target,
   independent: the decided-trip deaths (96 of 132 on on5u s905) — the
   late/close Firefox — unchanged by anything so far.
+- **09:15 — queue 42 launched (`scripts/coherence_queue42.sh`, unit
+  `exphil-queue42`, ~18:00): the veto weight.** Built: `--veto-weight W`
+  (`SilentFallWeighting.veto?/3`: a relabelled frame where the bot's own
+  input pressed X/Y/B against its previous own input and the label holds
+  it released → `max(w, W)`, on and off stage; wired through config /
+  parser / pipeline / TRAINING.md, 312 tests green) and
+  `sim_recovery_dagger_expert.exs --keep-actual` (the saved sets dropped
+  `:actual`; `scripts/dagger_set_veto_count.exs` counts the veto frames
+  of a kept set). Steps: r7w = the r6w roll again from on5u (index v4,
+  gate 0.597, seeds 2091–2102, label seed 12) with the bot's input kept
+  → veto count; arms `on5u_dag7w_veto10_x1_e3` (s905), the same on s906,
+  `on5u_dag7w_x1_e3` (no veto — the re-roll control vs dag6w s905),
+  `on5u_dag7w_veto30_x1_e3` (dose bracket, last). Readout adds
+  `recovery_sideb_trips.js` vs dag6w s905 / s906. Pass on two seeds:
+  carried side-B trips ≤ 5 per recovery_means run (dag6w 13 / 20),
+  carried-off died ≤ 0.6, band / dashes / aim unchanged, Firefox
+  −40..−60 row not worse.

@@ -25,7 +25,7 @@ defmodule ExPhil.Training.SilentFallWeighting do
       `ExPhil.Eval.DecisionMap` (jump by height, Firefox once the jump is
       spent) are what gets more gradient.
 
-    * `veto_weight` (2026-10-10, INPUT_COHERENCE "10-10 10:20") — on a
+    * `veto_weight` (2026-10-10, INPUT_COHERENCE "10-10 09:10") — on a
       relabelled DAgger frame that still carries the bot's own input
       (`:actual`, kept by `sim_recovery_dagger_expert.exs --keep-actual`),
       a frame where the BOT pressed a decision button (X/Y/B edge against
