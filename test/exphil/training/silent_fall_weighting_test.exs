@@ -76,6 +76,34 @@ defmodule ExPhil.Training.SilentFallWeightingTest do
     assert SFW.frame_weights(Enum.take(frames, 3), offstage_weight: 3.0, onset_weight: 5.0) == [3.0, 5.0, 3.0]
   end
 
+  test "onset_edge_window extends the onset weight to airborne near-edge frames: a jump edge or a B edge with a stick turn" do
+    out = %{@neutral | main_stick: %{x: 0.95, y: 0.5}}
+    illusion_out = %{out | button_b: true}
+    firefox = %{@up | button_b: true}
+    illusion_in = %{@neutral | main_stick: %{x: 0.05, y: 0.5}, button_b: true}
+    jump = %{out | button_x: true}
+    # airborne 10 units inside the FD edge (85.57), facing out: hold outward, B on the held stick (the fatal
+    # joint — not lifted), release, B with the stick turned up, release, B with the stick turned across, jump edge
+    ctrls = [out, illusion_out, out, firefox, @neutral, illusion_in, jump]
+    frames = for {c, i} <- Enum.with_index(ctrls), do: frame(i, 75.0, false, c)
+    assert SFW.frame_weights(frames, onset_weight: 5.0, onset_edge_window: 15.0) == [1.0, 1.0, 1.0, 5.0, 1.0, 5.0, 5.0]
+    # without the window the near-edge frames are not offstage: nothing lifted
+    assert SFW.frame_weights(frames, onset_weight: 5.0) == List.duplicate(1.0, 7)
+    # outside the window (40 units inside), grounded, or helpless: nothing lifted
+    assert SFW.frame_weights(Enum.map(Enum.with_index(ctrls), fn {c, i} -> frame(i, 45.0, false, c) end), onset_weight: 5.0, onset_edge_window: 15.0) == List.duplicate(1.0, 7)
+    assert SFW.frame_weights(Enum.map(Enum.with_index(ctrls), fn {c, i} -> frame(i, 75.0, true, c) end), onset_weight: 5.0, onset_edge_window: 15.0) == List.duplicate(1.0, 7)
+    assert SFW.frame_weights(Enum.map(Enum.with_index(ctrls), fn {c, i} -> frame(i, 75.0, false, c, 35) end), onset_weight: 5.0, onset_edge_window: 15.0) == List.duplicate(1.0, 7)
+    # the offstage term is unchanged: offstage, neither Illusion is an onset and the Firefox and jump are
+    offstage = for {c, i} <- Enum.with_index(ctrls), do: frame(i, 100.0, false, c)
+    assert SFW.frame_weights(offstage, onset_weight: 5.0, onset_edge_window: 15.0) == [1.0, 1.0, 1.0, 5.0, 1.0, 1.0, 5.0]
+
+    assert SFW.edge_onset?(out, illusion_out) == false
+    assert SFW.edge_onset?(out, firefox) == true
+    assert SFW.edge_onset?(@neutral, illusion_in) == true
+    assert SFW.edge_onset?(nil, jump) == false
+    assert SFW.stick_zone(out) == :right and SFW.stick_zone(@up) == :up and SFW.stick_zone(@neutral) == :neutral
+  end
+
   test "veto_weight lifts the relabelled frame where the bot pressed X/Y/B and the label holds — on or off stage" do
     side_b = %{@neutral | main_stick: %{x: 0.95, y: 0.5}, button_b: true}
     side = %{@neutral | main_stick: %{x: 0.95, y: 0.5}}

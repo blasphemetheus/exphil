@@ -3697,31 +3697,79 @@ deep, band kept, onstage jump hazard (y>0, jump in hand) ≤ 0.15.
   facing out, B up at t−1; 48,920 bot frames, 24,433 labelled) and
   `scripts/expert_index_edge_b_hazard.exs` (the same S in the v4 index,
   25,242 rows, 176 games):
+  (first cut at the probe's 0.33 "toward" cutoff — superseded below:
+  it counted the expert's shines-while-centring as outward presses.)
+  **13:38 — at the game's own side-B threshold.** The sim fires an air
+  Illusion at |stick x| ≥ ~0.6 (measured on the bot's 1,762 airborne B
+  edges in r7w: 10 / 13 Illusions at 0.6–0.7, 266 / 360 at ≥ 0.8;
+  lasers / shines below), and the expert's "outward" presses at
+  −0.4..−0.6 were shines with the stick on its way to centre (the index
+  rows after them: stick 0.0 next frame, then +0.7..1.0 and the facing
+  flips — turnarounds). Both hazards recomputed with the Illusion-capable
+  cell = |x| ≥ 0.6 (scripts updated, `:tilt` cell added):
   ```
-  in S, prev stick outward     bot (j1 / j0)     labels (same states)   expert corpus
-  P(B press)                   0.43 / 0.82 %     3.1 / 5.3 %            0.51 / 0.61 %
-  P(B ∧ stick still outward)   0.34 / 0.64 %     0.14 / 0.40 %          0.25 / 0.30 %
-  P(jump press), all S         1.2 %             4.2 %                  —
-  P(B press), all S            1.0 %             4.8 %                  1.8 %
+  in S, stick held outward ≥ 0.6   bot (j1 / j0)     labels (same states)     expert corpus
+  P(B press)                       0.48 / 0.93 %     2.75 / 5.9 %             0.25 / 0.19 %
+  P(B ∧ stick stays outward)       0.30 / 0.66 %     0 / 0 (0 of 3,954)       0.06 / 0.19 %
+  P(stick stays outward | B)       62 %              0 %                      24 %
+  P(jump press), all S             1.2 %             4.2 %                    —
   ```
-  **The expert fires the fatal joint too — 0.25–0.30 %/frame, 11 presses
-  in 4,222 rows** — and the labels on the bot's states carry it at the
-  bot's own rate (all-S 0.10 % | 0.10 %), which is why no relabel
-  weighting could move it. What differs: (1) when the expert presses B
-  from an outward stick it turns the stick on the SAME frame 95 % of the
-  time (up → Firefox, centre → inward Illusion); the bot 20 % — its B
-  lands on the stale outward stick (the hold bias of the stick-change
-  head, the silent-fall mechanism, now at the press level); (2) the bot
-  is passive in S — B 1.0 vs 4.8 %, jump 1.2 vs 4.2 % per frame — so it
-  lingers in the state and takes more draws of a 0.3 %/frame joint; (3)
-  its share of near-edge time in S with the stick outward is ~2× the
-  expert's (10,048 / 420k vs 4,222 / 391k rows). The per-state hazard is
-  ~1.5–2× the expert's, not 100×; the trips are visitation × lingering ×
-  the missing stick turn. The failure state before the Illusion is
-  "airborne at the edge facing out with the stick still outward and no
-  input" — a silent frame, not a wrong press. Candidate arm (not
-  launched): extend `--onset-weight` from `frame_offstage?` to the wide
-  near-edge airborne window and count "B press with a stick change on the
-  same frame" as an onset (the inward Illusion is not an up-onset) — the
-  knob family that moved the up-onset at ×5, applied where this death
-  starts; pass bar unchanged (carried side-B ≤ 5 per run on two seeds).
+  **The bot fires the outward Illusion at ~5× the expert's per-frame
+  rate in the held-outward edge state; the labels there say zero (0 of
+  3,954 labelled frames); teacher-forced on expert states the model is at
+  the expert's rate (DecisionMap Q1 0.0003–0.0008).** So the closed-loop
+  excess is real, the relabel does contradict it, and ×10 on the bot's
+  35 press frames could not move a 0.3 % probability through
+  cross-entropy (gradient ∝ p). The conditional that is wrong is the
+  stick's: P(stick stays | B) 62 % vs the expert's 24 % in this cell —
+  the model applies the GLOBAL rule (the expert pre-aims, so near the
+  edge it holds the stick on 369 of 381 B presses) to the one cell where
+  the expert turns the stick with the press, and that cell has 8 corpus
+  examples + 92 label examples (the labels' 2.75 % B presses, every one
+  with the stick turned). The B marginal is 2× over on top. Secondary:
+  the bot is passive in S (B 1.0 vs 4.8 %, jump 1.2 vs 4.2 % per frame)
+  and lingers; its visitation is not the story (fidelity position bins:
+  ground_3 0.057 vs 0.098, air_3 0.024 vs 0.067 — it is near the edge
+  LESS than the expert, whose games have an opponent to chase).
+  **Arm (built 13:35, launches after queue 43 as queue 44):
+  `--onset-edge-window 15`** — with `--onset-weight 5`, also lift
+  airborne frames within 15 units of the edge whose label is a jump edge
+  or a B edge WITH a same-frame stick-zone change
+  (`SilentFallWeighting.edge_onset?/2`, `near_edge_airborne?/2`;
+  config / parser / pipeline / TRAINING.md / test); a B on the held
+  stick is not lifted. Dose from the index: 2.2 corpus frames per game
+  (374 jump edges + 12 B-turns in 176 games) plus ~2k label frames in
+  the mix — small. Two seeds vs dag7w s905 and dag6w s905 / s906; pass
+  bar unchanged (carried side-B ≤ 5 per run on both seeds, carried-off
+  died ≤ 0.6, band / up-onset / angle unchanged).
+
+- **14:55 — queue 43 read (`on5u_dag7w_x1_e3`, the no-veto r7w
+  control): the 13:15 "veto10 trained the Firefox out" was MISREAD —
+  the control without any veto shows the same Firefox loss. Queue 44
+  launched 14:52 (`scripts/coherence_queue44.sh`, unit
+  `exphil-queue44`, two `--onset-edge-window 15` arms, ~3 h).** The
+  control: **carried side-B trips 22** (veto10 15, dag6w 13 / 20 —
+  the same band; 100 % died, 100 % no jump at start, pre stick→edge
+  q50 0.33), carried-off died 0.905 / share 0.286, decided-trip return
+  0.56, SD/min 0.81, deaths/min 0.88, drill 0.431, val 3.067; **stick-up
+  share 13.7 %** (veto10 12.4; dag6w 34.9 / 32.3; expert 42.5),
+  up-onset 4.0 %, P(B|up) 4.9 %, **P(B|not up) 0.0**, Firefox in
+  10 / 147 episodes (dag6w 26 / 131, 51 / 270), "never special" 48 % of
+  deaths, −40..−60 row 0.0105 (the best of the four, 0.0004 / 0.004 on
+  dag6w — but on 10 Firefoxes). Teacher-forced the model is at the
+  expert's hazards everywhere (Q2c up 0.039 | 0.037, side 0.009 |
+  0.011; Q1 near/facing-edge `press∧stick→edge` 0.0002 | 0.0). So:
+  two arms on r7w (veto10, none) at stick-up 12–14 %; two on r6w at
+  32–35 %. The sets are the same to a percent (CPU read of both:
+  labelled 141.9k vs 144.6k, spent-below-stage labels stick-up 61.6 vs
+  62.4 %, B 24.7 vs 22.9 %, hold 78.6 vs 78.7 %, grounded 48 %; the
+  only key difference is `:actual`, which nothing in the training path
+  reads), and the stick-up column over every recent arm spans 13–52 %
+  with same-set seed flips of 2× (dag345g s905 35.7 vs s906 17.8,
+  on30u s905 13.5 vs s906 10.1). **The Firefox share is roll/seed
+  noise at this n; the veto10 verdict reduces to "carried side-B trips
+  unchanged" — which was the mechanism's prediction anyway (13:38).**
+  Queue 44 keeps r7w so its reference is dag7w itself; its pass bar is
+  on the trip count, which has sat at 13–22 across every seed, set and
+  knob so far (that number IS replicable). Queue-42 arms 3–4 (veto30)
+  stay cancelled.

@@ -38,6 +38,17 @@ defmodule ExPhil.Training.SilentFallWeighting do
       DAgger's standard emphasis on learner-error states, at the press
       level; it applies on and off stage.
 
+    * `onset_edge_window` (2026-10-10, INPUT_COHERENCE "10-10 13:30") —
+      with `onset_weight`, extend it to AIRBORNE frames within this many
+      units inside the stage edge (the state the carried side-B deaths
+      start from: airborne at the edge, facing out, the stick still held
+      outward, no input). There the onset is a jump edge or a B edge WITH
+      a stick-zone change on the same frame — the expert, pressing B from
+      an outward stick in that state, turns the stick on the same frame
+      95 % of the time (up → Firefox, centre → inward Illusion); the bot
+      20 %. A B press that keeps the held stick (the fatal joint, which
+      the expert also fires at 0.3 %/frame) is not lifted. nil = off.
+
   The first two weight both outcomes of a frame alike, so the conditional
   P(input | silent k) is sharpened, not biased; `onset_weight` deliberately
   biases toward acting in danger. Weights are `max(1.0, w)` per frame;
@@ -62,6 +73,7 @@ defmodule ExPhil.Training.SilentFallWeighting do
     on_w = Keyword.get(opts, :onset_weight)
     buttons_only = Keyword.get(opts, :onset_buttons_only, false)
     veto_w = Keyword.get(opts, :veto_weight)
+    edge_win = Keyword.get(opts, :onset_edge_window)
     k_min = Keyword.get(opts, :silent_fall_min, 13)
 
     if off_w == nil and sf_w == nil and on_w == nil and veto_w == nil do
@@ -90,6 +102,12 @@ defmodule ExPhil.Training.SilentFallWeighting do
           w =
             if off? and on_w != nil and prev_c != nil and falling?(frame) and
                  onset?(prev_c, c, if(buttons_only, do: nil, else: jumps_left(frame))),
+              do: max(w, on_w * 1.0),
+              else: w
+
+          w =
+            if not off? and on_w != nil and edge_win != nil and prev_c != nil and falling?(frame) and
+                 near_edge_airborne?(frame, edge_win) and edge_onset?(prev_c, c),
               do: max(w, on_w * 1.0),
               else: w
 
@@ -156,6 +174,58 @@ defmodule ExPhil.Training.SilentFallWeighting do
     up_edge = stick_up?(c) and not stick_up?(prev)
 
     !!((jump_now && !jump_prev) || (b_edge && stick_up?(c)) || (up_edge && jumps_left == 0))
+  end
+
+  @doc """
+  The near-edge onset (`onset_edge_window`): a jump button edge, or a B edge
+  with the main stick in a different zone (neutral / up / down / left /
+  right) than on the previous frame — the press comes with a turn.
+  """
+  @spec edge_onset?(map() | nil, map() | nil) :: boolean()
+  def edge_onset?(nil, _), do: false
+  def edge_onset?(_, nil), do: false
+
+  def edge_onset?(prev, c) do
+    jump_now = Map.get(c, :button_x) || Map.get(c, :button_y)
+    jump_prev = Map.get(prev, :button_x) || Map.get(prev, :button_y)
+    b_edge = Map.get(c, :button_b) && !Map.get(prev, :button_b)
+
+    !!((jump_now && !jump_prev) || (b_edge && stick_zone(c) != stick_zone(prev)))
+  end
+
+  @doc false
+  def stick_zone(c) do
+    ms = Map.get(c, :main_stick) || %{x: 0.5, y: 0.5}
+    x = (ms[:x] || 0.5) - 0.5
+    y = (ms[:y] || 0.5) - 0.5
+
+    cond do
+      abs(x) < @deadzone and abs(y) < @deadzone -> :neutral
+      abs(y) >= abs(x) and y > 0 -> :up
+      abs(y) >= abs(x) -> :down
+      x > 0 -> :right
+      true -> :left
+    end
+  end
+
+  @doc """
+  Airborne, alive and within `window` units inside the stage edge (or past
+  it): the state the carried side-B deaths start from. Offstage frames are
+  handled by the offstage terms, so callers test `not frame_offstage?` first.
+  """
+  @spec near_edge_airborne?(map(), number()) :: boolean()
+  def near_edge_airborne?(frame, window) do
+    gs = frame[:game_state] || frame.game_state
+    p = gs && gs.players && gs.players[1]
+
+    case p do
+      %{on_ground: false, x: x} when is_number(x) ->
+        edge = Melee.Stages.edge_ground_position(gs.stage) || 85.57
+        abs(x) > edge - window
+
+      _ ->
+        false
+    end
   end
 
   @doc false

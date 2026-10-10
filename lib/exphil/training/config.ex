@@ -1718,6 +1718,13 @@ defmodule ExPhil.Training.Config do
       # "flick up" (y >= 0.75, blind to x) and bent the Firefox fire angle
       # (recovery_firefox_angle.js: 13° without an onset weight, 30–51° with).
       onset_buttons_only: false,
+      # --onset-edge-window D (2026-10-10): with --onset-weight, also weight
+      # AIRBORNE frames within D units inside the stage edge whose label is
+      # a jump edge or a B edge with a same-frame stick-zone change (the
+      # carried side-B deaths start there: the bot's B lands on the stick it
+      # was holding outward; the expert turns the stick with the press).
+      # nil = off.
+      onset_edge_window: nil,
       # --veto-weight W (2026-10-10): on relabelled DAgger frames that keep the
       # bot's own input (`:actual`), weight the frames where the bot pressed
       # X/Y/B and the expert label holds it released (SilentFallWeighting

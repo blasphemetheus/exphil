@@ -35,18 +35,20 @@ cells =
   end)
   |> Enum.map(fn {x, [msx, _msy, _, _, _a, b, bx, by | _]} ->
     psx = unscale.(x, :prev_sx)
+    # the sim fires a side special at |x| >= ~0.6 (10-10, measured on the bot's presses)
     stick = cond do
+      psx <= -0.6 -> :outward
+      psx >= 0.6 -> :toward_stage
       abs(psx) < 0.33 -> :x0
-      psx < 0 -> :outward
-      true -> :toward_stage
+      true -> :tilt
     end
-    %{stick: stick, jumps: min(round(unscale.(x, :jumps)), 1), b: b > 0.5, out: b > 0.5 and msx < 0.5 - 0.165, jump: bx > 0.5 or by > 0.5}
+    %{stick: stick, jumps: min(round(unscale.(x, :jumps)), 1), b: b > 0.5, out: b > 0.5 and (msx - 0.5) * 2 <= -0.6, jump: bx > 0.5 or by > 0.5}
   end)
 
 pct = fn n, d -> if d == 0, do: "-", else: :io_lib.format("~.4f", [n / d]) |> to_string() end
 IO.puts("RESULT expert edge B hazard #{Path.basename(path)} (#{m.meta.games} games, #{m.n} rows): state rows #{length(cells)} (airborne, -30..+10 of the edge, facing out, B up at t-1, no hitstun)")
-IO.puts("  cell (prev stick, jumps): rows | P(B press) | P(B & stick outward) | P(jump press)")
-for stick <- [:outward, :x0, :toward_stage], j <- [1, 0] do
+IO.puts("  cell (prev stick, jumps): rows | P(B press) | P(B & stick outward >= 0.6) | P(jump held)")
+for stick <- [:outward, :tilt, :x0, :toward_stage], j <- [1, 0] do
   c = Enum.filter(cells, &(&1.stick == stick and &1.jumps == j))
   n = length(c)
   IO.puts("  #{String.pad_trailing("#{stick} j#{j}", 18)} #{String.pad_leading("#{n}", 6)} | #{pct.(Enum.count(c, & &1.b), n)} | #{pct.(Enum.count(c, & &1.out), n)} | #{pct.(Enum.count(c, & &1.jump), n)}")

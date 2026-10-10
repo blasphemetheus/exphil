@@ -13,14 +13,23 @@
 set = path |> File.read!() |> :erlang.binary_to_term()
 edge = ExPhil.Sim.GA.stage_edge(32)
 
-toward = fn c, p ->
+# stick x in -1..1 units, signed toward the near edge (+ = outward). The sim
+# fires a side special at |x| >= ~0.6 (measured 10-10 on the bot's own presses:
+# 10 / 13 Illusions at 0.6-0.7, 266 / 360 at >= 0.8, lasers / shines below),
+# so the Illusion-capable cell is >= 0.6, not the probe's 0.33 deadzone.
+sideb = 0.6
+sx = fn c, p ->
   ms = Map.get(c, :main_stick) || %{x: 0.5, y: 0.5}
-  x = (ms[:x] || 0.5) - 0.5
   sign = if (p.x || 0.0) >= 0, do: 1, else: -1
+  ((ms[:x] || 0.5) - 0.5) * 2 * sign
+end
+toward = fn c, p ->
+  x = sx.(c, p)
   cond do
-    abs(x) < 0.165 -> :x0
-    x * sign > 0 -> :toward_edge
-    true -> :toward_center
+    x >= sideb -> :toward_edge
+    x <= -sideb -> :toward_center
+    abs(x) < 0.33 -> :x0
+    true -> :tilt
   end
 end
 
@@ -46,9 +55,9 @@ rows =
       label_b: labelled and cur.controller.button_b == true,
       bot_jump: (cur.actual.button_x or cur.actual.button_y) and not (prev.actual.button_x or prev.actual.button_y),
       label_jump: labelled and (cur.controller.button_x or cur.controller.button_y) and not (prev.actual.button_x or prev.actual.button_y),
-      # the deadly joint: B with the stick (bot's next input) toward the edge
-      bot_illusion_out: cur.actual.button_b == true and toward.(cur.actual, p) == :toward_edge,
-      label_illusion_out: labelled and cur.controller.button_b == true and toward.(cur.controller, p) == :toward_edge
+      # the deadly joint: B with the stick (bot's next input) outward past the side-B threshold
+      bot_illusion_out: cur.actual.button_b == true and sx.(cur.actual, p) >= sideb,
+      label_illusion_out: labelled and cur.controller.button_b == true and sx.(cur.controller, p) >= sideb
     }
   end
 
@@ -56,7 +65,7 @@ pct = fn n, d -> if d == 0, do: "-", else: :io_lib.format("~.4f", [n / d]) |> to
 IO.puts("RESULT edge B hazard #{Path.basename(path)}: state frames #{length(rows)} (airborne, -30..+10 of the edge, facing out, B up at t-1)")
 IO.puts("  cell (prev stick, jumps): frames | bot P(B) | bot P(B & stick->edge) | labelled | label P(B) | label P(B & stick->edge) | gated share | bot P(jump) | label P(jump)")
 
-for stick <- [:toward_edge, :x0, :toward_center], j <- [1, 0] do
+for stick <- [:toward_edge, :tilt, :x0, :toward_center], j <- [1, 0] do
   cell = Enum.filter(rows, &(&1.stick == stick and &1.jumps == j))
   n = length(cell)
   lab = Enum.filter(cell, & &1.labelled)

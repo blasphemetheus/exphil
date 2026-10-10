@@ -1182,6 +1182,7 @@ defmodule ExPhil.Training.Pipeline do
             silent_fall_min: ropts[:silent_fall_min] || 13,
             onset_weight: ropts[:onset_weight],
             onset_buttons_only: ropts[:onset_buttons_only] || false,
+            onset_edge_window: ropts[:onset_edge_window],
             veto_weight: ropts[:veto_weight]
           )
         end
