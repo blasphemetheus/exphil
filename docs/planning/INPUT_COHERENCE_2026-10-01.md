@@ -3773,3 +3773,40 @@ deep, band kept, onstage jump hazard (y>0, jump in hand) ≤ 0.15.
   on the trip count, which has sat at 13–22 across every seed, set and
   knob so far (that number IS replicable). Queue-42 arms 3–4 (veto30)
   stay cancelled.
+
+- **18:05 — queue 44 DONE (17:57): `--onset-edge-window 15` is a NULL
+  on both seeds, and the dose measurement says why.** edge15 s905 /
+  s906: **carried side-B trips 14 / 14** (bar ≤ 5; dag7w 22, dag6w
+  13 / 20), 100 % fatal, pre stick→edge q50 0.43, carried-off died
+  0.90 / 0.97, decided-trip return 0.52 / 0.51, SD/min 0.72 / 0.87,
+  deaths/min 0.79 / 0.98, drill 0.413 / 0.469, val 3.076 / 3.068; band
+  held (repeat 0.76 / 0.75, neutral 0.24 / 0.23, fidelity 0.20 / 0.18);
+  stick-up share 18.4 / 13.1 % (the r7w level, see 14:55), Firefox
+  8 / 126 and 8 / 149 eps, −40..−60 row 0.0168 / 0.0075 (not worse);
+  `model_config.json` carries `onset_edge_window: 15.0` (the flag was
+  consumed — GOTCHA #108 checked). **Dose, measured with the weighting
+  function on r7w (not estimated from the index as at 13:38): the
+  window lifts 287 more frames than `--onset-weight 5` alone (925 →
+  1,212 of 144,638 labelled, +0.2 %), 264 of them jump edges and 23
+  B-with-zone-change.** The mechanism's own cell on the r7w labels
+  (airborne, facing out, −30..+10 of the edge, previous stick outward
+  ≥ 0.6, B edge on the label) holds **9 presses** — the 13:38 "92" was
+  the index's count over all its rows, not the mix's — and 7 of the 9
+  "turns" stay inside the same stick zone (0.9 → 0.5 outward: below the
+  sim's 0.6 side-B threshold, so a different move, but no zone change),
+  so the window caught 2. With 9 set + 12 corpus examples there is no
+  dose to lift at any weight; the "turn the stick with B in that cell"
+  rule is example-starved, and this arm closes it. Lesson for the next
+  weighting arm: run `SilentFallWeighting.frame_weights/2` over the
+  mix set and count BEFORE launching (two CPU minutes; this one cost
+  3 h). The flag stays (it is correct and cheap); unused. **What is
+  left in the 13:38 table that has examples:** the passivity gap in the
+  same state — labels B 4.8 % / jump 4.2 % per frame vs the bot's 1.0 /
+  1.2 % (≈ 190 + 165 label presses in 3,954 frames of S), i.e. the bot
+  lingers at the edge facing out with no jump where the expert acts;
+  and upstream of it Bradley's "failure state before": how the bot
+  arrives there with the jump already spent (every carried trip starts
+  with no jump; the expert's carried trips are 5 / 1,788 episodes).
+  Next instrument = on-stage double-jump spend near the edge, model vs
+  expert, from the eval traces (HANDOFF item 8, 13:15) — a count, not
+  an arm.
