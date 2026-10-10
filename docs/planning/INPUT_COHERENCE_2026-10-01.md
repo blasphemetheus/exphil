@@ -3680,3 +3680,48 @@ deep, band kept, onstage jump hazard (y>0, jump in hand) ≤ 0.15.
   upstream number Bradley asked for ("another failure state before
   that"). The dag7w control (r7w = r6w re-rolled) is the baseline for
   whatever arm follows and the roll's own replicate.
+- **14:20 — the Illusion death, measured on the bot's own states with the
+  kept input (three new CPU-only instruments; the "state-distribution"
+  guess of 13:15 was half right).** `scripts/dagger_set_illusion_chain.exs`
+  (unsplit r7w; the split set duplicates each trip's history as prefix
+  and double-counts): 49 outward Illusion presses (airborne, −30..+10 of
+  the edge, facing out, B edge with the stick toward the edge) in 3,067
+  runs — 25 labelled, 10 gated, 14 in the unlabelled prefix; the label
+  at the press is "no button, stick held" (23 / 25, often still toward
+  the edge); for 21 / 49 the labels AGREE with the bot's input through
+  all 30 frames before (median first disagreement 3 f before, a stick
+  edge→centre/x0). So the expert also dashes and jumps off the edge
+  facing out; the divergence is the press itself, and it is supervised
+  on 25 frames per 145k — ×10 on those is nothing.
+  `scripts/dagger_set_edge_b_hazard.exs` (state S = airborne, −30..+10,
+  facing out, B up at t−1; 48,920 bot frames, 24,433 labelled) and
+  `scripts/expert_index_edge_b_hazard.exs` (the same S in the v4 index,
+  25,242 rows, 176 games):
+  ```
+  in S, prev stick outward     bot (j1 / j0)     labels (same states)   expert corpus
+  P(B press)                   0.43 / 0.82 %     3.1 / 5.3 %            0.51 / 0.61 %
+  P(B ∧ stick still outward)   0.34 / 0.64 %     0.14 / 0.40 %          0.25 / 0.30 %
+  P(jump press), all S         1.2 %             4.2 %                  —
+  P(B press), all S            1.0 %             4.8 %                  1.8 %
+  ```
+  **The expert fires the fatal joint too — 0.25–0.30 %/frame, 11 presses
+  in 4,222 rows** — and the labels on the bot's states carry it at the
+  bot's own rate (all-S 0.10 % | 0.10 %), which is why no relabel
+  weighting could move it. What differs: (1) when the expert presses B
+  from an outward stick it turns the stick on the SAME frame 95 % of the
+  time (up → Firefox, centre → inward Illusion); the bot 20 % — its B
+  lands on the stale outward stick (the hold bias of the stick-change
+  head, the silent-fall mechanism, now at the press level); (2) the bot
+  is passive in S — B 1.0 vs 4.8 %, jump 1.2 vs 4.2 % per frame — so it
+  lingers in the state and takes more draws of a 0.3 %/frame joint; (3)
+  its share of near-edge time in S with the stick outward is ~2× the
+  expert's (10,048 / 420k vs 4,222 / 391k rows). The per-state hazard is
+  ~1.5–2× the expert's, not 100×; the trips are visitation × lingering ×
+  the missing stick turn. The failure state before the Illusion is
+  "airborne at the edge facing out with the stick still outward and no
+  input" — a silent frame, not a wrong press. Candidate arm (not
+  launched): extend `--onset-weight` from `frame_offstage?` to the wide
+  near-edge airborne window and count "B press with a stick change on the
+  same frame" as an onset (the inward Illusion is not an up-onset) — the
+  knob family that moved the up-onset at ×5, applied where this death
+  starts; pass bar unchanged (carried side-B ≤ 5 per run on two seeds).
