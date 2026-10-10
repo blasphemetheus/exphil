@@ -1713,6 +1713,11 @@ defmodule ExPhil.Training.Config do
       # the hold harder; this weights only the frames where the expert
       # decides. nil = off.
       onset_weight: nil,
+      # --onset-buttons-only (2026-10-09): the onset weight on the jump / B
+      # press edges only — its stick-enters-up term (10-08 08:00) taught
+      # "flick up" (y >= 0.75, blind to x) and bent the Firefox fire angle
+      # (recovery_firefox_angle.js: 13° without an onset weight, 30–51° with).
+      onset_buttons_only: false,
       # AWBC (advantage-weighted BC) loss weights: reweight the imitation loss
       # by observed outcomes. --awbc-reward standard uses Rewards.Standard
       # (stock + damage); default :shine is the multishine specialist signal.

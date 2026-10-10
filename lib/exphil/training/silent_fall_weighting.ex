@@ -47,6 +47,7 @@ defmodule ExPhil.Training.SilentFallWeighting do
     off_w = Keyword.get(opts, :offstage_weight)
     sf_w = Keyword.get(opts, :silent_fall_weight)
     on_w = Keyword.get(opts, :onset_weight)
+    buttons_only = Keyword.get(opts, :onset_buttons_only, false)
     k_min = Keyword.get(opts, :silent_fall_min, 13)
 
     if off_w == nil and sf_w == nil and on_w == nil do
@@ -71,7 +72,8 @@ defmodule ExPhil.Training.SilentFallWeighting do
               else: w
 
           w =
-            if off? and on_w != nil and prev_c != nil and falling?(frame) and onset?(prev_c, c, jumps_left(frame)),
+            if off? and on_w != nil and prev_c != nil and falling?(frame) and
+                 onset?(prev_c, c, if(buttons_only, do: nil, else: jumps_left(frame))),
               do: max(w, on_w * 1.0),
               else: w
 
@@ -95,7 +97,9 @@ defmodule ExPhil.Training.SilentFallWeighting do
       the stick entering UP from not-up once the double jump is spent
       (`jumps_left` 0) — the expert aims a few frames before the press and
       `--stick-duration` supervises the stick only at its change events, so
-      the aim is its own onset (INPUT_COHERENCE "10-08 08:00").
+      the aim is its own onset (INPUT_COHERENCE "10-08 08:00"). Callers pass
+      `jumps_left` nil to leave this term out (`--onset-buttons-only`, 10-09:
+      the term is blind to x and bent the Firefox fire angle).
 
   A B press with the stick elsewhere (side-B, neutral-B) is not an onset.
   """

@@ -1180,7 +1180,8 @@ defmodule ExPhil.Training.Pipeline do
             offstage_weight: ropts[:offstage_weight],
             silent_fall_weight: ropts[:silent_fall_weight],
             silent_fall_min: ropts[:silent_fall_min] || 13,
-            onset_weight: ropts[:onset_weight]
+            onset_weight: ropts[:onset_weight],
+            onset_buttons_only: ropts[:onset_buttons_only] || false
           )
         end
       end
