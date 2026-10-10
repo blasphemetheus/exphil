@@ -3420,3 +3420,18 @@ deep, band kept, onstage jump hazard (y>0, jump in hand) ≤ 0.15.
   own replicate (`on5u_dag345g_x1_e3_s906`, first item of queue 41).
   Firefox at −40..−60 is 0–0.02 on every arm and seed. **QUEUE 39 DONE
   22:53; queue 40 started 22:54 from on5u (index v4 first).**
+- **10-10 01:18 — queue 40 step 1–2 done: index v4 + the wide round
+  r6w.** Index v4: **390,867 wide rows** from the same 176 games (v3
+  214k), hold 0.767, B 11.6 %, jump 10.0 %, stick up 20.0 %; held-out
+  self-check n = 50.8k: hold 77.2 % actual / 79.1 % label, agreement
+  65.8 %, jump ×1.07, up-onset ×1.23, B ×2.2 (n = 5, waived); **gate
+  (held-out q95) 0.597** (v3 0.814 — denser index). Round r6w from on5u:
+  12 seeds, ~35 min per 3-seed beam (v3: 13 — bigger index, ~3× the
+  labelable frames), **141,873 relabeled frames** (a v3 round ≈ 38k),
+  3,050 runs median 128 f, gated 18–19 % of labelable, policy silent on
+  20–24 %, expert label B 5–7 % / jump 7 %, label hold 0.80; coverage of
+  the gated set q95 0.47 (0 % far by construction). Split: 5,878 lists;
+  **r3456w = 255,787 relabeled frames — past the ×1 cliff (~150k) by
+  design of the compounding line, so `dag3456w` is the dose control and
+  `dag6w` (142k ≈ r345g's 114k) is the fair test of the window.** Arm 1
+  started 01:18 (~03:00), arm 2 ~04:40.
