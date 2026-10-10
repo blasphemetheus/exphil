@@ -3569,3 +3569,47 @@ deep, band kept, onstage jump hazard (y>0, jump in hand) ≤ 0.15.
   in hand, facing at fire; where they end) — the one death mode that is
   100 % fatal on every seed and the biggest single row of carried-off
   died.
+- **10:20 — the side-B deaths read (`scripts/recovery_sideb_trips.js`,
+  new; + a CPU read of the wide DAgger sets): THEY ARE ON-STAGE
+  ILLUSIONS FIRED AT THE EDGE FACING OUT, AND THE EXPERT LABELS ALREADY
+  SAY "DON'T" — THE LOSS CANNOT SEE A 0.04 %-PER-FRAME ERROR.** First,
+  a definition: `recovery_means` "carried-off" = `first_at == 0`, a trip
+  that BEGAN inside a move — not "hit off". So the carried-off side-B
+  rows are Illusions (air 350–352; ground 347/348, which
+  `recovery_means.ex:247` files under `:attack` with the blaster) fired
+  on stage that carried the bot past the edge. On six arms (on5u ×2
+  seeds, dag6w ×2, r6n6, plain dur8e) every such trip looks the same:
+  **facing the edge 100 %, flying away 100 %, no jump 100 %, start 1–4
+  units past the edge at y 2–10, stick toward the edge 0.57–0.80 of the
+  30 f before, approach `25>350>351` (jump → air Illusion) or
+  `350>351>352` or `20>347>348` (dash → ground Illusion), ends helpless
+  (35) 100 %, dies 100 %** — 13 / 71 / 13 / 20 / 15 / 17 per
+  recovery_means run (5–25 % of trips; 10–41 % of the run's deaths).
+  The expert: 5 carried side-B trips in 1788 episodes (3 died); its 83
+  side-B trips are fired DURING the trip (recoveries, 24 % died). The
+  sim is not the gap: the parity sim runs the decomp's own
+  `ftFx_SpecialS_IASA` — a new B press during the dash ends the Illusion
+  (the shorten) — so the expert's shortened edge-Illusions are
+  expressible. The labels are not the gap either: in r6w parts 2091 /
+  2094 the bot's near-edge (−25..+5 of the edge) facing-out Illusion
+  onsets are 14 / 11 per 3 seeds, **70 % of them inside the gate, and
+  the expert label at t−1..t−4 presses B in 0–2 of ~10** — the
+  relabelled rounds do tell the bot "no side-B here"; it is ~100
+  "veto" frames in a 142k-frame set, one per 1,400 labels. And the
+  teacher-forced rate is already AT the expert's: DecisionMap Q1
+  near/facing-edge P(B press) 0.007 | 0.006, press∧stick→edge
+  **0.0004–0.0008 | 0.0** — a per-frame excess of 4–8 in 10,000 that,
+  over a 32k-frame run, is the 13–20 fatal Illusions. Per-frame
+  imitation is "correct" to within 0.04 %; a rare state with a
+  catastrophic cost is invisible to an unweighted loss, and the onset
+  weight is asymmetric — it weights the expert's PRESSES, never the
+  expert's HOLD at a state where the bot pressed. Proposed next arm
+  (general, not Fox-specific, not a decode rule): **a DAgger
+  disagreement weight — on relabelled frames, weight the label by the
+  bot's own press-edge vs the label's hold (the frames the learner got
+  wrong), ×W** — the standard DAgger emphasis on learner-error states,
+  applied here at the press level. Pass: carried side-B trips ≤ 5 per
+  recovery_means run on two seeds (from 13–20), carried-off died ≤ 0.6,
+  band / dashes / aim unchanged, Firefox row not worse. Second target,
+  independent: the decided-trip deaths (96 of 132 on on5u s905) — the
+  late/close Firefox — unchanged by anything so far.
