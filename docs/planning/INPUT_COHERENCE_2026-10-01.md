@@ -3338,7 +3338,7 @@ deep, band kept, onstage jump hazard (y>0, jump in hand) ≤ 0.15.
   and the angle tail (q75 55°, 46 % die after firing) is NOT the knob's:
   it is the late/close fire with the stick wandering through the charge,
   which no onset arm has moved. on30b / on5u / on0 s906 to read.
-- **18:55 — labeler v4 (`:wide` window) + queue 40 queued behind 39
+- **18:43 — labeler v4 (`:wide` window) + queue 40 queued behind 39
   (`scripts/coherence_queue40.sh`, unit `exphil-queue40`).** The window
   is now a property of the index (`index.window`; v1–v3 files load as
   `:offstage`, nothing changes for them): `labelable?(p, edge, :wide)` =
@@ -3863,7 +3863,7 @@ deep, band kept, onstage jump hazard (y>0, jump in hand) ≤ 0.15.
   Pass: carried side-B trips ≤ 5 per run on two seeds, carried-off
   share ≤ 0.15 (0.20–0.32 today, expert 0.055), band held.
 
-- **18:55 — queue 45 (labeler v5 `:air`) STOPPED at its label-content
+- **18:43 — queue 45 (labeler v5 `:air`) STOPPED at its label-content
   gate before any roll: the lever is empty, and the reason closes the
   per-frame lane on this defect.** Index v5 built (456,983 rows, +66k
   drift rows; self-check within ×0.5–2; held-out gate 0.602).
