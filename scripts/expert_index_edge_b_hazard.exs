@@ -1,5 +1,5 @@
 # The EXPERT's B hazard at the Illusion state, straight from a :wide labeler
-# index (2026-10-10 14:10; the counterpart of dagger_set_edge_b_hazard.exs,
+# index (2026-10-10 13:28; the counterpart of dagger_set_edge_b_hazard.exs,
 # which measures the bot and its labels on the bot's own states). State S =
 # airborne, within -30..+10 of the edge, facing OUT, B up at t-1, not in
 # hitstun; cells by the previous stick x (outward / centred / toward the

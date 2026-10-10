@@ -1,5 +1,5 @@
 # The on-stage Illusion chain in a DAgger set rolled with --keep-actual
-# (2026-10-10 13:40, INPUT_COHERENCE "13:15"): for every frame where the
+# (2026-10-10 13:20, INPUT_COHERENCE "13:30"): for every frame where the
 # bot's own input pressed B (edge vs its previous own input) near the edge,
 # facing out, airborne (the carried side-B precursor), report
 #   * whether that frame is labelled or gated (no expert row within the

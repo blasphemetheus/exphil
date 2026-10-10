@@ -3680,7 +3680,7 @@ deep, band kept, onstage jump hazard (y>0, jump in hand) ≤ 0.15.
   upstream number Bradley asked for ("another failure state before
   that"). The dag7w control (r7w = r6w re-rolled) is the baseline for
   whatever arm follows and the roll's own replicate.
-- **14:20 — the Illusion death, measured on the bot's own states with the
+- **13:30 — the Illusion death, measured on the bot's own states with the
   kept input (three new CPU-only instruments; the "state-distribution"
   guess of 13:15 was half right).** `scripts/dagger_set_illusion_chain.exs`
   (unsplit r7w; the split set duplicates each trip's history as prefix

@@ -1,5 +1,5 @@
 # Closed-loop B hazard at the Illusion state, on the bot's OWN states
-# (2026-10-10 14:00; needs a set rolled with --keep-actual). State S =
+# (2026-10-10 13:25; needs a set rolled with --keep-actual). State S =
 # airborne, within -30..+10 of the edge, facing out, B released on the bot's
 # previous own input; split by the bot's previous stick (toward the edge /
 # centred / toward centre) and by jumps left. Per cell: frames, the bot's B
