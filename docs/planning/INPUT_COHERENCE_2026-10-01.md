@@ -3381,3 +3381,24 @@ deep, band kept, onstage jump hazard (y>0, jump in hand) ≤ 0.15.
   39° says the fire-angle bend was never only the stick-enters-up term:
   weighting "B with the stick up" ×30 teaches the up-stick at the press
   and the charge holds it. The buttons-only flag is not the knob's fix.
+- **21:20 — `on5u_dag345g_x1_e3` (queue 39 arm 3: `--onset-weight 5`,
+  both terms): THE LOW DOSE IS THE QUEUE-39 WINNER — band, closed loop,
+  aim and jump rows all pass together for the first time; the B row and
+  the angle tail still do not.** Aim: **up-onset 10.7 % (expert 12.3),
+  stick-up share 51.8 %, P(B|up) 14.3 % (expert 14.7 — on the number)**.
+  Jump rows 0.06 / 0.20 / 0.20 / 0.18 (pass both deep rows), jump hazard
+  x0.55 / x0.67 / x0.69. **Firefox-once-spent 0.003 / 0.005 / 0.005 /
+  0.010 (fail — the fifth arm flat at the −40..−60 row)**. Angle: err q50
+  35° / q75 49°, > 60° 13 %, **away 2 % (pass)**, died after Firefox
+  15/46 = 33 % (bar 30 — just over), toward-up 43 % (expert 48), fire
+  distance q50 11, jump in hand at charge 11 %, first == fire 28 % (best).
+  Closed loop: **SD/min 1.37 (pass), return 0.768, drill decided return
+  0.575 (best), damage/min 61.9 (best), repeat 0.734, neutral 0.262,
+  fidelity 0.175 (best), dashes 23.6 — the whole band passes**;
+  **airdodge_with_jump 0.056 (best; expert 0.006), carried-off share
+  0.172 / died 0.766 (best), side-B deaths 13, side_b_low 0.158** (expert
+  0.107). Reading: ×5 keeps the aim at the expert without the ×30
+  overshoot and without bending the press-to-stick ratio; what no dose
+  of the knob moves is the −40..−60 B row (0.003–0.020 across on0 / on5 /
+  on30) and the fire distance (10–13 units vs the expert's 35). Queue 40
+  rolls from this arm (`queue40_winner.sh`: on5u, `--onset-weight 5`).
