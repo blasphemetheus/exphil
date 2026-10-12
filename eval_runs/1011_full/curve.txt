@@ -4,3 +4,5 @@ evt2ctx_ck8_off3_dur8e_on5u_dag7w_x1_e3  3.0667  155   98       0.378  42       
 evt2ctx_ck8_off3_dur8e_on5u_dag6w_x1_e3_s906 3.0615  298   186      0.360  74       0.797   18       0.604  0.0086 [814] ret✗ sideB✗ cdied✗  
 fox_mamba_v3_ep1                         3.102   275   209      0.727  30       0.700   6        0.284  0.0309 [551] ret✗ sideB✗ cdied✗  
 == lr 0.0002 seed 905 mix ''
+fox_mamba_v3_ep2                         3.1708  320   249      0.791  30       0.600   6        0.228  0.0239 [419] ret✓ sideB✗ cdied✓  
+== lr 0.0002 seed 905 mix ''
