@@ -18,7 +18,8 @@
 # 0.38–0.60 vs the expert's 0.916). The per-epoch readout writes one row to
 # eval_runs/1011_full/curve.txt; the curve, not the final number, is the
 # product.
-RUN=fox_mamba_v3                      # run name; epoch dirs checkpoints/coh_${RUN}_epN
+RUN=${RUN:-fox_mamba_v3}              # run name; epoch dirs checkpoints/coh_${RUN}_epN
+# (RUN=fox_mamba_v3s906 + SEED=906 = the second seed of the SAME recipe, 10-12)
 CORPUS=replays/erickfm_ranked/v2_filtered
 model=(--backbone mamba --stage-internals --hidden-sizes 512,512,256 --batch-size 128 --precision f32
   --window-size 80 --stride 5 --dropout 0.0)
