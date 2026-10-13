@@ -4626,3 +4626,10 @@ event-head previous-bucket code assumes floor — testbed only until the
 **Cause:** `Pipeline.setup` built the bptt val dataset with its own hand-picked key list (`:temporal, :window_size, :stride, :precompute, :lazy_sequences`); the #135 fix (09-30) added `:use_prev_action`/`:prev_action_*` to `streaming_dataset_opts` only. The held-out frames had an empty 13-dim slot; the model was scored on an input it never saw. Third instance of the hand-picked-key-list class (#135, the 0825 pilot's `--stage-internals`).
 
 **Fix:** one `@streaming_dataset_keys` list for both. Exported policies from affected runs are fine (val selects among epochs only); their `val_loss` is meaningless.
+
+## #141 — Editing a RUNNING bash script in place breaks it even after a byte-identical revert (2026-10-12)
+**Symptom:** `full_mamba_epoch.sh` (a 6 h epoch + readout under a systemd unit) finished training, then died at `line 64: syntax error near unexpected token '('` on a fragment of the `mix run` line — the readout never ran. The file on disk was byte-identical to the committed version at the time.
+
+**Cause:** bash reads a script incrementally from an open fd, by byte offset, and only parses up to the end of the current compound command. During `mix run` the script's usage comment was patched with the Edit tool (an in-place overwrite of the same inode, +3 lines), then "reverted" with `git checkout --` — which writes a NEW inode. Bash's fd still pointed at the old inode holding the patched bytes; when `mix run` returned it resumed at its saved offset, now mid-line. The revert was invisible to the running shell.
+
+**Fix:** the training was intact (`completed.json`, `model_best_policy.bin`), so re-running the script skipped training and ran the readout. Rule, now absolute: **never write to a bash script while any process is executing it** — not a comment, not a revert. If it must change, change a copy under a new name and launch that next time. (A Python/Elixir script is read whole at start and is safe to edit; bash is not.)

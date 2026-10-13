@@ -2,8 +2,11 @@
 # One epoch of the full Fox Mamba run + its recovery readout (2026-10-11).
 #
 #   scripts/launch_unit.sh exphil-fox-mamba-v3-ep1 'scripts/full_mamba_epoch.sh 1'
-#   LR=0.0001 scripts/launch_unit.sh exphil-fox-mamba-v3-ep3 'scripts/full_mamba_epoch.sh 3'
-#   MIX=data/silent_fall/sim_dagger_expert_m1_split.frames … 'scripts/full_mamba_epoch.sh 2'
+#   scripts/launch_unit.sh exphil-fox-mamba-v3-ep3 'env LR=0.0001 scripts/full_mamba_epoch.sh 3'
+#   … 'env MIX=data/silent_fall/sim_dagger_expert_m1_split.frames scripts/full_mamba_epoch.sh 2'
+# (env vars go INSIDE the quoted command: launch_unit.sh starts a systemd
+# unit, which does not inherit the caller's shell — a bare LR=… prefix was
+# silently ignored on 10-12 12:54.)
 #
 # Recipe is FROZEN in eval_runs/1011_full/recipe.sh (sourced; never edited
 # mid-run). Epoch N trains ONE epoch resumed from epoch N-1's model.axon
