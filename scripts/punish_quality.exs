@@ -98,7 +98,10 @@ segment = fn opp ->
         stock < prev_stock and cur != nil and i - cur.last_hit <= kill_window ->
           {[%{cur | kill: true} | segs], nil, quiet + 1, {pct, stock}}
 
-        cur != nil and i - cur.last_hit > gap ->
+        # close on the KILL window, not the combo gap: a KO blow flies 40-80 f,
+        # and closing at `gap` (the ordering until 2026-10-14) never reached the
+        # kill clause above — historical "ends in kill" shares are undercounts
+        cur != nil and i - cur.last_hit > kill_window ->
           {[cur | segs], nil, quiet + 1, {pct, stock}}
 
         true ->
