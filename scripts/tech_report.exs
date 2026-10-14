@@ -114,7 +114,12 @@ sections = [
   {"Comboed (openings against the subject)",
    ~w(openings_taken_per_min hits_per_opening_taken dmg_per_opening_taken opening_taken_death_share comboed_3plus_share)},
   {"Defensive movement",
-   ~w(shields_per_min dash_shields_per_min shield_time_share spotdodges_per_min rolls_per_min wavedashes_per_min wavelands_per_min)}
+   ~w(shields_per_min dash_shields_per_min shield_time_share spotdodges_per_min rolls_per_min wavedashes_per_min wavelands_per_min)},
+  {"Out of shield (how every shield episode ended)",
+   ~w(oos_exits_per_min oos_pressured_share oos_jc_share oos_connected_share oos_pressured_connected_share) ++
+     Enum.map(TechStats.oos_options(), &"oos_#{&1}_share")},
+  {"Out of shield, PRESSURED episodes only (took shield stun)",
+   Enum.map(TechStats.oos_options(), &"oos_pressured_#{&1}_share")}
 ]
 
 table = fn keys ->
@@ -133,6 +138,10 @@ a miss (TECH_MISS_UP/DOWN). Toward/away is relative to the opponent. Punished = 
 cost = damage taken in those 90 f. Comboed = punish_quality's opening detector (quiet 30 f, gap 45 f,
 kill 90 f) on the subject's OWN percent. Wavedash = airdodge ≤ 4 f into a landing from a jumpsquat;
 waveland = the same without one. Dash→shield = shield started within 5 f of dashing/running.
+Out of shield: a jumpsquat within 3 f of leaving shield = jump cancel (jc_*), classed by what follows it
+(upsmash / grab / shine / wavedash / aerial within 20 f / plain jump); otherwise shield-grab, roll, spot
+dodge, hit (left shield in hitstun) or drop. Pressured = the episode took shield stun. Connected = the
+subject dealt damage within 30 f of leaving shield.
 
 #{Enum.map_join(sections, "\n\n", fn {title, keys} -> "## #{title}\n\n" <> table.(keys) end)}
 """

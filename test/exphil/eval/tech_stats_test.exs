@@ -116,6 +116,38 @@ defmodule ExPhil.Eval.TechStatsTest do
     assert s["chase_cost_per"] == 15.0
   end
 
+  test "out of shield: jump-cancel options, shield grab, roll, drop; pressured subset; connected" do
+    sh = [178, 179, 179]
+    acts =
+      pad(
+        sh ++ [24, 24, 63, 63, 63, 14] ++                        # JC upsmash
+        sh ++ [24, 24, 212, 213, 14] ++                           # JC grab
+        sh ++ [24, 360, 361, 361, 14] ++                          # JC shine (Fox)
+        sh ++ [24, 24, 236, 236, 236, 43, 43, 14] ++              # JC wavedash
+        sh ++ [24, 24, 25, 25, 25, 67, 67, 70, 14] ++             # jump -> bair
+        sh ++ [24, 24, 25, 25, 25, 25, 25, 25, 25, 25, 25, 25, 25, 25, 25, 25, 25, 25, 25, 25, 25, 25, 25, 14] ++ # plain jump (no aerial in 20 f)
+        sh ++ [212, 213, 14] ++                                   # shield grab
+        [178, 181, 181, 179, 233, 233, 14] ++                     # pressured, rolled
+        sh ++ [180, 14, 14] ++                                    # drop
+        [178, 181, 76, 76, 14],                                   # pressured, hit out of shield
+        100)
+    n = length(acts)
+    # the JC upsmash connects: opponent percent rises 5 f after the exit (frame 3)
+    opp_pct = for i <- 0..(n - 1), do: if(i >= 8, do: 10.0, else: 0.0)
+    fr = frames(acts) |> Enum.with_index() |> Enum.map(fn {f, i} -> put_in(f, [:opp, :percent], Enum.at(opp_pct, i)) end)
+    s = TechStats.summarize(TechStats.from_game(fr))
+    assert s["oos_exits_per_min"] == Float.round(10 / (n / 3600), 3)
+    for o <- ~w(jc_upsmash jc_grab jc_shine jc_wavedash jc_aerial jc_jump shield_grab roll drop hit) do
+      assert s["oos_#{o}_share"] == 0.1, "#{o}"
+    end
+    assert s["oos_jc_share"] == 0.6
+    assert s["oos_pressured_share"] == 0.2
+    assert s["oos_pressured_roll_share"] == 0.5
+    assert s["oos_pressured_hit_share"] == 0.5
+    assert s["oos_connected_share"] == 0.1
+    assert s["oos_pressured_connected_share"] == 0.0
+  end
+
   test "merge adds counts and an empty game is harmless" do
     a = TechStats.from_game(frames(pad([75, 199, 14], 50)))
     b = TechStats.from_game(frames(pad([75, 183, 184, 186, 14], 50)))

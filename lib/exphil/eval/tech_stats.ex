@@ -29,7 +29,22 @@ defmodule ExPhil.Eval.TechStats do
       dashing/running), spot dodges, rolls, and airdodge→land split into
       WAVEDASH (from a jumpsquat, ≤ 4 airborne frames) and WAVELAND (any
       other short airdodge into a landing).
+
+    * **out of shield** (Bradley, 10-14: "you can jump cancel, jump then
+      aerial, wavedash out of shield") — every shield episode (a run of
+      178..182) is classed by how it ended. A jumpsquat (24) within 3 f of
+      leaving shield is a JUMP CANCEL, then by what follows it within 12 f:
+      upsmash (63), grab (212), shine (360/361 — Fox's shine OOS is
+      jumpsquat → shine), wavedash (airdodge ≤ 4 f → landing), aerial
+      (65..69 / 366 within 20 f), or a plain jump. Without a jump cancel:
+      shield-grab (212 straight from shield), roll, spot dodge, hit out of
+      shield (hitstun), or a shield DROP into anything else. PRESSURED =
+      the episode contained shield stun (181); CONNECTED = the subject
+      dealt damage within 30 f of leaving shield.
   """
+
+  @shield_states [178, 179, 180, 181, 182]
+  @oos_options ~w(jc_upsmash jc_grab jc_shine jc_wavedash jc_aerial jc_jump shield_grab roll spotdodge hit drop)
 
   @punish_window 90
   @combo_gap 45
@@ -64,6 +79,7 @@ defmodule ExPhil.Eval.TechStats do
     |> Map.merge(tech_chase(own, opp, n))
     |> Map.merge(comboed_counts(own, n))
     |> Map.merge(defense_counts(own, n))
+    |> Map.merge(oos_counts(own, opp, n))
   end
 
   def empty, do: %{}
@@ -118,8 +134,110 @@ defmodule ExPhil.Eval.TechStats do
       "spotdodges_per_min" => per_min.("def_spotdodges"),
       "rolls_per_min" => per_min.("def_rolls"),
       "wavedashes_per_min" => per_min.("def_wavedashes"),
-      "wavelands_per_min" => per_min.("def_wavelands")
+      "wavelands_per_min" => per_min.("def_wavelands"),
+      # out of shield
+      "oos_exits_per_min" => per_min.("oos_exits"),
+      "oos_pressured_share" => ratio.(g.("oos_pressured"), g.("oos_exits")),
+      "oos_jc_share" => ratio.(Enum.sum(for o <- @oos_options, String.starts_with?(o, "jc_"), do: g.("oos_#{o}")), g.("oos_exits")),
+      "oos_connected_share" => ratio.(g.("oos_connected"), g.("oos_exits")),
+      "oos_pressured_connected_share" => ratio.(g.("oos_pressured_connected"), g.("oos_pressured"))
     }
+    |> Map.merge(Map.new(@oos_options, fn o -> {"oos_#{o}_share", ratio.(g.("oos_#{o}"), g.("oos_exits"))} end))
+    |> Map.merge(Map.new(@oos_options, fn o -> {"oos_pressured_#{o}_share", ratio.(g.("oos_pressured_#{o}"), g.("oos_pressured"))} end))
+  end
+
+  @doc "Out-of-shield option names, in report order."
+  def oos_options, do: @oos_options
+
+  # ---- out of shield ---------------------------------------------------------------
+
+  defp oos_counts(me, them, n) do
+    act = fn i -> trunc(elem(me, i).action || 0) end
+    shield? = fn i -> act.(i) in @shield_states end
+
+    init =
+      %{"oos_exits" => 0, "oos_pressured" => 0, "oos_connected" => 0, "oos_pressured_connected" => 0}
+      |> Map.merge(Map.new(@oos_options, &{"oos_#{&1}", 0}))
+      |> Map.merge(Map.new(@oos_options, &{"oos_pressured_#{&1}", 0}))
+
+    {counts, _in_shield, _stunned} =
+      Enum.reduce(1..(n - 1)//1, {init, shield?.(0), false}, fn i, {c, in_shield, stunned} ->
+        cond do
+          shield?.(i) ->
+            {c, true, stunned or act.(i) == 181}
+
+          in_shield ->
+            # left shield on frame i
+            option = oos_option(me, i, n)
+            connected = dealt_within(them, i, n, 30)
+
+            c =
+              c
+              |> bump("oos_exits")
+              |> bump("oos_#{option}")
+              |> bump("oos_connected", connected)
+              |> bump("oos_pressured", stunned)
+              |> bump("oos_pressured_#{option}", stunned)
+              |> bump("oos_pressured_connected", stunned and connected)
+
+            {c, false, false}
+
+          true ->
+            {c, false, false}
+        end
+      end)
+
+    counts
+  end
+
+  defp bump(c, k, cond? \\ true), do: if(cond?, do: Map.update!(c, k, &(&1 + 1)), else: c)
+
+  # what the player did from frame i (first non-shield frame) on
+  defp oos_option(me, i, n) do
+    act = fn j -> trunc(elem(me, j).action || 0) end
+    a0 = act.(i)
+    window = fn from, len -> for j <- from..min(from + len, n - 1)//1, do: act.(j) end
+    jc_at = Enum.find(i..min(i + 3, n - 1)//1, fn j -> act.(j) == 24 end)
+
+    cond do
+      a0 in 75..91 -> "hit"
+      a0 in [233, 234] -> "roll"
+      a0 == 235 -> "spotdodge"
+      a0 in [212, 214] -> "shield_grab"
+
+      jc_at != nil ->
+        after_js = window.(jc_at + 1, 12)
+
+        cond do
+          63 in after_js -> "jc_upsmash"
+          212 in after_js -> "jc_grab"
+          Enum.any?(after_js, &(&1 in [360, 361])) -> "jc_shine"
+          wavedash_after?(me, jc_at, n) -> "jc_wavedash"
+          Enum.any?(window.(jc_at + 1, 20), &(&1 in 65..69 or &1 == 366)) -> "jc_aerial"
+          true -> "jc_jump"
+        end
+
+      true -> "drop"
+    end
+  end
+
+  # jumpsquat at j, then an airdodge run of <= 4 frames into a landing
+  defp wavedash_after?(me, j, n) do
+    act = fn k -> trunc(elem(me, k).action || 0) end
+    start = Enum.find((j + 1)..min(j + 6, n - 1)//1, fn k -> act.(k) == 236 end)
+
+    start != nil and
+      Enum.any?(1..4, fn len ->
+        k = start + len
+        k < n and act.(k) == 43 and Enum.all?(start..(k - 1), &(act.(&1) == 236))
+      end)
+  end
+
+  # did the opponent's percent rise within `win` frames of i?
+  defp dealt_within(them, i, n, win) do
+    Enum.any?((i + 1)..min(i + win, n - 1)//1, fn j ->
+      (elem(them, j).percent || 0) > (elem(them, j - 1).percent || 0) + 0.01
+    end)
   end
 
   # ---- tech ----------------------------------------------------------------------
