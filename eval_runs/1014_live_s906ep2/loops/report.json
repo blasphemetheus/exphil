@@ -1,0 +1,734 @@
+[
+  {
+    "stats": {
+      "taunts_per_min": {
+        "max": 0.0,
+        "min": 0.0,
+        "values": [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "mean": 0.0,
+        "median": 0.0
+      },
+      "dpad_per_min": {
+        "max": 0.0,
+        "min": 0.0,
+        "values": [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "mean": 0.0,
+        "median": 0.0
+      },
+      "input_long_frac": {
+        "max": 0.5448284343869143,
+        "min": 0.4033960532354291,
+        "values": [
+          0.47861658609148383,
+          0.5205062674942194,
+          0.5043370508054523,
+          0.49166583491366406,
+          0.5237339260200031,
+          0.5448284343869143,
+          0.4701854493580599,
+          0.46374661896867636,
+          0.5343366199619443,
+          0.453444360333081,
+          0.5304548959136469,
+          0.5095479027256407,
+          0.4584395716471188,
+          0.5030946065428824,
+          0.42424876976232856,
+          0.47741858806750653,
+          0.5184664793255721,
+          0.47972845559117483,
+          0.44039577585386736,
+          0.4368910292305969,
+          0.4716931216931217,
+          0.41312841885907786,
+          0.4033960532354291,
+          0.41234692165744,
+          0.4914116485686081,
+          0.4142246945465382,
+          0.4077327055414705,
+          0.443202416918429,
+          0.40699904122722913,
+          0.45855424802793227
+        ],
+        "mean": 0.46955921644230364,
+        "median": 0.4716931216931217
+      },
+      "action_long_frac": {
+        "max": 0.24191366375599557,
+        "min": 0.073252444766389,
+        "values": [
+          0.1654890293789513,
+          0.126688572471705,
+          0.11734820322180917,
+          0.1356422796686296,
+          0.19098269566597872,
+          0.24191366375599557,
+          0.10052306229196387,
+          0.1312276415670535,
+          0.195294931672721,
+          0.11461014383043149,
+          0.15173477255204318,
+          0.14705402317610577,
+          0.12850586435492095,
+          0.1594459180666077,
+          0.10721390430321433,
+          0.0818873306394105,
+          0.18175431553592936,
+          0.1372807844616255,
+          0.11587860336790029,
+          0.07794825848359278,
+          0.13253968253968254,
+          0.10758009898411044,
+          0.09752179899036255,
+          0.10954537829223285,
+          0.17630799605133268,
+          0.13479686103109167,
+          0.073252444766389,
+          0.1190332326283988,
+          0.10330776605944392,
+          0.10429328850381482
+        ],
+        "mean": 0.13222008487711495,
+        "median": 0.12850586435492095
+      },
+      "loops_per_min": {
+        "max": 7.363332093715135,
+        "min": 0.0,
+        "values": [
+          7.363332093715135,
+          3.943044906900329,
+          1.7843866171003717,
+          4.671124862760755,
+          2.286077155103985,
+          2.656499815520846,
+          5.477888730385164,
+          5.025739464270133,
+          3.1136481577581736,
+          4.9053747161241485,
+          1.1102544333076332,
+          2.3502529786192268,
+          1.8357980622131567,
+          0.0,
+          3.3923149408438906,
+          3.8507249821725695,
+          3.9743075070252907,
+          4.752027154440882,
+          3.424983350775378,
+          3.628625825960354,
+          2.380952380952381,
+          4.688721021099245,
+          3.304268012849931,
+          3.3215903371917466,
+          2.132280355380059,
+          3.5760405284593224,
+          3.9116262223831946,
+          3.5347432024169185,
+          3.0201342281879198,
+          3.2587611534979954
+        ],
+        "mean": 3.4225174399138707,
+        "median": 3.424983350775378
+      },
+      "max_loop_repeats": {
+        "max": 20,
+        "min": 0,
+        "values": [
+          11,
+          9,
+          11,
+          8,
+          6,
+          6,
+          17,
+          10,
+          7,
+          12,
+          7,
+          12,
+          8,
+          0,
+          7,
+          12,
+          9,
+          6,
+          8,
+          9,
+          4,
+          9,
+          5,
+          20,
+          8,
+          10,
+          15,
+          9,
+          9,
+          9
+        ],
+        "mean": 9.1,
+        "median": 9
+      },
+      "longest_action_run": {
+        "max": 240,
+        "min": 71,
+        "values": [
+          240,
+          240,
+          188,
+          240,
+          240,
+          240,
+          240,
+          240,
+          176,
+          123,
+          176,
+          176,
+          160,
+          118,
+          176,
+          103,
+          240,
+          240,
+          240,
+          176,
+          89,
+          102,
+          97,
+          119,
+          240,
+          176,
+          71,
+          240,
+          98,
+          178
+        ],
+        "mean": 179.4,
+        "median": 176
+      },
+      "longest_input_run": {
+        "max": 550,
+        "min": 109,
+        "values": [
+          295,
+          416,
+          186,
+          384,
+          368,
+          366,
+          351,
+          263,
+          124,
+          129,
+          271,
+          171,
+          288,
+          141,
+          115,
+          156,
+          339,
+          333,
+          550,
+          253,
+          126,
+          116,
+          109,
+          191,
+          357,
+          190,
+          132,
+          294,
+          187,
+          185
+        ],
+        "mean": 246.2,
+        "median": 253
+      }
+    },
+    "n": 30,
+    "arm": "2026-10-Mainline",
+    "games": [
+      {
+        "path": "eval_runs/fox_mamba_live_v3s906ep2_20261014_131550/2026-10-Mainline/Game_20261014T131606.slp",
+        "summary": {
+          "taunts_per_min": 0.0,
+          "dpad_per_min": 0.0,
+          "input_long_frac": 0.47861658609148383,
+          "action_long_frac": 0.1654890293789513,
+          "loops_per_min": 7.363332093715135,
+          "max_loop_repeats": 11,
+          "longest_action_run": 240,
+          "longest_input_run": 295
+        },
+        "minutes": 1.493888888888889
+      },
+      {
+        "path": "eval_runs/fox_mamba_live_v3s906ep2_20261014_131550/2026-10-Mainline/Game_20261014T131743.slp",
+        "summary": {
+          "taunts_per_min": 0.0,
+          "dpad_per_min": 0.0,
+          "input_long_frac": 0.5205062674942194,
+          "action_long_frac": 0.126688572471705,
+          "loops_per_min": 3.943044906900329,
+          "max_loop_repeats": 9,
+          "longest_action_run": 240,
+          "longest_input_run": 416
+        },
+        "minutes": 2.2824999999999998
+      },
+      {
+        "path": "eval_runs/fox_mamba_live_v3s906ep2_20261014_131550/2026-10-Mainline/Game_20261014T132009.slp",
+        "summary": {
+          "taunts_per_min": 0.0,
+          "dpad_per_min": 0.0,
+          "input_long_frac": 0.5043370508054523,
+          "action_long_frac": 0.11734820322180917,
+          "loops_per_min": 1.7843866171003717,
+          "max_loop_repeats": 11,
+          "longest_action_run": 188,
+          "longest_input_run": 186
+        },
+        "minutes": 2.2416666666666667
+      },
+      {
+        "path": "eval_runs/fox_mamba_live_v3s906ep2_20261014_131550/2026-10-Mainline/Game_20261014T132231.slp",
+        "summary": {
+          "taunts_per_min": 0.0,
+          "dpad_per_min": 0.0,
+          "input_long_frac": 0.49166583491366406,
+          "action_long_frac": 0.1356422796686296,
+          "loops_per_min": 4.671124862760755,
+          "max_loop_repeats": 8,
+          "longest_action_run": 240,
+          "longest_input_run": 384
+        },
+        "minutes": 2.7830555555555554
+      },
+      {
+        "path": "eval_runs/fox_mamba_live_v3s906ep2_20261014_131550/2026-10-Mainline/Game_20261014T132525.slp",
+        "summary": {
+          "taunts_per_min": 0.0,
+          "dpad_per_min": 0.0,
+          "input_long_frac": 0.5237339260200031,
+          "action_long_frac": 0.19098269566597872,
+          "loops_per_min": 2.286077155103985,
+          "max_loop_repeats": 6,
+          "longest_action_run": 240,
+          "longest_input_run": 368
+        },
+        "minutes": 1.7497222222222222
+      },
+      {
+        "path": "eval_runs/fox_mamba_live_v3s906ep2_20261014_131550/2026-10-Mainline/Game_20261014T132717.slp",
+        "summary": {
+          "taunts_per_min": 0.0,
+          "dpad_per_min": 0.0,
+          "input_long_frac": 0.5448284343869143,
+          "action_long_frac": 0.24191366375599557,
+          "loops_per_min": 2.656499815520846,
+          "max_loop_repeats": 6,
+          "longest_action_run": 240,
+          "longest_input_run": 366
+        },
+        "minutes": 2.258611111111111
+      },
+      {
+        "path": "eval_runs/fox_mamba_live_v3s906ep2_20261014_131550/2026-10-Mainline/Game_20261014T132940.slp",
+        "summary": {
+          "taunts_per_min": 0.0,
+          "dpad_per_min": 0.0,
+          "input_long_frac": 0.4701854493580599,
+          "action_long_frac": 0.10052306229196387,
+          "loops_per_min": 5.477888730385164,
+          "max_loop_repeats": 17,
+          "longest_action_run": 240,
+          "longest_input_run": 351
+        },
+        "minutes": 2.9208333333333334
+      },
+      {
+        "path": "eval_runs/fox_mamba_live_v3s906ep2_20261014_131550/2026-10-Mainline/Game_20261014T133242.slp",
+        "summary": {
+          "taunts_per_min": 0.0,
+          "dpad_per_min": 0.0,
+          "input_long_frac": 0.46374661896867636,
+          "action_long_frac": 0.1312276415670535,
+          "loops_per_min": 5.025739464270133,
+          "max_loop_repeats": 10,
+          "longest_action_run": 240,
+          "longest_input_run": 263
+        },
+        "minutes": 3.1836111111111114
+      },
+      {
+        "path": "eval_runs/fox_mamba_live_v3s906ep2_20261014_131550/2026-10-Mainline/Game_20261014T133600.slp",
+        "summary": {
+          "taunts_per_min": 0.0,
+          "dpad_per_min": 0.0,
+          "input_long_frac": 0.5343366199619443,
+          "action_long_frac": 0.195294931672721,
+          "loops_per_min": 3.1136481577581736,
+          "max_loop_repeats": 7,
+          "longest_action_run": 176,
+          "longest_input_run": 124
+        },
+        "minutes": 1.6058333333333332
+      },
+      {
+        "path": "eval_runs/fox_mamba_live_v3s906ep2_20261014_131550/2026-10-Mainline/Game_20261014T133744.slp",
+        "summary": {
+          "taunts_per_min": 0.0,
+          "dpad_per_min": 0.0,
+          "input_long_frac": 0.453444360333081,
+          "action_long_frac": 0.11461014383043149,
+          "loops_per_min": 4.9053747161241485,
+          "max_loop_repeats": 12,
+          "longest_action_run": 123,
+          "longest_input_run": 129
+        },
+        "minutes": 1.8347222222222221
+      },
+      {
+        "path": "eval_runs/fox_mamba_live_v3s906ep2_20261014_131550/2026-10-Mainline/Game_20261014T133941.slp",
+        "summary": {
+          "taunts_per_min": 0.0,
+          "dpad_per_min": 0.0,
+          "input_long_frac": 0.5304548959136469,
+          "action_long_frac": 0.15173477255204318,
+          "loops_per_min": 1.1102544333076332,
+          "max_loop_repeats": 7,
+          "longest_action_run": 176,
+          "longest_input_run": 271
+        },
+        "minutes": 1.8013888888888887
+      },
+      {
+        "path": "eval_runs/fox_mamba_live_v3s906ep2_20261014_131550/2026-10-Mainline/Game_20261014T134136.slp",
+        "summary": {
+          "taunts_per_min": 0.0,
+          "dpad_per_min": 0.0,
+          "input_long_frac": 0.5095479027256407,
+          "action_long_frac": 0.14705402317610577,
+          "loops_per_min": 2.3502529786192268,
+          "max_loop_repeats": 12,
+          "longest_action_run": 176,
+          "longest_input_run": 171
+        },
+        "minutes": 1.7019444444444443
+      },
+      {
+        "path": "eval_runs/fox_mamba_live_v3s906ep2_20261014_131550/2026-10-Mainline/Game_20261014T134333.slp",
+        "summary": {
+          "taunts_per_min": 0.0,
+          "dpad_per_min": 0.0,
+          "input_long_frac": 0.4584395716471188,
+          "action_long_frac": 0.12850586435492095,
+          "loops_per_min": 1.8357980622131567,
+          "max_loop_repeats": 8,
+          "longest_action_run": 160,
+          "longest_input_run": 288
+        },
+        "minutes": 2.178888888888889
+      },
+      {
+        "path": "eval_runs/fox_mamba_live_v3s906ep2_20261014_131550/2026-10-Mainline/Game_20261014T134551.slp",
+        "summary": {
+          "taunts_per_min": 0.0,
+          "dpad_per_min": 0.0,
+          "input_long_frac": 0.5030946065428824,
+          "action_long_frac": 0.1594459180666077,
+          "loops_per_min": 0.0,
+          "max_loop_repeats": 0,
+          "longest_action_run": 118,
+          "longest_input_run": 141
+        },
+        "minutes": 0.9425
+      },
+      {
+        "path": "eval_runs/fox_mamba_live_v3s906ep2_20261014_131550/2026-10-Mainline/Game_20261014T134654.slp",
+        "summary": {
+          "taunts_per_min": 0.0,
+          "dpad_per_min": 0.0,
+          "input_long_frac": 0.42424876976232856,
+          "action_long_frac": 0.10721390430321433,
+          "loops_per_min": 3.3923149408438906,
+          "max_loop_repeats": 7,
+          "longest_action_run": 176,
+          "longest_input_run": 115
+        },
+        "minutes": 2.6530555555555555
+      },
+      {
+        "path": "eval_runs/fox_mamba_live_v3s906ep2_20261014_131550/2026-10-Mainline/Game_20261014T134941.slp",
+        "summary": {
+          "taunts_per_min": 0.0,
+          "dpad_per_min": 0.0,
+          "input_long_frac": 0.47741858806750653,
+          "action_long_frac": 0.0818873306394105,
+          "loops_per_min": 3.8507249821725695,
+          "max_loop_repeats": 12,
+          "longest_action_run": 103,
+          "longest_input_run": 156
+        },
+        "minutes": 2.337222222222222
+      },
+      {
+        "path": "eval_runs/fox_mamba_live_v3s906ep2_20261014_131550/2026-10-Mainline/Game_20261014T135210.slp",
+        "summary": {
+          "taunts_per_min": 0.0,
+          "dpad_per_min": 0.0,
+          "input_long_frac": 0.5184664793255721,
+          "action_long_frac": 0.18175431553592936,
+          "loops_per_min": 3.9743075070252907,
+          "max_loop_repeats": 9,
+          "longest_action_run": 240,
+          "longest_input_run": 339
+        },
+        "minutes": 2.767777777777778
+      },
+      {
+        "path": "eval_runs/fox_mamba_live_v3s906ep2_20261014_131550/2026-10-Mainline/Game_20261014T135511.slp",
+        "summary": {
+          "taunts_per_min": 0.0,
+          "dpad_per_min": 0.0,
+          "input_long_frac": 0.47972845559117483,
+          "action_long_frac": 0.1372807844616255,
+          "loops_per_min": 4.752027154440882,
+          "max_loop_repeats": 6,
+          "longest_action_run": 240,
+          "longest_input_run": 333
+        },
+        "minutes": 1.4730555555555556
+      },
+      {
+        "path": "eval_runs/fox_mamba_live_v3s906ep2_20261014_131550/2026-10-Mainline/Game_20261014T135647.slp",
+        "summary": {
+          "taunts_per_min": 0.0,
+          "dpad_per_min": 0.0,
+          "input_long_frac": 0.44039577585386736,
+          "action_long_frac": 0.11587860336790029,
+          "loops_per_min": 3.424983350775378,
+          "max_loop_repeats": 8,
+          "longest_action_run": 240,
+          "longest_input_run": 550
+        },
+        "minutes": 2.919722222222222
+      },
+      {
+        "path": "eval_runs/fox_mamba_live_v3s906ep2_20261014_131550/2026-10-Mainline/Game_20261014T135950.slp",
+        "summary": {
+          "taunts_per_min": 0.0,
+          "dpad_per_min": 0.0,
+          "input_long_frac": 0.4368910292305969,
+          "action_long_frac": 0.07794825848359278,
+          "loops_per_min": 3.628625825960354,
+          "max_loop_repeats": 9,
+          "longest_action_run": 176,
+          "longest_input_run": 253
+        },
+        "minutes": 2.480277777777778
+      },
+      {
+        "path": "eval_runs/fox_mamba_live_v3s906ep2_20261014_131550/2026-10-Mainline/Game_20261014T140225.slp",
+        "summary": {
+          "taunts_per_min": 0.0,
+          "dpad_per_min": 0.0,
+          "input_long_frac": 0.4716931216931217,
+          "action_long_frac": 0.13253968253968254,
+          "loops_per_min": 2.380952380952381,
+          "max_loop_repeats": 4,
+          "longest_action_run": 89,
+          "longest_input_run": 126
+        },
+        "minutes": 2.1
+      },
+      {
+        "path": "eval_runs/fox_mamba_live_v3s906ep2_20261014_131550/2026-10-Mainline/Game_20261014T140439.slp",
+        "summary": {
+          "taunts_per_min": 0.0,
+          "dpad_per_min": 0.0,
+          "input_long_frac": 0.41312841885907786,
+          "action_long_frac": 0.10758009898411044,
+          "loops_per_min": 4.688721021099245,
+          "max_loop_repeats": 9,
+          "longest_action_run": 102,
+          "longest_input_run": 116
+        },
+        "minutes": 2.1327777777777777
+      },
+      {
+        "path": "eval_runs/fox_mamba_live_v3s906ep2_20261014_131550/2026-10-Mainline/Game_20261014T140654.slp",
+        "summary": {
+          "taunts_per_min": 0.0,
+          "dpad_per_min": 0.0,
+          "input_long_frac": 0.4033960532354291,
+          "action_long_frac": 0.09752179899036255,
+          "loops_per_min": 3.304268012849931,
+          "max_loop_repeats": 5,
+          "longest_action_run": 97,
+          "longest_input_run": 109
+        },
+        "minutes": 2.421111111111111
+      },
+      {
+        "path": "eval_runs/fox_mamba_live_v3s906ep2_20261014_131550/2026-10-Mainline/Game_20261014T140926.slp",
+        "summary": {
+          "taunts_per_min": 0.0,
+          "dpad_per_min": 0.0,
+          "input_long_frac": 0.41234692165744,
+          "action_long_frac": 0.10954537829223285,
+          "loops_per_min": 3.3215903371917466,
+          "max_loop_repeats": 20,
+          "longest_action_run": 119,
+          "longest_input_run": 191
+        },
+        "minutes": 3.3116666666666665
+      },
+      {
+        "path": "eval_runs/fox_mamba_live_v3s906ep2_20261014_131550/2026-10-Mainline/Game_20261014T141252.slp",
+        "summary": {
+          "taunts_per_min": 0.0,
+          "dpad_per_min": 0.0,
+          "input_long_frac": 0.4914116485686081,
+          "action_long_frac": 0.17630799605133268,
+          "loops_per_min": 2.132280355380059,
+          "max_loop_repeats": 8,
+          "longest_action_run": 240,
+          "longest_input_run": 357
+        },
+        "minutes": 1.4069444444444446
+      },
+      {
+        "path": "eval_runs/fox_mamba_live_v3s906ep2_20261014_131550/2026-10-Mainline/Game_20261014T141423.slp",
+        "summary": {
+          "taunts_per_min": 0.0,
+          "dpad_per_min": 0.0,
+          "input_long_frac": 0.4142246945465382,
+          "action_long_frac": 0.13479686103109167,
+          "loops_per_min": 3.5760405284593224,
+          "max_loop_repeats": 10,
+          "longest_action_run": 176,
+          "longest_input_run": 190
+        },
+        "minutes": 2.796388888888889
+      },
+      {
+        "path": "eval_runs/fox_mamba_live_v3s906ep2_20261014_131550/2026-10-Mainline/Game_20261014T141718.slp",
+        "summary": {
+          "taunts_per_min": 0.0,
+          "dpad_per_min": 0.0,
+          "input_long_frac": 0.4077327055414705,
+          "action_long_frac": 0.073252444766389,
+          "loops_per_min": 3.9116262223831946,
+          "max_loop_repeats": 15,
+          "longest_action_run": 71,
+          "longest_input_run": 132
+        },
+        "minutes": 3.0677777777777777
+      },
+      {
+        "path": "eval_runs/fox_mamba_live_v3s906ep2_20261014_131550/2026-10-Mainline/Game_20261014T142030.slp",
+        "summary": {
+          "taunts_per_min": 0.0,
+          "dpad_per_min": 0.0,
+          "input_long_frac": 0.443202416918429,
+          "action_long_frac": 0.1190332326283988,
+          "loops_per_min": 3.5347432024169185,
+          "max_loop_repeats": 9,
+          "longest_action_run": 240,
+          "longest_input_run": 294
+        },
+        "minutes": 3.6777777777777776
+      },
+      {
+        "path": "eval_runs/fox_mamba_live_v3s906ep2_20261014_131550/2026-10-Mainline/Game_20261014T142417.slp",
+        "summary": {
+          "taunts_per_min": 0.0,
+          "dpad_per_min": 0.0,
+          "input_long_frac": 0.40699904122722913,
+          "action_long_frac": 0.10330776605944392,
+          "loops_per_min": 3.0201342281879198,
+          "max_loop_repeats": 9,
+          "longest_action_run": 98,
+          "longest_input_run": 187
+        },
+        "minutes": 2.3177777777777777
+      },
+      {
+        "path": "eval_runs/fox_mamba_live_v3s906ep2_20261014_131550/2026-10-Mainline/Game_20261014T142644.slp",
+        "summary": {
+          "taunts_per_min": 0.0,
+          "dpad_per_min": 0.0,
+          "input_long_frac": 0.45855424802793227,
+          "action_long_frac": 0.10429328850381482,
+          "loops_per_min": 3.2587611534979954,
+          "max_loop_repeats": 9,
+          "longest_action_run": 178,
+          "longest_input_run": 185
+        },
+        "minutes": 4.296111111111111
+      }
+    ]
+  }
+]

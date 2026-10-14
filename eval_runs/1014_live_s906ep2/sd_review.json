@@ -1,0 +1,2752 @@
+{
+  "label": "s906ep2_live",
+  "deaths": [
+    {
+      "at": {
+        "x": 86.0,
+        "y": 0.0,
+        "vx": 0.0,
+        "vy": 0.0,
+        "jumps": 1,
+        "facing": -1
+      },
+      "frame": 490,
+      "verdict": "mixup",
+      "routes": 15,
+      "means": [
+        "",
+        "air_dodge",
+        "jump",
+        "side_b",
+        "up_b",
+        "air_dodge",
+        "side_b",
+        "jump",
+        "up_b",
+        "jump+air_dodge",
+        "jump+side_b",
+        "jump+up_b",
+        "jump+air_dodge",
+        "jump+side_b",
+        "jump+up_b"
+      ],
+      "specials": [],
+      "jumps_used": 1,
+      "b_presses": 2,
+      "actions": [
+        "FALLING",
+        "EDGE_CATCHING",
+        "EDGE_HANGING",
+        "FALLING",
+        "JUMPING_ARIAL_BACKWARD",
+        "AIRDODGE",
+        "DEAD_FALL"
+      ],
+      "game": "Game_20261014T131606.slp",
+      "sd": true,
+      "frames_offstage": 104,
+      "toward_stage_share": 0.61,
+      "attempt": "jump only"
+    },
+    {
+      "at": null,
+      "frame": 3219,
+      "verdict": "kill",
+      "routes": null,
+      "means": [],
+      "specials": [
+        "up_b"
+      ],
+      "jumps_used": null,
+      "b_presses": 2,
+      "actions": [
+        "FIREFOX_WAIT_AIR",
+        "FIREFOX_AIR",
+        "SWORD_DANCE_1_AIR",
+        "DEAD_FALL"
+      ],
+      "game": "Game_20261014T131606.slp",
+      "sd": true,
+      "frames_offstage": null,
+      "toward_stage_share": 0.28,
+      "attempt": "died in stun"
+    },
+    {
+      "at": {
+        "x": 86.7,
+        "y": 23.5,
+        "vx": 1.3,
+        "vy": -0.4,
+        "jumps": 0,
+        "facing": 1
+      },
+      "frame": 4287,
+      "verdict": "mixup",
+      "routes": 5,
+      "means": [
+        "air_dodge",
+        "side_b",
+        "side_b",
+        "up_b",
+        "up_b"
+      ],
+      "specials": [
+        "side_b"
+      ],
+      "jumps_used": 0,
+      "b_presses": 1,
+      "actions": [
+        "FOX_ILLUSION_SHORTENED",
+        "DEAD_FALL"
+      ],
+      "game": "Game_20261014T131606.slp",
+      "sd": true,
+      "frames_offstage": 71,
+      "toward_stage_share": 0.96,
+      "attempt": "side-B, no up-B"
+    },
+    {
+      "at": null,
+      "frame": 1368,
+      "verdict": "kill",
+      "routes": null,
+      "means": [],
+      "specials": [
+        "up_b"
+      ],
+      "jumps_used": null,
+      "b_presses": 3,
+      "actions": [
+        "DAMAGE_FLY_NEUTRAL",
+        "TUMBLING",
+        "FIREFOX_WAIT_AIR",
+        "FIREFOX_AIR",
+        "SWORD_DANCE_1_AIR",
+        "DEAD_FALL"
+      ],
+      "game": "Game_20261014T131743.slp",
+      "sd": false,
+      "frames_offstage": null,
+      "toward_stage_share": 0.75,
+      "attempt": "died in stun"
+    },
+    {
+      "at": {
+        "x": 87.5,
+        "y": 0.0,
+        "vx": 0.83,
+        "vy": 0.0,
+        "jumps": 1,
+        "facing": 1
+      },
+      "frame": 3068,
+      "verdict": "mixup",
+      "routes": 10,
+      "means": [
+        "air_dodge",
+        "side_b",
+        "jump",
+        "side_b",
+        "up_b",
+        "up_b",
+        "jump+air_dodge",
+        "jump+side_b",
+        "jump+up_b",
+        "jump+up_b"
+      ],
+      "specials": [
+        "up_b"
+      ],
+      "jumps_used": 1,
+      "b_presses": 4,
+      "actions": [
+        "FALLING",
+        "JUMPING_ARIAL_FORWARD",
+        "FAIR",
+        "FIREFOX_WAIT_AIR",
+        "FIREFOX_AIR",
+        "SWORD_DANCE_1_AIR",
+        "DEAD_FALL"
+      ],
+      "game": "Game_20261014T131743.slp",
+      "sd": true,
+      "frames_offstage": 204,
+      "toward_stage_share": 0.16,
+      "attempt": "up-B"
+    },
+    {
+      "at": {
+        "x": 150.8,
+        "y": -72.4,
+        "vx": -0.06,
+        "vy": -2.8,
+        "jumps": 0,
+        "facing": -1
+      },
+      "frame": 5338,
+      "verdict": "checkmate",
+      "routes": 0,
+      "means": [],
+      "specials": [
+        "up_b"
+      ],
+      "jumps_used": 0,
+      "b_presses": 2,
+      "actions": [
+        "TUMBLING",
+        "FIREFOX_WAIT_AIR",
+        "FIREFOX_AIR",
+        "SWORD_DANCE_1_AIR",
+        "DEAD_FALL"
+      ],
+      "game": "Game_20261014T131743.slp",
+      "sd": true,
+      "frames_offstage": 123,
+      "toward_stage_share": 0.88,
+      "attempt": "up-B"
+    },
+    {
+      "at": {
+        "x": 113.7,
+        "y": -22.7,
+        "vx": 0.77,
+        "vy": 4.19,
+        "jumps": 0,
+        "facing": -1
+      },
+      "frame": 990,
+      "verdict": "mixup",
+      "routes": 6,
+      "means": [
+        "side_b",
+        "side_b",
+        "up_b",
+        "air_dodge",
+        "air_dodge",
+        "up_b"
+      ],
+      "specials": [
+        "side_b"
+      ],
+      "jumps_used": 0,
+      "b_presses": 2,
+      "actions": [
+        "JUMPING_ARIAL_BACKWARD",
+        "FOX_ILLUSION_START",
+        "FOX_ILLUSION",
+        "FOX_ILLUSION_SHORTENED",
+        "DEAD_FALL"
+      ],
+      "game": "Game_20261014T132009.slp",
+      "sd": true,
+      "frames_offstage": 126,
+      "toward_stage_share": 0.85,
+      "attempt": "side-B, no up-B"
+    },
+    {
+      "at": {
+        "x": 87.5,
+        "y": 0.0,
+        "vx": 0.0,
+        "vy": 0.0,
+        "jumps": 1,
+        "facing": -1
+      },
+      "frame": 5447,
+      "verdict": "mixup",
+      "routes": 3,
+      "means": [
+        "up_b",
+        "jump+up_b",
+        "jump+up_b"
+      ],
+      "specials": [
+        "up_b"
+      ],
+      "jumps_used": 1,
+      "b_presses": 1,
+      "actions": [
+        "FALLING",
+        "JUMPING_ARIAL_FORWARD",
+        "FIREFOX_WAIT_AIR",
+        "FIREFOX_AIR",
+        "SWORD_DANCE_1_AIR",
+        "DEAD_FALL"
+      ],
+      "game": "Game_20261014T132009.slp",
+      "sd": true,
+      "frames_offstage": 159,
+      "toward_stage_share": 0.53,
+      "attempt": "up-B"
+    },
+    {
+      "at": null,
+      "frame": 7433,
+      "verdict": "kill",
+      "routes": null,
+      "means": [],
+      "specials": [
+        "up_b"
+      ],
+      "jumps_used": null,
+      "b_presses": 0,
+      "actions": [
+        "FIREFOX_WAIT_AIR",
+        "FIREFOX_AIR",
+        "SWORD_DANCE_1_AIR",
+        "DEAD_FALL"
+      ],
+      "game": "Game_20261014T132009.slp",
+      "sd": false,
+      "frames_offstage": null,
+      "toward_stage_share": 0.0,
+      "attempt": "died in stun"
+    },
+    {
+      "at": null,
+      "frame": 2961,
+      "verdict": "kill",
+      "routes": null,
+      "means": [],
+      "specials": [
+        "up_b"
+      ],
+      "jumps_used": null,
+      "b_presses": 0,
+      "actions": [
+        "FIREFOX_WAIT_AIR",
+        "FIREFOX_AIR",
+        "SWORD_DANCE_1_AIR",
+        "DEAD_FALL"
+      ],
+      "game": "Game_20261014T132231.slp",
+      "sd": true,
+      "frames_offstage": null,
+      "toward_stage_share": 1.0,
+      "attempt": "died in stun"
+    },
+    {
+      "at": {
+        "x": -85.6,
+        "y": 26.5,
+        "vx": -0.83,
+        "vy": 1.61,
+        "jumps": 1,
+        "facing": 1
+      },
+      "frame": 6948,
+      "verdict": "mixup",
+      "routes": 12,
+      "means": [
+        "",
+        "air_dodge",
+        "jump",
+        "side_b",
+        "up_b",
+        "up_b",
+        "air_dodge",
+        "jump+air_dodge",
+        "jump+side_b",
+        "jump+up_b",
+        "jump+air_dodge",
+        "jump+up_b"
+      ],
+      "specials": [
+        "side_b"
+      ],
+      "jumps_used": 1,
+      "b_presses": 2,
+      "actions": [
+        "JUMPING_FORWARD",
+        "FOX_ILLUSION_START",
+        "FOX_ILLUSION",
+        "FOX_ILLUSION_SHORTENED",
+        "DEAD_FALL"
+      ],
+      "game": "Game_20261014T132231.slp",
+      "sd": true,
+      "frames_offstage": 116,
+      "toward_stage_share": 0.58,
+      "attempt": "side-B, no up-B"
+    },
+    {
+      "at": {
+        "x": 93.5,
+        "y": -51.4,
+        "vx": -0.83,
+        "vy": -2.53,
+        "jumps": 0,
+        "facing": 1
+      },
+      "frame": 8118,
+      "verdict": "checkmate",
+      "routes": 0,
+      "means": [],
+      "specials": [],
+      "jumps_used": 0,
+      "b_presses": 0,
+      "actions": [
+        "BOUNCE_WALL"
+      ],
+      "game": "Game_20261014T132231.slp",
+      "sd": false,
+      "frames_offstage": 23,
+      "toward_stage_share": 0.52,
+      "attempt": "nothing (no jump, no special)"
+    },
+    {
+      "at": null,
+      "frame": 1192,
+      "verdict": "kill",
+      "routes": null,
+      "means": [],
+      "specials": [
+        "up_b"
+      ],
+      "jumps_used": null,
+      "b_presses": 3,
+      "actions": [
+        "FIREFOX_WAIT_AIR",
+        "FIREFOX_AIR",
+        "SWORD_DANCE_1_AIR",
+        "DEAD_FALL"
+      ],
+      "game": "Game_20261014T132525.slp",
+      "sd": false,
+      "frames_offstage": null,
+      "toward_stage_share": 0.0,
+      "attempt": "died in stun"
+    },
+    {
+      "at": {
+        "x": 96.0,
+        "y": -108.3,
+        "vx": 0.0,
+        "vy": -3.4,
+        "jumps": 0,
+        "facing": 1
+      },
+      "frame": 3283,
+      "verdict": "checkmate",
+      "routes": 0,
+      "means": [],
+      "specials": [],
+      "jumps_used": 0,
+      "b_presses": 0,
+      "actions": [
+        "BOUNCE_WALL"
+      ],
+      "game": "Game_20261014T132525.slp",
+      "sd": false,
+      "frames_offstage": 9,
+      "toward_stage_share": 0.0,
+      "attempt": "nothing (no jump, no special)"
+    },
+    {
+      "at": null,
+      "frame": 5552,
+      "verdict": "kill",
+      "routes": null,
+      "means": [],
+      "specials": [],
+      "jumps_used": null,
+      "b_presses": 1,
+      "actions": [
+        "DEAD_FLY_STAR"
+      ],
+      "game": "Game_20261014T132525.slp",
+      "sd": true,
+      "frames_offstage": null,
+      "toward_stage_share": 0.12,
+      "attempt": "died in stun"
+    },
+    {
+      "at": null,
+      "frame": 1375,
+      "verdict": "kill",
+      "routes": null,
+      "means": [],
+      "specials": [
+        "up_b"
+      ],
+      "jumps_used": null,
+      "b_presses": 0,
+      "actions": [
+        "FIREFOX_WAIT_AIR",
+        "FIREFOX_AIR",
+        "SWORD_DANCE_1_AIR",
+        "DEAD_FALL"
+      ],
+      "game": "Game_20261014T132717.slp",
+      "sd": true,
+      "frames_offstage": null,
+      "toward_stage_share": 0.65,
+      "attempt": "died in stun"
+    },
+    {
+      "at": null,
+      "frame": 3415,
+      "verdict": "kill",
+      "routes": null,
+      "means": [],
+      "specials": [
+        "side_b"
+      ],
+      "jumps_used": null,
+      "b_presses": 1,
+      "actions": [
+        "JUMPING_ARIAL_FORWARD",
+        "FOX_ILLUSION_START",
+        "FOX_ILLUSION",
+        "FOX_ILLUSION_SHORTENED",
+        "DEAD_FALL"
+      ],
+      "game": "Game_20261014T132717.slp",
+      "sd": false,
+      "frames_offstage": null,
+      "toward_stage_share": 0.14,
+      "attempt": "died in stun"
+    },
+    {
+      "at": null,
+      "frame": 4775,
+      "verdict": "kill",
+      "routes": null,
+      "means": [],
+      "specials": [
+        "up_b",
+        "laser"
+      ],
+      "jumps_used": null,
+      "b_presses": 3,
+      "actions": [
+        "FIREFOX_WAIT_AIR",
+        "DAMAGE_FLY_NEUTRAL",
+        "TUMBLING",
+        "NEUTRAL_B_FULL_CHARGE",
+        "WAIT_ITEM",
+        "NEUTRAL_B_CHARGING_AIR"
+      ],
+      "game": "Game_20261014T132717.slp",
+      "sd": false,
+      "frames_offstage": null,
+      "toward_stage_share": 0.46,
+      "attempt": "died in stun"
+    },
+    {
+      "at": null,
+      "frame": 5733,
+      "verdict": "kill",
+      "routes": null,
+      "means": [],
+      "specials": [],
+      "jumps_used": null,
+      "b_presses": 0,
+      "actions": [
+        "DEAD_FLY_STAR"
+      ],
+      "game": "Game_20261014T132940.slp",
+      "sd": true,
+      "frames_offstage": null,
+      "toward_stage_share": 0.0,
+      "attempt": "died in stun"
+    },
+    {
+      "at": {
+        "x": 91.1,
+        "y": -12.9,
+        "vx": 0.0,
+        "vy": -2.8,
+        "jumps": 1,
+        "facing": -1
+      },
+      "frame": 6404,
+      "verdict": "mixup",
+      "routes": 14,
+      "means": [
+        "",
+        "air_dodge",
+        "jump",
+        "side_b",
+        "up_b",
+        "jump",
+        "air_dodge",
+        "up_b",
+        "jump+air_dodge",
+        "jump+side_b",
+        "jump+up_b",
+        "jump+air_dodge",
+        "jump+side_b",
+        "jump+up_b"
+      ],
+      "specials": [
+        "laser"
+      ],
+      "jumps_used": 1,
+      "b_presses": 2,
+      "actions": [
+        "DAMAGE_FLY_TOP",
+        "TUMBLING",
+        "JUMPING_ARIAL_BACKWARD",
+        "NEUTRAL_B_FULL_CHARGE",
+        "WAIT_ITEM",
+        "NEUTRAL_B_CHARGING_AIR"
+      ],
+      "game": "Game_20261014T132940.slp",
+      "sd": false,
+      "frames_offstage": 83,
+      "toward_stage_share": 0.0,
+      "attempt": "laser"
+    },
+    {
+      "at": {
+        "x": 20.4,
+        "y": -127.8,
+        "vx": 0.0,
+        "vy": -2.8,
+        "jumps": 0,
+        "facing": 1
+      },
+      "frame": 7467,
+      "verdict": "checkmate",
+      "routes": 0,
+      "means": [],
+      "specials": [],
+      "jumps_used": 0,
+      "b_presses": 0,
+      "actions": [
+        "TUMBLING"
+      ],
+      "game": "Game_20261014T132940.slp",
+      "sd": false,
+      "frames_offstage": 5,
+      "toward_stage_share": 0.0,
+      "attempt": "nothing (no jump, no special)"
+    },
+    {
+      "at": {
+        "x": 71.8,
+        "y": -136.3,
+        "vx": 0.0,
+        "vy": -2.8,
+        "jumps": 0,
+        "facing": 1
+      },
+      "frame": 1580,
+      "verdict": "checkmate",
+      "routes": 0,
+      "means": [],
+      "specials": [],
+      "jumps_used": 0,
+      "b_presses": 0,
+      "actions": [
+        "TUMBLING"
+      ],
+      "game": "Game_20261014T133242.slp",
+      "sd": false,
+      "frames_offstage": 2,
+      "toward_stage_share": 0.0,
+      "attempt": "nothing (no jump, no special)"
+    },
+    {
+      "at": {
+        "x": -164.5,
+        "y": 190.9,
+        "vx": 0.0,
+        "vy": 0.0,
+        "jumps": 1,
+        "facing": 1
+      },
+      "frame": 6570,
+      "verdict": "mixup",
+      "routes": 12,
+      "means": [
+        "side_b",
+        "air_dodge",
+        "jump",
+        "side_b",
+        "up_b",
+        "up_b",
+        "jump+side_b",
+        "jump+air_dodge",
+        "jump+side_b",
+        "jump+up_b",
+        "jump+up_b",
+        "jump+air_dodge"
+      ],
+      "specials": [],
+      "jumps_used": 0,
+      "b_presses": 0,
+      "actions": [
+        "DEAD_FLY_STAR"
+      ],
+      "game": "Game_20261014T133242.slp",
+      "sd": true,
+      "frames_offstage": 131,
+      "toward_stage_share": 0.04,
+      "attempt": "nothing (no jump, no special)"
+    },
+    {
+      "at": null,
+      "frame": 9115,
+      "verdict": "kill",
+      "routes": null,
+      "means": [],
+      "specials": [],
+      "jumps_used": null,
+      "b_presses": 0,
+      "actions": [
+        "DAMAGE_FLY_TOP",
+        "TUMBLING",
+        "FALLING",
+        "BAIR",
+        "DAMAGE_FLY_LOW"
+      ],
+      "game": "Game_20261014T133242.slp",
+      "sd": false,
+      "frames_offstage": null,
+      "toward_stage_share": 0.11,
+      "attempt": "died in stun"
+    },
+    {
+      "at": {
+        "x": -127.8,
+        "y": 188.4,
+        "vx": 0.0,
+        "vy": 0.0,
+        "jumps": 1,
+        "facing": 1
+      },
+      "frame": 1555,
+      "verdict": "mixup",
+      "routes": 12,
+      "means": [
+        "",
+        "air_dodge",
+        "air_dodge",
+        "side_b",
+        "jump",
+        "up_b",
+        "up_b",
+        "jump+air_dodge",
+        "jump+air_dodge",
+        "jump+side_b",
+        "jump+up_b",
+        "jump+up_b"
+      ],
+      "specials": [],
+      "jumps_used": 0,
+      "b_presses": 0,
+      "actions": [
+        "DEAD_FLY_STAR"
+      ],
+      "game": "Game_20261014T133600.slp",
+      "sd": true,
+      "frames_offstage": 131,
+      "toward_stage_share": 0.0,
+      "attempt": "nothing (no jump, no special)"
+    },
+    {
+      "at": null,
+      "frame": 2029,
+      "verdict": "kill",
+      "routes": null,
+      "means": [],
+      "specials": [
+        "up_b"
+      ],
+      "jumps_used": null,
+      "b_presses": 1,
+      "actions": [
+        "TUMBLING",
+        "FIREFOX_WAIT_AIR",
+        "FIREFOX_AIR",
+        "SWORD_DANCE_1_AIR",
+        "DEAD_FALL"
+      ],
+      "game": "Game_20261014T133600.slp",
+      "sd": false,
+      "frames_offstage": null,
+      "toward_stage_share": 0.76,
+      "attempt": "died in stun"
+    },
+    {
+      "at": {
+        "x": 150.7,
+        "y": -15.6,
+        "vx": -0.88,
+        "vy": 4.19,
+        "jumps": 0,
+        "facing": -1
+      },
+      "frame": 3722,
+      "verdict": "mixup",
+      "routes": 3,
+      "means": [
+        "up_b",
+        "side_b",
+        "up_b"
+      ],
+      "specials": [
+        "up_b"
+      ],
+      "jumps_used": 0,
+      "b_presses": 1,
+      "actions": [
+        "FIREFOX_WAIT_AIR",
+        "FIREFOX_AIR",
+        "EDGE_CATCHING",
+        "EDGE_HANGING",
+        "FALLING",
+        "JUMPING_ARIAL_BACKWARD",
+        "AIRDODGE",
+        "DEAD_FALL"
+      ],
+      "game": "Game_20261014T133600.slp",
+      "sd": true,
+      "frames_offstage": 166,
+      "toward_stage_share": 0.39,
+      "attempt": "up-B"
+    },
+    {
+      "at": {
+        "x": 87.8,
+        "y": 0.0,
+        "vx": 0.0,
+        "vy": 0.0,
+        "jumps": 1,
+        "facing": -1
+      },
+      "frame": 2460,
+      "verdict": "mixup",
+      "routes": 4,
+      "means": [
+        "up_b",
+        "up_b",
+        "jump+up_b",
+        "jump+up_b"
+      ],
+      "specials": [],
+      "jumps_used": 0,
+      "b_presses": 0,
+      "actions": [
+        "FALLING",
+        "FAIR"
+      ],
+      "game": "Game_20261014T133744.slp",
+      "sd": false,
+      "frames_offstage": 56,
+      "toward_stage_share": 0.8,
+      "attempt": "nothing (no jump, no special)"
+    },
+    {
+      "at": {
+        "x": -96.5,
+        "y": -69.3,
+        "vx": 0.29,
+        "vy": -3.4,
+        "jumps": 0,
+        "facing": -1
+      },
+      "frame": 3676,
+      "verdict": "forced",
+      "routes": 1,
+      "means": [
+        "up_b"
+      ],
+      "specials": [],
+      "jumps_used": 0,
+      "b_presses": 0,
+      "actions": [
+        "TUMBLING"
+      ],
+      "game": "Game_20261014T133744.slp",
+      "sd": false,
+      "frames_offstage": 22,
+      "toward_stage_share": 0.0,
+      "attempt": "nothing (no jump, no special)"
+    },
+    {
+      "at": null,
+      "frame": 5013,
+      "verdict": "kill",
+      "routes": null,
+      "means": [],
+      "specials": [
+        "side_b"
+      ],
+      "jumps_used": null,
+      "b_presses": 1,
+      "actions": [
+        "JUMPING_BACKWARD",
+        "FAIR",
+        "JUMPING_ARIAL_FORWARD",
+        "FOX_ILLUSION_START",
+        "FOX_ILLUSION",
+        "FOX_ILLUSION_SHORTENED"
+      ],
+      "game": "Game_20261014T133744.slp",
+      "sd": false,
+      "frames_offstage": null,
+      "toward_stage_share": 0.7,
+      "attempt": "died in stun"
+    },
+    {
+      "at": {
+        "x": -163.8,
+        "y": -35.6,
+        "vx": 0.77,
+        "vy": 4.19,
+        "jumps": 0,
+        "facing": 1
+      },
+      "frame": 1130,
+      "verdict": "mixup",
+      "routes": 2,
+      "means": [
+        "up_b",
+        "up_b"
+      ],
+      "specials": [
+        "up_b"
+      ],
+      "jumps_used": 0,
+      "b_presses": 1,
+      "actions": [
+        "JUMPING_ARIAL_FORWARD",
+        "FIREFOX_WAIT_AIR",
+        "FIREFOX_AIR",
+        "SWORD_DANCE_1_AIR",
+        "DEAD_FALL"
+      ],
+      "game": "Game_20261014T133941.slp",
+      "sd": true,
+      "frames_offstage": 167,
+      "toward_stage_share": 0.96,
+      "attempt": "up-B"
+    },
+    {
+      "at": null,
+      "frame": 3119,
+      "verdict": "kill",
+      "routes": null,
+      "means": [],
+      "specials": [],
+      "jumps_used": null,
+      "b_presses": 0,
+      "actions": [
+        "DEAD_FLY_STAR"
+      ],
+      "game": "Game_20261014T133941.slp",
+      "sd": true,
+      "frames_offstage": null,
+      "toward_stage_share": 0.0,
+      "attempt": "died in stun"
+    },
+    {
+      "at": null,
+      "frame": 4593,
+      "verdict": "kill",
+      "routes": null,
+      "means": [],
+      "specials": [],
+      "jumps_used": null,
+      "b_presses": 0,
+      "actions": [
+        "DEAD_FLY_STAR"
+      ],
+      "game": "Game_20261014T133941.slp",
+      "sd": true,
+      "frames_offstage": null,
+      "toward_stage_share": 0.0,
+      "attempt": "died in stun"
+    },
+    {
+      "at": {
+        "x": -86.1,
+        "y": 22.5,
+        "vx": -0.65,
+        "vy": 3.5,
+        "jumps": 0,
+        "facing": -1
+      },
+      "frame": 91,
+      "verdict": "mixup",
+      "routes": 5,
+      "means": [
+        "",
+        "air_dodge",
+        "side_b",
+        "up_b",
+        "up_b"
+      ],
+      "specials": [
+        "laser"
+      ],
+      "jumps_used": 0,
+      "b_presses": 2,
+      "actions": [
+        "NEUTRAL_B_FULL_CHARGE",
+        "WAIT_ITEM",
+        "NEUTRAL_B_CHARGING_AIR",
+        "FALLING",
+        "NEUTRAL_B_FULL_CHARGE",
+        "WAIT_ITEM",
+        "NEUTRAL_B_CHARGING_AIR",
+        "FALLING"
+      ],
+      "game": "Game_20261014T134136.slp",
+      "sd": true,
+      "frames_offstage": 88,
+      "toward_stage_share": 0.11,
+      "attempt": "laser"
+    },
+    {
+      "at": null,
+      "frame": 2192,
+      "verdict": "kill",
+      "routes": null,
+      "means": [],
+      "specials": [],
+      "jumps_used": null,
+      "b_presses": 0,
+      "actions": [
+        "DEAD_FLY_STAR"
+      ],
+      "game": "Game_20261014T134136.slp",
+      "sd": true,
+      "frames_offstage": null,
+      "toward_stage_share": 0.0,
+      "attempt": "died in stun"
+    },
+    {
+      "at": {
+        "x": 85.9,
+        "y": 8.5,
+        "vx": 0.67,
+        "vy": -0.89,
+        "jumps": 1,
+        "facing": 1
+      },
+      "frame": 3226,
+      "verdict": "mixup",
+      "routes": 9,
+      "means": [
+        "air_dodge",
+        "side_b",
+        "jump",
+        "side_b",
+        "up_b",
+        "up_b",
+        "jump+air_dodge",
+        "jump+side_b",
+        "jump+up_b"
+      ],
+      "specials": [
+        "side_b"
+      ],
+      "jumps_used": 1,
+      "b_presses": 1,
+      "actions": [
+        "JUMPING_FORWARD",
+        "FOX_ILLUSION_START",
+        "FOX_ILLUSION",
+        "FOX_ILLUSION_SHORTENED",
+        "DEAD_FALL"
+      ],
+      "game": "Game_20261014T134136.slp",
+      "sd": true,
+      "frames_offstage": 101,
+      "toward_stage_share": 0.32,
+      "attempt": "side-B, no up-B"
+    },
+    {
+      "at": null,
+      "frame": 1290,
+      "verdict": "kill",
+      "routes": null,
+      "means": [],
+      "specials": [
+        "up_b"
+      ],
+      "jumps_used": null,
+      "b_presses": 2,
+      "actions": [
+        "FALLING",
+        "FIREFOX_WAIT_AIR",
+        "FIREFOX_AIR",
+        "SWORD_DANCE_1_AIR",
+        "DEAD_FALL"
+      ],
+      "game": "Game_20261014T134333.slp",
+      "sd": false,
+      "frames_offstage": null,
+      "toward_stage_share": 0.3,
+      "attempt": "died in stun"
+    },
+    {
+      "at": {
+        "x": -99.0,
+        "y": -35.4,
+        "vx": 0.0,
+        "vy": 4.19,
+        "jumps": 0,
+        "facing": 1
+      },
+      "frame": 3540,
+      "verdict": "mixup",
+      "routes": 7,
+      "means": [
+        "",
+        "air_dodge",
+        "side_b",
+        "up_b",
+        "up_b",
+        "side_b",
+        "air_dodge"
+      ],
+      "specials": [
+        "up_b"
+      ],
+      "jumps_used": 0,
+      "b_presses": 4,
+      "actions": [
+        "JUMPING_ARIAL_FORWARD",
+        "FIREFOX_WAIT_AIR",
+        "FIREFOX_AIR",
+        "SWORD_DANCE_1_AIR",
+        "DEAD_FALL"
+      ],
+      "game": "Game_20261014T134333.slp",
+      "sd": true,
+      "frames_offstage": 161,
+      "toward_stage_share": 0.6,
+      "attempt": "up-B"
+    },
+    {
+      "at": null,
+      "frame": 5784,
+      "verdict": "kill",
+      "routes": null,
+      "means": [],
+      "specials": [
+        "up_b"
+      ],
+      "jumps_used": null,
+      "b_presses": 2,
+      "actions": [
+        "DAMAGE_FLY_HIGH",
+        "JUMPING_ARIAL_FORWARD",
+        "FIREFOX_WAIT_AIR",
+        "FIREFOX_AIR",
+        "DAMAGE_FLY_ROLL"
+      ],
+      "game": "Game_20261014T134333.slp",
+      "sd": false,
+      "frames_offstage": null,
+      "toward_stage_share": 0.97,
+      "attempt": "died in stun"
+    },
+    {
+      "at": {
+        "x": -130.3,
+        "y": -3.5,
+        "vx": 0.06,
+        "vy": -2.8,
+        "jumps": 1,
+        "facing": 1
+      },
+      "frame": 394,
+      "verdict": "mixup",
+      "routes": 9,
+      "means": [
+        "side_b",
+        "up_b",
+        "up_b",
+        "jump+side_b",
+        "jump+side_b",
+        "jump+up_b",
+        "jump+up_b",
+        "jump+air_dodge",
+        "jump+air_dodge"
+      ],
+      "specials": [
+        "up_b"
+      ],
+      "jumps_used": 1,
+      "b_presses": 6,
+      "actions": [
+        "DAMAGE_FLY_TOP",
+        "TUMBLING",
+        "FIREFOX_WAIT_AIR",
+        "FIREFOX_AIR",
+        "SWORD_DANCE_1_AIR",
+        "DEAD_FALL"
+      ],
+      "game": "Game_20261014T134551.slp",
+      "sd": true,
+      "frames_offstage": 154,
+      "toward_stage_share": 0.43,
+      "attempt": "up-B"
+    },
+    {
+      "at": null,
+      "frame": 1866,
+      "verdict": "kill",
+      "routes": null,
+      "means": [],
+      "specials": [
+        "side_b"
+      ],
+      "jumps_used": null,
+      "b_presses": 2,
+      "actions": [
+        "DAMAGE_FLY_TOP",
+        "FOX_ILLUSION_START",
+        "FOX_ILLUSION",
+        "FOX_ILLUSION_SHORTENED",
+        "DEAD_FALL"
+      ],
+      "game": "Game_20261014T134551.slp",
+      "sd": false,
+      "frames_offstage": null,
+      "toward_stage_share": 0.0,
+      "attempt": "died in stun"
+    },
+    {
+      "at": {
+        "x": 87.4,
+        "y": 0.0,
+        "vx": 0.83,
+        "vy": 0.0,
+        "jumps": 1,
+        "facing": 1
+      },
+      "frame": 2732,
+      "verdict": "mixup",
+      "routes": 10,
+      "means": [
+        "air_dodge",
+        "side_b",
+        "jump",
+        "side_b",
+        "up_b",
+        "up_b",
+        "jump+air_dodge",
+        "jump+side_b",
+        "jump+up_b",
+        "jump+up_b"
+      ],
+      "specials": [
+        "shine",
+        "up_b",
+        "shine"
+      ],
+      "jumps_used": 1,
+      "b_presses": 3,
+      "actions": [
+        "EDGE_CATCHING",
+        "EDGE_HANGING",
+        "FALLING",
+        "DOWN_B_STUN",
+        "DOWN_B_AIR",
+        "JUMPING_ARIAL_FORWARD",
+        "AIRDODGE",
+        "DEAD_FALL"
+      ],
+      "game": "Game_20261014T134551.slp",
+      "sd": true,
+      "frames_offstage": 149,
+      "toward_stage_share": 0.3,
+      "attempt": "up-B"
+    },
+    {
+      "at": {
+        "x": 180.1,
+        "y": -8.6,
+        "vx": -0.88,
+        "vy": 4.19,
+        "jumps": 0,
+        "facing": -1
+      },
+      "frame": 1510,
+      "verdict": "mixup",
+      "routes": 2,
+      "means": [
+        "up_b",
+        "up_b"
+      ],
+      "specials": [
+        "up_b"
+      ],
+      "jumps_used": 0,
+      "b_presses": 2,
+      "actions": [
+        "JUMPING_ARIAL_FORWARD",
+        "FIREFOX_WAIT_AIR",
+        "FIREFOX_AIR"
+      ],
+      "game": "Game_20261014T134654.slp",
+      "sd": true,
+      "frames_offstage": 109,
+      "toward_stage_share": 0.21,
+      "attempt": "up-B"
+    },
+    {
+      "at": {
+        "x": -87.0,
+        "y": 0.0,
+        "vx": -0.83,
+        "vy": -0.0,
+        "jumps": 1,
+        "facing": -1
+      },
+      "frame": 2535,
+      "verdict": "mixup",
+      "routes": 10,
+      "means": [
+        "air_dodge",
+        "side_b",
+        "jump",
+        "side_b",
+        "up_b",
+        "up_b",
+        "jump+air_dodge",
+        "jump+side_b",
+        "jump+up_b",
+        "jump+up_b"
+      ],
+      "specials": [
+        "shine"
+      ],
+      "jumps_used": 1,
+      "b_presses": 2,
+      "actions": [
+        "DOWN_B_STUN",
+        "DOWN_B_AIR",
+        "JUMPING_ARIAL_FORWARD",
+        "DOWN_B_STUN",
+        "MARTH_COUNTER",
+        "DOWN_B_AIR",
+        "SHINE_RELEASE_AIR",
+        "FALLING"
+      ],
+      "game": "Game_20261014T134654.slp",
+      "sd": true,
+      "frames_offstage": 139,
+      "toward_stage_share": 0.58,
+      "attempt": "shine"
+    },
+    {
+      "at": {
+        "x": -204.5,
+        "y": 188.0,
+        "vx": 0.0,
+        "vy": 0.0,
+        "jumps": 0,
+        "facing": 1
+      },
+      "frame": 6824,
+      "verdict": "mixup",
+      "routes": 2,
+      "means": [
+        "up_b",
+        "up_b"
+      ],
+      "specials": [],
+      "jumps_used": 0,
+      "b_presses": 0,
+      "actions": [
+        "DEAD_FLY_STAR"
+      ],
+      "game": "Game_20261014T134654.slp",
+      "sd": true,
+      "frames_offstage": 131,
+      "toward_stage_share": 0.15,
+      "attempt": "nothing (no jump, no special)"
+    },
+    {
+      "at": null,
+      "frame": 469,
+      "verdict": "kill",
+      "routes": null,
+      "means": [],
+      "specials": [
+        "side_b"
+      ],
+      "jumps_used": null,
+      "b_presses": 1,
+      "actions": [
+        "JUMPING_ARIAL_FORWARD",
+        "FOX_ILLUSION_START",
+        "FOX_ILLUSION",
+        "FOX_ILLUSION_SHORTENED",
+        "DEAD_FALL"
+      ],
+      "game": "Game_20261014T134941.slp",
+      "sd": true,
+      "frames_offstage": null,
+      "toward_stage_share": 0.84,
+      "attempt": "died in stun"
+    },
+    {
+      "at": {
+        "x": -111.9,
+        "y": -28.9,
+        "vx": 0.07,
+        "vy": -2.8,
+        "jumps": 1,
+        "facing": 1
+      },
+      "frame": 2818,
+      "verdict": "mixup",
+      "routes": 9,
+      "means": [
+        "jump",
+        "up_b",
+        "up_b",
+        "jump+air_dodge",
+        "jump+side_b",
+        "jump+up_b",
+        "jump+air_dodge",
+        "jump+side_b",
+        "jump+up_b"
+      ],
+      "specials": [
+        "side_b"
+      ],
+      "jumps_used": 1,
+      "b_presses": 1,
+      "actions": [
+        "TUMBLING",
+        "FOX_ILLUSION_START",
+        "FOX_ILLUSION",
+        "FOX_ILLUSION_SHORTENED",
+        "DEAD_FALL"
+      ],
+      "game": "Game_20261014T134941.slp",
+      "sd": false,
+      "frames_offstage": 87,
+      "toward_stage_share": 0.54,
+      "attempt": "side-B, no up-B"
+    },
+    {
+      "at": {
+        "x": -86.0,
+        "y": 0.0,
+        "vx": -0.35,
+        "vy": 0.0,
+        "jumps": 1,
+        "facing": 1
+      },
+      "frame": 5646,
+      "verdict": "mixup",
+      "routes": 15,
+      "means": [
+        "",
+        "air_dodge",
+        "jump",
+        "side_b",
+        "up_b",
+        "air_dodge",
+        "side_b",
+        "jump",
+        "up_b",
+        "jump+air_dodge",
+        "jump+side_b",
+        "jump+up_b",
+        "jump+air_dodge",
+        "jump+side_b",
+        "jump+up_b"
+      ],
+      "specials": [],
+      "jumps_used": 1,
+      "b_presses": 0,
+      "actions": [
+        "FALLING",
+        "AIRDODGE",
+        "DEAD_FALL"
+      ],
+      "game": "Game_20261014T134941.slp",
+      "sd": true,
+      "frames_offstage": 80,
+      "toward_stage_share": 0.11,
+      "attempt": "jump only"
+    },
+    {
+      "at": null,
+      "frame": 707,
+      "verdict": "kill",
+      "routes": null,
+      "means": [],
+      "specials": [
+        "up_b"
+      ],
+      "jumps_used": null,
+      "b_presses": 2,
+      "actions": [
+        "FALLING",
+        "FIREFOX_WAIT_AIR",
+        "FIREFOX_AIR",
+        "SWORD_DANCE_1_AIR",
+        "DEAD_FALL"
+      ],
+      "game": "Game_20261014T135210.slp",
+      "sd": false,
+      "frames_offstage": null,
+      "toward_stage_share": 0.0,
+      "attempt": "died in stun"
+    },
+    {
+      "at": {
+        "x": 107.0,
+        "y": 6.2,
+        "vx": -0.08,
+        "vy": -2.8,
+        "jumps": 1,
+        "facing": -1
+      },
+      "frame": 4640,
+      "verdict": "mixup",
+      "routes": 13,
+      "means": [
+        "up_b",
+        "air_dodge",
+        "side_b",
+        "side_b",
+        "jump",
+        "air_dodge",
+        "up_b",
+        "jump+air_dodge",
+        "jump+side_b",
+        "jump+up_b",
+        "jump+side_b",
+        "jump+up_b",
+        "jump+air_dodge"
+      ],
+      "specials": [
+        "up_b"
+      ],
+      "jumps_used": 1,
+      "b_presses": 5,
+      "actions": [
+        "TUMBLING",
+        "JUMPING_ARIAL_FORWARD",
+        "UAIR",
+        "FALLING",
+        "FIREFOX_WAIT_AIR",
+        "FIREFOX_AIR",
+        "SWORD_DANCE_1_AIR",
+        "DEAD_FALL"
+      ],
+      "game": "Game_20261014T135210.slp",
+      "sd": true,
+      "frames_offstage": 206,
+      "toward_stage_share": 0.52,
+      "attempt": "up-B"
+    },
+    {
+      "at": null,
+      "frame": 7884,
+      "verdict": "kill",
+      "routes": null,
+      "means": [],
+      "specials": [
+        "up_b"
+      ],
+      "jumps_used": null,
+      "b_presses": 1,
+      "actions": [
+        "DAMAGE_AIR_1",
+        "FALLING",
+        "DAMAGE_AIR_1",
+        "FALLING",
+        "FIREFOX_WAIT_AIR",
+        "FIREFOX_AIR",
+        "DAMAGE_FLY_HIGH"
+      ],
+      "game": "Game_20261014T135210.slp",
+      "sd": false,
+      "frames_offstage": null,
+      "toward_stage_share": 1.0,
+      "attempt": "died in stun"
+    },
+    {
+      "at": {
+        "x": -86.9,
+        "y": 0.0,
+        "vx": 0.0,
+        "vy": 0.0,
+        "jumps": 1,
+        "facing": 1
+      },
+      "frame": 229,
+      "verdict": "mixup",
+      "routes": 10,
+      "means": [
+        "side_b",
+        "jump",
+        "up_b",
+        "up_b",
+        "jump+air_dodge",
+        "jump+side_b",
+        "jump+up_b",
+        "jump+side_b",
+        "jump+up_b",
+        "jump+air_dodge"
+      ],
+      "specials": [
+        "shine"
+      ],
+      "jumps_used": 1,
+      "b_presses": 1,
+      "actions": [
+        "FALLING",
+        "JUMPING_ARIAL_FORWARD",
+        "DOWN_B_STUN",
+        "DOWN_B_AIR",
+        "SHINE_RELEASE_AIR",
+        "FALLING"
+      ],
+      "game": "Game_20261014T135511.slp",
+      "sd": true,
+      "frames_offstage": 123,
+      "toward_stage_share": 0.39,
+      "attempt": "shine"
+    },
+    {
+      "at": {
+        "x": 155.1,
+        "y": -30.9,
+        "vx": -0.88,
+        "vy": 4.19,
+        "jumps": 0,
+        "facing": -1
+      },
+      "frame": 1914,
+      "verdict": "mixup",
+      "routes": 3,
+      "means": [
+        "side_b",
+        "up_b",
+        "up_b"
+      ],
+      "specials": [
+        "side_b"
+      ],
+      "jumps_used": 0,
+      "b_presses": 2,
+      "actions": [
+        "JUMPING_ARIAL_FORWARD",
+        "FOX_ILLUSION_START",
+        "FOX_ILLUSION_SHORTENED",
+        "DEAD_FALL"
+      ],
+      "game": "Game_20261014T135511.slp",
+      "sd": true,
+      "frames_offstage": 121,
+      "toward_stage_share": 0.84,
+      "attempt": "side-B, no up-B"
+    },
+    {
+      "at": null,
+      "frame": 3622,
+      "verdict": "kill",
+      "routes": null,
+      "means": [],
+      "specials": [
+        "side_b"
+      ],
+      "jumps_used": null,
+      "b_presses": 1,
+      "actions": [
+        "DAMAGE_FLY_NEUTRAL",
+        "TUMBLING",
+        "FOX_ILLUSION_START",
+        "FOX_ILLUSION",
+        "FOX_ILLUSION_SHORTENED"
+      ],
+      "game": "Game_20261014T135511.slp",
+      "sd": false,
+      "frames_offstage": null,
+      "toward_stage_share": 0.88,
+      "attempt": "died in stun"
+    },
+    {
+      "at": null,
+      "frame": 2188,
+      "verdict": "kill",
+      "routes": null,
+      "means": [],
+      "specials": [],
+      "jumps_used": null,
+      "b_presses": 0,
+      "actions": [
+        "NAIR",
+        "NAIR_LANDING",
+        "SHIELD_START",
+        "SHIELD",
+        "KNEE_BEND",
+        "JUMPING_FORWARD",
+        "DAMAGE_FLY_LOW"
+      ],
+      "game": "Game_20261014T135647.slp",
+      "sd": false,
+      "frames_offstage": null,
+      "toward_stage_share": 0.0,
+      "attempt": "died in stun"
+    },
+    {
+      "at": {
+        "x": 85.7,
+        "y": 0.0,
+        "vx": 0.1,
+        "vy": 0.0,
+        "jumps": 1,
+        "facing": -1
+      },
+      "frame": 3399,
+      "verdict": "mixup",
+      "routes": 12,
+      "means": [
+        "",
+        "air_dodge",
+        "jump",
+        "side_b",
+        "up_b",
+        "up_b",
+        "air_dodge",
+        "jump+air_dodge",
+        "jump+side_b",
+        "jump+up_b",
+        "jump+up_b",
+        "jump+air_dodge"
+      ],
+      "specials": [
+        "laser"
+      ],
+      "jumps_used": 0,
+      "b_presses": 2,
+      "actions": [
+        "FALLING",
+        "EDGE_CATCHING",
+        "EDGE_HANGING",
+        "FALLING",
+        "NEUTRAL_B_FULL_CHARGE",
+        "WAIT_ITEM",
+        "NEUTRAL_B_CHARGING_AIR"
+      ],
+      "game": "Game_20261014T135647.slp",
+      "sd": true,
+      "frames_offstage": 62,
+      "toward_stage_share": 0.24,
+      "attempt": "laser"
+    },
+    {
+      "at": null,
+      "frame": 5852,
+      "verdict": "kill",
+      "routes": null,
+      "means": [],
+      "specials": [],
+      "jumps_used": null,
+      "b_presses": 0,
+      "actions": [
+        "TECH_MISS_DOWN",
+        "LYING_GROUND_DOWN",
+        "GROUND_ROLL_BACKWARD_DOWN",
+        "STANDING",
+        "DAMAGE_FLY_NEUTRAL"
+      ],
+      "game": "Game_20261014T135647.slp",
+      "sd": false,
+      "frames_offstage": null,
+      "toward_stage_share": 0.11,
+      "attempt": "died in stun"
+    },
+    {
+      "at": null,
+      "frame": 335,
+      "verdict": "kill",
+      "routes": null,
+      "means": [],
+      "specials": [
+        "up_b"
+      ],
+      "jumps_used": null,
+      "b_presses": 4,
+      "actions": [
+        "FALLING_AERIAL",
+        "FIREFOX_WAIT_AIR",
+        "FIREFOX_AIR",
+        "SWORD_DANCE_1_AIR",
+        "DEAD_FALL"
+      ],
+      "game": "Game_20261014T135950.slp",
+      "sd": false,
+      "frames_offstage": null,
+      "toward_stage_share": 0.0,
+      "attempt": "died in stun"
+    },
+    {
+      "at": {
+        "x": 166.0,
+        "y": 28.9,
+        "vx": -0.08,
+        "vy": -2.8,
+        "jumps": 1,
+        "facing": -1
+      },
+      "frame": 4342,
+      "verdict": "mixup",
+      "routes": 5,
+      "means": [
+        "up_b",
+        "up_b",
+        "jump+up_b",
+        "jump+up_b",
+        "jump+side_b"
+      ],
+      "specials": [
+        "up_b"
+      ],
+      "jumps_used": 1,
+      "b_presses": 1,
+      "actions": [
+        "TUMBLING",
+        "JUMPING_ARIAL_FORWARD",
+        "FALLING_AERIAL",
+        "FIREFOX_WAIT_AIR",
+        "FIREFOX_AIR",
+        "SWORD_DANCE_1_AIR",
+        "DEAD_FALL"
+      ],
+      "game": "Game_20261014T135950.slp",
+      "sd": true,
+      "frames_offstage": 199,
+      "toward_stage_share": 0.8,
+      "attempt": "up-B"
+    },
+    {
+      "at": {
+        "x": -183.2,
+        "y": -47.8,
+        "vx": 0.77,
+        "vy": 4.19,
+        "jumps": 0,
+        "facing": 1
+      },
+      "frame": 7321,
+      "verdict": "mixup",
+      "routes": 2,
+      "means": [
+        "up_b",
+        "up_b"
+      ],
+      "specials": [
+        "up_b"
+      ],
+      "jumps_used": 0,
+      "b_presses": 2,
+      "actions": [
+        "JUMPING_ARIAL_FORWARD",
+        "FIREFOX_WAIT_AIR",
+        "FIREFOX_AIR",
+        "SWORD_DANCE_1_AIR",
+        "DEAD_FALL"
+      ],
+      "game": "Game_20261014T135950.slp",
+      "sd": true,
+      "frames_offstage": 165,
+      "toward_stage_share": 0.46,
+      "attempt": "up-B"
+    },
+    {
+      "at": null,
+      "frame": 2036,
+      "verdict": "kill",
+      "routes": null,
+      "means": [],
+      "specials": [
+        "up_b"
+      ],
+      "jumps_used": null,
+      "b_presses": 4,
+      "actions": [
+        "FAIR",
+        "JUMPING_ARIAL_FORWARD",
+        "FIREFOX_WAIT_AIR",
+        "FIREFOX_AIR",
+        "DAMAGE_FLY_NEUTRAL"
+      ],
+      "game": "Game_20261014T140225.slp",
+      "sd": false,
+      "frames_offstage": null,
+      "toward_stage_share": 0.0,
+      "attempt": "died in stun"
+    },
+    {
+      "at": null,
+      "frame": 5236,
+      "verdict": "kill",
+      "routes": null,
+      "means": [],
+      "specials": [],
+      "jumps_used": null,
+      "b_presses": 0,
+      "actions": [
+        "ROLL_FORWARD",
+        "SHIELD_START",
+        "KNEE_BEND",
+        "JUMPING_FORWARD",
+        "LANDING_SPECIAL",
+        "DAMAGE_FLY_HIGH"
+      ],
+      "game": "Game_20261014T140225.slp",
+      "sd": false,
+      "frames_offstage": null,
+      "toward_stage_share": 0.44,
+      "attempt": "died in stun"
+    },
+    {
+      "at": {
+        "x": -138.2,
+        "y": -3.4,
+        "vx": 0.77,
+        "vy": 4.19,
+        "jumps": 0,
+        "facing": 1
+      },
+      "frame": 6419,
+      "verdict": "mixup",
+      "routes": 5,
+      "means": [
+        "side_b",
+        "up_b",
+        "side_b",
+        "up_b",
+        "air_dodge"
+      ],
+      "specials": [
+        "up_b"
+      ],
+      "jumps_used": 0,
+      "b_presses": 5,
+      "actions": [
+        "JUMPING_ARIAL_FORWARD",
+        "FIREFOX_WAIT_AIR",
+        "FIREFOX_AIR",
+        "SWORD_DANCE_1_AIR",
+        "DEAD_FALL"
+      ],
+      "game": "Game_20261014T140225.slp",
+      "sd": true,
+      "frames_offstage": 201,
+      "toward_stage_share": 0.41,
+      "attempt": "up-B"
+    },
+    {
+      "at": null,
+      "frame": 1066,
+      "verdict": "kill",
+      "routes": null,
+      "means": [],
+      "specials": [
+        "up_b"
+      ],
+      "jumps_used": null,
+      "b_presses": 2,
+      "actions": [
+        "JUMPING_ARIAL_FORWARD",
+        "FALLING_AERIAL",
+        "FIREFOX_WAIT_AIR",
+        "FIREFOX_AIR",
+        "DAMAGE_FLY_NEUTRAL"
+      ],
+      "game": "Game_20261014T140439.slp",
+      "sd": false,
+      "frames_offstage": null,
+      "toward_stage_share": 0.95,
+      "attempt": "died in stun"
+    },
+    {
+      "at": null,
+      "frame": 1898,
+      "verdict": "kill",
+      "routes": null,
+      "means": [],
+      "specials": [
+        "side_b"
+      ],
+      "jumps_used": null,
+      "b_presses": 2,
+      "actions": [
+        "DAMAGE_FLY_NEUTRAL",
+        "JUMPING_ARIAL_FORWARD",
+        "FOX_ILLUSION_START",
+        "FOX_ILLUSION",
+        "FOX_ILLUSION_SHORTENED",
+        "DEAD_FALL"
+      ],
+      "game": "Game_20261014T140439.slp",
+      "sd": false,
+      "frames_offstage": null,
+      "toward_stage_share": 0.39,
+      "attempt": "died in stun"
+    },
+    {
+      "at": {
+        "x": -88.0,
+        "y": 0.0,
+        "vx": 0.0,
+        "vy": 0.0,
+        "jumps": 1,
+        "facing": 1
+      },
+      "frame": 3934,
+      "verdict": "mixup",
+      "routes": 3,
+      "means": [
+        "up_b",
+        "jump+up_b",
+        "jump+up_b"
+      ],
+      "specials": [],
+      "jumps_used": 0,
+      "b_presses": 0,
+      "actions": [
+        "FALLING",
+        "DAIR",
+        "FALLING"
+      ],
+      "game": "Game_20261014T140439.slp",
+      "sd": false,
+      "frames_offstage": 56,
+      "toward_stage_share": 0.23,
+      "attempt": "nothing (no jump, no special)"
+    },
+    {
+      "at": null,
+      "frame": 3047,
+      "verdict": "kill",
+      "routes": null,
+      "means": [],
+      "specials": [
+        "up_b"
+      ],
+      "jumps_used": null,
+      "b_presses": 3,
+      "actions": [
+        "BOUNCE_WALL",
+        "TUMBLING",
+        "JUMPING_ARIAL_BACKWARD",
+        "FIREFOX_WAIT_AIR",
+        "FIREFOX_AIR",
+        "DAMAGE_FLY_ROLL",
+        "BOUNCE_WALL"
+      ],
+      "game": "Game_20261014T140654.slp",
+      "sd": false,
+      "frames_offstage": null,
+      "toward_stage_share": 0.55,
+      "attempt": "died in stun"
+    },
+    {
+      "at": null,
+      "frame": 5765,
+      "verdict": "kill",
+      "routes": null,
+      "means": [],
+      "specials": [
+        "up_b"
+      ],
+      "jumps_used": null,
+      "b_presses": 1,
+      "actions": [
+        "JUMPING_ARIAL_FORWARD",
+        "FIREFOX_WAIT_AIR",
+        "FIREFOX_AIR",
+        "DAMAGE_FLY_HIGH"
+      ],
+      "game": "Game_20261014T140654.slp",
+      "sd": false,
+      "frames_offstage": null,
+      "toward_stage_share": 0.97,
+      "attempt": "died in stun"
+    },
+    {
+      "at": {
+        "x": 170.9,
+        "y": -58.4,
+        "vx": -0.06,
+        "vy": -2.8,
+        "jumps": 0,
+        "facing": -1
+      },
+      "frame": 8623,
+      "verdict": "checkmate",
+      "routes": 0,
+      "means": [],
+      "specials": [
+        "up_b"
+      ],
+      "jumps_used": 0,
+      "b_presses": 0,
+      "actions": [
+        "TUMBLING",
+        "FIREFOX_WAIT_AIR",
+        "FIREFOX_AIR",
+        "SWORD_DANCE_1_AIR",
+        "DEAD_FALL"
+      ],
+      "game": "Game_20261014T140654.slp",
+      "sd": true,
+      "frames_offstage": 123,
+      "toward_stage_share": 0.86,
+      "attempt": "up-B"
+    },
+    {
+      "at": null,
+      "frame": 3832,
+      "verdict": "kill",
+      "routes": null,
+      "means": [],
+      "specials": [
+        "side_b"
+      ],
+      "jumps_used": null,
+      "b_presses": 1,
+      "actions": [
+        "JUMPING_ARIAL_FORWARD",
+        "FALLING_AERIAL",
+        "FOX_ILLUSION_START",
+        "FOX_ILLUSION",
+        "FOX_ILLUSION_SHORTENED",
+        "DEAD_FALL"
+      ],
+      "game": "Game_20261014T140926.slp",
+      "sd": true,
+      "frames_offstage": null,
+      "toward_stage_share": 0.75,
+      "attempt": "died in stun"
+    },
+    {
+      "at": {
+        "x": -101.3,
+        "y": 13.2,
+        "vx": -18.72,
+        "vy": 0.0,
+        "jumps": 0,
+        "facing": -1
+      },
+      "frame": 6267,
+      "verdict": "mixup",
+      "routes": 5,
+      "means": [
+        "air_dodge",
+        "side_b",
+        "side_b",
+        "up_b",
+        "up_b"
+      ],
+      "specials": [
+        "side_b"
+      ],
+      "jumps_used": 0,
+      "b_presses": 0,
+      "actions": [
+        "FOX_ILLUSION",
+        "FOX_ILLUSION_SHORTENED",
+        "DEAD_FALL"
+      ],
+      "game": "Game_20261014T140926.slp",
+      "sd": true,
+      "frames_offstage": 77,
+      "toward_stage_share": 0.0,
+      "attempt": "side-B, no up-B"
+    },
+    {
+      "at": {
+        "x": 165.2,
+        "y": -47.2,
+        "vx": 0.0,
+        "vy": -2.8,
+        "jumps": 1,
+        "facing": -1
+      },
+      "frame": 10626,
+      "verdict": "mixup",
+      "routes": 3,
+      "means": [
+        "up_b",
+        "jump+up_b",
+        "jump+up_b"
+      ],
+      "specials": [
+        "up_b"
+      ],
+      "jumps_used": 1,
+      "b_presses": 1,
+      "actions": [
+        "TUMBLING",
+        "JUMPING_ARIAL_FORWARD",
+        "FIREFOX_WAIT_AIR",
+        "FIREFOX_AIR",
+        "SWORD_DANCE_1_AIR",
+        "DEAD_FALL"
+      ],
+      "game": "Game_20261014T140926.slp",
+      "sd": true,
+      "frames_offstage": 180,
+      "toward_stage_share": 0.58,
+      "attempt": "up-B"
+    },
+    {
+      "at": null,
+      "frame": 1997,
+      "verdict": "kill",
+      "routes": null,
+      "means": [],
+      "specials": [],
+      "jumps_used": null,
+      "b_presses": 1,
+      "actions": [
+        "SHIELD",
+        "KNEE_BEND",
+        "LANDING_SPECIAL",
+        "STANDING",
+        "TURNING",
+        "KNEE_BEND",
+        "JUMPING_FORWARD",
+        "DAMAGE_FLY_HIGH"
+      ],
+      "game": "Game_20261014T141252.slp",
+      "sd": false,
+      "frames_offstage": null,
+      "toward_stage_share": 0.83,
+      "attempt": "died in stun"
+    },
+    {
+      "at": {
+        "x": 86.7,
+        "y": 21.3,
+        "vx": 1.79,
+        "vy": 0.0,
+        "jumps": 0,
+        "facing": 1
+      },
+      "frame": 2233,
+      "verdict": "mixup",
+      "routes": 5,
+      "means": [
+        "air_dodge",
+        "side_b",
+        "side_b",
+        "up_b",
+        "up_b"
+      ],
+      "specials": [
+        "side_b"
+      ],
+      "jumps_used": 0,
+      "b_presses": 0,
+      "actions": [
+        "FOX_ILLUSION_SHORTENED",
+        "DEAD_FALL"
+      ],
+      "game": "Game_20261014T141252.slp",
+      "sd": true,
+      "frames_offstage": 77,
+      "toward_stage_share": 0.53,
+      "attempt": "side-B, no up-B"
+    },
+    {
+      "at": null,
+      "frame": 4095,
+      "verdict": "kill",
+      "routes": null,
+      "means": [],
+      "specials": [
+        "up_b"
+      ],
+      "jumps_used": null,
+      "b_presses": 2,
+      "actions": [
+        "FIREFOX_WAIT_AIR",
+        "FIREFOX_AIR",
+        "SWORD_DANCE_1_AIR",
+        "DEAD_FALL"
+      ],
+      "game": "Game_20261014T141252.slp",
+      "sd": false,
+      "frames_offstage": null,
+      "toward_stage_share": 0.47,
+      "attempt": "died in stun"
+    },
+    {
+      "at": null,
+      "frame": 3923,
+      "verdict": "kill",
+      "routes": null,
+      "means": [],
+      "specials": [],
+      "jumps_used": null,
+      "b_presses": 0,
+      "actions": [
+        "DEAD_FLY_STAR"
+      ],
+      "game": "Game_20261014T141423.slp",
+      "sd": true,
+      "frames_offstage": null,
+      "toward_stage_share": 0.0,
+      "attempt": "died in stun"
+    },
+    {
+      "at": {
+        "x": -126.5,
+        "y": -8.4,
+        "vx": 0.07,
+        "vy": -2.8,
+        "jumps": 0,
+        "facing": 1
+      },
+      "frame": 5182,
+      "verdict": "mixup",
+      "routes": 3,
+      "means": [
+        "side_b",
+        "up_b",
+        "up_b"
+      ],
+      "specials": [
+        "up_b"
+      ],
+      "jumps_used": 0,
+      "b_presses": 5,
+      "actions": [
+        "TUMBLING",
+        "FIREFOX_WAIT_AIR",
+        "FIREFOX_AIR",
+        "SWORD_DANCE_1_AIR",
+        "DEAD_FALL"
+      ],
+      "game": "Game_20261014T141423.slp",
+      "sd": true,
+      "frames_offstage": 163,
+      "toward_stage_share": 0.03,
+      "attempt": "up-B"
+    },
+    {
+      "at": null,
+      "frame": 8095,
+      "verdict": "kill",
+      "routes": null,
+      "means": [],
+      "specials": [
+        "up_b"
+      ],
+      "jumps_used": null,
+      "b_presses": 3,
+      "actions": [
+        "BAIR",
+        "JUMPING_ARIAL_FORWARD",
+        "FIREFOX_WAIT_AIR",
+        "FIREFOX_AIR",
+        "DAMAGE_FLY_HIGH"
+      ],
+      "game": "Game_20261014T141423.slp",
+      "sd": false,
+      "frames_offstage": null,
+      "toward_stage_share": 0.14,
+      "attempt": "died in stun"
+    },
+    {
+      "at": null,
+      "frame": 4521,
+      "verdict": "kill",
+      "routes": null,
+      "means": [],
+      "specials": [
+        "up_b"
+      ],
+      "jumps_used": null,
+      "b_presses": 0,
+      "actions": [
+        "FIREFOX_AIR",
+        "SWORD_DANCE_1_AIR",
+        "DEAD_FALL",
+        "DAMAGE_FLY_LOW"
+      ],
+      "game": "Game_20261014T141718.slp",
+      "sd": false,
+      "frames_offstage": null,
+      "toward_stage_share": 0.42,
+      "attempt": "died in stun"
+    },
+    {
+      "at": {
+        "x": 86.0,
+        "y": 0.0,
+        "vx": 0.83,
+        "vy": 0.0,
+        "jumps": 1,
+        "facing": 1
+      },
+      "frame": 6149,
+      "verdict": "mixup",
+      "routes": 10,
+      "means": [
+        "air_dodge",
+        "side_b",
+        "jump",
+        "side_b",
+        "up_b",
+        "up_b",
+        "jump+air_dodge",
+        "jump+side_b",
+        "jump+up_b",
+        "jump+up_b"
+      ],
+      "specials": [
+        "laser"
+      ],
+      "jumps_used": 0,
+      "b_presses": 2,
+      "actions": [
+        "FALLING",
+        "NEUTRAL_B_FULL_CHARGE",
+        "WAIT_ITEM",
+        "NEUTRAL_B_CHARGING_AIR",
+        "FALLING"
+      ],
+      "game": "Game_20261014T141718.slp",
+      "sd": true,
+      "frames_offstage": 56,
+      "toward_stage_share": 0.18,
+      "attempt": "laser"
+    },
+    {
+      "at": {
+        "x": 164.7,
+        "y": -36.4,
+        "vx": -0.06,
+        "vy": -2.8,
+        "jumps": 0,
+        "facing": -1
+      },
+      "frame": 7940,
+      "verdict": "forced",
+      "routes": 1,
+      "means": [
+        "up_b"
+      ],
+      "specials": [
+        "up_b"
+      ],
+      "jumps_used": 0,
+      "b_presses": 3,
+      "actions": [
+        "FALLING",
+        "FIREFOX_WAIT_AIR",
+        "FIREFOX_AIR",
+        "SWORD_DANCE_1_AIR",
+        "DEAD_FALL"
+      ],
+      "game": "Game_20261014T141718.slp",
+      "sd": true,
+      "frames_offstage": 138,
+      "toward_stage_share": 1.0,
+      "attempt": "up-B"
+    },
+    {
+      "at": null,
+      "frame": 868,
+      "verdict": "kill",
+      "routes": null,
+      "means": [],
+      "specials": [],
+      "jumps_used": null,
+      "b_presses": 1,
+      "actions": [
+        "DAMAGE_FLY_HIGH",
+        "DAMAGE_FLY_NEUTRAL"
+      ],
+      "game": "Game_20261014T142030.slp",
+      "sd": false,
+      "frames_offstage": null,
+      "toward_stage_share": 0.69,
+      "attempt": "died in stun"
+    },
+    {
+      "at": {
+        "x": -132.1,
+        "y": 18.1,
+        "vx": 0.07,
+        "vy": -2.8,
+        "jumps": 1,
+        "facing": 1
+      },
+      "frame": 4002,
+      "verdict": "mixup",
+      "routes": 10,
+      "means": [
+        "side_b",
+        "jump",
+        "up_b",
+        "up_b",
+        "jump+air_dodge",
+        "jump+side_b",
+        "jump+up_b",
+        "jump+side_b",
+        "jump+up_b",
+        "jump+air_dodge"
+      ],
+      "specials": [
+        "shine",
+        "up_b"
+      ],
+      "jumps_used": 1,
+      "b_presses": 5,
+      "actions": [
+        "DOWN_B_STUN",
+        "DOWN_B_AIR",
+        "SHINE_RELEASE_AIR",
+        "FALLING",
+        "FIREFOX_WAIT_AIR",
+        "FIREFOX_AIR",
+        "SWORD_DANCE_1_AIR",
+        "DEAD_FALL"
+      ],
+      "game": "Game_20261014T142030.slp",
+      "sd": true,
+      "frames_offstage": 252,
+      "toward_stage_share": 0.48,
+      "attempt": "up-B"
+    },
+    {
+      "at": {
+        "x": -85.8,
+        "y": 16.7,
+        "vx": -1.78,
+        "vy": -1.78,
+        "jumps": 0,
+        "facing": 1
+      },
+      "frame": 7790,
+      "verdict": "mixup",
+      "routes": 7,
+      "means": [
+        "",
+        "air_dodge",
+        "air_dodge",
+        "side_b",
+        "up_b",
+        "side_b",
+        "up_b"
+      ],
+      "specials": [],
+      "jumps_used": 0,
+      "b_presses": 1,
+      "actions": [
+        "AIRDODGE",
+        "DEAD_FALL"
+      ],
+      "game": "Game_20261014T142030.slp",
+      "sd": true,
+      "frames_offstage": 83,
+      "toward_stage_share": 0.89,
+      "attempt": "nothing (no jump, no special)"
+    },
+    {
+      "at": {
+        "x": 63.9,
+        "y": 150.7,
+        "vx": 1.23,
+        "vy": -0.48,
+        "jumps": 0,
+        "facing": 1
+      },
+      "frame": 3170,
+      "verdict": "mixup",
+      "routes": 6,
+      "means": [
+        "",
+        "air_dodge",
+        "side_b",
+        "up_b",
+        "side_b",
+        "up_b"
+      ],
+      "specials": [
+        "side_b"
+      ],
+      "jumps_used": 0,
+      "b_presses": 1,
+      "actions": [
+        "FOX_ILLUSION_SHORTENED",
+        "DEAD_FALL"
+      ],
+      "game": "Game_20261014T142417.slp",
+      "sd": true,
+      "frames_offstage": 118,
+      "toward_stage_share": 0.0,
+      "attempt": "side-B, no up-B"
+    },
+    {
+      "at": {
+        "x": -117.5,
+        "y": -32.4,
+        "vx": 0.77,
+        "vy": 4.19,
+        "jumps": 0,
+        "facing": 1
+      },
+      "frame": 4828,
+      "verdict": "mixup",
+      "routes": 3,
+      "means": [
+        "side_b",
+        "up_b",
+        "up_b"
+      ],
+      "specials": [
+        "side_b"
+      ],
+      "jumps_used": 0,
+      "b_presses": 1,
+      "actions": [
+        "JUMPING_ARIAL_FORWARD",
+        "FOX_ILLUSION_START",
+        "FOX_ILLUSION",
+        "FOX_ILLUSION_SHORTENED",
+        "DEAD_FALL"
+      ],
+      "game": "Game_20261014T142417.slp",
+      "sd": true,
+      "frames_offstage": 90,
+      "toward_stage_share": 0.97,
+      "attempt": "side-B, no up-B"
+    },
+    {
+      "at": {
+        "x": 85.8,
+        "y": 0.0,
+        "vx": 0.38,
+        "vy": 0.0,
+        "jumps": 1,
+        "facing": -1
+      },
+      "frame": 2253,
+      "verdict": "mixup",
+      "routes": 15,
+      "means": [
+        "",
+        "air_dodge",
+        "jump",
+        "side_b",
+        "up_b",
+        "air_dodge",
+        "side_b",
+        "jump",
+        "up_b",
+        "jump+air_dodge",
+        "jump+side_b",
+        "jump+up_b",
+        "jump+air_dodge",
+        "jump+side_b",
+        "jump+up_b"
+      ],
+      "specials": [],
+      "jumps_used": 1,
+      "b_presses": 4,
+      "actions": [
+        "FALLING",
+        "EDGE_CATCHING",
+        "EDGE_HANGING",
+        "FALLING",
+        "JUMPING_ARIAL_BACKWARD",
+        "AIRDODGE",
+        "DEAD_FALL"
+      ],
+      "game": "Game_20261014T142644.slp",
+      "sd": true,
+      "frames_offstage": 102,
+      "toward_stage_share": 0.27,
+      "attempt": "jump only"
+    },
+    {
+      "at": {
+        "x": -117.7,
+        "y": 10.8,
+        "vx": 0.07,
+        "vy": -2.8,
+        "jumps": 0,
+        "facing": 1
+      },
+      "frame": 6795,
+      "verdict": "mixup",
+      "routes": 3,
+      "means": [
+        "side_b",
+        "up_b",
+        "up_b"
+      ],
+      "specials": [
+        "side_b",
+        "up_b",
+        "side_b"
+      ],
+      "jumps_used": 0,
+      "b_presses": 4,
+      "actions": [
+        "DEAD_FALL",
+        "EDGE_CATCHING",
+        "EDGE_HANGING",
+        "FALLING",
+        "FOX_ILLUSION_START",
+        "FOX_ILLUSION",
+        "FOX_ILLUSION_SHORTENED",
+        "DEAD_FALL"
+      ],
+      "game": "Game_20261014T142644.slp",
+      "sd": true,
+      "frames_offstage": 305,
+      "toward_stage_share": 0.38,
+      "attempt": "up-B"
+    },
+    {
+      "at": {
+        "x": 86.4,
+        "y": 0.0,
+        "vx": 0.0,
+        "vy": 0.0,
+        "jumps": 1,
+        "facing": -1
+      },
+      "frame": 9385,
+      "verdict": "mixup",
+      "routes": 5,
+      "means": [
+        "up_b",
+        "up_b",
+        "jump+side_b",
+        "jump+up_b",
+        "jump+up_b"
+      ],
+      "specials": [],
+      "jumps_used": 1,
+      "b_presses": 1,
+      "actions": [
+        "FALLING",
+        "JUMPING_ARIAL_FORWARD",
+        "AIRDODGE",
+        "DEAD_FALL"
+      ],
+      "game": "Game_20261014T142644.slp",
+      "sd": false,
+      "frames_offstage": 84,
+      "toward_stage_share": 0.92,
+      "attempt": "jump only"
+    }
+  ]
+}
