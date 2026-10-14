@@ -12,3 +12,5 @@ fox_mamba_v3s906_ep1                     3.0403  332   244      0.725  44       
 == lr 0.0002 seed 906 mix ''
 fox_mamba_v3s906_ep2                     3.0762  319   235      0.847  30       0.333   3        0.147  0.0385 [390] ret✓ sideB✓ cdied✓  
 == lr 0.0002 seed 906 mix ''
+fox_mamba_v3s906_ep3                     3.1671  306   223      0.735  26       0.577   5        0.255  0.0181 [386] ret✗ sideB✓ cdied✓  
+== lr 0.0001 seed 906 mix ''
