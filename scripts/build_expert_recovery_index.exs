@@ -28,12 +28,14 @@ want = opts[:games] || 400
 stage = opts[:stage] || 32
 # --window wide (v4, 10-09): also grounded / above-stage states within L.near_edge() of the edge
 # --window air (v5, 10-10): wide + the airborne no-jump drift within L.air_reach() of the edge
+# --window onstage (v6, 10-15): air + every shield / knockdown / in-threat frame (L.onstage_cell/2)
 window =
   case opts[:window] do
     "wide" -> :wide
     "air" -> :air
+    "onstage" -> :onstage
     nil -> :offstage
-    other -> raise("--window #{other}: expected wide | air")
+    other -> raise("--window #{other}: expected wide | air | onstage")
   end
 
 files = split |> File.read!() |> Jason.decode!() |> Map.fetch!("train")
@@ -77,8 +79,27 @@ b_share = Enum.count(rows, fn {_, r, _} -> Enum.at(r, 5) > 0.5 end) / max(n, 1)
 jump_share = Enum.count(rows, fn {_, r, _} -> Enum.at(r, 6) > 0.5 or Enum.at(r, 7) > 0.5 end) / max(n, 1)
 up_share = Enum.count(rows, fn {_, r, _} -> Enum.at(r, 1) >= 0.75 end) / max(n, 1)
 
-index = L.pack(rows) |> Map.put(:window, window) |> Map.put(:meta, %{games: used, split: split, stage: stage, window: window, built_at: DateTime.utc_now() |> DateTime.to_iso8601()})
+# v6: how the rows split by cell (the onstage dims are the last 12; knockdown / shield_stun / grounded read back from the scaled row)
+cells =
+  if window == :onstage do
+    names = L.dim_names(window)
+    at = fn r, name -> Enum.at(r, Enum.find_index(names, &(&1 == name))) end
+    # scaled*weighted values: grounded w3, shield w1.5, knockdown w3, dist/30
+    Enum.frequencies_by(rows, fn {r, _, _} ->
+      cond do
+        at.(r, :knockdown) > 1.5 -> :knockdown
+        at.(r, :shield) > 0.75 -> :shield
+        at.(r, :grounded) < 1.5 and at.(r, :dist) * 30.0 > 0.0 -> :offstage
+        true -> :near_or_threat
+      end
+    end)
+  else
+    %{}
+  end
+
+index = L.pack(rows) |> Map.put(:window, window) |> Map.put(:meta, %{games: used, split: split, stage: stage, window: window, cells: cells, built_at: DateTime.utc_now() |> DateTime.to_iso8601()})
 L.save(index, out)
 
 Output.puts("RESULT expert recovery index: #{used} games, #{n} #{window} rows, hold share #{Float.round(holds / max(n, 1), 3)}, " <>
-  "B #{Float.round(100 * b_share, 1)} %, jump #{Float.round(100 * jump_share, 1)} %, stick up #{Float.round(100 * up_share, 1)} % -> #{out}")
+  "B #{Float.round(100 * b_share, 1)} %, jump #{Float.round(100 * jump_share, 1)} %, stick up #{Float.round(100 * up_share, 1)} %" <>
+  if(cells == %{}, do: "", else: "; cells #{inspect(cells)}") <> " -> #{out}")

@@ -53,7 +53,7 @@ rows =
       frames
       |> Enum.chunk_every(2, 1, :discard)
       |> Enum.filter(fn [f0, f1] ->
-        f1.game_state.frame == f0.game_state.frame + 1 and L.labelable?(f1.game_state.players[1], edge, index.window)
+        f1.game_state.frame == f0.game_state.frame + 1 and L.labelable?(f1.game_state.players[1], edge, index.window, f1.game_state.players[2])
       end)
 
     states = Enum.map(pairs, fn [f0, f1] -> {f1.game_state.players[1], f0.controller, f1.game_state.players[2], f0.game_state.players[1]} end)
@@ -62,7 +62,7 @@ rows =
     Enum.zip(pairs, labels)
     |> Enum.map(fn {[f0, f1], label} ->
       p = f1.game_state.players[1]
-      %{p: p, prev: f0.controller, actual: f1.controller, label: label}
+      %{p: p, opp: f1.game_state.players[2], prev: f0.controller, actual: f1.controller, label: label}
     end)
   end)
 
@@ -83,15 +83,63 @@ Output.puts("RESULT labeler self-check jump edge, jump in hand, y<-20 (n=#{lengt
 Output.puts("RESULT labeler self-check stick-up onset, jump spent, y<-20 (n=#{length(spent)}): actual #{pct.(Enum.count(spent, &edge?.(&1, up?)), length(spent))} | label #{pct.(Enum.count(spent, &ledge?.(&1, up?)), length(spent))}")
 Output.puts("RESULT labeler self-check B edge, jump spent, y<-20: actual #{pct.(Enum.count(spent, &edge?.(&1, b?)), length(spent))} | label #{pct.(Enum.count(spent, &ledge?.(&1, b?)), length(spent))}")
 
+rate = fn l, f -> if l == [], do: 0.0, else: Enum.count(l, f) / length(l) end
+
+# v6 (`:onstage` index): the same actual-vs-label hazard comparison in the
+# onstage cells the window was added for — shield (release / jump / grab /
+# roll / spot dodge edges), lying after a missed tech (any getup input, getup
+# attack), in-threat grounded neutral (A / grab / c-stick smash / B / jump /
+# shield edges). Each is an EDGE rate: the input is on at t and was off at
+# t-1 (actual) — the label's edge is label-on and prev-off.
+cells =
+  if index.window == :onstage do
+    sx = fn c -> ((c.main_stick[:x] || 0.5) - 0.5) * 2 end
+    sy = fn c -> ((c.main_stick[:y] || 0.5) - 0.5) * 2 end
+    cx = fn c -> ((c.c_stick[:x] || 0.5) - 0.5) * 2 end
+    cy = fn c -> ((c.c_stick[:y] || 0.5) - 0.5) * 2 end
+    on = %{
+      "shield" => &L.shielding?/1,
+      "release" => &(not L.shielding?(&1)),
+      "jump" => jump?,
+      "a" => & &1.button_a,
+      "z" => & &1.button_z,
+      "grab" => &(&1.button_z or (&1.button_a and L.shielding?(&1))),
+      "b" => b?,
+      "roll" => &(abs(sx.(&1)) >= 0.6),
+      "spot" => &(sy.(&1) <= -0.6),
+      "smash" => &(abs(cx.(&1)) >= 0.6 or abs(cy.(&1)) >= 0.6),
+      "any_input" => &(abs(sx.(&1)) >= 0.6 or abs(sy.(&1)) >= 0.6 or &1.button_a or &1.button_b or &1.button_x or &1.button_y or &1.button_z)
+    }
+    cell_rows = %{
+      "shield" => Enum.filter(rows, &((&1.p.action || 0) in 178..182)),
+      "lying" => Enum.filter(rows, &((&1.p.action || 0) in [184, 192])),
+      "threat" => Enum.filter(rows, &(L.onstage_cell(&1.p, &1.opp) == :threat and &1.p.on_ground == true and (&1.p.action || 0) < 178 and (&1.p.hitstun_frames_left || 0) == 0))
+    }
+    events = %{"shield" => ~w(release jump grab roll spot), "lying" => ~w(any_input a), "threat" => ~w(a z smash b jump shield)}
+
+    Map.new(cell_rows, fn {cell, rs} ->
+      ev =
+        Map.new(events[cell], fn e ->
+          f = on[e]
+          {e, %{actual: rate.(rs, &edge?.(&1, f)), label: rate.(rs, &ledge?.(&1, f))}}
+        end)
+      Output.puts("RESULT labeler self-check #{cell} (n=#{length(rs)}): " <>
+        Enum.map_join(events[cell], "  ", fn e -> "#{e} actual #{pct.(Enum.count(rs, &edge?.(&1, on[e])), length(rs))} | label #{pct.(Enum.count(rs, &ledge?.(&1, on[e])), length(rs))}" end))
+      {cell, %{n: length(rs), events: ev}}
+    end)
+  else
+    %{}
+  end
+
 if out = opts[:out] do
   File.mkdir_p!(Path.dirname(out))
-  rate = fn l, f -> if l == [], do: 0.0, else: Enum.count(l, f) / length(l) end
   File.write!(out, Jason.encode!(%{
     n: n, games: length(games), n_spent: length(spent), n_in_hand: length(in_hand),
     hold_actual: rate.(rows, &L.same_input?(&1.actual, &1.prev)), hold_label: rate.(rows, &L.same_input?(&1.label, &1.prev)),
     agreement: rate.(rows, &L.same_input?(&1.label, &1.actual)),
     actual_jump: rate.(in_hand, &edge?.(&1, jump?)), label_jump: rate.(in_hand, &ledge?.(&1, jump?)),
     actual_up: rate.(spent, &edge?.(&1, up?)), label_up: rate.(spent, &ledge?.(&1, up?)),
-    actual_b: rate.(spent, &edge?.(&1, b?)), label_b: rate.(spent, &ledge?.(&1, b?))
+    actual_b: rate.(spent, &edge?.(&1, b?)), label_b: rate.(spent, &ledge?.(&1, b?)),
+    cells: cells
   }, pretty: true))
 end

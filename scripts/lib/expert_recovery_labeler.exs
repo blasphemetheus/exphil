@@ -64,12 +64,41 @@ defmodule ExPhil.Agents.ExpertRecoveryLabeler do
   # before the trip), and the wide window never labelled it (1–3 % of those
   # frames). Same dims as :wide (jumps is already a dim, weight 3).
   @air_reach 80.0
+  # v6 (10-15, Bradley: "both offstage and onstage"): the `:onstage` window
+  # adds the live look's onstage deficits (eval_runs/1014_live_s906ep2): every
+  # shield episode (OOS drop 8 vs 27 %, rolls / spot dodges / shield-grabs
+  # instead), every knockdown (tech rate 0.26 vs 0.51, lies 4.6 f longer,
+  # rolls away) and in-threat neutral (F2: in-threat smashes punished 46 vs
+  # 22 %, grabs 31 vs 20 %; |dx| < @threat_x, |dy| < @threat_y, the
+  # commitment_scorecard definition). The dims add what those decisions
+  # condition on: the opponent's state (grounded / attacking / in hitstun /
+  # shielding / facing me / action frame) and the subject's own shield stun,
+  # knockdown, previous shoulder and both percents. Knockdown and shield stun
+  # get weight 3 / 2 so a lying query never borrows a standing label.
+  @threat_x 30.0
+  @threat_y 20.0
+  @onstage_dims @wide_dims ++ [
+    {:shield_stun, 1.0, 2.0},
+    {:knockdown, 1.0, 3.0},
+    {:lying, 1.0, 1.5},
+    {:prev_shield, 1.0, 1.5},
+    {:percent, 60.0, 0.5},
+    {:opp_grounded, 1.0, 1.5},
+    {:opp_attacking, 1.0, 2.0},
+    {:opp_hitstun, 1.0, 1.5},
+    {:opp_shield, 1.0, 1.0},
+    {:opp_faces_me, 1.0, 1.0},
+    {:opp_action_frame, 30.0, 0.5},
+    {:opp_percent, 60.0, 0.3}
+  ]
 
   def k, do: @k
-  @doc "Feature dims of a window: `:offstage` (v1–v3 indexes), `:wide` (v4) or `:air` (v5, wide dims)."
+  @doc "Feature dims of a window: `:offstage` (v1–v3 indexes), `:wide` (v4), `:air` (v5, wide dims) or `:onstage` (v6)."
   def dims(:wide), do: @wide_dims
   def dims(:air), do: @wide_dims
+  def dims(:onstage), do: @onstage_dims
   def dims(_), do: @dims
+  def threat, do: {@threat_x, @threat_y}
   def dim_names(window \\ :offstage), do: Enum.map(dims(window), &elem(&1, 0))
   def near_edge, do: @near_edge
 
@@ -83,7 +112,7 @@ defmodule ExPhil.Agents.ExpertRecoveryLabeler do
   `:wide` OR airborne over the stage with no double jump left within
   `air_reach/0` of the edge (the drift before a carried-off trip).
   """
-  def labelable?(p, edge, window \\ :offstage) do
+  def labelable?(p, edge, window \\ :offstage, opp \\ nil) do
     a = p.action || 0
     alive = a > 13 and a not in 35..37 and a not in 252..263
     offstage = p.on_ground != true and (abs(p.x || 0.0) > edge or (p.y || 0.0) < -5.0)
@@ -91,9 +120,29 @@ defmodule ExPhil.Agents.ExpertRecoveryLabeler do
     drift = p.on_ground != true and (p.jumps_left || 0) == 0 and abs(p.x || 0.0) > edge - @air_reach
 
     case window do
+      :onstage -> alive and (offstage or near or drift or onstage_cell(p, opp) != nil)
       :air -> alive and (offstage or near or drift)
       :wide -> alive and (offstage or near)
       _ -> alive and offstage
+    end
+  end
+
+  @doc """
+  Which `:onstage` cell a state is in — `:shield` (178..182), `:knockdown`
+  (183..198: missed-tech landings, lying, getups, getup attacks and rolls),
+  `:threat` (the opponent is alive, not in hitstun, within the threat box) —
+  or `nil`. `opp` may be nil (no threat cell).
+  """
+  def onstage_cell(p, opp) do
+    a = p.action || 0
+    oa = (opp && opp.action) || 0
+
+    cond do
+      a in 178..182 -> :shield
+      a in 183..198 -> :knockdown
+      opp == nil or oa <= 13 or (opp.hitstun_frames_left || 0) > 0 -> nil
+      abs((opp.x || 0.0) - (p.x || 0.0)) < @threat_x and abs((opp.y || 0.0) - (p.y || 0.0)) < @threat_y -> :threat
+      true -> nil
     end
   end
 
@@ -135,8 +184,33 @@ defmodule ExPhil.Agents.ExpertRecoveryLabeler do
       # :wide dims (unused by :offstage indexes)
       grounded: if(p.on_ground == true, do: 1.0, else: 0.0),
       shield: if(a in 178..182, do: 1.0, else: 0.0),
-      dash: if(a in 20..23, do: 1.0, else: 0.0)
+      dash: if(a in 20..23, do: 1.0, else: 0.0),
+      # :onstage dims (v6)
+      shield_stun: if(a == 181, do: 1.0, else: 0.0),
+      knockdown: if(a in 183..198, do: 1.0, else: 0.0),
+      lying: if(a in [184, 192], do: 1.0, else: 0.0),
+      prev_shield: if(shielding?(prev), do: 1.0, else: 0.0),
+      percent: p.percent || 0.0,
+      opp_grounded: if(opp && opp.on_ground == true, do: 1.0, else: 0.0),
+      opp_attacking: if(opp && attacking?(opp.action || 0), do: 1.0, else: 0.0),
+      opp_hitstun: if(opp && (opp.hitstun_frames_left || 0) > 0, do: 1.0, else: 0.0),
+      opp_shield: if(opp && (opp.action || 0) in 178..182, do: 1.0, else: 0.0),
+      # +1 when the opponent faces the player, -1 away (0 with no opponent)
+      opp_faces_me: if(opp, do: (opp.facing || 1) * sign((p.x || 0.0) - (opp.x || 0.0)), else: 0.0),
+      opp_action_frame: (opp && opp.action_frame) || 0,
+      opp_percent: (opp && opp.percent) || 0.0
     }
+  end
+
+  defp sign(v) when v < 0, do: -1.0
+  defp sign(_), do: 1.0
+
+  @doc "Ground attacks (42..64 incl. smashes), aerials (65..69), grabs (212..214), specials (>= 341)."
+  def attacking?(a), do: a in 42..69 or a in 212..214 or a >= 341
+
+  @doc "The shoulder is in (digital L/R or an analog press past 0.3)."
+  def shielding?(c) do
+    c.button_l == true or c.button_r == true or (c.l_shoulder || 0.0) > 0.3 or (c.r_shoulder || 0.0) > 0.3
   end
 
   @doc "Scaled, weighted feature list in the window's dims order."
@@ -194,10 +268,11 @@ defmodule ExPhil.Agents.ExpertRecoveryLabeler do
     |> Enum.chunk_every(2, 1, :discard)
     |> Enum.flat_map(fn [f0, f1] ->
       p = f1.game_state.players[1]
+      opp = f1.game_state.players[2]
 
-      if f1.game_state.frame == f0.game_state.frame + 1 and labelable?(p, edge, window) do
+      if f1.game_state.frame == f0.game_state.frame + 1 and labelable?(p, edge, window, opp) do
         t = toward(p)
-        v = features(p, f0.controller, f1.game_state.players[2], edge, f0.game_state.players[1]) |> vector(window)
+        v = features(p, f0.controller, opp, edge, f0.game_state.players[1]) |> vector(window)
         [{v, controller_row(f1.controller, t), same_input?(f1.controller, f0.controller)}]
       else
         []
@@ -330,4 +405,121 @@ defmodule ExPhil.Agents.ExpertRecoveryLabeler do
   @doc "A query state is `{player, prev_input, opponent}` or `{player, prev_input, opponent, prev_player}`."
   def query_features({p, prev, opp}, edge), do: features(p, prev, opp, edge)
   def query_features({p, prev, opp, prev_p}, edge), do: features(p, prev, opp, edge, prev_p)
+
+  # ---- relabelling a history ----------------------------------------------------
+
+  @doc """
+  Relabel one env's (or one replay's) history — `[{game_state, controller}]`,
+  NEWEST FIRST, own player = port 1 — into DAgger frame lists: one per
+  contiguous run of labelable, frame-consecutive frames, each preceded by up
+  to `prefix:` (90) frames of the same history as input-only context (the
+  bot's own approach, never supervised; the lazy layout skips input_only
+  targets and `Data.from_frame_lists` keeps the boundary).
+
+  Inside a run the label for each frame conditions on the PREVIOUS LABEL
+  (the first frame's prev is the real press at t-1): with event heads the
+  previous input is only the hold/change selector, and "policy press ->
+  expert label" made 98 % of a set change events (10-05). `max_d2:` gates a
+  frame whose nearest expert row is farther than that: it stays in the run
+  as input-only context (its own press) and the next prev is that real
+  press. `only_silent:` labels only frames where the policy's press was
+  neutral. `max_run:` (v6, onstage runs are long — a neutral exchange is
+  hundreds of frames) cuts a run into segments of at most that many frames,
+  each restarting the label chain from the real press at its t-1, so a
+  label chain cannot drift away from the state it is conditioned on.
+  Frames carry `:actual` (the bot's own press); drop it for the old format.
+  """
+  def relabel_history(history, index, edge, opts \\ []) do
+    prefix = opts[:prefix] || 90
+    max_d2 = opts[:max_d2]
+    only_silent = opts[:only_silent] || false
+    max_run = opts[:max_run]
+    window = index[:window] || :offstage
+
+    frames =
+      history
+      |> Enum.reverse()
+      |> Enum.chunk_every(2, 1, :discard)
+      |> Enum.map(fn [{s0, c0}, {s1, c1}] ->
+        p = s1.players[1]
+        labeled = labelable?(p, edge, window, s1.players[2]) and (not only_silent or ExPhil.Training.SilentFallWeighting.neutral?(c1))
+        %{game_state: %{s1 | own_port: 1}, controller: c1, prev_controller: c0, player_tag: nil, actual: c1, labeled: labeled, prev_player: s0.players[1]}
+      end)
+      |> List.to_tuple()
+
+    n_frames = tuple_size(frames)
+    consecutive? = fn i -> i > 0 and elem(frames, i).game_state.frame == elem(frames, i - 1).game_state.frame + 1 end
+
+    # runs of labeled, frame-consecutive frames
+    {runs, cur} =
+      Enum.reduce(0..(n_frames - 1)//1, {[], nil}, fn i, {runs, cur} ->
+        f = elem(frames, i)
+
+        cond do
+          f.labeled and cur != nil and consecutive?.(i) -> {runs, {elem(cur, 0), i}}
+          f.labeled -> {if(cur, do: [cur | runs], else: runs), {i, i}}
+          true -> {if(cur, do: [cur | runs], else: runs), nil}
+        end
+      end)
+
+    runs = Enum.reverse(if cur, do: [cur | runs], else: runs)
+
+    runs =
+      if max_run do
+        Enum.flat_map(runs, fn {a, b} -> Enum.map(Enum.chunk_every(a..b, max_run), &{List.first(&1), List.last(&1)}) end)
+      else
+        runs
+      end
+
+    trips =
+      Enum.map(runs, fn {a, b} ->
+        # prefix: walk back while frame numbers stay consecutive
+        start =
+          Enum.reduce_while((a - 1)..max(a - prefix, 0)//-1, a, fn i, s ->
+            if consecutive?.(i + 1), do: {:cont, i}, else: {:halt, s}
+          end)
+
+        ctx = for i <- start..(a - 1)//1, i < a, do: elem(frames, i) |> Map.put(:input_only, true) |> Map.delete(:labeled)
+        trip = for i <- a..b, do: elem(frames, i) |> Map.delete(:labeled)
+        %{ctx: ctx, todo: trip, done: [], prev: nil}
+      end)
+
+    # Label every run in LOCKSTEP: step j labels the j-th frame of each run
+    # still open in one batched k-NN call (v6, 10-15 — the per-frame call
+    # was ~60 ms; the onstage window labels ~10x the frames). Each run's
+    # chain is unchanged: prev = its previous label (first frame: the real
+    # press at t-1), a gated frame resets prev to the real press.
+    trips
+    |> label_lockstep(index, edge, max_d2)
+    |> Enum.map(fn t -> t.ctx ++ Enum.reverse(t.done) end)
+  end
+
+  defp label_lockstep(trips, index, edge, max_d2) do
+    {open, closed} = Enum.split_with(trips, &(&1.todo != []))
+
+    if open == [] do
+      closed
+    else
+      states =
+        Enum.map(open, fn t ->
+          f = hd(t.todo)
+          {f.game_state.players[1], t.prev || f.prev_controller, f.game_state.players[2], f.prev_player}
+        end)
+
+      labels = label_batch(index, states, edge, max_d2: max_d2)
+
+      stepped =
+        Enum.zip_with(open, labels, fn t, lab ->
+          [f | rest] = t.todo
+          prev = t.prev || f.prev_controller
+
+          case lab do
+            nil -> %{t | todo: rest, done: [f |> Map.put(:input_only, true) |> Map.put(:gated, true) | t.done], prev: f.controller}
+            lab -> %{t | todo: rest, done: [%{f | controller: lab, prev_controller: prev} | t.done], prev: lab}
+          end
+        end)
+
+      label_lockstep(stepped ++ closed, index, edge, max_d2)
+    end
+  end
 end

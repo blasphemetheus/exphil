@@ -20,7 +20,7 @@ alias ExPhil.Training.{Checkpoint, Output, SilentFallWeighting}
   OptionParser.parse(System.argv(),
     strict: [policy: :string, out: :string, envs: :integer, frames: :integer, seeds: :string, opponent: :string,
              report: :string, action_delay: :integer, only_silent: :boolean, index: :string, label_seed: :integer,
-             max_d2: :float, keep_actual: :boolean])
+             max_d2: :float, keep_actual: :boolean, max_run: :integer])
 if bad != [], do: raise("invalid options: #{inspect(bad)}")
 
 # --only-silent (16:50): relabel ONLY the frames where the policy's actual
@@ -71,85 +71,14 @@ opponent =
   end
 players = [%{character: "fox", costume: 1}, %{character: "fox", costume: 0}]
 
-# one env's history -> relabeled frame lists: one per contiguous offstage run,
-# each preceded by up to `prefix` frames of the SAME env's history as
-# input-only context (the bot's own approach; never supervised — the lazy
-# layout skips input_only targets, Data.from_frame_lists keeps the boundary)
-prefix = 90
-
+# one env's history -> relabeled frame lists: one per contiguous labelable
+# run with 90 f of the same history as input-only context, labels chained on
+# the previous label, --max-d2 gated frames input-only (v6, 10-15: the trip
+# logic moved to ExpertRecoveryLabeler.relabel_history/4 so a .slp session
+# — scripts/slp_dagger_expert.exs — relabels the same way; --max-run N cuts
+# the long onstage runs into N-frame label chains)
 relabel = fn history ->
-  frames =
-    history
-    |> Enum.reverse()
-    |> Enum.chunk_every(2, 1, :discard)
-    |> Enum.map(fn [{s0, c0}, {s1, c1}] ->
-      p = s1.players[1]
-      offstage_or_below = p.on_ground != true and (abs(p.x || 0.0) > edge or (p.y || 0.0) < -5.0)
-      ledge = (p.action || 0) in 252..263
-
-      _ = offstage_or_below
-      _ = ledge
-      labeled = ExpertRecoveryLabeler.labelable?(p, edge, index.window) and (not only_silent or SilentFallWeighting.neutral?(c1))
-      # the label is filled in per trip below (sequentially: it conditions on the previous label)
-      %{game_state: %{s1 | own_port: 1}, controller: c1, prev_controller: c0, player_tag: nil, actual: c1, labeled: labeled, prev_player: s0.players[1]}
-    end)
-    |> List.to_tuple()
-
-  n_frames = tuple_size(frames)
-  consecutive? = fn i -> i > 0 and elem(frames, i).game_state.frame == elem(frames, i - 1).game_state.frame + 1 end
-
-  # runs of labeled, frame-consecutive frames
-  {runs, cur} =
-    Enum.reduce(0..(n_frames - 1)//1, {[], nil}, fn i, {runs, cur} ->
-      f = elem(frames, i)
-
-      cond do
-        f.labeled and cur != nil and consecutive?.(i) -> {runs, {elem(cur, 0), i}}
-        f.labeled -> {if(cur, do: [cur | runs], else: runs), {i, i}}
-        true -> {if(cur, do: [cur | runs], else: runs), nil}
-      end
-    end)
-
-  runs = Enum.reverse(if cur, do: [cur | runs], else: runs)
-
-  Enum.map(runs, fn {a, b} ->
-    # prefix: walk back while frame numbers stay consecutive
-    start =
-      Enum.reduce_while((a - 1)..max(a - prefix, 0)//-1, a, fn i, s ->
-        if consecutive?.(i + 1), do: {:cont, i}, else: {:halt, s}
-      end)
-
-    ctx = for i <- start..(a - 1)//1, i < a, do: elem(frames, i) |> Map.put(:input_only, true) |> Map.delete(:labeled)
-    trip = for i <- a..b, do: elem(frames, i) |> Map.delete(:labeled)
-
-    # prev = the PREVIOUS LABEL, not the policy's actual press (first attempt,
-    # 16:25): with event heads the previous input is only the hold/change
-    # selector (the trunk's copy is zeroed), and "policy press -> expert
-    # label" made 98 % of the set change events (expert corpus ~76 % holds).
-    # 108 interleaved batches of that taught the bot to change its input
-    # every frame everywhere: closed-loop repeat share 0.75 -> 0.36, dashes
-    # 40 -> 3/min, SDs 1.3 -> 6.5/min, while teacher-forced metrics were
-    # untouched. The state is still the bot's own; the input history is the
-    # expert-consistent one (82 % holds). The first trip frame keeps the
-    # actual press at t-1 (what really preceded it).
-    # expert label per frame, in order: prev = the previous label (the first
-    # frame's prev is the real press at t-1), state = the bot's own
-    # --max-d2 (22:30): a state farther than this from every expert row gets
-    # NO label — it stays in the trip as input-only context (the bot's own
-    # press, unsupervised) and the next frame's prev is that real press.
-    {trip, _} =
-      Enum.map_reduce(trip, nil, fn f, prev_label ->
-        prev = prev_label || f.prev_controller
-        p = f.game_state.players[1]
-
-        case ExpertRecoveryLabeler.label(index, p, prev, f.game_state.players[2], edge, max_d2: max_d2, prev_p: f.prev_player) do
-          nil -> {f |> Map.put(:input_only, true) |> Map.put(:gated, true), f.controller}
-          label -> {%{f | controller: label, prev_controller: prev}, label}
-        end
-      end)
-
-    ctx ++ trip
-  end)
+  ExpertRecoveryLabeler.relabel_history(history, index, edge, only_silent: only_silent, max_d2: max_d2, max_run: opts[:max_run])
 end
 
 rollout = fn seed ->
@@ -190,7 +119,7 @@ rollout = fn seed ->
 
   Env.stop(sim)
   lists = (open ++ histories) |> Enum.reject(&(&1 == [])) |> Enum.flat_map(relabel)
-  Output.puts("  seed #{seed}: #{length(lists)} offstage runs, #{lists |> Enum.map(&length/1) |> Enum.sum()} relabeled frames")
+  Output.puts("  seed #{seed}: #{length(lists)} labelable runs, #{lists |> Enum.map(&length/1) |> Enum.sum()} relabeled frames")
   lists
 end
 
@@ -234,6 +163,6 @@ if report = opts[:report] do
   }, pretty: true))
 end
 
-Output.puts("RESULT sim dagger: #{length(frame_lists)} offstage runs (median #{median.(runs_len)} f incl. prefix), #{total} relabeled frames + #{ctx_total} input-only context" <>
+Output.puts("RESULT sim dagger: #{length(frame_lists)} labelable runs (median #{median.(runs_len)} f incl. prefix), #{total} relabeled frames + #{ctx_total} input-only context" <>
   if(max_d2, do: " + #{gated} gated (d2 > #{max_d2}, #{Float.round(100 * gated / max(total + gated, 1), 1)} % of labelable)", else: "") <> "; " <>
   "policy was silent on #{Float.round(100 * silent_actual / max(total, 1), 1)} %; expert label: B #{Float.round(100 * label_b / max(total, 1), 1)} %, jump #{Float.round(100 * label_jump / max(total, 1), 1)} %; hold share (label vs prev) #{Float.round(hold_share, 3)} -> #{out}")
