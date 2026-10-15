@@ -4633,3 +4633,10 @@ event-head previous-bucket code assumes floor — testbed only until the
 **Cause:** bash reads a script incrementally from an open fd, by byte offset, and only parses up to the end of the current compound command. During `mix run` the script's usage comment was patched with the Edit tool (an in-place overwrite of the same inode, +3 lines), then "reverted" with `git checkout --` — which writes a NEW inode. Bash's fd still pointed at the old inode holding the patched bytes; when `mix run` returned it resumed at its saved offset, now mid-line. The revert was invisible to the running shell.
 
 **Fix:** the training was intact (`completed.json`, `model_best_policy.bin`), so re-running the script skipped training and ran the readout. Rule, now absolute: **never write to a bash script while any process is executing it** — not a comment, not a revert. If it must change, change a copy under a new name and launch that next time. (A Python/Elixir script is read whole at start and is safe to edit; bash is not.)
+
+## #142 — `term_to_binary(_, [:compressed])` silently corrupts a term over 4 GB uncompressed (2026-10-15)
+**Symptom:** `dagger_set_concat.exs` wrote the r9o DAgger set (five parts, 782k labelled frames + context, each frame a full `GameState` with both players) without error; every reader then failed with `ArgumentError: invalid external representation of a term` at `binary_to_term`. The per-part files (~1.2 GB uncompressed) read fine.
+
+**Cause:** the compressed external term format is `<<131, 80, uncompressed_size::32, zlib...>>` — the size field is 32 bits. The merged term was ~5 GB; the header wrapped (it read 3.58 GB) and the decoder rejects the stream. `term_to_binary` does not check.
+
+**Fix:** `dagger_set_concat.exs` now checks `:erlang.external_size/1` and refuses past 2^32-1; the loader takes a comma-separated glob (`MixFrames.load_lists`), so a round's parts go in as `--mix-frames p1,p2,...` and the dose scripts pool several files in memory (`dagger_set_onstage_cells.exs`). Rule: anything that `term_to_binary`s a frame set — check `external_size` first, or write uncompressed.

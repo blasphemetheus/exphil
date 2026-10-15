@@ -84,13 +84,20 @@ grep -E "RESULT|skip|\*\*" logs/dagger_r9o_live.log | cut -c1-600
 [ -s $q/slp_dagger_expert_live1014.json ] || { echo "DAGGER_FAILED (live relabel, see logs/dagger_r9o_live.log)"; exit 1; }
 parts+=("$livep")
 
-# 3. concat / hazards / split / dose
-mf scripts/dagger_set_concat.exs "${parts[@]}" $r9 2>&1 | grep -E "RESULT|error|\*\*" | cut -c1-300
-[ -s $r9 ] || { echo "DAGGER_FAILED (no r9o concat)"; exit 1; }
-mf scripts/dagger_set_label_hazards.exs $r9 2>&1 | grep RESULT | cut -c1-400
-mf scripts/dagger_set_split_gated.exs $r9 $r9s 2>&1 | grep RESULT | cut -c1-300
-[ -s $r9s ] || { echo "DAGGER_FAILED (no r9o split)"; exit 1; }
-echo "== dose + label content, onstage cells (unsplit set) ($(date +%H:%M))"
-mf scripts/dagger_set_onstage_cells.exs $r9 2>&1 | cut -c1-600
-mf scripts/dagger_set_drift_cell.exs $r9 2>&1 | grep -E "RESULT|rror" | cut -c1-300
-echo "ROUND READY: $r9s ($(date +%H:%M))"
+# 3. hazards / split / dose — PER PART (10-15 14:50: the concatenated set is
+# > 4 GB uncompressed and term_to_binary's compressed header wraps; the
+# loader takes a comma-separated glob, so MIX = the split parts)
+splits=()
+for part in "${parts[@]}"; do
+  sp=${part%.frames}_split.frames
+  echo "== $(basename $part) ($(date +%H:%M))"
+  mf scripts/dagger_set_label_hazards.exs $part 2>&1 | grep -E "RESULT|rror" | cut -c1-400
+  mf scripts/dagger_set_split_gated.exs $part $sp 2>&1 | grep -E "RESULT|rror" | cut -c1-300
+  [ -s $sp ] || { echo "DAGGER_FAILED (no split for $part)"; exit 1; }
+  splits+=("$sp")
+done
+echo "== dose + label content, onstage cells (unsplit parts pooled) ($(date +%H:%M))"
+mf scripts/dagger_set_onstage_cells.exs "${parts[@]}" 2>&1 | cut -c1-600
+mf scripts/dagger_set_drift_cell.exs "${parts[0]}" 2>&1 | grep -E "RESULT|rror" | cut -c1-300
+mix_spec=$(IFS=,; echo "${splits[*]}")
+echo "ROUND READY: MIX=$mix_spec ($(date +%H:%M))"

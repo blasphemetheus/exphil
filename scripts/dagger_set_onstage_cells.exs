@@ -7,13 +7,17 @@
 # in-threat smash / grab). The lever is empty where the label's rate equals
 # the bot's — the gate line pools the three deficits.
 #
-#   elixir -pa '_build/dev/lib/*/ebin' scripts/dagger_set_onstage_cells.exs data/silent_fall/sim_dagger_expert_r9o.frames
+#   elixir -pa '_build/dev/lib/*/ebin' scripts/dagger_set_onstage_cells.exs SET.frames [SET2.frames ...]
+# (several sets are pooled in memory — a round's parts can't be concatenated
+# on disk past 4 GB uncompressed, GOTCHA: term_to_binary [:compressed] wraps)
 for app <- [:nx], do: Application.ensure_all_started(app)
 Code.require_file("scripts/lib/expert_recovery_labeler.exs")
 alias ExPhil.Agents.ExpertRecoveryLabeler, as: L
 
-path = List.first(System.argv()) || raise("usage: dagger_set_onstage_cells.exs SET.frames")
-m = File.read!(path) |> :erlang.binary_to_term()
+paths = System.argv()
+if paths == [], do: raise("usage: dagger_set_onstage_cells.exs SET.frames [SET2.frames ...]")
+path = Enum.join(Enum.map(paths, &Path.basename/1), "+")
+m = %{frame_lists: Enum.flat_map(paths, fn p -> (p |> File.read!() |> :erlang.binary_to_term()).frame_lists end)}
 edge = 85.5
 fr = List.flatten(m.frame_lists)
 pct = fn a, b -> if b == 0, do: "-", else: :erlang.float_to_binary(100 * a / b, decimals: 1) <> " %" end
