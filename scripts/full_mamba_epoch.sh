@@ -34,7 +34,8 @@ N=${1:?usage: full_mamba_epoch.sh EPOCH_N}
 source eval_runs/1011_full/recipe.sh
 export EDIFICE_LOCAL_NX=1 EDIFICE_FUSED_CUSTOM_CALL=1 EXLA_TARGET=cuda EXPHIL_EXLA_PRECISION=highest
 lr=${LR:-$LR_DEFAULT}; seed=${SEED:-$SEED_DEFAULT}
-name=${RUN}_ep${N}
+# TAG (10-15): suffix for a mixed/variant epoch N beside the plain one (same ep N-1 resume)
+name=${RUN}_ep${N}${TAG:+_$TAG}
 ckpt=checkpoints/coh_$name
 out=eval_runs/1001_queue/$name
 prev=checkpoints/coh_${RUN}_ep$((N - 1))
@@ -51,7 +52,8 @@ if [ "$N" -gt 1 ]; then
   [ -f "$prev/model.axon" ] || { echo "NO_PREV_EPOCH ($prev/model.axon)"; exit 1; }
   [ -f "$prev/completed.json" ] || { echo "PREV_EPOCH_INCOMPLETE ($prev has no completed.json)"; exit 1; }
 fi
-mix_args=(); [ -n "$MIX" ] && { [ -f "$MIX" ] || { echo "NO_MIX_SET ($MIX)"; exit 1; }; mix_args=(--mix-frames "$MIX" --mix-oversample 1); }
+# MIX may be comma-separated parts (GOTCHA #142: a round past 4 GB cannot be one file)
+mix_args=(); if [ -n "$MIX" ]; then for m in ${MIX//,/ }; do [ -f "$m" ] || { echo "NO_MIX_SET ($m)"; exit 1; }; done; mix_args=(--mix-frames "$MIX" --mix-oversample 1); fi
 resume=(); [ "$N" -gt 1 ] && resume=(--resume "$prev/model.axon")
 # relaunch of a stopped epoch: progress.json in $ckpt resumes mid-epoch
 [ -f "$ckpt/progress.json" ] && [ ! -f "$ckpt/completed.json" ] && resume=(--resume "$ckpt")
