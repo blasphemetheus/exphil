@@ -9,6 +9,8 @@ defmodule ExPhil.SituationsTest do
   @ys 8
 
   defp player(overrides) do
+    overrides = if (overrides[:hitstun_frames_left] || 0) >= 0.5,
+      do: Keyword.put_new(overrides, :action, 75), else: overrides
     struct(
       %Player{
         x: 0.0,
@@ -140,7 +142,7 @@ defmodule ExPhil.SituationsTest do
     assert :shield_low in set
   end
 
-  test "combo_active and conversion_open open on a hit from neutral and persist" do
+  test "combo ends when control returns while punish sequence and conversion remain" do
     ctx = Situations.new_context()
     opp_free = player(x: 20.0)
     opp_hit = player(x: 20.0, hitstun_frames_left: 15)
@@ -153,10 +155,72 @@ defmodule ExPhil.SituationsTest do
     assert :combo_active in set1
     assert :conversion_open in set1
 
-    # gap frames keep the combo window alive (< 20 frames)
+    # A recent hit is not evidence of an uninterrupted combo.
     {_ctx, set2} = Situations.fold(ctx, gs(own, opp_free, frame: 502), 1)
-    assert :combo_active in set2
+    refute :combo_active in set2
+    assert :punish_sequence in set1
+    assert :punish_sequence in set2
     assert :conversion_open in set2
+  end
+
+  test "slide-off into freefall ends combo without implying a safe position" do
+    own = player(x: 50.0)
+    {ctx, _} = Situations.fold(Situations.new_context(), gs(own, player(hitstun_frames_left: 10)), 1)
+    escaped = player(x: 95.0, y: -5.0, action: 29, on_ground: false, hitstun_frames_left: 0)
+    {ctx, set} = Situations.fold(ctx, gs(own, escaped, frame: 501), 1)
+    refute :combo_active in set
+    assert :punish_sequence in set
+    assert :edgeguard in set
+    {_ctx, rehit} = Situations.fold(ctx, gs(own, %{escaped | action: 75, hitstun_frames_left: 8}, frame: 502), 1)
+    assert :combo_active in rehit
+  end
+
+  test "zero or denormal hitstun in damage animation is not active combo" do
+    for remaining <- [0, 2.9e-44] do
+      refute :combo_active in labels(player([]), player(action: 75, hitstun_frames_left: remaining))
+    end
+    assert :combo_active in labels(player([]), player(action: 75, hitstun_frames_left: 1))
+  end
+
+  test "reused hitstun slot in walking and tech animations does not imply combo" do
+    for {action, value} <- [{17, 1.872}, {199, 51.0}, {183, 48.0}, {186, 220.0}] do
+      refute :combo_active in labels(player([]), player(action: action, hitstun_frames_left: value))
+    end
+  end
+
+  test "tech chase can continue after the combo ends" do
+    own = player([])
+    {ctx, _} = Situations.fold(Situations.new_context(), gs(own, player(hitstun_frames_left: 10)), 1)
+    {_ctx, set} = Situations.fold(ctx, gs(own, player(action: 184, x: 10.0), frame: 501), 1)
+    assert :tech_chase in set
+    assert :punish_sequence in set
+    refute :combo_active in set
+  end
+
+  test "trade or stock loss clears both combo and recent-hit sequence" do
+    own = player([])
+    opp = player(hitstun_frames_left: 10)
+    {ctx, _} = Situations.fold(Situations.new_context(), gs(own, opp), 1)
+    for {a, b} <- [{player(hitstun_frames_left: 5), opp}, {own, player(stock: 3)}, {player(stock: 3), opp}, {own, player(action: 0)}] do
+      {_ctx, set} = Situations.fold(ctx, gs(a, b, frame: 501), 1)
+      refute :combo_active in set
+      refute :punish_sequence in set
+    end
+  end
+
+  test "twenty-frame grace belongs only to punish sequence and expires" do
+    own = player([])
+    {ctx, _} = Situations.fold(Situations.new_context(), gs(own, player(hitstun_frames_left: 1)), 1)
+    {ctx, _} = Enum.reduce(1..20, {ctx, nil}, fn i, {c, _} ->
+      {c, set} = Situations.fold(c, gs(own, player([]), frame: 500 + i), 1)
+      refute :combo_active in set
+      assert :punish_sequence in set
+      {c, set}
+    end)
+    {_ctx, set} = Situations.fold(ctx, gs(own, player([]), frame: 521), 1)
+    refute :punish_sequence in set
+    assert Situations.label_version() == 3
+    assert Situations.bit(:walltech_available) + 1 == Situations.bit(:punish_sequence)
   end
 
   test "approach and retreat from the distance window" do
@@ -206,6 +270,110 @@ defmodule ExPhil.SituationsTest do
   test "execution windows" do
     assert :jc_window in labels(player(action: 24), player(x: 30.0))
     assert :shine_cancellable in labels(player(action: 360), player(x: 30.0))
+  end
+
+  test "defense phases distinguish landing tech knockdown capture and throw" do
+    for {a, phase} <- [{42, :landing_recovery}, {43, :landing_recovery}, {70, :landing_recovery},
+      {199, :tech_committed}, {204, :tech_committed}, {183, :knockdown_bounce},
+      {193, :knockdown_bounce}, {184, :knockdown_wait}, {192, :knockdown_wait},
+      {187, :getup_committed}, {198, :getup_committed}, {223, :captured},
+      {232, :captured}, {239, :thrown}, {243, :thrown}] do
+      p = player(action: a)
+      assert Situations.defense_phase(p) == phase
+      assert phase in labels(p, player([]))
+      assert :disadvantage in labels(p, player([]))
+      refute :neutral in labels(p, player([]))
+    end
+    assert Situations.defense_phase(player(action: 29)) == :other
+    assert Situations.defense_phase(player(action: 75, hitstun_frames_left: 5)) == :damage_hitstun
+  end
+
+  test "tech option and observed protection do not imply actionability" do
+    for {a, option} <- [{199, :in_place}, {200, :forward}, {201, :backward}, {202, :wall}, {203, :wall_jump}, {204, :ceiling}] do
+      {ctx, _} = Situations.fold(Situations.new_context(), gs(player(action: a, invulnerable: true), player([])), 1)
+      assert ctx.defense_own.tech_option == option
+      assert ctx.defense_own.protection == :invulnerable
+      {ctx, _} = Situations.fold(ctx, gs(player(action: a, invulnerable: false), player([]), frame: 501), 1)
+      assert ctx.defense_own.protection == :not_invulnerable
+      refute ctx.defense_own.tech_exited
+    end
+  end
+
+  test "platform exit records tech origin without calling freefall an escape action" do
+    opp = player([])
+    {ctx, _} = Situations.fold(Situations.new_context(), gs(player(action: 199, y: 27.2), opp, frame: 7683), 1)
+    falling = player(action: 29, y: 27.2, on_ground: false)
+    {ctx, set} = Situations.fold(ctx, gs(falling, opp, frame: 7684), 1)
+    assert :platform_exit in set
+    refute :escape_action in set
+    assert ctx.defense_own.platform_exit == :tech
+    assert ctx.defense_own.tech_exited
+    {ctx, set} = Situations.fold(ctx, gs(%{falling | action: 27}, opp, frame: 7685), 1)
+    assert :escape_action in set
+    refute :platform_exit in set
+    {_ctx, set} = Situations.fold(ctx, gs(%{falling | action: 27}, opp, frame: 7686), 1)
+    refute :escape_action in set
+  end
+
+  test "platform exit origins and ordinary grounded departures remain distinct" do
+    for {a, b, origin} <- [{183, 29, :knockdown}, {179, 29, :shield}, {24, 25, :jump}, {20, 29, :other}] do
+      {ctx, _} = Situations.fold(Situations.new_context(), gs(player(action: a, y: 27), player([])), 1)
+      {ctx, set} = Situations.fold(ctx, gs(player(action: b, y: 27, on_ground: false), player([]), frame: 501), 1)
+      assert :platform_exit in set
+      assert ctx.defense_own.platform_exit == origin
+    end
+    {ctx, _} = Situations.fold(Situations.new_context(), gs(player(action: 20), player([])), 1)
+    {_ctx, set} = Situations.fold(ctx, gs(player(action: 29, on_ground: false), player([]), frame: 501), 1)
+    refute :platform_exit in set
+  end
+
+  test "landing alone is not an escape action but dash then hit is a recatch" do
+    opp = player([])
+    states = [player(hitstun_frames_left: 3), player(action: 42), player(action: 20),
+      player(action: 20), player(hitstun_frames_left: 12), player(hitstun_frames_left: 11)]
+    {streamed, rows} = Enum.map_reduce(Enum.with_index(states, 500), Situations.new_context(), fn {p, f}, ctx ->
+      {ctx, set} = Situations.fold(ctx, gs(p, opp, frame: f), 1)
+      {set, ctx}
+    end)
+    # Exercise the batch path on the same sequence as the streaming path.
+    sets = Situations.label_states(Enum.with_index(states, 500) |> Enum.map(fn {p, f} -> gs(p, opp, frame: f) end), 1, as: :set)
+    assert sets == streamed
+    refute :escape_action in Enum.at(sets, 1)
+    assert :escape_action in Enum.at(sets, 2)
+    assert :recaught in Enum.at(sets, 4)
+    refute :recaught in Enum.at(sets, 5)
+    assert rows.defense_own.phase == :damage_hitstun
+  end
+
+  test "missing frames stock changes and missing players clear transition history" do
+    opp = player([])
+    {ctx, _} = Situations.fold(Situations.new_context(), gs(player(hitstun_frames_left: 3), opp), 1)
+    {ctx, _} = Situations.fold(ctx, gs(player(action: 20), opp, frame: 501), 1)
+    for {p, f} <- [{player(hitstun_frames_left: 5), 503}, {player(hitstun_frames_left: 5, stock: 3), 502}] do
+      {_ctx, set} = Situations.fold(ctx, gs(p, opp, frame: f), 1)
+      refute :recaught in set
+    end
+    {ctx, _} = Situations.fold(ctx, %GameState{frame: 502, stage: 32, players: %{1 => player([])}}, 1)
+    {_ctx, set} = Situations.fold(ctx, gs(player(hitstun_frames_left: 5), opp, frame: 503), 1)
+    refute :recaught in set
+  end
+
+  test "knockdown followup is distinct from recatching an observed action" do
+    {ctx, _} = Situations.fold(Situations.new_context(), gs(player(action: 183), player([])), 1)
+    {_ctx, set} = Situations.fold(ctx, gs(player(hitstun_frames_left: 15), player([]), frame: 501), 1)
+    assert :knockdown_followup in set
+    refute :recaught in set
+  end
+
+  test "observed escape history expires after 120 frames" do
+    opp = player([])
+    {ctx, _} = Situations.fold(Situations.new_context(), gs(player(hitstun_frames_left: 3), opp, frame: 500), 1)
+    {ctx, _} = Situations.fold(ctx, gs(player(action: 20), opp, frame: 501), 1)
+    {ctx, _} = Enum.reduce(502..620, {ctx, nil}, fn f, {c, _} ->
+      Situations.fold(c, gs(player(action: 20), opp, frame: f), 1)
+    end)
+    {_ctx, set} = Situations.fold(ctx, gs(player(hitstun_frames_left: 8), opp, frame: 621), 1)
+    refute :recaught in set
   end
 
   test "label_states batch frontend returns one mask per state" do

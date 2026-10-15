@@ -104,7 +104,20 @@ defmodule ExPhil.Situations do
     # -- appended 2026-08-11 (registry is append-only): wall interaction
     # zones from extracted stage collision (ExPhil.StageCollision)
     :walljump_zone,
-    :walltech_available
+    :walltech_available,
+    # Broader recent-hit sequence; may include actionable escape gaps.
+    :punish_sequence,
+    :landing_recovery,
+    :tech_committed,
+    :knockdown_bounce,
+    :knockdown_wait,
+    :getup_committed,
+    :captured,
+    :thrown,
+    :platform_exit,
+    :escape_action,
+    :recaught,
+    :knockdown_followup
   ]
 
   @bit Map.new(Enum.with_index(@labels))
@@ -150,7 +163,6 @@ defmodule ExPhil.Situations do
   @first_actionable 14
   @dash_run [0x14, 0x15]
   @tumble 38
-  @hitstun_actions MapSet.new(Enum.to_list(75..91) ++ Enum.to_list(223..232))
   @shield_states MapSet.new([178, 179, 180])
   @shield_break MapSet.new(205..211)
   # Knockdown lifecycle: bounce 183/191, lying 184/192, getups 186-189 /
@@ -172,6 +184,9 @@ defmodule ExPhil.Situations do
   @doc "Ordered label registry (bit = index)."
   @spec labels() :: [atom()]
   def labels, do: @labels
+
+  @doc "Semantic revision: v3 adds defensive phases and observed transitions."
+  def label_version, do: 3
 
   @doc "Bit index of a label."
   @spec bit(atom()) :: non_neg_integer()
@@ -199,6 +214,9 @@ defmodule ExPhil.Situations do
       combo_gap: nil,
       conv_until: nil,
       opp_stock: nil,
+      own_stock: nil,
+      defense_own: nil,
+      defense_opponent: nil,
       opp_killed_at: nil,
       opp_hitstun_prev: false
     }
@@ -225,22 +243,32 @@ defmodule ExPhil.Situations do
       end
 
     if own == nil or opp == nil do
-      {ctx, MapSet.new()}
+      {new_context(), MapSet.new()}
     else
       geo = geometry(gs.stage)
       frame = gs.frame || 0
       dist = distance(own, opp)
+      defense_own = defense_step(ctx[:defense_own], own, gs, own_port)
+      defense_opponent = defense_step(ctx[:defense_opponent], opp, gs, :opponent)
 
       own_disadv = disadvantaged?(own)
       opp_disadv = disadvantaged?(opp)
       opp_hitstun = hitstun?(opp)
+      stock_changed =
+        (ctx.opp_stock != nil and opp.stock != ctx.opp_stock) or
+          (ctx[:own_stock] != nil and own.stock != ctx.own_stock)
+      live = act(own) >= @first_actionable and act(opp) >= @first_actionable
+      # Numeric hitstun is authoritative: damage animations can outlast it,
+      # and the reused replay field can contain positive denormal floats.
+      combo_active = live and not stock_changed and combo_hitstun?(opp) and not combo_hitstun?(own)
 
       # ---- context updates (before labels that read them) ----
       {dists, n} = push_window(ctx.dists, ctx.n_dists, dist, @approach_window)
 
       combo_gap =
         cond do
-          opp_hitstun and not hitstun?(own) -> 0
+          not live or stock_changed or combo_hitstun?(own) -> nil
+          combo_active -> 0
           ctx.combo_gap != nil and ctx.combo_gap < @combo_max_gap -> ctx.combo_gap + 1
           true -> nil
         end
@@ -267,6 +295,9 @@ defmodule ExPhil.Situations do
           combo_gap: combo_gap,
           conv_until: conv_until,
           opp_stock: opp.stock,
+          own_stock: own.stock,
+          defense_own: defense_own,
+          defense_opponent: defense_opponent,
           opp_killed_at: opp_killed_at,
           opp_hitstun_prev: opp_hitstun
       }
@@ -322,7 +353,8 @@ defmodule ExPhil.Situations do
         |> put(:pummel_throw_decision, MapSet.member?(@grab_hold, act(own)))
         |> put(:edgeguard, opp_off and not own_off and act(opp) not in @cliff)
         |> put(:conversion_open, ctx.conv_until != nil)
-        |> put(:combo_active, ctx.combo_gap != nil)
+        |> put(:combo_active, combo_active)
+        |> put(:punish_sequence, ctx.combo_gap != nil)
 
       # ---- disadvantage children ----
       set =
@@ -379,6 +411,15 @@ defmodule ExPhil.Situations do
         |> put(:walljump_zone, wall_dist != nil and not own.on_ground and wall_dist < @walljump_dist)
         |> put(:walltech_available, wall_dist != nil and hitstun?(own) and wall_dist < @walltech_dist)
 
+      set = Enum.reduce([:landing_recovery, :tech_committed, :knockdown_bounce,
+        :knockdown_wait, :getup_committed, :captured, :thrown], set, fn phase, labels ->
+        put(labels, phase, defense_own.phase == phase)
+      end)
+      set = set |> put(:platform_exit, defense_own.platform_exit != nil)
+        |> put(:escape_action, defense_own.escape_action)
+        |> put(:recaught, defense_own.recaught)
+        |> put(:knockdown_followup, defense_own.knockdown_followup)
+
       {ctx, MapSet.new(set)}
     end
   end
@@ -420,11 +461,23 @@ defmodule ExPhil.Situations do
   end
 
   defp hitstun?(p) do
-    (p.hitstun_frames_left || 0) > 0 or MapSet.member?(@hitstun_actions, act(p))
+    combo_hitstun?(p)
+  end
+
+  # This is a hitstun-based observation, not a proof of guaranteed follow-ups
+  # or an exhaustive actionability model (hitlag/cancel windows are separate).
+  defp combo_hitstun?(p) do
+    # The replay slot is reused outside Damage* animations (e.g. tech timers
+    # and walk speed). A positive number alone is not evidence of hitstun.
+    act(p) in 75..91 and case p.hitstun_frames_left do
+      frames when is_number(frames) -> frames >= 0.5
+      _ -> true
+    end
   end
 
   defp disadvantaged?(p) do
-    hitstun?(p) or act(p) == @tumble or MapSet.member?(@knockdown, act(p))
+    act(p) == @tumble or defense_phase(p) in [:damage_hitstun, :landing_recovery,
+      :tech_committed, :knockdown_bounce, :knockdown_wait, :getup_committed, :captured, :thrown]
   end
 
   defp offstage?(p, geo), do: abs(x(p)) > geo.edge or (not p.on_ground and y(p) < @offstage_y)
@@ -523,5 +576,64 @@ defmodule ExPhil.Situations do
         ]
         |> Enum.reject(&match?({nil, _, _}, &1))
     }
+  end
+  @doc "Observed defensive phase; :other does not mean actionable or safe."
+  def defense_phase(p) do
+    a = act(p)
+    cond do
+      a < 14 -> :dead_or_respawning
+      combo_hitstun?(p) -> :damage_hitstun
+      a in [42, 43, 70, 71, 72, 73, 74] -> :landing_recovery
+      a in 199..204 -> :tech_committed
+      a in [183, 191, 185, 193] -> :knockdown_bounce
+      a in [184, 192] -> :knockdown_wait
+      a in [186, 187, 188, 189, 190, 194, 195, 196, 197, 198] -> :getup_committed
+      a in 223..232 -> :captured
+      a in 239..243 -> :thrown
+      true -> :other
+    end
+  end
+
+  defp defense_step(previous, p, gs, identity) do
+    phase = defense_phase(p)
+    # Transitions need consecutive observations of the same stock/subject.
+    prev = if previous && previous.frame + 1 == gs.frame && previous.stage == gs.stage &&
+      previous.stock == p.stock && previous.identity == identity &&
+      previous.character == p.character && phase != :dead_or_respawning,
+      do: previous, else: nil
+    loss_phases = [:damage_hitstun, :tech_committed, :knockdown_bounce,
+      :knockdown_wait, :getup_committed, :captured, :thrown]
+    lost = phase in loss_phases
+    recent_loss = if lost, do: gs.frame, else: prev && prev.last_loss
+    recent_loss = if recent_loss && gs.frame - recent_loss <= 120, do: recent_loss, else: nil
+    a = act(p)
+    # Observe an initiated action, not an inferred opportunity to act.
+    chosen = a in 15..28 or a in 44..69 or a in 178..182 or a in 233..236
+    acted = prev != nil and recent_loss != nil and phase == :other and chosen and
+      a != prev.action and not prev.escape_seen
+    escape_seen = if prev, do: prev.escape_seen or acted, else: false
+    recaught = prev != nil and prev.escape_seen and prev.last_loss != nil and gs.frame - prev.last_loss <= 120 and phase in [:damage_hitstun, :captured, :thrown] and
+      prev.phase not in [:damage_hitstun, :captured, :thrown]
+    escape_seen = if lost or recent_loss == nil, do: false, else: escape_seen
+    exit_origin = if prev && prev.on_platform && not p.on_ground && a >= 14 do
+      cond do
+        prev.phase == :tech_committed -> :tech
+        prev.phase in [:knockdown_bounce, :knockdown_wait, :getup_committed] -> :knockdown
+        prev.action in 178..182 -> :shield
+        a in 25..28 or prev.action == 24 -> :jump
+        true -> :other
+      end
+    end
+    %{frame: gs.frame, stage: gs.stage, identity: identity, character: p.character,
+      stock: p.stock, action: a, phase: phase,
+      phase_changed: prev != nil and prev.phase != phase,
+      tech_exited: prev != nil and prev.phase == :tech_committed and phase != :tech_committed,
+      protection: case p.invulnerable do true -> :invulnerable; false -> :not_invulnerable; _ -> :unknown end,
+      tech_option: case a do 199 -> :in_place; 200 -> :forward; 201 -> :backward; 202 -> :wall; 203 -> :wall_jump; 204 -> :ceiling; _ -> nil end,
+      on_platform: p.on_ground == true and y(p) > @platform_y,
+      platform_exit: exit_origin, escape_action: acted, recaught: recaught,
+      knockdown_followup: prev != nil and prev.phase in [:knockdown_bounce, :knockdown_wait] and
+        (phase == :damage_hitstun or (a in [185, 193] and prev.action != a)),
+      last_loss: recent_loss, escape_seen: escape_seen}
   end
 end

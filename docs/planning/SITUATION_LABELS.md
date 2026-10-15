@@ -58,9 +58,32 @@ state), **M** (medium: needs a frame window or both players), **H**
 
 ## 3. Advantage (we hit them)
 
+September 25 v3 refinement: prepared and tested (32 tests), queued to apply
+after the active PPO chain finishes. Check `COMBO_LABEL_REFINEMENT_STATUS.md`
+before assuming v3 is deployed. Existing bit positions remain unchanged;
+`punish_sequence` and defensive phases/events are appended. Regenerate cached masks before comparing old
+and new `combo_active` measurements; `Situations.label_version/0` returns 3
+in the revised code. Numeric zero/denormal hitstun does not become a combo
+merely because a damage animation persists. This does not yet detect exact
+exact slide-off mechanics, hitlag, or every actionable cancel window.
+
+Implemented defensive phases/events, their API, and limits are documented in
+`docs/guides/DEFENSIVE_SITUATIONS.md`: landing recovery, tech commitment and
+observed protection, knockdown/getup phases, capture/throw, platform-exit
+origins, first observed escape action, recatch and knockdown followup. Both
+players' details are available in the fold context. The same replay audit
+now exports these transitions with label version/source hashes.
+
+Replay audit correction: the hitstun slot is reused for positive tech timers
+and walking values, not just denormals. v2 additionally requires a Damage*
+action (75–91). Tech, landing, capture and knockdown are separate phases;
+leaving measured hitstun does NOT establish an actionable escape. See
+`PLATFORM_PUNISH_AUDIT_2026-09-25.md` for observed examples and next labels.
+
 | Label | Definition | Detect |
 |---|---|---|
-| `combo_active` | Opponent in hitstun and we are actionable-or-attacking; ends when they escape | M (hitstun tracking) |
+| `combo_active` | v2: opponent is in a Damage* action with remaining hitstun and we are not; no post-hit grace period. Missing hitstun falls back to damage actions. A hitstun proxy, not proof of guaranteed follow-ups or actionability on exit. | M (hitstun tracking) |
+| `punish_sequence` | v2: recent-hit sequence, including up to 20 consecutive frames after hitstun ends; can include actionable escapes. Clears on trade, death/respawn, or stock change. | M (history) |
 | `juggle` | Opponent airborne above us post-hit, we're under them | E |
 | `tech_chase` | Opponent in knockdown/missed-tech/tech-roll family; we're grounded nearby | E |
 | `tech_read_window` | The 20-frame window where their tech option is committed but punish is still open | M |

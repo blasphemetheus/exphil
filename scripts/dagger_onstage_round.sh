@@ -24,7 +24,8 @@ while pgrep -f '[b]eam.smp' > /dev/null; do sleep 60; done
 echo "== beam free ($(date +%H:%M))"
 newer=$(find ../nx/nx/lib ../nx/exla/lib ../nx/exla/c_src -newer ../nx/exla/cache/libexla.so \( -name '*.ex' -o -name '*.exs' -o -name '*.cc' -o -name '*.h' \) 2>/dev/null | head -3)
 if [ -n "$newer" ]; then echo "NX_EDIT_IN_PROGRESS: $newer"; exit 1; fi
-stale=$(find lib -name '*.ex' -newer _build/dev/lib/exphil/ebin/Elixir.ExPhil.beam | head -3)
+newest_beam=$(ls -t _build/dev/lib/exphil/ebin/*.beam 2>/dev/null | head -1)
+stale=$(find lib -name '*.ex' -newer "${newest_beam:-/nonexistent}" 2>/dev/null | head -3)
 [ -z "$stale" ] || { echo "STALE_BUILD (lib newer than _build/dev): $stale"; exit 1; }
 
 pol=checkpoints/coh_fox_mamba_v3s906_ep2/model_best_policy.bin
