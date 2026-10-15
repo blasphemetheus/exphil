@@ -1370,6 +1370,18 @@ defmodule ExPhil.Training.Pipeline do
           else
             mix_dataset = Streaming.create_dataset(mixed, dataset_opts ++ [frame_lists: mix_lists])
 
+            # Keep the mix's embeddings OFF the GPU (2026-10-15, r9o OOM at
+            # step 2.4k): create_dataset parks the whole embedded set on
+            # EXLA for the epoch — 5.25M frames x 288 = 6 GB beside the
+            # training buffers — while the lazy temporal slicer copies it
+            # back to BinaryBackend and slices on the CPU anyway. The main
+            # path holds one chunk at a time; the mix must not hold more.
+            mix_dataset =
+              case mix_dataset.embedded_frames do
+                %Nx.Tensor{} = t -> %{mix_dataset | embedded_frames: Nx.backend_transfer(t, Nx.BinaryBackend)}
+                _ -> mix_dataset
+              end
+
             mix_batch_opts =
               if awbc? do
                 lists = ExPhil.Training.AdvantageWeighting.split_by_replay(mixed)
