@@ -1398,42 +1398,78 @@ defmodule ExPhil.Training.Pipeline do
                 seq_batch_opts
               end
 
-            mix_batches =
-              if ropts[:temporal] do
-                Data.batched_sequences(mix_dataset, mix_batch_opts)
-              else
-                Data.batched(mix_dataset,
-                  batch_size: ropts[:batch_size] || 32,
-                  shuffle: true,
-                  drop_last: true
-                )
-              end
-              |> Enum.to_list()
+            # One lazy batch STREAM per oversample cycle, each cycle with its
+            # own shuffle seed (2026-10-15): the old `|> Enum.to_list()` +
+            # `Enum.shuffle` materialized every mix batch up front — r9o's
+            # 1.4k batches x 12 MB (128 x 80 x 288 f32) = 16 GB on the device
+            # before the first main batch (OOM at step 2.4k). The lazy
+            # batcher builds one batch when pulled; nothing else is resident.
+            mix_batch_size = ropts[:batch_size] || 32
+            mix_seed = (ropts[:seed] || 0) * 1000
 
-            mix_all = Enum.flat_map(1..oversample, fn _ -> Enum.shuffle(mix_batches) end)
+            mix_cycle = fn k ->
+              if ropts[:temporal] do
+                Data.batched_sequences(mix_dataset, Keyword.put(mix_batch_opts, :seed, mix_seed + k))
+              else
+                Data.batched(mix_dataset, batch_size: mix_batch_size, shuffle: true, drop_last: true)
+              end
+            end
+
+            n_mix =
+              if ropts[:temporal] do
+                ws = Keyword.get(mix_batch_opts, :window_size) || get_in(mix_dataset.metadata, [:window_size]) || 30
+                st = Keyword.get(mix_batch_opts, :stride) || get_in(mix_dataset.metadata, [:stride]) || 1
+                div(Data.num_sequences(mix_dataset, ws, st), max(Keyword.get(mix_batch_opts, :batch_size, mix_batch_size), 1))
+              else
+                div(mix_dataset.size, mix_batch_size)
+              end * oversample
+
+            mix_all = Stream.flat_map(1..oversample, mix_cycle)
 
             # INTERLEAVED, not appended (2026-10-05): a 470-batch recovery-only
             # block at the end of the epoch sent held-out val loss 1.06 -> 4.92
             # (catastrophic forgetting from ordering; queue 16 dag4). Spread the
             # mix evenly through the main stream by credit: every main batch
-            # earns `ratio` mix batches, emitted whenever the credit reaches 1.
-            # Leftover mix batches (estimate short) follow at the end.
+            # earns `ratio` mix batches, pulled from the mix stream whenever
+            # the credit reaches 1 (a suspended Enumerable.reduce continuation,
+            # the Stream.zip mechanism). Leftover mix batches (estimate short)
+            # follow at the end.
             main_est = max(pipeline.estimated_batches || 0, 1)
-            ratio = length(mix_all) / main_est
+            ratio = n_mix / main_est
 
-            Logger.info("[Streaming] curriculum mix interleaved: #{length(mix_all)} mix batches over ~#{main_est} main batches (1 per #{Float.round(1 / max(ratio, 1.0e-9), 1)})")
+            Logger.info("[Streaming] curriculum mix interleaved: #{n_mix} mix batches over ~#{main_est} main batches (1 per #{Float.round(1 / max(ratio, 1.0e-9), 1)})")
+
+            pull = fn
+              nil -> {nil, nil}
+              cont ->
+                case cont.({:cont, nil}) do
+                  {:suspended, b, next} -> {b, next}
+                  _ -> {nil, nil}
+                end
+            end
+
+            pull_n = fn cont, n ->
+              Enum.reduce_while(1..n//1, {[], cont}, fn _, {acc, c} ->
+                case pull.(c) do
+                  {nil, _} -> {:halt, {acc, nil}}
+                  {b, next} -> {:cont, {[b | acc], next}}
+                end
+              end)
+              |> then(fn {acc, c} -> {Enum.reverse(acc), c} end)
+            end
+
+            drain = fn cont -> Stream.unfold(cont, fn c -> case pull.(c) do {nil, _} -> nil; {b, next} -> {b, next} end end) end
 
             interleaved =
               Stream.transform(
                 stream,
-                fn -> {mix_all, 0.0} end,
-                fn batch, {queue, credit} ->
+                fn -> {&Enumerable.reduce(mix_all, &1, fn b, _ -> {:suspend, b} end), 0.0} end,
+                fn batch, {cont, credit} ->
                   credit = credit + ratio
-                  n = trunc(credit)
-                  {emit, rest} = Enum.split(queue, n)
-                  {[batch | emit], {rest, credit - length(emit)}}
+                  {emit, cont} = pull_n.(cont, trunc(credit))
+                  {[batch | emit], {cont, credit - length(emit)}}
                 end,
-                fn {rest, _} -> {rest, nil} end,
+                fn {cont, _} -> {if(cont, do: drain.(cont), else: []), nil} end,
                 fn _ -> :ok end
               )
 

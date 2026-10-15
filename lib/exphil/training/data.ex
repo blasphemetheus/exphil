@@ -2768,6 +2768,23 @@ defmodule ExPhil.Training.Data do
       do: raise(ArgumentError, "input-only context requires boundary-aware lazy temporal batching")
   end
 
+  @doc """
+  Number of lazy temporal windows `batched_sequences(lazy: true)` will yield
+  for this embedded dataset (same layout rules: episode boundaries from
+  `sequence_starts`, input-only targets skipped) — so a caller can size an
+  interleave without materializing a single batch (2026-10-15, the r9o
+  curriculum mix: 1.4k batches x 12 MB materialized up front = 16 GB).
+  """
+  def num_sequences(dataset, window_size, stride) do
+    num_frames =
+      case dataset.embedded_frames do
+        %Nx.Tensor{} = t -> elem(Nx.shape(t), 0)
+        array when is_tuple(array) and elem(array, 0) == :array -> :array.size(array)
+      end
+
+    tuple_size(sequence_layout(dataset, num_frames, window_size, stride))
+  end
+
   defp sequence_layout(dataset, num_frames, window_size, stride)
        when window_size > 0 and stride > 0 do
     case dataset.metadata[:sequence_starts] do
