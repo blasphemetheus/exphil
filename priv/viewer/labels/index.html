@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>ExPhil labels — one run at a time</title>
+    <!-- Label / DAgger / teacher review (2026-10-16). Open as /labels/?run=/labelruns/<dir>
+         (manifest.json + <id>.msltrace.json + <id>.json from scripts/label_review_export.exs).
+         One coach pane (/coach/pane.html, an iframe driven by postMessage) plays the chosen
+         run; nothing plays until a run is picked, and it loads PAUSED at its first frame.
+         Under it: the timeline of the player's real press vs the label, cell bands, gated
+         frames, edges; beside it: the frame's state and the k expert rows the label was
+         sampled from. Keys: ← → step, [ ] prev/next label edge, n / p next/prev run; play with the
+         pane's own controls. -->
+    <style>
+      :root {
+        color-scheme: light;
+        font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+        --ink: #20211f; --muted: #4b4d47; --line: #d7d8d2; --bg: #f7f7f4; --card: #fff;
+        --actual: #2f6fb3; --label: #d9822b; --gate: #b3261e; --sel: #e8f0fa;
+      }
+      body { margin: 0; background: var(--bg); color: var(--ink); font-size: 13px; line-height: 1.35; }
+      main { display: grid; grid-template-columns: 300px minmax(0, 1fr); gap: 10px; padding: 8px 10px; box-sizing: border-box; height: 100vh; }
+      aside { display: flex; flex-direction: column; min-height: 0; gap: 6px; }
+      h1 { margin: 0; font-size: 15px; }
+      .meta, .muted { color: var(--muted); }
+      .error { color: var(--gate); }
+      .card { border: 1px solid var(--line); background: var(--card); padding: 6px 8px; }
+      .filters { display: grid; gap: 4px; }
+      .filters label { display: flex; gap: 6px; align-items: center; }
+      select, input[type=text] { font: inherit; font-size: 12px; max-width: 100%; }
+      #runs { flex: 1; min-height: 0; overflow: auto; border: 1px solid var(--line); background: var(--card); }
+      .run { padding: 5px 8px; border-bottom: 1px solid #eceee8; cursor: pointer; }
+      .run:hover { background: #f1f3ee; }
+      .run.sel { background: var(--sel); }
+      .run .id { font-family: ui-monospace, monospace; font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+      .chips { display: flex; flex-wrap: wrap; gap: 2px; margin-top: 2px; }
+      .chip { font-size: 10px; padding: 0 4px; border: 1px solid var(--line); border-radius: 3px; background: #fff; color: var(--muted); }
+      .chip.lab { border-color: #f0c9a0; background: #fff4e8; color: #8a4b0f; }
+      .chip.act { border-color: #b9cde8; background: #eef4fb; color: #1e4f85; }
+      section { display: grid; grid-template-rows: minmax(260px, 1fr) auto; gap: 8px; min-height: 0; }
+      .top { display: grid; grid-template-columns: minmax(0, 3fr) minmax(300px, 2fr); gap: 8px; min-height: 0; }
+      iframe { border: 1px solid var(--line); background: var(--card); width: 100%; height: 100%; display: block; box-sizing: border-box; }
+      #detail { overflow: auto; font-size: 12px; }
+      #detail h2 { margin: 0 0 4px; font-size: 13px; }
+      table { border-collapse: collapse; width: 100%; }
+      td, th { text-align: left; padding: 1px 6px 1px 0; vertical-align: top; }
+      th { color: var(--muted); font-weight: 500; }
+      .ctrl { display: inline-flex; align-items: center; gap: 4px; font-family: ui-monospace, monospace; font-size: 11px; }
+      .stick { width: 22px; height: 22px; border: 1px solid var(--line); position: relative; display: inline-block; background: #fff; }
+      .stick i { position: absolute; width: 5px; height: 5px; border-radius: 50%; background: var(--ink); transform: translate(-50%, 50%); }
+      .btn { padding: 0 3px; border: 1px solid var(--line); border-radius: 2px; color: #aaa; }
+      .btn.on { color: #fff; background: var(--ink); border-color: var(--ink); }
+      .nb.cross td { color: var(--gate); }
+      .nb.hold td { color: var(--muted); }
+      #timeline { border: 1px solid var(--line); background: var(--card); }
+      svg { display: block; width: 100%; height: 150px; }
+      .legend { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 11px; color: var(--muted); padding: 3px 8px; }
+      .legend i { display: inline-block; width: 12px; height: 8px; vertical-align: middle; margin-right: 4px; }
+      .nav { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; padding: 4px 8px; }
+      button { border: 1px solid #9da096; background: #fff; color: inherit; padding: 3px 8px; cursor: pointer; font: inherit; font-size: 12px; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <aside>
+        <h1>Labels, one run at a time</h1>
+        <div id="status" class="meta">loading manifest…</div>
+        <div class="card filters">
+          <label>source <select id="fSource"><option value="">all</option></select></label>
+          <label>cell <select id="fCell"><option value="">any</option></select></label>
+          <label>label edge <select id="fEvent"><option value="">any</option></select></label>
+          <label><input type="checkbox" id="fOff" /> label edge the real press never made in that cell</label>
+          <label>sort <select id="fSort"><option value="id">id</option><option value="events">label edges</option><option value="d2">d² median ↓</option><option value="gated">gated frames</option></select></label>
+        </div>
+        <div id="runs"></div>
+      </aside>
+      <section>
+        <div class="top">
+          <iframe id="pane" src="/coach/pane.html?id=main" title="run"></iframe>
+          <div id="detail" class="card"><span class="muted">pick a run on the left; nothing plays until you do</span></div>
+        </div>
+        <div id="timeline">
+          <div class="nav">
+            <button id="bPrev" title="p">◀ prev run</button>
+            <button id="bNext" title="n">next run ▶</button>
+            <button id="bStep-" title="←">−1 f</button>
+            <button id="bStep+" title="→">+1 f</button>
+            <button id="bEdge-" title="[">prev label edge</button>
+            <button id="bEdge+" title="]">next label edge</button>
+            <span id="pos" class="muted"></span>
+          </div>
+          <svg id="tl"></svg>
+          <div class="legend">
+            <span><i style="background:var(--actual)"></i>real press (bot / expert)</span>
+            <span><i style="background:var(--label)"></i>label</span>
+            <span><i style="background:#f3d9d7"></i>gated (d² over the gate: input-only)</span>
+            <span><i style="background:#e5e7e0"></i>context (input-only)</span>
+            <span>▲ edge (side_b / up_b / b / jump / airdodge / a) — rows: B · jump · shoulder · A · stick-up · stick-side</span>
+          </div>
+        </div>
+      </section>
+    </main>
+    <script type="module">
+      const params = new URLSearchParams(location.search);
+      const base = params.get("run") || "/labelruns/latest";
+      const $ = (s) => document.querySelector(s);
+      const pane = $("#pane");
+      const cellColors = { carried: "#f6e3e1", "post1-5_inhand": "#fbeedd", "post1-5_spent": "#fbe4c6", "post6-15_inhand": "#fdf4e6", "post6-15_spent": "#fcefd9", "post16-30_inhand": "#fdf8ef", "post16-30_spent": "#fcf4e6",
+        off_high_inhand: "#e3eefa", off_high_spent: "#d2e3f7", off_ledge_inhand: "#e9f3e6", off_ledge_spent: "#d8ebd2", off_low_inhand: "#f0eaf8", off_low_spent: "#e4d9f3", off_deep_inhand: "#f8e9f3", off_deep_spent: "#f2d6e8",
+        near_ground: "#eeeee6", drift_inhand: "#f4f4ec", drift_spent: "#ecead9" };
+
+      let manifest = null, runs = [], cur = null, curIdx = -1, frame = 0, side = null;
+
+      function fmt(v, d = 1) { return v == null ? "–" : Number(v).toFixed(d); }
+      function esc(s) { return String(s).replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c])); }
+
+      // ---- run list ----------------------------------------------------------
+      function offExpert(r) {
+        // label edges in a cell where the real press never made that edge within this run
+        const made = new Set(r.actual_events.map((e) => e.cell + "/" + e.event));
+        return r.label_events.filter((e) => !made.has(e.cell + "/" + e.event));
+      }
+      function filtered() {
+        const src = $("#fSource").value, cell = $("#fCell").value, ev = $("#fEvent").value, off = $("#fOff").checked, sort = $("#fSort").value;
+        let xs = manifest.runs.filter((r) => (!src || r.source === src) && (!cell || r.cells[cell]) && (!ev || r.label_events.some((e) => e.event === ev && (!cell || e.cell === cell))) && (!off || offExpert(r).length));
+        const key = { id: (r) => r.id, events: (r) => -r.label_events.length, d2: (r) => -(r.d2_median ?? -1), gated: (r) => -r.gated }[sort];
+        xs = xs.slice().sort((a, b) => (key(a) < key(b) ? -1 : key(a) > key(b) ? 1 : 0));
+        return xs;
+      }
+      function renderRuns() {
+        runs = filtered();
+        $("#status").textContent = `${runs.length} of ${manifest.runs.length} runs${manifest.index ? " · index " + manifest.index.split("/").pop() : ""}`;
+        $("#runs").replaceChildren(...runs.map((r, i) => {
+          const d = document.createElement("div");
+          d.className = "run" + (cur && r.id === cur.id ? " sel" : "");
+          const cells = Object.entries(r.cells).sort((a, b) => b[1] - a[1]).slice(0, 4).map(([c, n]) => `<span class="chip">${c} ${n}</span>`).join("");
+          const lab = Object.entries(r.label_events.reduce((m, e) => ((m[e.event] = (m[e.event] || 0) + 1), m), {})).map(([e, n]) => `<span class="chip lab">${e} ${n}</span>`).join("");
+          const act = Object.entries(r.actual_events.reduce((m, e) => ((m[e.event] = (m[e.event] || 0) + 1), m), {})).map(([e, n]) => `<span class="chip act">${e} ${n}</span>`).join("");
+          d.innerHTML = `<div class="id" title="${esc(r.id)}">${esc(r.id)}</div><div class="muted">${r.frames} f · ${r.labelled} labelled · ${r.gated} gated · d² ${fmt(r.d2_median, 2)}</div><div class="chips">${cells}</div><div class="chips">${act}${lab}</div>`;
+          d.onclick = () => pick(i);
+          return d;
+        }));
+      }
+
+      // ---- one run ---------------------------------------------------------------
+      async function pick(i) {
+        if (i < 0 || i >= runs.length) return;
+        curIdx = i; cur = runs[i]; frame = 0; side = null;
+        document.querySelectorAll(".run").forEach((d, k) => d.classList.toggle("sel", k === i));
+        pane.contentWindow.postMessage({ load: `${base}/${cur.trace}`, label: cur.label, seek: 0 }, "*");   // seek with the load = paused at frame 0
+        $("#detail").innerHTML = `<span class="muted">loading ${esc(cur.sidecar)}…</span>`;
+        const res = await fetch(`${base}/${cur.sidecar}`);
+        side = await res.json();
+        const marks = side.rows.flatMap((r) => r.label_edges.map((e) => ({ i: r.i, label: e, color: "#d9822b" })));
+        pane.contentWindow.postMessage({ marks }, "*");
+        drawTimeline(); renderDetail();
+      }
+      function seek(i) {
+        if (!side) return;
+        frame = Math.max(0, Math.min(side.rows.length - 1, i));
+        pane.contentWindow.postMessage({ seek: frame }, "*");
+        renderDetail(); moveCursor();
+      }
+      function edgeJump(dir) {
+        if (!side) return;
+        const idx = side.rows.filter((r) => r.label_edges.length).map((r) => r.i);
+        const next = dir > 0 ? idx.find((i) => i > frame) : idx.slice().reverse().find((i) => i < frame);
+        if (next != null) seek(next);
+      }
+
+      // ---- timeline ----------------------------------------------------------------
+      const LANES = [
+        { key: "b", name: "B", test: (c) => c.b },
+        { key: "jump", name: "jump", test: (c) => c.x || c.y },
+        { key: "sh", name: "L/R", test: (c) => c.l || c.r || c.sh > 0.3 },
+        { key: "a", name: "A", test: (c) => c.a },
+        { key: "up", name: "stick↑", test: (c) => c.ms[1] >= 0.75 },
+        { key: "sidex", name: "stick↔", test: (c) => Math.abs(c.ms[0] - 0.5) >= 0.25 }
+      ];
+      function drawTimeline() {
+        const svg = $("#tl"); const W = svg.clientWidth || 900, H = 150; const n = side.rows.length; const x = (i) => (i / n) * W, w = Math.max(W / n, 1);
+        const laneH = 16, top = 22;
+        let s = "";
+        // cell band + gated / context shading
+        side.rows.forEach((r) => {
+          const c = r.cell ? cellColors[r.cell] || "#eee" : "transparent";
+          s += `<rect x="${x(r.i)}" y="0" width="${w + 0.3}" height="${H}" fill="${c}"/>`;
+          if (r.gated) s += `<rect x="${x(r.i)}" y="0" width="${w + 0.3}" height="${H}" fill="#f3d9d7" opacity="0.9"/>`;
+          else if (r.input_only) s += `<rect x="${x(r.i)}" y="0" width="${w + 0.3}" height="${H}" fill="#e5e7e0" opacity="0.7"/>`;
+        });
+        // cell names where a cell starts
+        let last = null; side.rows.forEach((r) => { if (r.cell !== last) { if (r.cell) s += `<text x="${x(r.i) + 2}" y="10" font-size="9" fill="#4b4d47">${r.cell}</text>`; last = r.cell; } });
+        LANES.forEach((l, k) => {
+          const y0 = top + k * laneH;
+          s += `<text x="2" y="${y0 + 11}" font-size="9" fill="#4b4d47">${l.name}</text>`;
+          side.rows.forEach((r) => {
+            if (r.actual && l.test(r.actual)) s += `<rect x="${x(r.i)}" y="${y0 + 2}" width="${w + 0.3}" height="${laneH / 2 - 3}" fill="var(--actual)"/>`;
+            if (r.label && l.test(r.label)) s += `<rect x="${x(r.i)}" y="${y0 + laneH / 2}" width="${w + 0.3}" height="${laneH / 2 - 3}" fill="var(--label)"/>`;
+          });
+        });
+        // edges
+        side.rows.forEach((r) => {
+          r.label_edges.forEach((e, k) => { s += `<polygon points="${x(r.i) + w / 2 - 4},${H - 2} ${x(r.i) + w / 2 + 4},${H - 2} ${x(r.i) + w / 2},${H - 10}" fill="var(--label)"><title>label ${e} @${r.i}</title></polygon>`; });
+          r.actual_edges.forEach((e, k) => { s += `<polygon points="${x(r.i) + w / 2 - 4},${H - 14} ${x(r.i) + w / 2 + 4},${H - 14} ${x(r.i) + w / 2},${H - 22}" fill="var(--actual)"><title>real ${e} @${r.i}</title></polygon>`; });
+        });
+        s += `<line id="cursor" x1="0" x2="0" y1="0" y2="${H}" stroke="#20211f" stroke-width="1.5"/>`;
+        svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
+        svg.innerHTML = s;
+        svg.onclick = (ev) => { const r = svg.getBoundingClientRect(); seek(Math.floor(((ev.clientX - r.left) / r.width) * n)); };
+        moveCursor();
+      }
+      function moveCursor() {
+        const svg = $("#tl"), c = svg.querySelector("#cursor"); if (!c || !side) return;
+        const W = Number(svg.getAttribute("viewBox").split(" ")[2]); const xx = (frame / side.rows.length) * W + 0.5;
+        c.setAttribute("x1", xx); c.setAttribute("x2", xx);
+        $("#pos").textContent = `frame ${frame} / ${side.rows.length - 1}`;
+      }
+
+      // ---- frame detail --------------------------------------------------------------
+      function ctrlHTML(c, cls) {
+        if (!c) return `<span class="muted">—</span>`;
+        const dot = (xy) => `<span class="stick"><i style="left:${xy[0] * 100}%;bottom:${xy[1] * 100}%"></i></span>`;
+        const b = (name, on) => `<span class="btn${on ? " on" : ""}">${name}</span>`;
+        return `<span class="ctrl ${cls || ""}">${dot(c.ms)} c${dot(c.cs)} ${b("A", c.a)}${b("B", c.b)}${b("X", c.x)}${b("Y", c.y)}${b("Z", c.z)}${b("L", c.l || c.sh > 0.3)}${b("R", c.r)}</span>`;
+      }
+      function renderDetail() {
+        if (!side) return;
+        const r = side.rows[frame];
+        const nbs = (r.nbs || []).map((n) => `<tr class="nb${n.hold ? " hold" : ""}${!n.hold && r.cell && n.cell !== r.cell && n.cell !== "hit" && n.cell !== "onstage" ? " cross" : ""}"><td>${n.hold ? "hold" : esc(n.press)}</td><td>${esc(n.cell)}</td><td>${fmt(n.d2, 2)}</td></tr>`).join("");
+        $("#detail").innerHTML = `
+          <h2>${esc(cur.label)} — frame ${r.i} (game ${r.frame})</h2>
+          <table>
+            <tr><th>state</th><td>${esc(r.name)} <span class="muted">(${r.action} f${r.af ?? "?"})</span> · y ${fmt(r.y)} · dist ${fmt(r.dist)} past edge · jumps ${r.jumps ?? "?"} · hitstun ${r.hit ?? 0}${r.ground ? " · grounded" : ""}</td></tr>
+            <tr><th>cell</th><td>${r.cell ? `<span class="chip" style="background:${cellColors[r.cell] || "#eee"}">${r.cell}</span>` : "<span class=muted>none</span>"}${r.gated ? ` <span class="chip" style="color:var(--gate)">gated</span>` : ""}${r.input_only && !r.gated ? ` <span class="chip">context</span>` : ""}</td></tr>
+            <tr><th>real press</th><td>${ctrlHTML(r.actual)} ${r.actual_edges.length ? `<span class="chip act">${r.actual_edges.join(" ")}</span>` : ""}</td></tr>
+            <tr><th>label</th><td>${ctrlHTML(r.label)} ${r.label_edges.length ? `<span class="chip lab">${r.label_edges.join(" ")}</span>` : ""}</td></tr>
+            <tr><th>prev (what the label conditions on)</th><td>${ctrlHTML(r.prev)}</td></tr>
+          </table>
+          ${r.nbs ? `<h2 style="margin-top:6px">the ${r.nbs.length} nearest expert rows (one was sampled)</h2><table><tr><th>row</th><th>its cell</th><th>d²</th></tr>${nbs}</table><div class="muted">red = a row from another cell than this frame's (a borrow); grey = hold (keeps prev)</div>` : ""}`;
+      }
+
+      // ---- wiring --------------------------------------------------------------------
+      window.addEventListener("message", (ev) => {
+        const m = ev.data || {};
+        if (typeof m.frame === "number" && side && m.frame !== frame) { frame = m.frame; renderDetail(); moveCursor(); }
+        if (m.paneKey) key(m.paneKey);
+      });
+      function key(k) {
+        if (k === "ArrowLeft") seek(frame - 1); else if (k === "ArrowRight") seek(frame + 1);
+        else if (k === "[") edgeJump(-1); else if (k === "]") edgeJump(1);
+        else if (k === "n") pick(curIdx + 1); else if (k === "p") pick(curIdx - 1);
+      }
+      window.addEventListener("keydown", (e) => { if (!(e.target instanceof Element && e.target.matches("input, select, textarea"))) { key(e.key); if (["ArrowLeft", "ArrowRight", " "].includes(e.key)) e.preventDefault(); } });
+      $("#bPrev").onclick = () => pick(curIdx - 1); $("#bNext").onclick = () => pick(curIdx + 1);
+      $("#bStep-").onclick = () => seek(frame - 1); $("#bStep+").onclick = () => seek(frame + 1);
+      $("#bEdge-").onclick = () => edgeJump(-1); $("#bEdge+").onclick = () => edgeJump(1);
+      ["#fSource", "#fCell", "#fEvent", "#fOff", "#fSort"].forEach((s) => ($(s).onchange = renderRuns));
+      window.addEventListener("resize", () => side && drawTimeline());
+
+      try {
+        const res = await fetch(`${base}/manifest.json`);
+        if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
+        manifest = await res.json();
+        const opt = (sel, vals) => vals.forEach((v) => sel.appendChild(Object.assign(document.createElement("option"), { value: v, textContent: v })));
+        opt($("#fSource"), [...new Set(manifest.runs.map((r) => r.source))]);
+        opt($("#fCell"), manifest.cells.filter((c) => manifest.runs.some((r) => r.cells[c])));
+        opt($("#fEvent"), manifest.events);
+        renderRuns();
+      } catch (e) { $("#status").innerHTML = `<span class="error">manifest: ${esc(e.message)} — export with scripts/label_review_export.exs and open /labels/?run=/labelruns/&lt;dir&gt;</span>`; }
+    </script>
+  </body>
+</html>

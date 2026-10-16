@@ -481,6 +481,23 @@ defmodule ExPhil.Agents.ExpertRecoveryLabeler do
     {idx, -(neg |> Nx.slice_along_axis(0, 1, axis: 1) |> Nx.squeeze(axes: [1]))}
   end
 
+  @doc "Like `nearest_d2/3` but with the squared distance of EVERY neighbour: `{idx {batch, k}, d2 {batch, k}}` (the label review export)."
+  def nearest_d2k(index, queries, k \\ @k) do
+    q = Nx.tensor(queries, type: :f32)
+    {idx, d2} = Nx.Defn.jit(&nearest_kernel_k/3).(q, index.x, k: k)
+    :erlang.garbage_collect()
+    {idx, d2}
+  end
+
+  defn nearest_kernel_k(q, x, opts \\ []) do
+    k = opts[:k]
+    qq = Nx.sum(q * q, axes: [1]) |> Nx.new_axis(1)
+    xx = Nx.sum(x * x, axes: [1]) |> Nx.new_axis(0)
+    d2 = qq - 2.0 * Nx.dot(q, [1], x, [1]) + xx
+    {neg, idx} = Nx.top_k(-d2, k: k)
+    {idx, -neg}
+  end
+
   @doc "Squared distance from each `{player, prev, opponent}` state to its nearest expert row."
   def nearest_d2_batch(index, states, edge) do
     states
@@ -554,10 +571,51 @@ defmodule ExPhil.Agents.ExpertRecoveryLabeler do
   each restarting the label chain from the real press at its t-1, so a
   label chain cannot drift away from the state it is conditioned on.
   Frames carry `:actual` (the bot's own press); drop it for the old format.
+
+  `prev: :actual` (v8, 10-16, label_edge_origins.exs on r9o): condition every
+  label on the bot's ACTUAL press at t-1 instead of the previous label. The
+  chain "holds" presses the bot never made (the state never shows them), and
+  at every reset — a gated frame or a `max_run` cut, 5–12 % of frames — the
+  contradiction surfaces as a re-issued edge: 36 % of the ledge-in-hand jump
+  edges and 30 % of the deep-spent B / up-B edges sat on reset frames (x3–x5
+  their frame share). With the bot's own prev, (state, prev) is always a
+  pair the game produced; the label is "what the expert presses here given
+  what you pressed last frame" (the edge rule keeps a bot hold only where
+  the expert holds too). Default `:chain` (v3–v7 sets).
   """
-  def relabel_history(history, index, edge, opts \\ []) do
-    prefix = opts[:prefix] || 90
+  def relabel_history(history, index, edge, opts \\ []), do: relabel_histories([history], index, edge, opts) |> hd()
+
+  @doc """
+  `relabel_history/4` over MANY histories in one lockstep: every run of every
+  history is labelled in the same batched k-NN calls (10-16,
+  dagger_set_relabel.exs — per-history calls on a set of 20 k short runs
+  were batches of one, ~60 ms each). Returns one list of frame lists PER
+  history, in order.
+  """
+  def relabel_histories(histories, index, edge, opts \\ []) do
     max_d2 = opts[:max_d2]
+    prev_mode = opts[:prev] || :chain
+
+    # Label every run in LOCKSTEP: step j labels the j-th frame of each run
+    # still open in one batched k-NN call (v6, 10-15 — the per-frame call
+    # was ~60 ms; the onstage window labels ~10x the frames). Each run's
+    # chain is unchanged: prev = its previous label (first frame: the real
+    # press at t-1), a gated frame resets prev to the real press.
+    done =
+      histories
+      |> Enum.with_index()
+      |> Enum.flat_map(fn {h, hi} -> h |> history_trips(index, edge, opts) |> Enum.with_index() |> Enum.map(fn {t, ti} -> Map.put(t, :key, {hi, ti}) end) end)
+      |> label_lockstep(index, edge, max_d2, prev_mode)
+      |> Enum.group_by(fn t -> elem(t.key, 0) end)
+
+    for hi <- 0..(length(histories) - 1)//1 do
+      (done[hi] || []) |> Enum.sort_by(fn t -> elem(t.key, 1) end) |> Enum.map(fn t -> t.ctx ++ Enum.reverse(t.done) end)
+    end
+  end
+
+  # one history -> its unlabelled trips (%{ctx, todo, done: [], prev: nil})
+  defp history_trips(history, index, edge, opts) do
+    prefix = opts[:prefix] || 90
     only_silent = opts[:only_silent] || false
     max_run = opts[:max_run]
     window = index[:window] || :offstage
@@ -597,39 +655,34 @@ defmodule ExPhil.Agents.ExpertRecoveryLabeler do
         runs
       end
 
-    trips =
-      Enum.map(runs, fn {a, b} ->
-        # prefix: walk back while frame numbers stay consecutive
-        start =
-          Enum.reduce_while((a - 1)..max(a - prefix, 0)//-1, a, fn i, s ->
-            if consecutive?.(i + 1), do: {:cont, i}, else: {:halt, s}
-          end)
+    Enum.map(runs, fn {a, b} ->
+      # prefix: walk back while frame numbers stay consecutive
+      start =
+        Enum.reduce_while((a - 1)..max(a - prefix, 0)//-1, a, fn i, s ->
+          if consecutive?.(i + 1), do: {:cont, i}, else: {:halt, s}
+        end)
 
-        ctx = for i <- start..(a - 1)//1, i < a, do: elem(frames, i) |> Map.put(:input_only, true) |> Map.delete(:labeled)
-        trip = for i <- a..b, do: elem(frames, i) |> Map.delete(:labeled)
-        %{ctx: ctx, todo: trip, done: [], prev: nil}
-      end)
-
-    # Label every run in LOCKSTEP: step j labels the j-th frame of each run
-    # still open in one batched k-NN call (v6, 10-15 — the per-frame call
-    # was ~60 ms; the onstage window labels ~10x the frames). Each run's
-    # chain is unchanged: prev = its previous label (first frame: the real
-    # press at t-1), a gated frame resets prev to the real press.
-    trips
-    |> label_lockstep(index, edge, max_d2)
-    |> Enum.map(fn t -> t.ctx ++ Enum.reverse(t.done) end)
+      ctx = for i <- start..(a - 1)//1, i < a, do: elem(frames, i) |> Map.put(:input_only, true) |> Map.delete(:labeled)
+      trip = for i <- a..b, do: elem(frames, i) |> Map.delete(:labeled)
+      %{ctx: ctx, todo: trip, done: [], prev: nil}
+    end)
   end
 
-  defp label_lockstep(trips, index, edge, max_d2) do
+  defp label_lockstep(trips, index, edge, max_d2, prev_mode) do
     {open, closed} = Enum.split_with(trips, &(&1.todo != []))
 
     if open == [] do
       closed
     else
+      # prev for the frame at the head of each run: the chain's previous
+      # label (or the real press at a run start / after a gate), or — :actual
+      # — always the bot's real press at t-1 (f.prev_controller as recorded)
+      prev_of = fn t, f -> if prev_mode == :actual, do: f.prev_controller, else: t.prev || f.prev_controller end
+
       states =
         Enum.map(open, fn t ->
           f = hd(t.todo)
-          {f.game_state.players[1], t.prev || f.prev_controller, f.game_state.players[2], f.prev_player}
+          {f.game_state.players[1], prev_of.(t, f), f.game_state.players[2], f.prev_player}
         end)
 
       labels = label_batch(index, states, edge, max_d2: max_d2)
@@ -637,7 +690,7 @@ defmodule ExPhil.Agents.ExpertRecoveryLabeler do
       stepped =
         Enum.zip_with(open, labels, fn t, lab ->
           [f | rest] = t.todo
-          prev = t.prev || f.prev_controller
+          prev = prev_of.(t, f)
 
           case lab do
             nil -> %{t | todo: rest, done: [f |> Map.put(:input_only, true) |> Map.put(:gated, true) | t.done], prev: f.controller}
@@ -645,7 +698,7 @@ defmodule ExPhil.Agents.ExpertRecoveryLabeler do
           end
         end)
 
-      label_lockstep(stepped ++ closed, index, edge, max_d2)
+      label_lockstep(stepped ++ closed, index, edge, max_d2, prev_mode)
     end
   end
 end
