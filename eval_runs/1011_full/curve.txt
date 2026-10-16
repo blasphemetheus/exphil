@@ -16,3 +16,5 @@ fox_mamba_v3s906_ep3                     3.1671  306   223      0.735  26       
 == lr 0.0001 seed 906 mix ''
 fox_mamba_v3s906_ep2r                    3.0762  329   255      0.831  27       0.407   5        0.179  0.0461 [542] ret✓ sideB✓ cdied✓  
 == re-readout of fox_mamba_v3s906_ep2 (same policy, second roll)
+fox_mamba_v3s906_ep3_dag9o               3.186   263   193      0.689  31       0.742   10       0.327  0.0207 [532] ret✗ sideB✗ cdied✗  
+== lr 0.0001 seed 906 mix 'data/silent_fall/sim_dagger_expert_r9o_2091_split_lean.frames,data/silent_fall/sim_dagger_expert_r9o_2094_split_lean.frames,data/silent_fall/sim_dagger_expert_r9o_2097_split_lean.frames,data/silent_fall/sim_dagger_expert_r9o_2100_split_lean.frames,data/silent_fall/slp_dagger_expert_live1014_split_lean.frames'
