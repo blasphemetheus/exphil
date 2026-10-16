@@ -1,0 +1,2007 @@
+{
+  "carried": {
+    "events": {
+      "a": {
+        "abs": 11.75,
+        "edge": 8.25,
+        "from": {
+          "hit": 19
+        },
+        "held": 2,
+        "stored": 13,
+        "n_abs": 94,
+        "cross": 19,
+        "lift": 28,
+        "frames": 10080,
+        "stored_botprev": 0,
+        "expert": 0.10292772186642268,
+        "tf_label": 0.022872827081427266
+      },
+      "airdodge": {
+        "abs": 34.125,
+        "edge": 34.125,
+        "from": {
+          "hit": 79
+        },
+        "held": 13,
+        "stored": 35,
+        "n_abs": 273,
+        "cross": 79,
+        "lift": 0,
+        "frames": 10080,
+        "stored_botprev": 3,
+        "expert": 0.0686184812442818,
+        "tf_label": 0.2516010978956999
+      },
+      "b": {
+        "abs": 50.875,
+        "edge": 50.875,
+        "from": {
+          "hit": 32
+        },
+        "held": 28,
+        "stored": 46,
+        "n_abs": 407,
+        "cross": 32,
+        "lift": 0,
+        "frames": 10080,
+        "stored_botprev": 0,
+        "expert": 0.5718206770356816,
+        "tf_label": 0.5146386093321135
+      },
+      "jump": {
+        "abs": 162.5,
+        "edge": 162.5,
+        "from": {
+          "hit": 32
+        },
+        "held": 7,
+        "stored": 148,
+        "n_abs": 1300,
+        "cross": 32,
+        "lift": 0,
+        "frames": 10080,
+        "stored_botprev": 0,
+        "expert": 2.150045745654163,
+        "tf_label": 2.0013723696248857
+      },
+      "side_b": {
+        "abs": 19.75,
+        "edge": 19.75,
+        "from": {
+          "hit": 7
+        },
+        "held": 28,
+        "stored": 17,
+        "n_abs": 158,
+        "cross": 7,
+        "lift": 0,
+        "frames": 10080,
+        "stored_botprev": 0,
+        "expert": 0.18298261665141813,
+        "tf_label": 0.16010978956999086
+      },
+      "up_b": {
+        "abs": 22.625,
+        "edge": 22.625,
+        "from": {
+          "hit": 7
+        },
+        "held": 28,
+        "stored": 21,
+        "n_abs": 181,
+        "cross": 7,
+        "lift": 0,
+        "frames": 10080,
+        "stored_botprev": 0,
+        "expert": 0.33165599268069534,
+        "tf_label": 0.3202195791399817
+      }
+    },
+    "botprev": 206,
+    "frames": 10080,
+    "d2_median": 0.2509574890136719
+  },
+  "drift_inhand": {
+    "events": {
+      "a": {
+        "abs": 597.875,
+        "edge": 371.375,
+        "from": {
+          "off_high_inhand": 22,
+          "off_ledge_inhand": 2,
+          "other": 227
+        },
+        "held": 207,
+        "stored": 557,
+        "n_abs": 4783,
+        "cross": 251,
+        "lift": 1812,
+        "frames": 30149,
+        "stored_botprev": 62,
+        "expert": 1.4343029087261785,
+        "tf_label": 1.695085255767302
+      },
+      "airdodge": {
+        "abs": 480.5,
+        "edge": 480.5,
+        "from": {
+          "off_high_inhand": 11,
+          "off_ledge_inhand": 4,
+          "other": 107
+        },
+        "held": 204,
+        "stored": 502,
+        "n_abs": 3844,
+        "cross": 122,
+        "lift": 0,
+        "frames": 30149,
+        "stored_botprev": 62,
+        "expert": 1.8154463390170512,
+        "tf_label": 1.6349047141424273
+      },
+      "b": {
+        "abs": 176.375,
+        "edge": 176.0,
+        "from": {
+          "off_deep_inhand": 5,
+          "off_high_inhand": 33,
+          "off_ledge_inhand": 13,
+          "off_low_inhand": 9,
+          "other": 50
+        },
+        "held": 68,
+        "stored": 170,
+        "n_abs": 1411,
+        "cross": 110,
+        "lift": 3,
+        "frames": 30149,
+        "stored_botprev": 25,
+        "expert": 0.42126379137412234,
+        "tf_label": 0.5616850551654965
+      },
+      "jump": {
+        "abs": 257.5,
+        "edge": 256.875,
+        "from": {
+          "off_deep_inhand": 17,
+          "off_high_inhand": 72,
+          "off_ledge_inhand": 39,
+          "off_low_inhand": 76,
+          "other": 118
+        },
+        "held": 288,
+        "stored": 237,
+        "n_abs": 2060,
+        "cross": 322,
+        "lift": 5,
+        "frames": 30149,
+        "stored_botprev": 30,
+        "expert": 0.872617853560682,
+        "tf_label": 0.8525576730190572
+      },
+      "side_b": {
+        "abs": 5.5,
+        "edge": 5.5,
+        "from": {
+          "off_high_inhand": 2,
+          "off_ledge_inhand": 9
+        },
+        "held": 68,
+        "stored": 7,
+        "n_abs": 44,
+        "cross": 11,
+        "lift": 0,
+        "frames": 30149,
+        "stored_botprev": 2,
+        "expert": 0.06018054162487462,
+        "tf_label": 0.05015045135406219
+      },
+      "up_b": {
+        "abs": 1.625,
+        "edge": 1.375,
+        "from": {
+          "off_low_inhand": 8
+        },
+        "held": 68,
+        "stored": 3,
+        "n_abs": 13,
+        "cross": 8,
+        "lift": 2,
+        "frames": 30149,
+        "stored_botprev": 1,
+        "expert": 0.0,
+        "tf_label": 0.0
+      }
+    },
+    "botprev": 2646,
+    "frames": 30149,
+    "d2_median": 0.3168983459472656
+  },
+  "drift_spent": {
+    "events": {
+      "a": {
+        "abs": 129.25,
+        "edge": 64.75,
+        "from": {
+          "off_deep_spent": 3,
+          "off_high_spent": 28,
+          "off_ledge_spent": 17,
+          "off_low_spent": 5,
+          "other": 5
+        },
+        "held": 12,
+        "stored": 133,
+        "n_abs": 1034,
+        "cross": 58,
+        "lift": 516,
+        "frames": 25081,
+        "stored_botprev": 8,
+        "expert": 0.40687855059112543,
+        "tf_label": 0.4529402732995547
+      },
+      "airdodge": {
+        "abs": 265.0,
+        "edge": 265.0,
+        "from": {
+          "off_deep_spent": 3,
+          "off_high_spent": 40,
+          "off_ledge_spent": 52,
+          "off_low_spent": 23,
+          "other": 32
+        },
+        "held": 51,
+        "stored": 257,
+        "n_abs": 2120,
+        "cross": 150,
+        "lift": 0,
+        "frames": 25081,
+        "stored_botprev": 14,
+        "expert": 1.1131582987870412,
+        "tf_label": 1.312759097190235
+      },
+      "b": {
+        "abs": 130.25,
+        "edge": 130.25,
+        "from": {
+          "off_deep_spent": 47,
+          "off_high_spent": 75,
+          "off_ledge_spent": 81,
+          "off_low_spent": 73
+        },
+        "held": 106,
+        "stored": 126,
+        "n_abs": 1042,
+        "cross": 276,
+        "lift": 0,
+        "frames": 25081,
+        "stored_botprev": 14,
+        "expert": 0.284047290035314,
+        "tf_label": 0.4452633195148165
+      },
+      "jump": {
+        "abs": 70.25,
+        "edge": 66.875,
+        "from": {
+          "off_deep_spent": 12,
+          "off_high_spent": 33,
+          "off_ledge_spent": 6,
+          "off_low_spent": 17,
+          "other": 9
+        },
+        "held": 290,
+        "stored": 66,
+        "n_abs": 562,
+        "cross": 77,
+        "lift": 27,
+        "frames": 25081,
+        "stored_botprev": 3,
+        "expert": 0.5220328573621987,
+        "tf_label": 0.2994011976047904
+      },
+      "side_b": {
+        "abs": 34.25,
+        "edge": 34.25,
+        "from": {
+          "off_high_spent": 39,
+          "off_ledge_spent": 33,
+          "off_low_spent": 15
+        },
+        "held": 106,
+        "stored": 33,
+        "n_abs": 274,
+        "cross": 87,
+        "lift": 0,
+        "frames": 25081,
+        "stored_botprev": 1,
+        "expert": 0.030707815138952863,
+        "tf_label": 0.046061722708429294
+      },
+      "up_b": {
+        "abs": 55.375,
+        "edge": 55.375,
+        "from": {
+          "off_deep_spent": 47,
+          "off_high_spent": 7,
+          "off_ledge_spent": 17,
+          "off_low_spent": 55
+        },
+        "held": 106,
+        "stored": 55,
+        "n_abs": 443,
+        "cross": 126,
+        "lift": 0,
+        "frames": 25081,
+        "stored_botprev": 9,
+        "expert": 0.15353907569476433,
+        "tf_label": 0.2763703362505758
+      }
+    },
+    "botprev": 1118,
+    "frames": 25081,
+    "d2_median": 0.3993053436279297
+  },
+  "near_ground": {
+    "events": {
+      "a": {
+        "abs": 264.75,
+        "edge": 152.125,
+        "from": {
+          "other": 427
+        },
+        "held": 20,
+        "stored": 263,
+        "n_abs": 2118,
+        "cross": 427,
+        "lift": 901,
+        "frames": 27871,
+        "stored_botprev": 6,
+        "expert": 0.726442507264425,
+        "tf_label": 0.6019095060190951
+      },
+      "airdodge": {
+        "abs": 282.375,
+        "edge": 282.0,
+        "from": {
+          "other": 501
+        },
+        "held": 180,
+        "stored": 299,
+        "n_abs": 2259,
+        "cross": 501,
+        "lift": 3,
+        "frames": 27871,
+        "stored_botprev": 17,
+        "expert": 0.8405977584059776,
+        "tf_label": 0.8613532586135326
+      },
+      "b": {
+        "abs": 123.0,
+        "edge": 122.875,
+        "from": {
+          "other": 162
+        },
+        "held": 38,
+        "stored": 109,
+        "n_abs": 984,
+        "cross": 162,
+        "lift": 1,
+        "frames": 27871,
+        "stored_botprev": 7,
+        "expert": 0.37359900373599003,
+        "tf_label": 0.47737650477376503
+      },
+      "jump": {
+        "abs": 452.375,
+        "edge": 452.375,
+        "from": {
+          "other": 373
+        },
+        "held": 57,
+        "stored": 462,
+        "n_abs": 3619,
+        "cross": 373,
+        "lift": 0,
+        "frames": 27871,
+        "stored_botprev": 39,
+        "expert": 1.9095060190950601,
+        "tf_label": 2.1585720215857203
+      },
+      "side_b": {
+        "abs": 7.375,
+        "edge": 7.25,
+        "from": {
+          "other": 20
+        },
+        "held": 38,
+        "stored": 7,
+        "n_abs": 59,
+        "cross": 20,
+        "lift": 1,
+        "frames": 27871,
+        "stored_botprev": 0,
+        "expert": 0.031133250311332503,
+        "tf_label": 0.031133250311332503
+      },
+      "up_b": {
+        "abs": 1.625,
+        "edge": 1.625,
+        "from": {},
+        "held": 38,
+        "stored": 1,
+        "n_abs": 13,
+        "cross": 0,
+        "lift": 0,
+        "frames": 27871,
+        "stored_botprev": 0,
+        "expert": 0.0103777501037775,
+        "tf_label": 0.0
+      }
+    },
+    "botprev": 1199,
+    "frames": 27871,
+    "d2_median": 0.12887191772460938
+  },
+  "off_deep_inhand": {
+    "events": {
+      "a": {
+        "abs": 0.375,
+        "edge": 0.0,
+        "from": {
+          "off_low_inhand": 3
+        },
+        "held": 0,
+        "stored": 0,
+        "n_abs": 3,
+        "cross": 3,
+        "lift": 3,
+        "frames": 187,
+        "stored_botprev": 0,
+        "expert": 0.0,
+        "tf_label": 2.0833333333333335
+      },
+      "airdodge": {
+        "abs": 0.0,
+        "edge": 0.0,
+        "from": {},
+        "held": 0,
+        "stored": 0,
+        "n_abs": 0,
+        "cross": 0,
+        "lift": 0,
+        "frames": 187,
+        "stored_botprev": 0,
+        "expert": 0.0,
+        "tf_label": 0.0
+      },
+      "b": {
+        "abs": 1.75,
+        "edge": 1.75,
+        "from": {
+          "off_low_inhand": 5
+        },
+        "held": 4,
+        "stored": 4,
+        "n_abs": 14,
+        "cross": 5,
+        "lift": 0,
+        "frames": 187,
+        "stored_botprev": 1,
+        "expert": 4.166666666666667,
+        "tf_label": 0.0
+      },
+      "jump": {
+        "abs": 16.5,
+        "edge": 16.5,
+        "from": {
+          "drift_inhand": 10,
+          "off_low_inhand": 46
+        },
+        "held": 1,
+        "stored": 16,
+        "n_abs": 132,
+        "cross": 56,
+        "lift": 0,
+        "frames": 187,
+        "stored_botprev": 4,
+        "expert": 6.25,
+        "tf_label": 20.833333333333332
+      },
+      "side_b": {
+        "abs": 0.0,
+        "edge": 0.0,
+        "from": {},
+        "held": 4,
+        "stored": 0,
+        "n_abs": 0,
+        "cross": 0,
+        "lift": 0,
+        "frames": 187,
+        "stored_botprev": 0,
+        "expert": 0.0,
+        "tf_label": 0.0
+      },
+      "up_b": {
+        "abs": 0.25,
+        "edge": 0.25,
+        "from": {
+          "off_low_inhand": 2
+        },
+        "held": 4,
+        "stored": 1,
+        "n_abs": 2,
+        "cross": 2,
+        "lift": 0,
+        "frames": 187,
+        "stored_botprev": 0,
+        "expert": 0.0,
+        "tf_label": 0.0
+      }
+    },
+    "botprev": 32,
+    "frames": 187,
+    "d2_median": 0.7831707000732422
+  },
+  "off_deep_spent": {
+    "events": {
+      "a": {
+        "abs": 1.125,
+        "edge": 0.375,
+        "from": {
+          "drift_spent": 2
+        },
+        "held": 0,
+        "stored": 2,
+        "n_abs": 9,
+        "cross": 2,
+        "lift": 6,
+        "frames": 1424,
+        "stored_botprev": 0,
+        "expert": 0.5813953488372093,
+        "tf_label": 0.0
+      },
+      "airdodge": {
+        "abs": 0.25,
+        "edge": 0.25,
+        "from": {},
+        "held": 0,
+        "stored": 0,
+        "n_abs": 2,
+        "cross": 0,
+        "lift": 0,
+        "frames": 1424,
+        "stored_botprev": 0,
+        "expert": 0.14534883720930233,
+        "tf_label": 0.0
+      },
+      "b": {
+        "abs": 23.875,
+        "edge": 23.875,
+        "from": {
+          "drift_spent": 16,
+          "off_low_spent": 53
+        },
+        "held": 25,
+        "stored": 25,
+        "n_abs": 191,
+        "cross": 69,
+        "lift": 0,
+        "frames": 1424,
+        "stored_botprev": 7,
+        "expert": 0.872093023255814,
+        "tf_label": 4.215116279069767
+      },
+      "jump": {
+        "abs": 5.75,
+        "edge": 5.75,
+        "from": {
+          "drift_spent": 12,
+          "off_low_spent": 10
+        },
+        "held": 15,
+        "stored": 7,
+        "n_abs": 46,
+        "cross": 22,
+        "lift": 0,
+        "frames": 1424,
+        "stored_botprev": 0,
+        "expert": 0.5813953488372093,
+        "tf_label": 0.5813953488372093
+      },
+      "side_b": {
+        "abs": 3.25,
+        "edge": 3.25,
+        "from": {
+          "drift_spent": 2,
+          "off_low_spent": 15
+        },
+        "held": 25,
+        "stored": 2,
+        "n_abs": 26,
+        "cross": 17,
+        "lift": 0,
+        "frames": 1424,
+        "stored_botprev": 0,
+        "expert": 0.29069767441860467,
+        "tf_label": 1.0174418604651163
+      },
+      "up_b": {
+        "abs": 20.5,
+        "edge": 20.5,
+        "from": {
+          "drift_spent": 14,
+          "off_low_spent": 37
+        },
+        "held": 25,
+        "stored": 23,
+        "n_abs": 164,
+        "cross": 51,
+        "lift": 0,
+        "frames": 1424,
+        "stored_botprev": 7,
+        "expert": 0.5813953488372093,
+        "tf_label": 3.197674418604651
+      }
+    },
+    "botprev": 80,
+    "frames": 1424,
+    "d2_median": 0.3878345489501953
+  },
+  "off_high_inhand": {
+    "events": {
+      "a": {
+        "abs": 5.5,
+        "edge": 2.0,
+        "from": {
+          "drift_inhand": 28,
+          "off_ledge_inhand": 7
+        },
+        "held": 1,
+        "stored": 7,
+        "n_abs": 44,
+        "cross": 35,
+        "lift": 28,
+        "frames": 1375,
+        "stored_botprev": 0,
+        "expert": 0.0,
+        "tf_label": 0.37243947858473
+      },
+      "airdodge": {
+        "abs": 6.875,
+        "edge": 6.875,
+        "from": {
+          "drift_inhand": 39,
+          "off_ledge_inhand": 4
+        },
+        "held": 2,
+        "stored": 7,
+        "n_abs": 55,
+        "cross": 43,
+        "lift": 0,
+        "frames": 1375,
+        "stored_botprev": 2,
+        "expert": 0.0,
+        "tf_label": 0.0
+      },
+      "b": {
+        "abs": 13.0,
+        "edge": 12.75,
+        "from": {
+          "drift_inhand": 26,
+          "off_ledge_inhand": 27
+        },
+        "held": 12,
+        "stored": 9,
+        "n_abs": 104,
+        "cross": 53,
+        "lift": 2,
+        "frames": 1375,
+        "stored_botprev": 0,
+        "expert": 0.5586592178770949,
+        "tf_label": 1.1173184357541899
+      },
+      "jump": {
+        "abs": 23.0,
+        "edge": 23.0,
+        "from": {
+          "drift_inhand": 61,
+          "off_ledge_inhand": 42,
+          "off_low_inhand": 7
+        },
+        "held": 2,
+        "stored": 18,
+        "n_abs": 184,
+        "cross": 110,
+        "lift": 0,
+        "frames": 1375,
+        "stored_botprev": 0,
+        "expert": 1.48975791433892,
+        "tf_label": 2.0484171322160147
+      },
+      "side_b": {
+        "abs": 2.125,
+        "edge": 2.0,
+        "from": {
+          "off_ledge_inhand": 12
+        },
+        "held": 12,
+        "stored": 2,
+        "n_abs": 17,
+        "cross": 12,
+        "lift": 1,
+        "frames": 1375,
+        "stored_botprev": 0,
+        "expert": 0.0,
+        "tf_label": 0.0
+      },
+      "up_b": {
+        "abs": 0.375,
+        "edge": 0.25,
+        "from": {
+          "off_ledge_inhand": 2
+        },
+        "held": 12,
+        "stored": 0,
+        "n_abs": 3,
+        "cross": 2,
+        "lift": 1,
+        "frames": 1375,
+        "stored_botprev": 0,
+        "expert": 0.0,
+        "tf_label": 0.0
+      }
+    },
+    "botprev": 65,
+    "frames": 1375,
+    "d2_median": 0.3839263916015625
+  },
+  "off_high_spent": {
+    "events": {
+      "a": {
+        "abs": 18.125,
+        "edge": 10.875,
+        "from": {
+          "drift_spent": 75,
+          "off_ledge_spent": 35
+        },
+        "held": 4,
+        "stored": 16,
+        "n_abs": 145,
+        "cross": 110,
+        "lift": 58,
+        "frames": 7511,
+        "stored_botprev": 2,
+        "expert": 0.048473097430925836,
+        "tf_label": 0.048473097430925836
+      },
+      "airdodge": {
+        "abs": 34.0,
+        "edge": 34.0,
+        "from": {
+          "drift_spent": 89,
+          "off_ledge_spent": 60
+        },
+        "held": 7,
+        "stored": 29,
+        "n_abs": 272,
+        "cross": 149,
+        "lift": 0,
+        "frames": 7511,
+        "stored_botprev": 1,
+        "expert": 0.21812893843916625,
+        "tf_label": 0.290838584585555
+      },
+      "b": {
+        "abs": 85.25,
+        "edge": 85.25,
+        "from": {
+          "drift_spent": 71,
+          "off_ledge_spent": 167,
+          "off_low_spent": 2
+        },
+        "held": 62,
+        "stored": 91,
+        "n_abs": 682,
+        "cross": 240,
+        "lift": 0,
+        "frames": 7511,
+        "stored_botprev": 4,
+        "expert": 1.0179350460494425,
+        "tf_label": 1.2603005332040718
+      },
+      "jump": {
+        "abs": 20.625,
+        "edge": 20.625,
+        "from": {
+          "drift_spent": 7,
+          "off_ledge_spent": 9,
+          "off_low_spent": 4
+        },
+        "held": 35,
+        "stored": 19,
+        "n_abs": 165,
+        "cross": 20,
+        "lift": 0,
+        "frames": 7511,
+        "stored_botprev": 2,
+        "expert": 0.5574406204556471,
+        "tf_label": 0.1454192922927775
+      },
+      "side_b": {
+        "abs": 43.875,
+        "edge": 43.875,
+        "from": {
+          "drift_spent": 27,
+          "off_ledge_spent": 95
+        },
+        "held": 62,
+        "stored": 50,
+        "n_abs": 351,
+        "cross": 122,
+        "lift": 0,
+        "frames": 7511,
+        "stored_botprev": 2,
+        "expert": 0.58167716917111,
+        "tf_label": 0.7998061076102763
+      },
+      "up_b": {
+        "abs": 29.25,
+        "edge": 29.25,
+        "from": {
+          "drift_spent": 12,
+          "off_ledge_spent": 43,
+          "off_low_spent": 2
+        },
+        "held": 62,
+        "stored": 32,
+        "n_abs": 234,
+        "cross": 57,
+        "lift": 0,
+        "frames": 7511,
+        "stored_botprev": 1,
+        "expert": 0.3393116820164809,
+        "tf_label": 0.4362578768783325
+      }
+    },
+    "botprev": 301,
+    "frames": 7511,
+    "d2_median": 0.3510618209838867
+  },
+  "off_ledge_inhand": {
+    "events": {
+      "a": {
+        "abs": 10.0,
+        "edge": 0.875,
+        "from": {
+          "drift_inhand": 11,
+          "off_high_inhand": 3,
+          "off_low_inhand": 21
+        },
+        "held": 1,
+        "stored": 8,
+        "n_abs": 80,
+        "cross": 35,
+        "lift": 73,
+        "frames": 2622,
+        "stored_botprev": 2,
+        "expert": 0.0,
+        "tf_label": 0.0
+      },
+      "airdodge": {
+        "abs": 6.625,
+        "edge": 6.625,
+        "from": {
+          "drift_inhand": 32,
+          "off_high_inhand": 4
+        },
+        "held": 10,
+        "stored": 6,
+        "n_abs": 53,
+        "cross": 36,
+        "lift": 0,
+        "frames": 2622,
+        "stored_botprev": 0,
+        "expert": 0.0,
+        "tf_label": 0.0
+      },
+      "b": {
+        "abs": 52.0,
+        "edge": 52.0,
+        "from": {
+          "drift_inhand": 6,
+          "off_high_inhand": 17,
+          "off_low_inhand": 74
+        },
+        "held": 21,
+        "stored": 56,
+        "n_abs": 416,
+        "cross": 97,
+        "lift": 0,
+        "frames": 2622,
+        "stored_botprev": 5,
+        "expert": 1.82648401826484,
+        "tf_label": 2.9680365296803655
+      },
+      "jump": {
+        "abs": 102.375,
+        "edge": 102.375,
+        "from": {
+          "drift_inhand": 17,
+          "off_high_inhand": 33,
+          "off_low_inhand": 141
+        },
+        "held": 1,
+        "stored": 98,
+        "n_abs": 819,
+        "cross": 191,
+        "lift": 0,
+        "frames": 2622,
+        "stored_botprev": 35,
+        "expert": 3.767123287671233,
+        "tf_label": 5.593607305936073
+      },
+      "side_b": {
+        "abs": 13.875,
+        "edge": 13.875,
+        "from": {
+          "drift_inhand": 1,
+          "off_high_inhand": 5,
+          "off_low_inhand": 17
+        },
+        "held": 21,
+        "stored": 13,
+        "n_abs": 111,
+        "cross": 23,
+        "lift": 0,
+        "frames": 2622,
+        "stored_botprev": 1,
+        "expert": 0.1141552511415525,
+        "tf_label": 0.228310502283105
+      },
+      "up_b": {
+        "abs": 11.625,
+        "edge": 11.625,
+        "from": {
+          "off_low_inhand": 22
+        },
+        "held": 21,
+        "stored": 9,
+        "n_abs": 93,
+        "cross": 22,
+        "lift": 0,
+        "frames": 2622,
+        "stored_botprev": 0,
+        "expert": 0.1141552511415525,
+        "tf_label": 0.1141552511415525
+      }
+    },
+    "botprev": 306,
+    "frames": 2622,
+    "d2_median": 0.2526435852050781
+  },
+  "off_ledge_spent": {
+    "events": {
+      "a": {
+        "abs": 12.625,
+        "edge": 8.875,
+        "from": {
+          "drift_spent": 3,
+          "off_high_spent": 24,
+          "off_low_spent": 6
+        },
+        "held": 8,
+        "stored": 16,
+        "n_abs": 101,
+        "cross": 33,
+        "lift": 30,
+        "frames": 5688,
+        "stored_botprev": 2,
+        "expert": 0.2557544757033248,
+        "tf_label": 0.0639386189258312
+      },
+      "airdodge": {
+        "abs": 62.5,
+        "edge": 62.5,
+        "from": {
+          "drift_spent": 103,
+          "off_high_spent": 93,
+          "off_low_spent": 32
+        },
+        "held": 15,
+        "stored": 64,
+        "n_abs": 500,
+        "cross": 228,
+        "lift": 0,
+        "frames": 5688,
+        "stored_botprev": 4,
+        "expert": 0.8312020460358056,
+        "tf_label": 0.9910485933503836
+      },
+      "b": {
+        "abs": 107.75,
+        "edge": 107.75,
+        "from": {
+          "drift_spent": 32,
+          "off_high_spent": 128,
+          "off_low_spent": 76
+        },
+        "held": 45,
+        "stored": 107,
+        "n_abs": 862,
+        "cross": 236,
+        "lift": 0,
+        "frames": 5688,
+        "stored_botprev": 8,
+        "expert": 1.438618925831202,
+        "tf_label": 1.8222506393861893
+      },
+      "jump": {
+        "abs": 26.0,
+        "edge": 25.25,
+        "from": {
+          "drift_spent": 8,
+          "off_high_spent": 23,
+          "off_low_spent": 43
+        },
+        "held": 72,
+        "stored": 27,
+        "n_abs": 208,
+        "cross": 74,
+        "lift": 6,
+        "frames": 5688,
+        "stored_botprev": 2,
+        "expert": 0.1278772378516624,
+        "tf_label": 0.159846547314578
+      },
+      "side_b": {
+        "abs": 61.375,
+        "edge": 61.375,
+        "from": {
+          "drift_spent": 20,
+          "off_high_spent": 91,
+          "off_low_spent": 34
+        },
+        "held": 45,
+        "stored": 54,
+        "n_abs": 491,
+        "cross": 145,
+        "lift": 0,
+        "frames": 5688,
+        "stored_botprev": 7,
+        "expert": 0.7672634271099744,
+        "tf_label": 0.9910485933503836
+      },
+      "up_b": {
+        "abs": 35.375,
+        "edge": 35.375,
+        "from": {
+          "drift_spent": 11,
+          "off_high_spent": 18,
+          "off_low_spent": 33
+        },
+        "held": 45,
+        "stored": 41,
+        "n_abs": 283,
+        "cross": 62,
+        "lift": 0,
+        "frames": 5688,
+        "stored_botprev": 1,
+        "expert": 0.479539641943734,
+        "tf_label": 0.7033248081841432
+      }
+    },
+    "botprev": 272,
+    "frames": 5688,
+    "d2_median": 0.32663822174072266
+  },
+  "off_low_inhand": {
+    "events": {
+      "a": {
+        "abs": 4.0,
+        "edge": 1.375,
+        "from": {
+          "off_ledge_inhand": 23
+        },
+        "held": 0,
+        "stored": 2,
+        "n_abs": 32,
+        "cross": 23,
+        "lift": 21,
+        "frames": 1486,
+        "stored_botprev": 0,
+        "expert": 0.3401360544217687,
+        "tf_label": 0.17006802721088435
+      },
+      "airdodge": {
+        "abs": 2.25,
+        "edge": 2.25,
+        "from": {
+          "drift_inhand": 2,
+          "off_high_inhand": 1,
+          "off_ledge_inhand": 15
+        },
+        "held": 0,
+        "stored": 0,
+        "n_abs": 18,
+        "cross": 18,
+        "lift": 0,
+        "frames": 1486,
+        "stored_botprev": 0,
+        "expert": 0.0,
+        "tf_label": 0.0
+      },
+      "b": {
+        "abs": 36.25,
+        "edge": 36.25,
+        "from": {
+          "off_high_inhand": 2,
+          "off_ledge_inhand": 102
+        },
+        "held": 17,
+        "stored": 40,
+        "n_abs": 290,
+        "cross": 104,
+        "lift": 0,
+        "frames": 1486,
+        "stored_botprev": 7,
+        "expert": 2.380952380952381,
+        "tf_label": 3.2312925170068025
+      },
+      "jump": {
+        "abs": 90.25,
+        "edge": 90.25,
+        "from": {
+          "off_deep_inhand": 13,
+          "off_ledge_inhand": 145
+        },
+        "held": 2,
+        "stored": 88,
+        "n_abs": 722,
+        "cross": 158,
+        "lift": 0,
+        "frames": 1486,
+        "stored_botprev": 12,
+        "expert": 8.16326530612245,
+        "tf_label": 8.16326530612245
+      },
+      "side_b": {
+        "abs": 6.75,
+        "edge": 6.75,
+        "from": {
+          "off_ledge_inhand": 25
+        },
+        "held": 17,
+        "stored": 7,
+        "n_abs": 54,
+        "cross": 25,
+        "lift": 0,
+        "frames": 1486,
+        "stored_botprev": 0,
+        "expert": 0.17006802721088435,
+        "tf_label": 0.0
+      },
+      "up_b": {
+        "abs": 4.25,
+        "edge": 4.25,
+        "from": {
+          "off_ledge_inhand": 1
+        },
+        "held": 17,
+        "stored": 4,
+        "n_abs": 34,
+        "cross": 1,
+        "lift": 0,
+        "frames": 1486,
+        "stored_botprev": 1,
+        "expert": 0.0,
+        "tf_label": 0.17006802721088435
+      }
+    },
+    "botprev": 134,
+    "frames": 1486,
+    "d2_median": 0.39836692810058594
+  },
+  "off_low_spent": {
+    "events": {
+      "a": {
+        "abs": 4.25,
+        "edge": 3.625,
+        "from": {
+          "drift_spent": 5,
+          "off_ledge_spent": 14
+        },
+        "held": 1,
+        "stored": 5,
+        "n_abs": 34,
+        "cross": 19,
+        "lift": 5,
+        "frames": 4090,
+        "stored_botprev": 0,
+        "expert": 0.1948368241597662,
+        "tf_label": 0.14612761811982464
+      },
+      "airdodge": {
+        "abs": 15.125,
+        "edge": 15.125,
+        "from": {
+          "drift_spent": 22,
+          "off_ledge_spent": 22
+        },
+        "held": 5,
+        "stored": 15,
+        "n_abs": 121,
+        "cross": 44,
+        "lift": 0,
+        "frames": 4090,
+        "stored_botprev": 1,
+        "expert": 0.24354603019970775,
+        "tf_label": 0.24354603019970775
+      },
+      "b": {
+        "abs": 55.75,
+        "edge": 55.75,
+        "from": {
+          "drift_spent": 43,
+          "off_deep_spent": 8,
+          "off_high_spent": 6,
+          "off_ledge_spent": 150
+        },
+        "held": 49,
+        "stored": 65,
+        "n_abs": 446,
+        "cross": 207,
+        "lift": 0,
+        "frames": 4090,
+        "stored_botprev": 6,
+        "expert": 0.8767657087189479,
+        "tf_label": 1.948368241597662
+      },
+      "jump": {
+        "abs": 13.625,
+        "edge": 12.5,
+        "from": {
+          "drift_spent": 12,
+          "off_deep_spent": 3,
+          "off_high_spent": 1,
+          "off_ledge_spent": 53
+        },
+        "held": 45,
+        "stored": 14,
+        "n_abs": 109,
+        "cross": 69,
+        "lift": 9,
+        "frames": 4090,
+        "stored_botprev": 0,
+        "expert": 0.1948368241597662,
+        "tf_label": 0.0974184120798831
+      },
+      "side_b": {
+        "abs": 20.5,
+        "edge": 20.5,
+        "from": {
+          "drift_spent": 6,
+          "off_high_spent": 5,
+          "off_ledge_spent": 81
+        },
+        "held": 49,
+        "stored": 25,
+        "n_abs": 164,
+        "cross": 92,
+        "lift": 0,
+        "frames": 4090,
+        "stored_botprev": 3,
+        "expert": 0.4870920603994155,
+        "tf_label": 0.2922552362396493
+      },
+      "up_b": {
+        "abs": 31.75,
+        "edge": 31.75,
+        "from": {
+          "drift_spent": 37,
+          "off_deep_spent": 7,
+          "off_high_spent": 1,
+          "off_ledge_spent": 48
+        },
+        "held": 49,
+        "stored": 37,
+        "n_abs": 254,
+        "cross": 93,
+        "lift": 0,
+        "frames": 4090,
+        "stored_botprev": 3,
+        "expert": 0.3896736483195324,
+        "tf_label": 1.3638577691183633
+      }
+    },
+    "botprev": 180,
+    "frames": 4090,
+    "d2_median": 0.36685752868652344
+  },
+  "post1-5_inhand": {
+    "events": {
+      "a": {
+        "abs": 0.375,
+        "edge": 0.0,
+        "from": {},
+        "held": 0,
+        "stored": 0,
+        "n_abs": 3,
+        "cross": 0,
+        "lift": 3,
+        "frames": 815,
+        "stored_botprev": 0,
+        "expert": 0.0,
+        "tf_label": 0.0
+      },
+      "airdodge": {
+        "abs": 0.75,
+        "edge": 0.75,
+        "from": {},
+        "held": 3,
+        "stored": 0,
+        "n_abs": 6,
+        "cross": 0,
+        "lift": 0,
+        "frames": 815,
+        "stored_botprev": 0,
+        "expert": 0.0,
+        "tf_label": 0.2053388090349076
+      },
+      "b": {
+        "abs": 8.25,
+        "edge": 8.25,
+        "from": {
+          "drift_inhand": 1,
+          "off_high_inhand": 9,
+          "off_ledge_inhand": 10,
+          "off_low_inhand": 7
+        },
+        "held": 2,
+        "stored": 9,
+        "n_abs": 66,
+        "cross": 27,
+        "lift": 0,
+        "frames": 815,
+        "stored_botprev": 0,
+        "expert": 1.6427104722792607,
+        "tf_label": 2.0533880903490758
+      },
+      "jump": {
+        "abs": 31.75,
+        "edge": 31.75,
+        "from": {
+          "drift_inhand": 4,
+          "off_deep_inhand": 1,
+          "off_high_inhand": 1,
+          "off_ledge_inhand": 33,
+          "off_low_inhand": 23
+        },
+        "held": 1,
+        "stored": 22,
+        "n_abs": 254,
+        "cross": 62,
+        "lift": 0,
+        "frames": 815,
+        "stored_botprev": 1,
+        "expert": 3.696098562628337,
+        "tf_label": 3.696098562628337
+      },
+      "side_b": {
+        "abs": 3.375,
+        "edge": 3.375,
+        "from": {
+          "off_high_inhand": 6,
+          "off_ledge_inhand": 1,
+          "off_low_inhand": 3
+        },
+        "held": 2,
+        "stored": 5,
+        "n_abs": 27,
+        "cross": 10,
+        "lift": 0,
+        "frames": 815,
+        "stored_botprev": 0,
+        "expert": 1.2320328542094456,
+        "tf_label": 0.8213552361396304
+      },
+      "up_b": {
+        "abs": 0.5,
+        "edge": 0.5,
+        "from": {
+          "off_high_inhand": 1,
+          "off_ledge_inhand": 2
+        },
+        "held": 2,
+        "stored": 1,
+        "n_abs": 4,
+        "cross": 3,
+        "lift": 0,
+        "frames": 815,
+        "stored_botprev": 0,
+        "expert": 0.0,
+        "tf_label": 0.0
+      }
+    },
+    "botprev": 56,
+    "frames": 815,
+    "d2_median": 0.2734699249267578
+  },
+  "post1-5_spent": {
+    "events": {
+      "a": {
+        "abs": 0.0,
+        "edge": 0.0,
+        "from": {},
+        "held": 0,
+        "stored": 0,
+        "n_abs": 0,
+        "cross": 0,
+        "lift": 0,
+        "frames": 681,
+        "stored_botprev": 0,
+        "expert": 0.0,
+        "tf_label": 0.16025641025641027
+      },
+      "airdodge": {
+        "abs": 1.5,
+        "edge": 1.5,
+        "from": {
+          "drift_spent": 3,
+          "off_ledge_spent": 1
+        },
+        "held": 2,
+        "stored": 2,
+        "n_abs": 12,
+        "cross": 4,
+        "lift": 0,
+        "frames": 681,
+        "stored_botprev": 0,
+        "expert": 0.0,
+        "tf_label": 0.0
+      },
+      "b": {
+        "abs": 31.25,
+        "edge": 31.25,
+        "from": {
+          "off_deep_spent": 4,
+          "off_high_spent": 10,
+          "off_ledge_spent": 35,
+          "off_low_spent": 54
+        },
+        "held": 3,
+        "stored": 32,
+        "n_abs": 250,
+        "cross": 103,
+        "lift": 0,
+        "frames": 681,
+        "stored_botprev": 2,
+        "expert": 2.2435897435897436,
+        "tf_label": 3.5256410256410255
+      },
+      "jump": {
+        "abs": 33.625,
+        "edge": 33.625,
+        "from": {
+          "drift_spent": 7,
+          "off_deep_spent": 2,
+          "off_high_spent": 11,
+          "off_ledge_spent": 54,
+          "off_low_spent": 19
+        },
+        "held": 21,
+        "stored": 34,
+        "n_abs": 269,
+        "cross": 93,
+        "lift": 0,
+        "frames": 681,
+        "stored_botprev": 2,
+        "expert": 3.6858974358974357,
+        "tf_label": 2.8846153846153846
+      },
+      "side_b": {
+        "abs": 15.5,
+        "edge": 15.5,
+        "from": {
+          "off_deep_spent": 2,
+          "off_high_spent": 6,
+          "off_ledge_spent": 31,
+          "off_low_spent": 20
+        },
+        "held": 3,
+        "stored": 14,
+        "n_abs": 124,
+        "cross": 59,
+        "lift": 0,
+        "frames": 681,
+        "stored_botprev": 1,
+        "expert": 0.8012820512820513,
+        "tf_label": 0.9615384615384616
+      },
+      "up_b": {
+        "abs": 15.25,
+        "edge": 15.25,
+        "from": {
+          "off_deep_spent": 2,
+          "off_high_spent": 3,
+          "off_ledge_spent": 1,
+          "off_low_spent": 34
+        },
+        "held": 3,
+        "stored": 17,
+        "n_abs": 122,
+        "cross": 40,
+        "lift": 0,
+        "frames": 681,
+        "stored_botprev": 1,
+        "expert": 1.4423076923076923,
+        "tf_label": 2.5641025641025643
+      }
+    },
+    "botprev": 46,
+    "frames": 681,
+    "d2_median": 0.38361358642578125
+  },
+  "post16-30_inhand": {
+    "events": {
+      "a": {
+        "abs": 0.5,
+        "edge": 0.0,
+        "from": {
+          "drift_inhand": 2,
+          "off_ledge_inhand": 1
+        },
+        "held": 1,
+        "stored": 0,
+        "n_abs": 4,
+        "cross": 3,
+        "lift": 4,
+        "frames": 983,
+        "stored_botprev": 0,
+        "expert": 0.0,
+        "tf_label": 0.0
+      },
+      "airdodge": {
+        "abs": 4.125,
+        "edge": 4.125,
+        "from": {
+          "drift_inhand": 5,
+          "off_high_inhand": 9,
+          "off_ledge_inhand": 12
+        },
+        "held": 2,
+        "stored": 1,
+        "n_abs": 33,
+        "cross": 26,
+        "lift": 0,
+        "frames": 983,
+        "stored_botprev": 0,
+        "expert": 0.18518518518518517,
+        "tf_label": 0.18518518518518517
+      },
+      "b": {
+        "abs": 19.125,
+        "edge": 19.0,
+        "from": {
+          "drift_inhand": 6,
+          "off_high_inhand": 1,
+          "off_ledge_inhand": 15,
+          "off_low_inhand": 42
+        },
+        "held": 15,
+        "stored": 21,
+        "n_abs": 153,
+        "cross": 64,
+        "lift": 1,
+        "frames": 983,
+        "stored_botprev": 2,
+        "expert": 0.5555555555555556,
+        "tf_label": 0.7407407407407407
+      },
+      "jump": {
+        "abs": 42.875,
+        "edge": 42.875,
+        "from": {
+          "drift_inhand": 5,
+          "off_high_inhand": 7,
+          "off_ledge_inhand": 35,
+          "off_low_inhand": 33
+        },
+        "held": 0,
+        "stored": 48,
+        "n_abs": 343,
+        "cross": 80,
+        "lift": 0,
+        "frames": 983,
+        "stored_botprev": 16,
+        "expert": 4.814814814814815,
+        "tf_label": 3.3333333333333335
+      },
+      "side_b": {
+        "abs": 3.125,
+        "edge": 3.125,
+        "from": {
+          "off_high_inhand": 1,
+          "off_ledge_inhand": 2
+        },
+        "held": 15,
+        "stored": 5,
+        "n_abs": 25,
+        "cross": 3,
+        "lift": 0,
+        "frames": 983,
+        "stored_botprev": 0,
+        "expert": 0.0,
+        "tf_label": 0.0
+      },
+      "up_b": {
+        "abs": 3.625,
+        "edge": 3.5,
+        "from": {
+          "drift_inhand": 1,
+          "off_ledge_inhand": 10,
+          "off_low_inhand": 5
+        },
+        "held": 15,
+        "stored": 3,
+        "n_abs": 29,
+        "cross": 16,
+        "lift": 1,
+        "frames": 983,
+        "stored_botprev": 0,
+        "expert": 0.0,
+        "tf_label": 0.0
+      }
+    },
+    "botprev": 100,
+    "frames": 983,
+    "d2_median": 0.3919181823730469
+  },
+  "post16-30_spent": {
+    "events": {
+      "a": {
+        "abs": 6.625,
+        "edge": 4.875,
+        "from": {
+          "drift_spent": 19,
+          "off_high_spent": 2,
+          "off_ledge_spent": 8
+        },
+        "held": 1,
+        "stored": 6,
+        "n_abs": 53,
+        "cross": 29,
+        "lift": 14,
+        "frames": 3393,
+        "stored_botprev": 0,
+        "expert": 0.0,
+        "tf_label": 0.04024144869215292
+      },
+      "airdodge": {
+        "abs": 9.625,
+        "edge": 9.625,
+        "from": {
+          "drift_spent": 3,
+          "off_high_spent": 8,
+          "off_ledge_spent": 21
+        },
+        "held": 2,
+        "stored": 11,
+        "n_abs": 77,
+        "cross": 32,
+        "lift": 0,
+        "frames": 3393,
+        "stored_botprev": 0,
+        "expert": 0.2012072434607646,
+        "tf_label": 0.4024144869215292
+      },
+      "b": {
+        "abs": 75.75,
+        "edge": 75.75,
+        "from": {
+          "drift_spent": 12,
+          "off_deep_spent": 6,
+          "off_high_spent": 44,
+          "off_ledge_spent": 101,
+          "off_low_spent": 13
+        },
+        "held": 31,
+        "stored": 71,
+        "n_abs": 606,
+        "cross": 176,
+        "lift": 0,
+        "frames": 3393,
+        "stored_botprev": 9,
+        "expert": 2.6559356136820926,
+        "tf_label": 2.494969818913481
+      },
+      "jump": {
+        "abs": 26.75,
+        "edge": 26.5,
+        "from": {
+          "drift_spent": 6,
+          "off_high_spent": 19,
+          "off_ledge_spent": 26,
+          "off_low_spent": 13
+        },
+        "held": 58,
+        "stored": 24,
+        "n_abs": 214,
+        "cross": 64,
+        "lift": 2,
+        "frames": 3393,
+        "stored_botprev": 2,
+        "expert": 0.7243460764587525,
+        "tf_label": 0.482897384305835
+      },
+      "side_b": {
+        "abs": 35.25,
+        "edge": 35.25,
+        "from": {
+          "off_high_spent": 41,
+          "off_ledge_spent": 56,
+          "off_low_spent": 1
+        },
+        "held": 31,
+        "stored": 30,
+        "n_abs": 282,
+        "cross": 98,
+        "lift": 0,
+        "frames": 3393,
+        "stored_botprev": 3,
+        "expert": 1.2474849094567404,
+        "tf_label": 0.9255533199195171
+      },
+      "up_b": {
+        "abs": 38.625,
+        "edge": 38.625,
+        "from": {
+          "drift_spent": 12,
+          "off_deep_spent": 6,
+          "off_high_spent": 3,
+          "off_ledge_spent": 39,
+          "off_low_spent": 12
+        },
+        "held": 31,
+        "stored": 36,
+        "n_abs": 309,
+        "cross": 72,
+        "lift": 0,
+        "frames": 3393,
+        "stored_botprev": 6,
+        "expert": 1.2877263581488934,
+        "tf_label": 1.5694164989939638
+      }
+    },
+    "botprev": 180,
+    "frames": 3393,
+    "d2_median": 0.31696414947509766
+  },
+  "post6-15_inhand": {
+    "events": {
+      "a": {
+        "abs": 0.625,
+        "edge": 0.125,
+        "from": {
+          "drift_inhand": 1
+        },
+        "held": 1,
+        "stored": 0,
+        "n_abs": 5,
+        "cross": 1,
+        "lift": 4,
+        "frames": 1081,
+        "stored_botprev": 0,
+        "expert": 0.16611295681063123,
+        "tf_label": 0.0
+      },
+      "airdodge": {
+        "abs": 1.625,
+        "edge": 1.625,
+        "from": {
+          "drift_inhand": 2,
+          "off_high_inhand": 1,
+          "off_ledge_inhand": 1
+        },
+        "held": 1,
+        "stored": 0,
+        "n_abs": 13,
+        "cross": 4,
+        "lift": 0,
+        "frames": 1081,
+        "stored_botprev": 0,
+        "expert": 0.0,
+        "tf_label": 0.0
+      },
+      "b": {
+        "abs": 11.5,
+        "edge": 11.5,
+        "from": {
+          "drift_inhand": 2,
+          "off_high_inhand": 5,
+          "off_ledge_inhand": 11,
+          "off_low_inhand": 6
+        },
+        "held": 11,
+        "stored": 16,
+        "n_abs": 92,
+        "cross": 24,
+        "lift": 0,
+        "frames": 1081,
+        "stored_botprev": 4,
+        "expert": 3.3222591362126246,
+        "tf_label": 2.3255813953488373
+      },
+      "jump": {
+        "abs": 40.375,
+        "edge": 40.375,
+        "from": {
+          "drift_inhand": 5,
+          "off_high_inhand": 1,
+          "off_ledge_inhand": 11,
+          "off_low_inhand": 50
+        },
+        "held": 0,
+        "stored": 25,
+        "n_abs": 323,
+        "cross": 67,
+        "lift": 0,
+        "frames": 1081,
+        "stored_botprev": 2,
+        "expert": 4.485049833887043,
+        "tf_label": 3.654485049833887
+      },
+      "side_b": {
+        "abs": 0.75,
+        "edge": 0.75,
+        "from": {
+          "off_ledge_inhand": 2
+        },
+        "held": 11,
+        "stored": 1,
+        "n_abs": 6,
+        "cross": 2,
+        "lift": 0,
+        "frames": 1081,
+        "stored_botprev": 0,
+        "expert": 0.8305647840531561,
+        "tf_label": 0.6644518272425249
+      },
+      "up_b": {
+        "abs": 1.375,
+        "edge": 1.375,
+        "from": {
+          "off_high_inhand": 1,
+          "off_ledge_inhand": 6
+        },
+        "held": 11,
+        "stored": 2,
+        "n_abs": 11,
+        "cross": 7,
+        "lift": 0,
+        "frames": 1081,
+        "stored_botprev": 0,
+        "expert": 0.0,
+        "tf_label": 0.0
+      }
+    },
+    "botprev": 77,
+    "frames": 1081,
+    "d2_median": 0.3310585021972656
+  },
+  "post6-15_spent": {
+    "events": {
+      "a": {
+        "abs": 2.0,
+        "edge": 2.0,
+        "from": {
+          "drift_spent": 2,
+          "off_ledge_spent": 6
+        },
+        "held": 1,
+        "stored": 2,
+        "n_abs": 16,
+        "cross": 8,
+        "lift": 0,
+        "frames": 1831,
+        "stored_botprev": 0,
+        "expert": 0.0,
+        "tf_label": 0.0
+      },
+      "airdodge": {
+        "abs": 4.5,
+        "edge": 4.5,
+        "from": {
+          "off_high_spent": 11,
+          "off_ledge_spent": 7
+        },
+        "held": 3,
+        "stored": 5,
+        "n_abs": 36,
+        "cross": 18,
+        "lift": 0,
+        "frames": 1831,
+        "stored_botprev": 0,
+        "expert": 0.13089005235602094,
+        "tf_label": 0.0
+      },
+      "b": {
+        "abs": 52.875,
+        "edge": 52.875,
+        "from": {
+          "drift_spent": 1,
+          "off_high_spent": 15,
+          "off_ledge_spent": 69,
+          "off_low_spent": 27
+        },
+        "held": 14,
+        "stored": 60,
+        "n_abs": 423,
+        "cross": 112,
+        "lift": 0,
+        "frames": 1831,
+        "stored_botprev": 1,
+        "expert": 3.075916230366492,
+        "tf_label": 3.5340314136125652
+      },
+      "jump": {
+        "abs": 39.5,
+        "edge": 39.5,
+        "from": {
+          "drift_spent": 2,
+          "off_high_spent": 12,
+          "off_ledge_spent": 52,
+          "off_low_spent": 22
+        },
+        "held": 48,
+        "stored": 47,
+        "n_abs": 316,
+        "cross": 88,
+        "lift": 0,
+        "frames": 1831,
+        "stored_botprev": 1,
+        "expert": 2.225130890052356,
+        "tf_label": 1.8324607329842932
+      },
+      "side_b": {
+        "abs": 32.125,
+        "edge": 32.125,
+        "from": {
+          "off_high_spent": 13,
+          "off_ledge_spent": 57,
+          "off_low_spent": 5
+        },
+        "held": 14,
+        "stored": 38,
+        "n_abs": 257,
+        "cross": 75,
+        "lift": 0,
+        "frames": 1831,
+        "stored_botprev": 0,
+        "expert": 1.5052356020942408,
+        "tf_label": 1.6361256544502618
+      },
+      "up_b": {
+        "abs": 19.5,
+        "edge": 19.5,
+        "from": {
+          "drift_spent": 1,
+          "off_high_spent": 2,
+          "off_ledge_spent": 4,
+          "off_low_spent": 22
+        },
+        "held": 14,
+        "stored": 19,
+        "n_abs": 156,
+        "cross": 29,
+        "lift": 0,
+        "frames": 1831,
+        "stored_botprev": 1,
+        "expert": 1.5706806282722514,
+        "tf_label": 1.8979057591623036
+      }
+    },
+    "botprev": 98,
+    "frames": 1831,
+    "d2_median": 0.3049030303955078
+  }
+}

@@ -54,6 +54,16 @@ defmodule ExPhil.Agents.ExpertRecoveryLabeler do
     # latency 0, 10/10 carried side-Bs dead). Weight 3 like jumps/grounded.
     {:helpless, 1.0, 3.0},
     {:tumble, 1.0, 3.0},
+    # v8 (10-16, label_edge_origins.exs on the r9o sets): the edge is a
+    # discontinuity `dist` (scale 30) does not price — 3 units outside vs 5
+    # inside costs 0.07 of a 1.1 gate — so the bot's offstage-high states
+    # (jump in hand) took airdodges from drift_inhand rows (the expert
+    # wavelanding OVER the stage: 39 of 55 airdodge-edge neighbours; expert
+    # offstage-high airdodge 0/537) and its over-stage drift_spent states
+    # took side-Bs from off_*_spent rows (0.13 vs 0.03 %/f) — dag9o's
+    # Illusions from the stage and airdodges with the jump, all dead. Same
+    # logic as `grounded` weight 3: airborne past the edge, or not.
+    {:offstage, 1.0, 3.0},
     {:action_frame, 30.0, 0.7},
     {:prev_sx, 1.0, 1.5},
     {:prev_sy, 1.0, 1.5},
@@ -161,6 +171,54 @@ defmodule ExPhil.Agents.ExpertRecoveryLabeler do
   def air_reach, do: @air_reach
 
   @doc """
+  Readout cell of a player state (labeler_carried_cells.exs, 10-16) given
+  `since` = frames since the last hitstun ended (`nil` = never / still in it):
+  `"carried"` (offstage in hitstun), `"post<1-5|6-15|16-30>_<inhand|spent>"`
+  (offstage right after it), `"off_<high|ledge|low|deep>_<inhand|spent>"`
+  (free offstage: RecoveryMeans' height bands high > 0, ledge > -20, low >
+  -60), `"near_ground"` (grounded within `near_edge/0` of the edge),
+  `"drift_<inhand|spent>"` (airborne over the stage within `air_reach/0`),
+  else `nil`.
+  """
+  def carried_cell(p, since, edge) do
+    x = abs(p.x || 0.0)
+    y = p.y || 0.0
+    off = x > edge and p.on_ground != true
+    inhand = if((p.jumps_left || 0) > 0, do: "inhand", else: "spent")
+    hit = (p.hitstun_frames_left || 0) > 0
+    band = cond do y > 0.0 -> "high"; y > -20.0 -> "ledge"; y > -60.0 -> "low"; true -> "deep" end
+
+    cond do
+      off and hit -> "carried"
+      off and since != nil and since <= 5 -> "post1-5_" <> inhand
+      off and since != nil and since <= 15 -> "post6-15_" <> inhand
+      off and since != nil and since <= 30 -> "post16-30_" <> inhand
+      off -> "off_" <> band <> "_" <> inhand
+      hit -> nil
+      p.on_ground == true and x > edge - @near_edge -> "near_ground"
+      p.on_ground != true and x > edge - @air_reach -> "drift_" <> inhand
+      true -> nil
+    end
+  end
+
+  @doc "All `carried_cell/3` names, in readout order."
+  def carried_cells do
+    ~w(carried post1-5_inhand post1-5_spent post6-15_inhand post6-15_spent post16-30_inhand post16-30_spent off_high_inhand off_high_spent off_ledge_inhand off_ledge_spent off_low_inhand off_low_spent off_deep_inhand off_deep_spent near_ground drift_inhand drift_spent)
+  end
+
+  @doc "Tag a consecutive list of `%{p: player, ...}` rows with their `:cell` (`carried_cell/3`), tracking frames since hitstun."
+  def tag_cells(rows, edge) do
+    {out, _} =
+      Enum.map_reduce(rows, nil, fn r, since ->
+        hit = (r.p.hitstun_frames_left || 0) > 0
+        since = cond do hit -> 0; since == nil -> nil; true -> since + 1 end
+        {Map.put(r, :cell, carried_cell(r.p, since, edge)), since}
+      end)
+
+    out
+  end
+
+  @doc """
   Raw (unscaled) feature map for a player state, previous input and opponent.
   `prev_p` = the player's state one frame earlier: velocity is the POSITION
   DELTA (v2, 10-08 22:30). v1 read `speed_y_self` / `speed_air_x_self`, which
@@ -188,6 +246,7 @@ defmodule ExPhil.Agents.ExpertRecoveryLabeler do
       attacking: if(a in 65..69, do: 1.0, else: 0.0),
       helpless: if(a in 35..37, do: 1.0, else: 0.0),
       tumble: if(a == 38, do: 1.0, else: 0.0),
+      offstage: if(p.on_ground != true and abs(p.x || 0.0) > edge, do: 1.0, else: 0.0),
       action_frame: p.action_frame || 0,
       prev_sx: ((ms[:x] || 0.5) - 0.5) * 2.0 * t,
       prev_sy: ((ms[:y] || 0.5) - 0.5) * 2.0,
@@ -368,7 +427,7 @@ defmodule ExPhil.Agents.ExpertRecoveryLabeler do
     window = Map.get(m, :window, :offstage)
 
     if m.dims != dim_names(window) do
-      raise "#{path}: index dims #{inspect(m.dims)} do not match this labeler's #{inspect(dim_names(window))} (v7 added helpless/tumble: rebuild with build_expert_recovery_index.exs)"
+      raise "#{path}: index dims #{inspect(m.dims)} do not match this labeler's #{inspect(dim_names(window))} (v7 added helpless/tumble, v8 offstage: rebuild with build_expert_recovery_index.exs)"
     end
 
     backend = Nx.default_backend()

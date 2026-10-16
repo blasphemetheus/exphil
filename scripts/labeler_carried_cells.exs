@@ -36,49 +36,12 @@ events = [
   {"a", fn c, p -> c.button_a == true and not (p.button_a == true) end}
 ]
 
-# cell of frame t given the frames since hitstun ended (nil = never / still in it).
-# Hit cells: "carried" (offstage in hitstun), post<1-5|6-15|16-30>_<inhand|spent>.
-# Free cells (offstage, no hitstun, not within 30 f of one): off_<band>_<inhand|spent>
-# with the readout's height bands (RecoveryMeans: high > 0, ledge > -20, low > -60,
-# deep). Onstage origins of a carried-off trip: near_ground (grounded within
-# @near_edge of the edge), drift_<inhand|spent> (airborne over the stage within
-# @air_reach of the edge).
-band = fn y -> cond do y > 0.0 -> "high"; y > -20.0 -> "ledge"; y > -60.0 -> "low"; true -> "deep" end end
-cell = fn p, since ->
-  x = abs(p.x || 0.0)
-  y = p.y || 0.0
-  off = x > edge and p.on_ground != true
-  inhand = if((p.jumps_left || 0) > 0, do: "inhand", else: "spent")
-  hit = (p.hitstun_frames_left || 0) > 0
-  cond do
-    off and hit -> "carried"
-    off and since != nil and since <= 5 -> "post1-5_" <> inhand
-    off and since != nil and since <= 15 -> "post6-15_" <> inhand
-    off and since != nil and since <= 30 -> "post16-30_" <> inhand
-    off -> "off_" <> band.(y) <> "_" <> inhand
-    hit -> nil
-    p.on_ground == true and x > edge - L.near_edge() -> "near_ground"
-    p.on_ground != true and x > edge - L.air_reach() -> "drift_" <> inhand
-    true -> nil
-  end
-end
-
-# walk a consecutive list of %{p, prev, cur} rows, tagging each with its cell
-tag = fn rows ->
-  {out, _} =
-    Enum.map_reduce(rows, nil, fn r, since ->
-      hit = (r.p.hitstun_frames_left || 0) > 0
-      since = cond do
-        hit -> 0
-        since == nil -> nil
-        true -> since + 1
-      end
-      {Map.put(r, :cell, cell.(r.p, since)), since}
-    end)
-  out
-end
-
-cells = ~w(carried post1-5_inhand post1-5_spent post6-15_inhand post6-15_spent post16-30_inhand post16-30_spent off_high_inhand off_high_spent off_ledge_inhand off_ledge_spent off_low_inhand off_low_spent off_deep_inhand off_deep_spent near_ground drift_inhand drift_spent)
+# cell of frame t given the frames since hitstun ended: L.carried_cell/3 (hit
+# cells carried / post<1-5|6-15|16-30>_<inhand|spent>; free offstage cells
+# off_<band>_<inhand|spent> with the readout's height bands; onstage origins
+# near_ground / drift_<inhand|spent>). Shared with label_edge_origins.exs.
+tag = &L.tag_cells(&1, edge)
+cells = L.carried_cells()
 hazards = fn rows, src ->
   by = Enum.group_by(Enum.filter(rows, & &1.cell), & &1.cell)
   for c <- cells, into: %{} do
