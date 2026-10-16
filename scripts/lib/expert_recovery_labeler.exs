@@ -42,6 +42,18 @@ defmodule ExPhil.Agents.ExpertRecoveryLabeler do
     # started inside an aerial (the expert's own 11 %), where a press does
     # nothing and is then held into the fall.
     {:attacking, 1.0, 1.5},
+    # v7 (10-16, labeler_carried_cells.exs on the v6 index): the expert's own
+    # held-out states got 3–15x the expert's press hazard in the free offstage
+    # cells (deep-spent B 0.33 -> 3.92 %/f, up-B 0.19 -> 2.91, ledge-in-hand
+    # jump 1.22 -> 5.25) while every cell with its "can I act?" variable in
+    # the index (hitstun, grounded, jumps) read clean. The missing variable:
+    # a helpless fall (35 DEAD_FALL, 36/37 SPECIAL_FALL after Firefox /
+    # Illusion / an airdodge) and a tumble (38) matched live falls at the same
+    # height and speed — where a spent expert Firefoxes — and borrowed presses
+    # the game ignores; the mixed policy then fires them live (dag9o: side-B
+    # latency 0, 10/10 carried side-Bs dead). Weight 3 like jumps/grounded.
+    {:helpless, 1.0, 3.0},
+    {:tumble, 1.0, 3.0},
     {:action_frame, 30.0, 0.7},
     {:prev_sx, 1.0, 1.5},
     {:prev_sy, 1.0, 1.5},
@@ -174,6 +186,8 @@ defmodule ExPhil.Agents.ExpertRecoveryLabeler do
       airdodge: if(a == 236, do: 1.0, else: 0.0),
       jumping: if(a in 25..28, do: 1.0, else: 0.0),
       attacking: if(a in 65..69, do: 1.0, else: 0.0),
+      helpless: if(a in 35..37, do: 1.0, else: 0.0),
+      tumble: if(a == 38, do: 1.0, else: 0.0),
       action_frame: p.action_frame || 0,
       prev_sx: ((ms[:x] || 0.5) - 0.5) * 2.0 * t,
       prev_sy: ((ms[:y] || 0.5) - 0.5) * 2.0,
@@ -247,6 +261,41 @@ defmodule ExPhil.Agents.ExpertRecoveryLabeler do
     }
   end
 
+  @buttons [:button_a, :button_b, :button_x, :button_y, :button_z, :button_l, :button_r]
+  @button_cols 4..10
+
+  @doc """
+  v7 (10-16): a sampled expert row applied as BUTTON EDGES on the bot's
+  previous label, not as an absolute controller. Sticks and shoulder are
+  positions and come from the row; a button is DOWN in the label only where
+  the expert row pressed it (`prev_row` up, row down) or where the expert was
+  holding it AND the bot was already holding it; where the row has it up it
+  is up. Why: a "change" row is any frame whose 16-bucket input differs from
+  the frame before — in the v6 index 19,667 of the 34,051 B-down change rows
+  (58 %) are the expert HOLDING B while the stick moved (a Firefox charge),
+  and 43,600 of 69,509 X/Y-down rows likewise. Copied onto a bot label with
+  B up, each one manufactured a B press the expert never made — the
+  spent-jump B-edge over-press (label 1.3 % vs expert 0.24 % per frame, v3–v6
+  self-checks) that round r9o (dag9o) turned into side-B latency 0 and 10/10
+  carried-off Illusions dying. `prev` is the bot's previous label (the
+  template); `row`/`prev_row` are the expert's input at t / t-1 in the
+  TOWARD frame (buttons are unaffected by mirroring).
+  """
+  def row_controller_edges(row, prev_row, t, prev) do
+    abs = row_controller(row, t, prev)
+
+    Enum.reduce(Enum.zip(@buttons, @button_cols), abs, fn {name, col}, c ->
+      down = Enum.at(row, col) > 0.5
+      was_down = Enum.at(prev_row, col) > 0.5
+
+      cond do
+        not down -> Map.put(c, name, false)
+        not was_down -> Map.put(c, name, true)
+        true -> Map.put(c, name, Map.get(prev, name) == true)
+      end
+    end)
+  end
+
   @doc "Same input at the 16-bucket resolution the event heads use (a hold)."
   def same_input?(a, b2) do
     ExPhil.Training.Data.controller_to_action(a, axis_buckets: 16) ==
@@ -259,7 +308,8 @@ defmodule ExPhil.Agents.ExpertRecoveryLabeler do
   Build the index from training frames of one game (`Peppi.to_training_frames`
   output, own player = port 1): rows for every labelable frame t with the
   input at t as the label and the input at t-1 as the previous input.
-  Returns `[{vector, controller_row, hold?}]`.
+  Returns `[{vector, controller_row, hold?, prev_controller_row}]` (v7: the
+  expert's input at t-1 as a row, for `row_controller_edges/4`).
   """
   def index_rows(frames, stage, window \\ :offstage) do
     edge = GA.stage_edge(stage)
@@ -273,21 +323,22 @@ defmodule ExPhil.Agents.ExpertRecoveryLabeler do
       if f1.game_state.frame == f0.game_state.frame + 1 and labelable?(p, edge, window, opp) do
         t = toward(p)
         v = features(p, f0.controller, opp, edge, f0.game_state.players[1]) |> vector(window)
-        [{v, controller_row(f1.controller, t), same_input?(f1.controller, f0.controller)}]
+        [{v, controller_row(f1.controller, t), same_input?(f1.controller, f0.controller), controller_row(f0.controller, t)}]
       else
         []
       end
     end)
   end
 
-  @doc "Pack rows into tensors: %{x: {n, d} f32, labels: {n, 12} f32, hold: {n} u8, n: n}."
+  @doc "Pack rows into tensors: %{x: {n, d} f32, labels: {n, 12} f32, hold: {n} u8, prev_labels: {n, 12} f32, n: n}."
   def pack(rows) do
     n = length(rows)
 
     %{
       x: Nx.tensor(Enum.map(rows, &elem(&1, 0)), type: :f32),
       labels: Nx.tensor(Enum.map(rows, &elem(&1, 1)), type: :f32),
-      hold: Nx.tensor(Enum.map(rows, fn {_, _, h} -> if(h, do: 1, else: 0) end), type: :u8),
+      hold: Nx.tensor(Enum.map(rows, fn r -> if(elem(r, 2), do: 1, else: 0) end), type: :u8),
+      prev_labels: Nx.tensor(Enum.map(rows, &elem(&1, 3)), type: :f32),
       n: n
     }
   end
@@ -300,21 +351,35 @@ defmodule ExPhil.Agents.ExpertRecoveryLabeler do
     File.write!(path, :erlang.term_to_binary(%{
       dims: dim_names(window), k: @k, n: index.n, window: window,
       x: Nx.to_binary(index.x), labels: Nx.to_binary(index.labels), hold: Nx.to_binary(index.hold),
+      prev_labels: Nx.to_binary(index.prev_labels),
       meta: Map.get(index, :meta, %{})
     }, [:compressed]))
   end
 
-  @doc "Loads an index; `index.window` is its labelable window (v1–v3 files have none: `:offstage`)."
+  @doc """
+  Loads an index; `index.window` is its labelable window (v1–v3 files have
+  none: `:offstage`). `index.prev_labels` (v7) is the expert's previous input
+  per row; a v1–v6 file has none (`nil`) and labels are applied as absolute
+  controllers, the pre-v7 behaviour.
+  """
   def load(path) do
     m = path |> File.read!() |> :erlang.binary_to_term()
     d = length(m.dims)
+    window = Map.get(m, :window, :offstage)
+
+    if m.dims != dim_names(window) do
+      raise "#{path}: index dims #{inspect(m.dims)} do not match this labeler's #{inspect(dim_names(window))} (v7 added helpless/tumble: rebuild with build_expert_recovery_index.exs)"
+    end
+
     backend = Nx.default_backend()
+    rows12 = fn bin -> Nx.from_binary(bin, :f32) |> Nx.reshape({m.n, 12}) |> Nx.to_list() |> List.to_tuple() end
 
     %{
       x: Nx.from_binary(m.x, :f32) |> Nx.reshape({m.n, d}) |> Nx.backend_transfer(backend),
       # labels / holds are read per neighbour on the Elixir side: tuples
-      labels: Nx.from_binary(m.labels, :f32) |> Nx.reshape({m.n, 12}) |> Nx.to_list() |> List.to_tuple(),
+      labels: rows12.(m.labels),
       hold: Nx.from_binary(m.hold, :u8) |> Nx.to_list() |> List.to_tuple(),
+      prev_labels: if(m[:prev_labels], do: rows12.(m.prev_labels)),
       n: m.n, k: m.k, dims: m.dims, meta: m.meta, window: Map.get(m, :window, :offstage)
     }
   end
@@ -385,6 +450,7 @@ defmodule ExPhil.Agents.ExpertRecoveryLabeler do
 
     labels = index.labels
     holds = index.hold
+    prevs = index[:prev_labels]
 
     Enum.zip([states, idx, d2])
     |> Enum.map(fn {state, neighbours, best} ->
@@ -394,7 +460,8 @@ defmodule ExPhil.Agents.ExpertRecoveryLabeler do
       cond do
         max_d2 != nil and best > max_d2 -> nil
         elem(holds, j) == 1 -> prev
-        true -> row_controller(elem(labels, j), toward(p), prev)
+        prevs == nil -> row_controller(elem(labels, j), toward(p), prev)
+        true -> row_controller_edges(elem(labels, j), elem(prevs, j), toward(p), prev)
       end
     end)
   end

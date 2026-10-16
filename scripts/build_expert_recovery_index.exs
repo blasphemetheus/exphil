@@ -75,9 +75,11 @@ Output.config([{"split", split}, {"train files", length(files)}, {"games wanted"
 rows = rows |> Enum.reverse() |> Enum.concat()
 n = length(rows)
 holds = Enum.count(rows, &elem(&1, 2))
-b_share = Enum.count(rows, fn {_, r, _} -> Enum.at(r, 5) > 0.5 end) / max(n, 1)
-jump_share = Enum.count(rows, fn {_, r, _} -> Enum.at(r, 6) > 0.5 or Enum.at(r, 7) > 0.5 end) / max(n, 1)
-up_share = Enum.count(rows, fn {_, r, _} -> Enum.at(r, 1) >= 0.75 end) / max(n, 1)
+b_share = Enum.count(rows, fn {_, r, _, _} -> Enum.at(r, 5) > 0.5 end) / max(n, 1)
+jump_share = Enum.count(rows, fn {_, r, _, _} -> Enum.at(r, 6) > 0.5 or Enum.at(r, 7) > 0.5 end) / max(n, 1)
+up_share = Enum.count(rows, fn {_, r, _, _} -> Enum.at(r, 1) >= 0.75 end) / max(n, 1)
+# v7: true button presses (row down, previous row up) — what the edge rule can label
+b_edge_share = Enum.count(rows, fn {_, r, _, pr} -> Enum.at(r, 5) > 0.5 and Enum.at(pr, 5) < 0.5 end) / max(n, 1)
 
 # v6: how the rows split by cell (the onstage dims are the last 12; knockdown / shield_stun / grounded read back from the scaled row)
 cells =
@@ -85,7 +87,7 @@ cells =
     names = L.dim_names(window)
     at = fn r, name -> Enum.at(r, Enum.find_index(names, &(&1 == name))) end
     # scaled*weighted values: grounded w3, shield w1.5, knockdown w3, dist/30
-    Enum.frequencies_by(rows, fn {r, _, _} ->
+    Enum.frequencies_by(rows, fn {r, _, _, _} ->
       cond do
         at.(r, :knockdown) > 1.5 -> :knockdown
         at.(r, :shield) > 0.75 -> :shield
@@ -101,5 +103,5 @@ index = L.pack(rows) |> Map.put(:window, window) |> Map.put(:meta, %{games: used
 L.save(index, out)
 
 Output.puts("RESULT expert recovery index: #{used} games, #{n} #{window} rows, hold share #{Float.round(holds / max(n, 1), 3)}, " <>
-  "B #{Float.round(100 * b_share, 1)} %, jump #{Float.round(100 * jump_share, 1)} %, stick up #{Float.round(100 * up_share, 1)} %" <>
+  "B #{Float.round(100 * b_share, 1)} % (presses #{Float.round(100 * b_edge_share, 2)} %), jump #{Float.round(100 * jump_share, 1)} %, stick up #{Float.round(100 * up_share, 1)} %" <>
   if(cells == %{}, do: "", else: "; cells #{inspect(cells)}") <> " -> #{out}")
