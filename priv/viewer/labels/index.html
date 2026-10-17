@@ -84,10 +84,10 @@
           <div class="nav">
             <button id="bPrev" title="p">◀ prev run</button>
             <button id="bNext" title="n">next run ▶</button>
-            <button id="bStep-" title="←">−1 f</button>
-            <button id="bStep+" title="→">+1 f</button>
-            <button id="bEdge-" title="[">prev label edge</button>
-            <button id="bEdge+" title="]">next label edge</button>
+            <button id="bStepPrev" title="←">−1 f</button>
+            <button id="bStepNext" title="→">+1 f</button>
+            <button id="bEdgePrev" title="[">prev label edge</button>
+            <button id="bEdgeNext" title="]">next label edge</button>
             <span id="pos" class="muted"></span>
           </div>
           <svg id="tl"></svg>
@@ -101,6 +101,11 @@
         </div>
       </section>
     </main>
+    <script>
+      // any script error lands on the status line instead of a silent "loading manifest…"
+      window.addEventListener("error", (e) => { const s = document.getElementById("status"); if (s) s.innerHTML = `<span class="error">page error: ${String(e.message).replace(/[<>&]/g, "")}</span>`; });
+      window.addEventListener("unhandledrejection", (e) => { const s = document.getElementById("status"); if (s) s.innerHTML = `<span class="error">page error: ${String(e.reason && e.reason.message || e.reason).replace(/[<>&]/g, "")}</span>`; });
+    </script>
     <script type="module">
       const params = new URLSearchParams(location.search);
       const base = params.get("run") || "/labelruns/latest";
@@ -253,8 +258,8 @@
       }
       window.addEventListener("keydown", (e) => { if (!(e.target instanceof Element && e.target.matches("input, select, textarea"))) { key(e.key); if (["ArrowLeft", "ArrowRight", " "].includes(e.key)) e.preventDefault(); } });
       $("#bPrev").onclick = () => pick(curIdx - 1); $("#bNext").onclick = () => pick(curIdx + 1);
-      $("#bStep-").onclick = () => seek(frame - 1); $("#bStep+").onclick = () => seek(frame + 1);
-      $("#bEdge-").onclick = () => edgeJump(-1); $("#bEdge+").onclick = () => edgeJump(1);
+      $("#bStepPrev").onclick = () => seek(frame - 1); $("#bStepNext").onclick = () => seek(frame + 1);
+      $("#bEdgePrev").onclick = () => edgeJump(-1); $("#bEdgeNext").onclick = () => edgeJump(1);
       ["#fSource", "#fCell", "#fEvent", "#fOff", "#fSort"].forEach((s) => ($(s).onchange = renderRuns));
       window.addEventListener("resize", () => side && drawTimeline());
 
