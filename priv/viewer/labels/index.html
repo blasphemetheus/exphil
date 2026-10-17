@@ -97,6 +97,7 @@
             <button id="bStepNext" title="→">+1 f</button>
             <button id="bEdgePrev" title="[">prev label edge</button>
             <button id="bEdgeNext" title="]">next label edge</button>
+            <button id="bRef" title="copy run id + frame + link to the clipboard">copy ref</button>
             <span id="pos" class="muted"></span>
           </div>
           <svg id="tl"></svg>
@@ -163,9 +164,9 @@
         const bot = roleOf(r) === "bot";
         $("#roles").innerHTML = bot
           ? `<div class="card p1"><b>🔴 Red Fox = THE BOT</b> (port 1), rolled out in the sim on its own. Source <code>${esc(r.source)}</code> is a DAgger set: every labelled red frame becomes a training pair <i>(red Fox's state → label)</i>. Red lanes = what the bot really pressed; purple lanes = what the teacher (k-NN over expert replays) says to press instead — that is what gets trained. Where they differ is the whole point of the set.</div>
-             <div class="card p2"><b>🔵 Blue Fox = the sim opponent</b> (port 2) — a scripted / replayed body, not labelled, not trained on.</div>`
+             <div class="card p2"><b>🔵 Blue Fox = the sim opponent</b> (slot 2) — a scripted / replayed body, not labelled, not trained on. <i>Red/blue are embedding slots, not real ports: the embedding has no port feature, sim rollouts always give the bot port 1 (the tie-winning port), replays are folded from any port — the run title says the real ports when known.</i></div>`
           : `<div class="card p1"><b>🔴 Red Fox = THE EXPERT</b> (port 1), a human in held-out replay <code>${esc(r.label)}</code>. Red lanes = what the expert really pressed. Purple lanes = what the labeler WOULD say on each of these frames (teacher-forced, nothing here is trained on). Purple ≠ red is a labeler mistake on states where the right answer is known.</div>
-             <div class="card p2"><b>🔵 Blue Fox = the expert's human opponent</b> (port 2), not labelled.</div>`;
+             <div class="card p2"><b>🔵 Blue Fox = the expert's human opponent</b> (slot 2), not labelled. <i>Slots, not real ports — the title says which ports they really played; port order decides same-frame ties and the model never sees it.</i></div>`;
       }
       async function pick(i) {
         if (i < 0 || i >= runs.length) return;
@@ -179,10 +180,19 @@
         const marks = side.rows.flatMap((r) => r.label_edges.map((e) => ({ i: r.i, label: e, color: "#d9822b" })));
         pane.contentWindow.postMessage({ marks }, "*");
         drawTimeline(); renderDetail();
+        syncUrl();
+        if (seekTo != null) { const f = seekTo; seekTo = null; seek(f); }
       }
+      let seekTo = null;   // frame to seek to once the picked run's sidecar is in (from the URL's &f=)
+      function syncUrl() {
+        if (!cur) return;
+        const u = new URL(location.href); u.searchParams.set("id", cur.id); u.searchParams.set("f", String(frame)); history.replaceState(null, "", u);
+      }
+      function refText() { return cur ? `${cur.id} @ frame ${frame} (${cur.label}) ${location.href}` : ""; }
       function seek(i) {
         if (!side) return;
         frame = Math.max(0, Math.min(side.rows.length - 1, i));
+        syncUrl();
         pane.contentWindow.postMessage({ seek: frame }, "*");
         renderDetail(); moveCursor();
       }
@@ -267,7 +277,7 @@
       // ---- wiring --------------------------------------------------------------------
       window.addEventListener("message", (ev) => {
         const m = ev.data || {};
-        if (typeof m.frame === "number" && side && m.frame !== frame) { frame = m.frame; renderDetail(); moveCursor(); }
+        if (typeof m.frame === "number" && side && m.frame !== frame) { frame = m.frame; renderDetail(); moveCursor(); syncUrl(); }
         if (m.paneKey) key(m.paneKey);
       });
       function key(k) {
@@ -279,6 +289,7 @@
       $("#bPrev").onclick = () => pick(curIdx - 1); $("#bNext").onclick = () => pick(curIdx + 1);
       $("#bStepPrev").onclick = () => seek(frame - 1); $("#bStepNext").onclick = () => seek(frame + 1);
       $("#bEdgePrev").onclick = () => edgeJump(-1); $("#bEdgeNext").onclick = () => edgeJump(1);
+      $("#bRef").onclick = async () => { const t = refText(); if (!t) return; try { await navigator.clipboard.writeText(t); $("#pos").textContent = "copied: " + t.slice(0, 60) + "…"; } catch { $("#pos").textContent = t; } };
       ["#fSource", "#fCell", "#fEvent", "#fOff", "#fSort"].forEach((s) => ($(s).onchange = renderRuns));
       window.addEventListener("resize", () => side && drawTimeline());
 
@@ -291,6 +302,8 @@
         opt($("#fCell"), manifest.cells.filter((c) => manifest.runs.some((r) => r.cells[c])));
         opt($("#fEvent"), manifest.events);
         renderRuns();
+        // deep link: ?id=<run id>&f=<frame> (as 'copy ref' produces)
+        const wantId = params.get("id"); if (wantId) { const k = runs.findIndex((r) => r.id === wantId); if (k >= 0) { seekTo = Number(params.get("f") || 0); pick(k); } }
       } catch (e) { $("#status").innerHTML = `<span class="error">manifest: ${esc(e.message)} — export with scripts/label_review_export.exs and open /labels/?run=/labelruns/&lt;dir&gt;</span>`; }
     </script>
   </body>

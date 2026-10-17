@@ -172,7 +172,8 @@ set_runs =
     |> Enum.shuffle()
     |> Enum.take(max_runs)
     |> Enum.sort_by(&elem(&1, 0))
-    |> Enum.map(fn {li, frames} -> write_run.(source, "#{source}_l#{li}", frames, "#{source} list #{li}") end)
+    # sim rollouts put the bot on port 1 (drill/ppo/ga: attacker = port 1); live .slp sets lost the port at remap
+    |> Enum.map(fn {li, frames} -> write_run.(source, "#{source}_l#{li}", frames, "#{source} list #{li}" <> if(String.starts_with?(source, "sim_"), do: " (bot on sim port 1)", else: " (bot's real port not recorded)")) end)
   end)
 
 # ---- expert replays, teacher-forced --------------------------------------------
@@ -218,16 +219,17 @@ slp_runs =
           lab_states = seg |> Enum.filter(& &1.lab) |> Enum.map(&{&1.p, &1.prev, &1.opp, &1.prev_p})
           labels = L.label_batch(index, lab_states, edge, max_d2: opts[:max_d2])
           {seg, _} = Enum.map_reduce(seg, labels, fn r, ls -> if r.lab, do: {Map.merge(r, %{label: hd(ls), input_only: false, gated: hd(ls) == nil}), tl(ls)}, else: {Map.merge(r, %{label: nil, input_only: true, gated: false}), ls} end)
-          {Path.basename(path, ".slp"), a, seg}
+          {Path.basename(path, ".slp"), a, seg, {own, opp}}
         end)
       end)
-      |> Enum.filter(fn {_, _, seg} -> interesting?.(seg) end)
+      |> Enum.filter(fn {_, _, seg, _} -> interesting?.(seg) end)
       |> Enum.shuffle()
       |> Enum.take(max_runs)
-    Enum.map(runs, fn {game, a, seg} ->
+    Enum.map(runs, fn {game, a, seg, {own, opp}} ->
       # ids are file names and URL paths: keep [A-Za-z0-9_-]
       id = "#{source}_#{String.slice(game, 0, 24)}_f#{a}" |> String.replace(~r/[^A-Za-z0-9_-]+/, "_")
-      write_run.(source, id, seg, "#{game} @#{a} (teacher-forced)")
+      # the real ports: the embedding/viewer put the subject in slot 1, but port order decides same-frame ties in Melee
+      write_run.(source, id, seg, "#{game} @#{a} (teacher-forced; expert really on port #{own}, opponent port #{opp})")
     end)
   end)
 
