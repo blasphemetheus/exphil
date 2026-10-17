@@ -370,23 +370,96 @@ defmodule ExPhil.Agents.ExpertRecoveryLabeler do
   Returns `[{vector, controller_row, hold?, prev_controller_row}]` (v7: the
   expert's input at t-1 as a row, for `row_controller_edges/4`).
   """
-  def index_rows(frames, stage, window \\ :offstage) do
+  @settle_max 3
+  @settle_eps 0.02
+
+  def index_rows(frames, stage, window \\ :offstage, opts \\ []) do
     edge = GA.stage_edge(stage)
+    stick = Keyword.get(opts, :stick, :settled)
 
-    frames
-    |> Enum.chunk_every(2, 1, :discard)
-    |> Enum.flat_map(fn [f0, f1] ->
-      p = f1.game_state.players[1]
-      opp = f1.game_state.players[2]
+    # chunks of [f-1 | f0, f1, f+1 .. f+settle_max]: f-1 (nil at the start) decides whether f1 continues a travel
+    [nil | frames]
+    |> Enum.chunk_every(3 + @settle_max, 1)
+    |> Enum.flat_map(fn
+      [fm, f0, f1 | rest] ->
+        p = f1.game_state.players[1]
+        opp = f1.game_state.players[2]
 
-      if f1.game_state.frame == f0.game_state.frame + 1 and labelable?(p, edge, window, opp) do
-        t = toward(p)
-        v = features(p, f0.controller, opp, edge, f0.game_state.players[1]) |> vector(window)
-        [{v, controller_row(f1.controller, t), same_input?(f1.controller, f0.controller), controller_row(f0.controller, t)}]
-      else
+        if f1.game_state.frame == f0.game_state.frame + 1 and labelable?(p, edge, window, opp) do
+          t = toward(p)
+          v = features(p, f0.controller, opp, edge, f0.game_state.players[1]) |> vector(window)
+          hold = same_input?(f1.controller, f0.controller)
+          cont = stick == :settled and not hold and travel_continuation?(fm, f0, f1)
+          c1 = if stick == :settled and not cont, do: %{f1.controller | main_stick: settled_main_stick(f0, f1, rest)}, else: f1.controller
+          [{v, controller_row(c1, t), hold or cont, controller_row(f0.controller, t)}]
+        else
+          []
+        end
+
+      _ ->
         []
-      end
     end)
+  end
+
+  # One flick = ONE change row. A travelling flick is 2–3 change rows (every
+  # frame's 16-bucket input differs from the last); with the settled value on
+  # all of them the labeler had ~3x the expert's per-frame flick hazard (v9
+  # first cut: stick-up onset label 5.3 % vs expert 3.1 %, lying any-input
+  # 9.5 vs 2.7). A frame that keeps moving the way the previous frame already
+  # moved is a continuation: a HOLD row (the bot that sampled the first
+  # frame's settled flick keeps it; teacher-forced it copies the real prev).
+  def travel_continuation?(nil, _f0, _f1), do: false
+
+  def travel_continuation?(fm, f0, f1) do
+    ms = fn f -> {f.controller.main_stick[:x] || 0.5, f.controller.main_stick[:y] || 0.5} end
+    {xm, ym} = ms.(fm)
+    {x0, y0} = ms.(f0)
+    {x1, y1} = ms.(f1)
+    {dx0, dy0} = {x0 - xm, y0 - ym}
+    {dx1, dy1} = {x1 - x0, y1 - y0}
+    n0 = :math.sqrt(dx0 * dx0 + dy0 * dy0)
+
+    f0.game_state.frame == fm.game_state.frame + 1 and n0 >= @settle_eps and
+      not same_input?(f0.controller, fm.controller) and
+      (dx1 * dx0 + dy1 * dy0) / n0 > @settle_eps
+  end
+
+  # v9 (10-17, Bradley on the labels page: "we want to be able to represent
+  # dash-dancing"): a stick flick TRAVELS — 0.50 -> 0.72 -> 0.99 over three
+  # frames (14_32_43 @0 f16–25) — and every travel frame is a "change" row
+  # whose stored stick is a mid-travel position. Sampled onto the bot, "stick
+  # 0.72" is a walk, and the next frame's hold keeps it: the flick comes out
+  # as a slow slide (Bradley: "a slow turnaround"). A change row now stores
+  # the SETTLED main stick: follow the stick while it keeps moving the way it
+  # was already travelling into t (at most @settle_max frames) and take where
+  # it stopped. A pivot (L -> R -> L) ends the follow at the reversal, a tap
+  # keeps its peak. Buttons (v7 edges), the c-stick (its first frame IS the
+  # input) and hold rows are untouched; features do not change.
+  def settled_main_stick(f0, f1, rest) do
+    ms = fn f -> {f.controller.main_stick[:x] || 0.5, f.controller.main_stick[:y] || 0.5} end
+    {x0, y0} = ms.(f0)
+    {x1, y1} = s1 = ms.(f1)
+    {dx, dy} = {x1 - x0, y1 - y0}
+
+    if abs(dx) + abs(dy) < @settle_eps do
+      %{x: x1, y: y1}
+    else
+      norm = :math.sqrt(dx * dx + dy * dy)
+      # (frame, its predecessor) pairs: zip truncates to the shorter list
+      {x, y} =
+        Enum.zip(rest, [f1 | rest])
+        |> Enum.reduce_while(s1, fn {f, fprev}, {cx, cy} ->
+          {nx, ny} = ms.(f)
+          # projection of this frame's move onto the travel direction into t
+          along = ((nx - cx) * dx + (ny - cy) * dy) / norm
+
+          if f.game_state.frame == fprev.game_state.frame + 1 and along > @settle_eps,
+            do: {:cont, {nx, ny}},
+            else: {:halt, {cx, cy}}
+        end)
+
+      %{x: x, y: y}
+    end
   end
 
   @doc "Pack rows into tensors: %{x: {n, d} f32, labels: {n, 12} f32, hold: {n} u8, prev_labels: {n, 12} f32, n: n}."

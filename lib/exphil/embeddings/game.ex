@@ -67,6 +67,7 @@ defmodule ExPhil.Embeddings.Game do
             # datasets carry THIS one, so both need the fields.
             queue_depth: 1,
             with_delay_id: false,
+            with_port: false,
             # Stage internals (2026-08-24 W4 verdict): FoD platform
             # heights + PS transformation as direct features. Default
             # false — existing checkpoints' layouts are untouched.
@@ -235,10 +236,19 @@ defmodule ExPhil.Embeddings.Game do
         []
       end
 
+    port_embs =
+      if Map.get(config, :with_port) do
+        {own_p, opp_p} = real_ports(game_state, own_port)
+        [Primitives.one_hot(own_p - 1, size: 4, clamp: true), Primitives.one_hot(opp_p - 1, size: 4, clamp: true)]
+      else
+        []
+      end
+
     embeddings =
       embeddings ++
         queue_embs ++
         delay_embs ++
+        port_embs ++
         [
           # Player name/tag ID (for style learning)
           Primitives.one_hot(name_id, size: config.num_player_names, clamp: true)
@@ -463,6 +473,21 @@ defmodule ExPhil.Embeddings.Game do
             )
 
           Nx.concatenate([prev_action_emb, delay_emb], axis: 1)
+        else
+          prev_action_emb
+        end
+
+      # Real ports one-hot (own 4 + opponent 4), from the remap stamp or the port keys
+      prev_action_emb =
+        if Map.get(config, :with_port) do
+          ports = Enum.map(game_states, &real_ports(&1, own_port))
+          own_ids = Nx.tensor(Enum.map(ports, fn {o, _} -> o - 1 end), type: :s32)
+          opp_ids = Nx.tensor(Enum.map(ports, fn {_, o} -> o - 1 end), type: :s32)
+
+          Nx.concatenate(
+            [prev_action_emb, Primitives.batch_one_hot(own_ids, size: 4, clamp: true), Primitives.batch_one_hot(opp_ids, size: 4, clamp: true)],
+            axis: 1
+          )
         else
           prev_action_emb
         end
@@ -705,6 +730,38 @@ defmodule ExPhil.Embeddings.Game do
     case stage |> then(&trunc(&1 || 0)) |> Melee.Enums.Stage.from_external() |> Melee.Stages.edge_ground_position() do
       nil -> 85.0
       edge -> edge
+    end
+  end
+
+  @doc """
+  The real in-game ports `{own, opponent}` behind the ego view: the
+  training remap's `real_ports` stamp when present, else the live port keys
+  (`GameState.subject_port/2`, `GameState.opponent_port/2`). Sim rollouts
+  are keyed 1/2 and really are 1/2.
+  """
+  @spec real_ports(map(), pos_integer()) :: {pos_integer(), pos_integer()}
+  def real_ports(game_state, own_port) do
+    case Map.get(game_state, :real_ports) do
+      {o, p} when is_integer(o) and is_integer(p) ->
+        {o, p}
+
+      _ ->
+        # same rules as GameState.subject_port/2 + opponent_port/2, plain-map safe
+        own =
+          case Map.get(game_state, :own_port) do
+            p when is_integer(p) and p > 0 -> p
+            _ -> own_port
+          end
+
+        others = (Map.get(game_state, :players) || %{}) |> Map.keys() |> Enum.filter(&(is_integer(&1) and &1 != own))
+
+        opp =
+          case others do
+            [p] -> p
+            _ -> if own == 1, do: 2, else: 1
+          end
+
+        {own, opp}
     end
   end
 

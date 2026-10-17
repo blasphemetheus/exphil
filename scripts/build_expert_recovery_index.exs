@@ -20,7 +20,7 @@ alias ExPhil.Agents.ExpertRecoveryLabeler, as: L
 alias ExPhil.Data.Peppi
 alias ExPhil.Training.Output
 
-{opts, _, bad} = OptionParser.parse(System.argv(), strict: [split: :string, games: :integer, out: :string, stage: :integer, window: :string])
+{opts, _, bad} = OptionParser.parse(System.argv(), strict: [split: :string, games: :integer, out: :string, stage: :integer, window: :string, stick: :string])
 if bad != [], do: raise("invalid options: #{inspect(bad)}")
 split = opts[:split] || raise("--split required")
 out = opts[:out] || "data/silent_fall/expert_recovery_index.bin"
@@ -29,6 +29,16 @@ stage = opts[:stage] || 32
 # --window wide (v4, 10-09): also grounded / above-stage states within L.near_edge() of the edge
 # --window air (v5, 10-10): wide + the airborne no-jump drift within L.air_reach() of the edge
 # --window onstage (v6, 10-15): air + every shield / knockdown / in-threat frame (L.onstage_cell/2)
+# --stick settled (v9, 10-17, default): a change row stores where the main stick STOPPED
+# travelling (L.settled_main_stick/3) so a sampled flick is a flick, not a mid-travel walk;
+# --stick frame = the pre-v9 behaviour (the stick at t).
+stick =
+  case opts[:stick] || "settled" do
+    "settled" -> :settled
+    "frame" -> :frame
+    other -> raise("--stick #{other}: expected settled | frame")
+  end
+
 window =
   case opts[:window] do
     "wide" -> :wide
@@ -40,7 +50,7 @@ window =
 
 files = split |> File.read!() |> Jason.decode!() |> Map.fetch!("train")
 Output.banner("Expert recovery index")
-Output.config([{"split", split}, {"train files", length(files)}, {"games wanted", want}, {"stage", stage}, {"window", window}, {"out", out}])
+Output.config([{"split", split}, {"train files", length(files)}, {"games wanted", want}, {"stage", stage}, {"window", window}, {"stick", stick}, {"out", out}])
 
 {rows, used} =
   Enum.reduce_while(files, {[], 0}, fn path, {acc, used} ->
@@ -59,7 +69,7 @@ Output.config([{"split", split}, {"train files", length(files)}, {"games wanted"
               |> Peppi.to_training_frames(player_port: own.port, opponent_port: opp.port, remap_ports: true)
               |> Enum.reject(&(&1.game_state.frame < 0))
 
-            new = L.index_rows(frames, stage, window)
+            new = L.index_rows(frames, stage, window, stick: stick)
             if rem(used + 1, 25) == 0, do: Output.puts("  #{used + 1} games")
             {:cont, {[new | acc], used + 1}}
           else
@@ -99,7 +109,7 @@ cells =
     %{}
   end
 
-index = L.pack(rows) |> Map.put(:window, window) |> Map.put(:meta, %{games: used, split: split, stage: stage, window: window, cells: cells, built_at: DateTime.utc_now() |> DateTime.to_iso8601()})
+index = L.pack(rows) |> Map.put(:window, window) |> Map.put(:meta, %{games: used, split: split, stage: stage, window: window, stick: stick, cells: cells, built_at: DateTime.utc_now() |> DateTime.to_iso8601()})
 L.save(index, out)
 
 Output.puts("RESULT expert recovery index: #{used} games, #{n} #{window} rows, hold share #{Float.round(holds / max(n, 1), 3)}, " <>

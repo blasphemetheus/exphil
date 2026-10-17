@@ -68,10 +68,19 @@ defmodule ExPhil.Embeddings.Game.Config do
             # Declared action delay as a one-hot input (0..8) so one policy
             # can train across a delay DISTRIBUTION and condition on the
             # rung it is playing at. false = absent (default).
-            with_delay_id: false
+            with_delay_id: false,
+            # Real in-game ports as one-hots, own (4) + opponent (4) = 8 dims
+            # (Bradley, 2026-10-17): port order decides same-frame ties in
+            # Melee (lower port wins grab-vs-grab, the ledge, a trade), the
+            # ego view hides it, and every sim rollout seats the bot on port
+            # 1. Read from `game_state.real_ports` (the training remap stamp)
+            # or the live port keys. false = absent (default, layout-stable).
+            with_port: false
 
   @delay_id_size 9
   def delay_id_size, do: @delay_id_size
+  @port_size 8
+  def port_size, do: @port_size
 
   @type stage_mode :: :one_hot_full | :one_hot_compact | :learned
 
@@ -88,7 +97,8 @@ defmodule ExPhil.Embeddings.Game.Config do
           with_frame_count: boolean(),
           stage_mode: stage_mode(),
           queue_depth: pos_integer(),
-          with_delay_id: boolean()
+          with_delay_id: boolean(),
+          with_port: boolean()
         }
 
   @doc """
@@ -231,6 +241,9 @@ defmodule ExPhil.Embeddings.Game.Config do
     # Declared-delay one-hot (queue-as-input)
     delay_id_size = if Map.get(config, :with_delay_id), do: @delay_id_size, else: 0
 
+    # Real ports one-hot (own 4 + opponent 4)
+    port_size = if Map.get(config, :with_port), do: @port_size, else: 0
+
     # Player name (one-hot)
     name_size = config.num_player_names
 
@@ -264,7 +277,7 @@ defmodule ExPhil.Embeddings.Game.Config do
     stage_internals_size =
       if Map.get(config, :stage_internals), do: Stage.internals_size(), else: 0
 
-    players_size + stage_size + prev_action_size + delay_id_size + name_size +
+    players_size + stage_size + prev_action_size + delay_id_size + port_size + name_size +
       projectile_size + item_size +
       distance_size + relative_pos_size + frame_count_size +
       stage_internals_size +

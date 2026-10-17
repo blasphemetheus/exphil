@@ -14,6 +14,14 @@ defmodule ExPhil.Bridge.GameState do
           # detected bridge-side via connect codes. Slippi assigns ports
           # per session, so the configured --port is only a guess there.
           own_port: integer() | nil,
+          # The in-game ports behind slots 1 / 2 after a training remap
+          # (`Peppi.to_training_frames(remap_ports: true)`), `{own, opp}`;
+          # nil = the players map is keyed by the real ports. Port order
+          # decides same-frame ties in Melee (lower port wins a grab-vs-grab,
+          # the ledge, a trade), so the slot is not the port — recorded
+          # everywhere the remap drops it (Bradley, 2026-10-17); the
+          # embedding's `port_mode` reads it.
+          real_ports: {pos_integer(), pos_integer()} | nil,
           projectiles: [ExPhil.Bridge.Projectile.t()],
           items: [ExPhil.Bridge.Item.t()],
           distance: float(),
@@ -29,6 +37,7 @@ defmodule ExPhil.Bridge.GameState do
     :menu_state,
     :players,
     :own_port,
+    :real_ports,
     :projectiles,
     :items,
     :distance,

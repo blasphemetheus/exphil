@@ -384,6 +384,10 @@ defmodule ExPhil.Data.Peppi do
 
         frames
 
+      remap_ports ->
+        # already in slot order; still record that the slots ARE the ports
+        Enum.map(frames, fn f -> %{f | game_state: %{f.game_state | real_ports: {1, 2}}} end)
+
       true ->
         frames
     end
@@ -398,7 +402,9 @@ defmodule ExPhil.Data.Peppi do
     # Stamp the convention (GOTCHA #107 enforcement): downstream embedding
     # asserts that its own_port argument matches this stamp, turning a
     # swapped perspective into a loud crash instead of a silent corruption.
-    %{gs | players: remapped, own_port: 1}
+    # The real ports travel with the frame (Bradley, 2026-10-17: port order
+    # decides same-frame ties; the slot must not erase it).
+    %{gs | players: remapped, own_port: 1, real_ports: {player_port, opponent_port}}
   end
 
   @doc """

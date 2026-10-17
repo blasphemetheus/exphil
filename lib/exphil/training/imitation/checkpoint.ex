@@ -441,6 +441,9 @@ defmodule ExPhil.Training.Imitation.Checkpointing do
         # the embedding — the live agent must rebuild the same layout.
         stage_internals:
           (trainer.embed_config && Map.get(trainer.embed_config, :stage_internals)) || false,
+        # Real ports one-hot (layout key, 2026-10-17)
+        with_port:
+          (trainer.embed_config && Map.get(trainer.embed_config, :with_port)) || false,
         # Bucketized action frame (player-level layout key, 2026-09-09):
         # N one-hot dims per player; the Agent must rebuild the same layout.
         action_frame_buckets: embed_action_frame_buckets(trainer.embed_config),
@@ -555,6 +558,7 @@ defmodule ExPhil.Training.Imitation.Checkpointing do
       | queue_depth: Map.get(ec, :queue_depth) || 1,
         with_delay_id: Map.get(ec, :with_delay_id) || false,
         stage_internals: Map.get(ec, :stage_internals) || false,
+        with_port: Map.get(ec, :with_port) || false,
         with_projectiles: Map.get(ec, :with_projectiles, true),
         with_items: Map.get(ec, :with_items, false),
         player: %{default.player | action_frame_buckets: embed_action_frame_buckets(ec)}

@@ -31,8 +31,15 @@ defmodule ExPhil.Sim.Trace do
   @hitstun MapSet.new(Enum.to_list(75..91) ++ Enum.to_list(223..232))
   @shield MapSet.new(178..182)
 
-  @doc "Trace from full GameStates (players 1 and 2). Options: `:stage` (32), `:chars` ([1, 1]), `:seed`, `:label`."
+  @doc """
+  Trace from full GameStates (players 1 and 2). Options: `:stage` (32),
+  `:chars` ([1, 1]), `:seed`, `:label`, `:real_ports` (`{own, opp}`; defaults
+  to the first state's `real_ports` stamp — slots 1/2 are not the in-game
+  ports after a training remap, and port order decides same-frame ties).
+  """
   def from_game_states(states, opts \\ []) do
+    opts = Keyword.put_new(opts, :real_ports, states |> List.first() |> then(&(&1 && Map.get(&1, :real_ports))))
+
     rows =
       states
       |> Enum.with_index()
@@ -115,7 +122,7 @@ defmodule ExPhil.Sim.Trace do
       inputs: %{encoding: "sparse-delta-v1", keyframeInterval: 60, fields: @input_fields, players: [[[0, 0, [0, 0, 0, 0, 0, 0, 0]]], [[0, 0, [0, 0, 0, 0, 0, 0, 0]]]]},
       frames: %{encoding: "sparse-delta-v1", keyframeInterval: 60, fields: ["frame", "randomSeed", "players"], playerFields: @player_fields, rows: rows},
       items: %{encoding: "sparse-delta-v1", keyframeInterval: 60, fields: @item_fields, rows: []},
-      metadata: %{provenance: %{source: Keyword.get(opts, :label, "exphil rollout")}}
+      metadata: %{provenance: %{source: Keyword.get(opts, :label, "exphil rollout")}, realPorts: Keyword.get(opts, :real_ports) |> then(fn {a, b} -> [a, b]; _ -> nil end)}
     }
   end
 

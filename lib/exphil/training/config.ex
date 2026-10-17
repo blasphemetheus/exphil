@@ -1523,6 +1523,10 @@ defmodule ExPhil.Training.Config do
       # transformation; W4 2026-08-24 stage-blindness verdict). +7 raw
       # dims, zero-gated by stage. Enable with --stage-internals.
       stage_internals: false,
+      # Real in-game ports one-hot in the embedding (own 4 + opponent 4;
+      # Bradley 2026-10-17: port order decides same-frame ties). Layout
+      # key: stamped in the checkpoint, rebuilt by the Agent. --with-port.
+      with_port: false,
       # Bucketized action-frame one-hot per player (0 = off; the jab-chain
       # lever, V2_PREP 7b). Layout key: stamped in the checkpoint, rebuilt
       # by the Agent. Enable with --action-frame-buckets N (24 = f0..22 +

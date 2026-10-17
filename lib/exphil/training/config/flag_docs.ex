@@ -199,6 +199,7 @@ defmodule ExPhil.Training.Config.FlagDocs do
     "--ss-ramp" => "Ramp scheduled sampling 0 → P linearly over the first N epochs (drill loop; the main pipeline currently applies P flat).",
     "--action-frame-buckets" => "Bucketized action-frame one-hot per player: N dims, frames 0..N-2 individually, N-1 = at-or-beyond (0 = off, the historical scalar-only layout). The jab-chain lever (V2_PREP 7b): the 1/60 scalar could not carve the expert's frame-6 cliff. Layout key: stamped in the checkpoint, rebuilt by the Agent. Try 24.",
     "--stage-internals" =>"Add FoD platform heights + PS transformation to the embedding (+7 raw dims, zero-gated by stage; W4 2026-08-24 stage-blindness verdict)",
+    "--with-port" => "Real in-game ports as one-hots in the embedding (own 4 + opponent 4 = 8 dims; port order decides same-frame ties and the ego view hides it; 2026-10-17)",
     "--stage-mode" => "Stage embedding: full, compact, learned",
     "--stages" => "Filter replays by stage",
     "--state-size" => "SSM state dimension",

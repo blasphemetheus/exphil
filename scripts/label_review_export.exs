@@ -119,7 +119,7 @@ neighbours = fn states ->
   end
 end
 
-write_run = fn source, id, frames, label ->
+write_run = fn source, id, frames, label, chars ->
   # frames: [%{gs, p, opp, prev_p, actual, label, prev, input_only, gated, cell}]
   states = frames |> Enum.filter(& &1.label) |> Enum.map(&{&1.p, &1.prev, &1.opp, &1.prev_p})
   nbs = Map.new(Enum.zip(frames |> Enum.with_index() |> Enum.filter(fn {f, _} -> f.label end) |> Enum.map(&elem(&1, 1)), neighbours.(states)))
@@ -140,7 +140,8 @@ write_run = fn source, id, frames, label ->
   summary = %{id: id, source: source, label: label, frames: length(rows), labelled: Enum.count(rows, & &1.label), gated: Enum.count(rows, & &1.gated),
               cells: cells, label_events: label_events, actual_events: actual_events,
               d2_median: if(d2s == [], do: nil, else: d2s |> Enum.sort() |> Enum.at(div(length(d2s), 2)))}
-  Trace.from_game_states(Enum.map(frames, & &1.gs), label: label) |> Trace.write!(Path.join(out, "#{id}.msltrace.json"))
+  # chars = sim-internal ids in slot order (the viewer draws Fox for both otherwise — Bradley 10-17: "this is a fox vs fox match, you mentioned marth")
+  Trace.from_game_states(Enum.map(frames, & &1.gs), label: label, chars: chars) |> Trace.write!(Path.join(out, "#{id}.msltrace.json"))
   File.write!(Path.join(out, "#{id}.json"), Jason.encode!(Map.put(summary, :rows, rows)))
   summary |> Map.put(:trace, "#{id}.msltrace.json") |> Map.put(:sidecar, "#{id}.json")
 end
@@ -173,7 +174,7 @@ set_runs =
     |> Enum.take(max_runs)
     |> Enum.sort_by(&elem(&1, 0))
     # sim rollouts put the bot on port 1 (drill/ppo/ga: attacker = port 1); live .slp sets lost the port at remap
-    |> Enum.map(fn {li, frames} -> write_run.(source, "#{source}_l#{li}", frames, "#{source} list #{li}" <> if(String.starts_with?(source, "sim_"), do: " (bot on sim port 1)", else: " (bot's real port not recorded)")) end)
+    |> Enum.map(fn {li, frames} -> write_run.(source, "#{source}_l#{li}", frames, "#{source} list #{li}" <> if(String.starts_with?(source, "sim_"), do: " (bot on sim port 1)", else: " (bot's real port not recorded)"), [1, 1]) end)
   end)
 
 # ---- expert replays, teacher-forced --------------------------------------------
@@ -188,7 +189,7 @@ slp_runs =
           {:ok, %{stage: 32} = meta} ->
             own = Enum.find(meta.players, &(String.downcase(&1.character_name || "") == "fox"))
             opp = own && Enum.find(meta.players, &(&1.port != own.port))
-            if own && opp, do: [{path, own.port, opp.port}], else: []
+            if own && opp, do: [{path, own.port, opp.port, [Trace.char_id(own.character_name), Trace.char_id(opp.character_name)]}], else: []
           _ -> []
         end
       end)
@@ -196,7 +197,7 @@ slp_runs =
     source = "expert_" <> Path.basename(spec, ".json")
     Output.puts("#{spec}: #{length(games)} Fox FD games")
     runs =
-      Enum.flat_map(games, fn {path, own, opp} ->
+      Enum.flat_map(games, fn {path, own, opp, chars} ->
         {:ok, replay} = Peppi.parse(path, player_port: own)
         frames = replay |> Peppi.to_training_frames(player_port: own, opponent_port: opp, remap_ports: true) |> Enum.reject(&(&1.game_state.frame < 0))
         # one run per offstage excursion: labelable frames with 60 f of context before, cut at 90 f past the last labelable frame
@@ -219,17 +220,17 @@ slp_runs =
           lab_states = seg |> Enum.filter(& &1.lab) |> Enum.map(&{&1.p, &1.prev, &1.opp, &1.prev_p})
           labels = L.label_batch(index, lab_states, edge, max_d2: opts[:max_d2])
           {seg, _} = Enum.map_reduce(seg, labels, fn r, ls -> if r.lab, do: {Map.merge(r, %{label: hd(ls), input_only: false, gated: hd(ls) == nil}), tl(ls)}, else: {Map.merge(r, %{label: nil, input_only: true, gated: false}), ls} end)
-          {Path.basename(path, ".slp"), a, seg, {own, opp}}
+          {Path.basename(path, ".slp"), a, seg, {own, opp, chars}}
         end)
       end)
       |> Enum.filter(fn {_, _, seg, _} -> interesting?.(seg) end)
       |> Enum.shuffle()
       |> Enum.take(max_runs)
-    Enum.map(runs, fn {game, a, seg, {own, opp}} ->
+    Enum.map(runs, fn {game, a, seg, {own, opp, chars}} ->
       # ids are file names and URL paths: keep [A-Za-z0-9_-]
       id = "#{source}_#{String.slice(game, 0, 24)}_f#{a}" |> String.replace(~r/[^A-Za-z0-9_-]+/, "_")
       # the real ports: the embedding/viewer put the subject in slot 1, but port order decides same-frame ties in Melee
-      write_run.(source, id, seg, "#{game} @#{a} (teacher-forced; expert really on port #{own}, opponent port #{opp})")
+      write_run.(source, id, seg, "#{game} @#{a} (teacher-forced; expert really on port #{own}, opponent port #{opp})", chars)
     end)
   end)
 

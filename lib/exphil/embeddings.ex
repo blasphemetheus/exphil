@@ -107,7 +107,8 @@ defmodule ExPhil.Embeddings do
         :with_relative_pos,
         :with_frame_count,
         :stage_mode,
-        :stage_internals
+        :stage_internals,
+        :with_port
       ])
 
     struct(base, [{:player, player_config}, {:controller, controller_config} | game_opts])

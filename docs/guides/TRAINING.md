@@ -438,6 +438,7 @@ This precomputes multiple versions of each frame (original, mirrored, noisy vari
 |--------|---------|-------------|
 | `--online-robust` | false | Enable online play training mode (legacy path) |
 | `--stage-internals` | false | Add FoD platform heights + PS transformation to the embedding (+7 raw dims, zero-gated by stage; W4 2026-08-24 stage-blindness verdict) |
+| `--with-port` | false | Real in-game ports as one-hots in the embedding (own 4 + opponent 4 = 8 dims; port order decides same-frame ties and the ego view hides it; 2026-10-17) |
 | `--frame-delay-augment` | false | Enable frame delay augmentation |
 | `--frame-delay-min N` | 0 | Minimum delay frames (local play) |
 | `--frame-delay-max N` | 18 | Maximum delay frames (legacy; see note above) |
@@ -1582,6 +1583,7 @@ Regenerate: `mix run -e 'ExPhil.Training.Config.FlagDocs.write!()'`.
 | `--frame-delay-min` | int | `0` | Minimum additional delay jitter when augmenting |
 | `--frame-delay-max` | int | `18` | Maximum additional delay jitter when augmenting |
 | `--stage-internals` | flag | `false` | Add FoD platform heights + PS transformation to the embedding (+7 raw dims, zero-gated by stage; W4 2026-08-24 stage-blindness verdict) |
+| `--with-port` | flag | `false` | Real in-game ports as one-hots in the embedding (own 4 + opponent 4 = 8 dims; port order decides same-frame ties and the ego view hides it; 2026-10-17) |
 | `--action-frame-buckets` | int | `0` | Bucketized action-frame one-hot per player: N dims, frames 0..N-2 individually, N-1 = at-or-beyond (0 = off, the historical scalar-only layout). The jab-chain lever (V2_PREP 7b): the 1/60 scalar could not carve the expert's frame-6 cliff. Layout key: stamped in the checkpoint, rebuilt by the Agent. Try 24. |
 | `--early-stopping` | flag | `false` | Enable early stopping |
 | `--patience` | int | `5` | Epochs without improvement before stopping |

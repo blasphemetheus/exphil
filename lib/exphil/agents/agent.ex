@@ -2023,6 +2023,7 @@ defmodule ExPhil.Agents.Agent do
           | queue_depth: Map.get(full_embed_config, :queue_depth) || 1,
             with_delay_id: Map.get(full_embed_config, :with_delay_id) || false,
             stage_internals: Map.get(full_embed_config, :stage_internals) || false,
+            with_port: Map.get(full_embed_config, :with_port) || false,
             with_projectiles: Map.get(full_embed_config, :with_projectiles, true),
             player: %{
               default.player
@@ -2581,6 +2582,9 @@ defmodule ExPhil.Agents.Agent do
     depth = queue_depth(state)
     delay_id? = Map.get(state.embed_config || %{}, :with_delay_id) || false
     stage_internals? = Map.get(state.embed_config || %{}, :stage_internals) || false
+    # Real ports one-hot (layout key, 2026-10-17): the live GameState is
+    # keyed by the real ports, so the embedder reads them directly.
+    with_port? = Map.get(state.embed_config || %{}, :with_port) || false
     # INVARIANTS.md item 4: the checkpoint says whether its embedding HAS a
     # projectile block; new checkpoints trained from Peppi say false and
     # the live embedder then has no projectile dims at all.
@@ -2589,7 +2593,7 @@ defmodule ExPhil.Agents.Agent do
     afb = Map.get(state.embed_config || %{}, :action_frame_buckets) || 0
 
     opts =
-      if depth > 1 or delay_id? or stage_internals? or not proj? or afb > 0 do
+      if depth > 1 or delay_id? or stage_internals? or with_port? or not proj? or afb > 0 do
         base = Keyword.get(opts, :config, ExPhil.Embeddings.Game.Config.default())
 
         cfg = %{
@@ -2597,6 +2601,7 @@ defmodule ExPhil.Agents.Agent do
           | queue_depth: depth,
             with_delay_id: delay_id?,
             stage_internals: stage_internals?,
+            with_port: with_port?,
             with_projectiles: proj?,
             player: %{base.player | action_frame_buckets: afb}
         }
@@ -2982,6 +2987,7 @@ defmodule ExPhil.Agents.Agent do
           queue_depth: Map.get(config, :queue_depth, 1),
           with_delay_id: Map.get(config, :with_delay_id, false),
           stage_internals: Map.get(config, :stage_internals, false),
+          with_port: truthy?(Map.get(config, :with_port, false)),
           # Bucketized action frame (0 = the historical scalar-only layout)
           action_frame_buckets: Map.get(config, :action_frame_buckets, 0) || 0,
           # INVARIANTS.md item 4: old checkpoints (no stamp) trained with a
