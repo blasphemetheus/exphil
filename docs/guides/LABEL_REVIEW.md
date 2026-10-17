@@ -9,26 +9,40 @@ epoch. This page puts a human eye between the labeler and the GPU: pick a
 run, watch the clip, and see the label next to the real press, frame by
 frame, with the expert rows the label was sampled from.
 
+## Who is who
+
+- **Red Fox = port 1 = the one being labelled.** The exporter remaps the
+  subject to port 1 whatever port it played on. In a DAgger run that is **the
+  bot** (rolled out in the sim; the opponent is the sim's scripted/replayed
+  body). In an expert excursion that is **the human expert** from the
+  held-out replay. The banner above the clip says which for the picked run.
+- **Blue Fox = port 2 = the opponent.** Never labelled, never trained on.
+- **Red lanes** = what the red Fox really pressed. **Purple lanes** = the
+  label. For a DAgger run the label is the training target (state → label
+  pairs; where purple ≠ red is what the mix teaches). For an expert run the
+  label is teacher-forced on known-good states — purple ≠ red there is a
+  labeler mistake, nothing is trained on it.
+
 ## What you see
 
 - **Left**: the runs in the export, filterable by source (a DAgger set = the
   bot's own states + the chained label; an expert replay = the expert's
   states + the expert's press + the teacher-forced label), by readout cell,
   by label edge, and "label edge the real press never made in that cell".
-  Chips: cells present, real-press edges (blue), label edges (orange).
+  Chips: red = bot/expert, cells present, real-press edges (red), label edges (purple).
 - **Pane**: the run's clip (the sim viewer). Nothing plays until a run is
-  picked; it loads paused at frame 0. Orange triangles on its seek bar are
+  picked; it loads paused at frame 0. Purple triangles on its seek bar are
   the label's edges.
 - **Timeline**: per frame, the cell band (colour), gated frames (red: the
   state was farther than the d² gate from every expert row, so it is
   input-only), context frames (grey), and six lanes — B, jump, shoulder, A,
-  stick-up, stick-sideways — each split into the real press (blue, top) and
-  the label (orange, bottom). Triangles: edges (label below, real above).
+  stick-up, stick-sideways — each split into the real press (red, top) and
+  the label (purple, bottom). Triangles: edges (label below, real above).
   Click to seek; ← → step; [ ] jump between label edges; n / p change run.
 - **Detail**: the frame's state (action, height, distance past the edge,
   jumps, hitstun), the real press, the label, the prev the label conditions
   on, and the k nearest expert rows: what each row presses or holds, its OWN
-  cell and its d². A red row is a borrow from another cell — the 10-16
+  cell and its d². A pink row is a borrow from another cell — the 10-16
   finding (airdodges offstage-high from wavelands over the stage) reads as
   "off_high_inhand frame, drift_inhand rows" here.
 

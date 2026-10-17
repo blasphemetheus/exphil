@@ -17,7 +17,7 @@
         color-scheme: light;
         font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
         --ink: #20211f; --muted: #4b4d47; --line: #d7d8d2; --bg: #f7f7f4; --card: #fff;
-        --actual: #2f6fb3; --label: #d9822b; --gate: #b3261e; --sel: #e8f0fa;
+        --actual: #c62828; --label: #6a3fb5; --gate: #b3261e; --sel: #e8f0fa;
       }
       body { margin: 0; background: var(--bg); color: var(--ink); font-size: 13px; line-height: 1.35; }
       main { display: grid; grid-template-columns: 300px minmax(0, 1fr); gap: 10px; padding: 8px 10px; box-sizing: border-box; height: 100vh; }
@@ -36,9 +36,14 @@
       .run .id { font-family: ui-monospace, monospace; font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
       .chips { display: flex; flex-wrap: wrap; gap: 2px; margin-top: 2px; }
       .chip { font-size: 10px; padding: 0 4px; border: 1px solid var(--line); border-radius: 3px; background: #fff; color: var(--muted); }
-      .chip.lab { border-color: #f0c9a0; background: #fff4e8; color: #8a4b0f; }
-      .chip.act { border-color: #b9cde8; background: #eef4fb; color: #1e4f85; }
-      section { display: grid; grid-template-rows: minmax(260px, 1fr) auto; gap: 8px; min-height: 0; }
+      .chip.lab { border-color: #cdbbe8; background: #f3eefb; color: #4f2a8c; }
+      .chip.act { border-color: #e8b4b0; background: #fbeeed; color: #8c1f1a; }
+      section { display: grid; grid-template-rows: auto minmax(260px, 1fr) auto; gap: 8px; min-height: 0; }
+      .roles { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size: 12px; }
+      .roles .card { border-left: 5px solid; }
+      .roles .p1 { border-left-color: var(--actual); }
+      .roles .p2 { border-left-color: #2f6fb3; }
+      .roles b { font-size: 13px; }
       .top { display: grid; grid-template-columns: minmax(0, 3fr) minmax(300px, 2fr); gap: 8px; min-height: 0; }
       iframe { border: 1px solid var(--line); background: var(--card); width: 100%; height: 100%; display: block; box-sizing: border-box; }
       #detail { overflow: auto; font-size: 12px; }
@@ -51,7 +56,7 @@
       .stick i { position: absolute; width: 5px; height: 5px; border-radius: 50%; background: var(--ink); transform: translate(-50%, 50%); }
       .btn { padding: 0 3px; border: 1px solid var(--line); border-radius: 2px; color: #aaa; }
       .btn.on { color: #fff; background: var(--ink); border-color: var(--ink); }
-      .nb.cross td { color: var(--gate); }
+      .nb.cross td { background: #fde7e5; }
       .nb.hold td { color: var(--muted); }
       #timeline { border: 1px solid var(--line); background: var(--card); }
       svg { display: block; width: 100%; height: 150px; }
@@ -76,6 +81,10 @@
         <div id="runs"></div>
       </aside>
       <section>
+        <div id="roles" class="roles">
+          <div class="card p1"><b>🔴 Red Fox = port 1 = the one being labelled.</b> Pick a run to see whether that is the bot or the expert.</div>
+          <div class="card p2"><b>🔵 Blue Fox = port 2 = the opponent.</b> Never labelled; only there as context for the red Fox's state.</div>
+        </div>
         <div class="top">
           <iframe id="pane" src="/coach/pane.html?id=main" title="run"></iframe>
           <div id="detail" class="card"><span class="muted">pick a run on the left; nothing plays until you do</span></div>
@@ -92,8 +101,8 @@
           </div>
           <svg id="tl"></svg>
           <div class="legend">
-            <span><i style="background:var(--actual)"></i>real press (bot / expert)</span>
-            <span><i style="background:var(--label)"></i>label</span>
+            <span><i style="background:var(--actual)"></i>what the red Fox really pressed</span>
+            <span><i style="background:var(--label)"></i>the label (what the teacher says the red Fox should press here)</span>
             <span><i style="background:#f3d9d7"></i>gated (d² over the gate: input-only)</span>
             <span><i style="background:#e5e7e0"></i>context (input-only)</span>
             <span>▲ edge (side_b / up_b / b / jump / airdodge / a) — rows: B · jump · shoulder · A · stick-up · stick-side</span>
@@ -142,18 +151,28 @@
           const cells = Object.entries(r.cells).sort((a, b) => b[1] - a[1]).slice(0, 4).map(([c, n]) => `<span class="chip">${c} ${n}</span>`).join("");
           const lab = Object.entries(r.label_events.reduce((m, e) => ((m[e.event] = (m[e.event] || 0) + 1), m), {})).map(([e, n]) => `<span class="chip lab">${e} ${n}</span>`).join("");
           const act = Object.entries(r.actual_events.reduce((m, e) => ((m[e.event] = (m[e.event] || 0) + 1), m), {})).map(([e, n]) => `<span class="chip act">${e} ${n}</span>`).join("");
-          d.innerHTML = `<div class="id" title="${esc(r.id)}">${esc(r.id)}</div><div class="muted">${r.frames} f · ${r.labelled} labelled · ${r.gated} gated · d² ${fmt(r.d2_median, 2)}</div><div class="chips">${cells}</div><div class="chips">${act}${lab}</div>`;
+          d.innerHTML = `<div class="id" title="${esc(r.id)}"><span class="chip act">red = ${roleOf(r)}</span> ${esc(r.id)}</div><div class="muted">${r.frames} f · ${r.labelled} labelled · ${r.gated} gated · d² ${fmt(r.d2_median, 2)}</div><div class="chips">${cells}</div><div class="chips">${act}${lab}</div>`;
           d.onclick = () => pick(i);
           return d;
         }));
       }
 
       // ---- one run ---------------------------------------------------------------
+      function roleOf(r) { return r.source.startsWith("expert") ? "expert" : "bot"; }
+      function renderRoles(r) {
+        const bot = roleOf(r) === "bot";
+        $("#roles").innerHTML = bot
+          ? `<div class="card p1"><b>🔴 Red Fox = THE BOT</b> (port 1), rolled out in the sim on its own. Source <code>${esc(r.source)}</code> is a DAgger set: every labelled red frame becomes a training pair <i>(red Fox's state → label)</i>. Red lanes = what the bot really pressed; purple lanes = what the teacher (k-NN over expert replays) says to press instead — that is what gets trained. Where they differ is the whole point of the set.</div>
+             <div class="card p2"><b>🔵 Blue Fox = the sim opponent</b> (port 2) — a scripted / replayed body, not labelled, not trained on.</div>`
+          : `<div class="card p1"><b>🔴 Red Fox = THE EXPERT</b> (port 1), a human in held-out replay <code>${esc(r.label)}</code>. Red lanes = what the expert really pressed. Purple lanes = what the labeler WOULD say on each of these frames (teacher-forced, nothing here is trained on). Purple ≠ red is a labeler mistake on states where the right answer is known.</div>
+             <div class="card p2"><b>🔵 Blue Fox = the expert's human opponent</b> (port 2), not labelled.</div>`;
+      }
       async function pick(i) {
         if (i < 0 || i >= runs.length) return;
         curIdx = i; cur = runs[i]; frame = 0; side = null;
         document.querySelectorAll(".run").forEach((d, k) => d.classList.toggle("sel", k === i));
-        pane.contentWindow.postMessage({ load: `${base}/${cur.trace}`, label: cur.label, seek: 0 }, "*");   // seek with the load = paused at frame 0
+        renderRoles(cur);
+        pane.contentWindow.postMessage({ load: `${base}/${cur.trace}`, label: `[red = ${roleOf(cur).toUpperCase()}] ${cur.label}`, seek: 0 }, "*");   // seek with the load = paused at frame 0
         $("#detail").innerHTML = `<span class="muted">loading ${esc(cur.sidecar)}…</span>`;
         const res = await fetch(`${base}/${cur.sidecar}`);
         side = await res.json();
@@ -234,15 +253,15 @@
         const r = side.rows[frame];
         const nbs = (r.nbs || []).map((n) => `<tr class="nb${n.hold ? " hold" : ""}${!n.hold && r.cell && n.cell !== r.cell && n.cell !== "hit" && n.cell !== "onstage" ? " cross" : ""}"><td>${n.hold ? "hold" : esc(n.press)}</td><td>${esc(n.cell)}</td><td>${fmt(n.d2, 2)}</td></tr>`).join("");
         $("#detail").innerHTML = `
-          <h2>${esc(cur.label)} — frame ${r.i} (game ${r.frame})</h2>
+          <h2>red Fox = ${roleOf(cur)} · ${esc(cur.label)} — frame ${r.i} (game ${r.frame})</h2>
           <table>
             <tr><th>state</th><td>${esc(r.name)} <span class="muted">(${r.action} f${r.af ?? "?"})</span> · y ${fmt(r.y)} · dist ${fmt(r.dist)} past edge · jumps ${r.jumps ?? "?"} · hitstun ${r.hit ?? 0}${r.ground ? " · grounded" : ""}</td></tr>
             <tr><th>cell</th><td>${r.cell ? `<span class="chip" style="background:${cellColors[r.cell] || "#eee"}">${r.cell}</span>` : "<span class=muted>none</span>"}${r.gated ? ` <span class="chip" style="color:var(--gate)">gated</span>` : ""}${r.input_only && !r.gated ? ` <span class="chip">context</span>` : ""}</td></tr>
-            <tr><th>real press</th><td>${ctrlHTML(r.actual)} ${r.actual_edges.length ? `<span class="chip act">${r.actual_edges.join(" ")}</span>` : ""}</td></tr>
-            <tr><th>label</th><td>${ctrlHTML(r.label)} ${r.label_edges.length ? `<span class="chip lab">${r.label_edges.join(" ")}</span>` : ""}</td></tr>
+            <tr><th>red Fox really pressed</th><td>${ctrlHTML(r.actual)} ${r.actual_edges.length ? `<span class="chip act">${r.actual_edges.join(" ")}</span>` : ""}</td></tr>
+            <tr><th>label (teacher says)</th><td>${ctrlHTML(r.label)} ${r.label_edges.length ? `<span class="chip lab">${r.label_edges.join(" ")}</span>` : ""}</td></tr>
             <tr><th>prev (what the label conditions on)</th><td>${ctrlHTML(r.prev)}</td></tr>
           </table>
-          ${r.nbs ? `<h2 style="margin-top:6px">the ${r.nbs.length} nearest expert rows (one was sampled)</h2><table><tr><th>row</th><th>its cell</th><th>d²</th></tr>${nbs}</table><div class="muted">red = a row from another cell than this frame's (a borrow); grey = hold (keeps prev)</div>` : ""}`;
+          ${r.nbs ? `<h2 style="margin-top:6px">the ${r.nbs.length} nearest expert rows (one was sampled)</h2><table><tr><th>row</th><th>its cell</th><th>d²</th></tr>${nbs}</table><div class="muted">pink row = an expert row from another cell than this frame's (a borrow); grey = hold (keeps prev)</div>` : ""}`;
       }
 
       // ---- wiring --------------------------------------------------------------------
