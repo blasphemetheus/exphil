@@ -63,6 +63,8 @@
       .legend { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 11px; color: var(--muted); padding: 3px 8px; }
       .legend i { display: inline-block; width: 12px; height: 8px; vertical-align: middle; margin-right: 4px; }
       .nav { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; padding: 4px 8px; }
+      .refrow { padding-top: 0; }
+      #ref { flex: 1; min-width: 200px; font: inherit; font-family: ui-monospace, monospace; font-size: 11px; padding: 2px 6px; border: 1px solid var(--line); background: #fbfbf8; color: var(--ink); }
       button { border: 1px solid #9da096; background: #fff; color: inherit; padding: 3px 8px; cursor: pointer; font: inherit; font-size: 12px; }
     </style>
   </head>
@@ -97,8 +99,12 @@
             <button id="bStepNext" title="→">+1 f</button>
             <button id="bEdgePrev" title="[">prev label edge</button>
             <button id="bEdgeNext" title="]">next label edge</button>
-            <button id="bRef" title="copy run id + frame + link to the clipboard">copy ref</button>
             <span id="pos" class="muted"></span>
+          </div>
+          <div class="nav refrow">
+            <span class="muted">paste this to Claude:</span>
+            <input id="ref" type="text" readonly value="pick a run" title="run id @ frame (title) link — select all and copy, or press copy ref" />
+            <button id="bRef" title="copy to the clipboard">copy ref</button>
           </div>
           <svg id="tl"></svg>
           <div class="legend">
@@ -187,6 +193,7 @@
       function syncUrl() {
         if (!cur) return;
         const u = new URL(location.href); u.searchParams.set("id", cur.id); u.searchParams.set("f", String(frame)); history.replaceState(null, "", u);
+        $("#ref").value = refText();
       }
       function refText() { return cur ? `${cur.id} @ frame ${frame} (${cur.label}) ${location.href}` : ""; }
       function seek(i) {
@@ -289,7 +296,8 @@
       $("#bPrev").onclick = () => pick(curIdx - 1); $("#bNext").onclick = () => pick(curIdx + 1);
       $("#bStepPrev").onclick = () => seek(frame - 1); $("#bStepNext").onclick = () => seek(frame + 1);
       $("#bEdgePrev").onclick = () => edgeJump(-1); $("#bEdgeNext").onclick = () => edgeJump(1);
-      $("#bRef").onclick = async () => { const t = refText(); if (!t) return; try { await navigator.clipboard.writeText(t); $("#pos").textContent = "copied: " + t.slice(0, 60) + "…"; } catch { $("#pos").textContent = t; } };
+      $("#bRef").onclick = async () => { const t = refText(); if (!t) return; try { await navigator.clipboard.writeText(t); $("#pos").textContent = "copied"; } catch { $("#ref").select(); $("#pos").textContent = "select + ctrl+c"; } };
+      $("#ref").onclick = () => $("#ref").select();
       ["#fSource", "#fCell", "#fEvent", "#fOff", "#fSort"].forEach((s) => ($(s).onchange = renderRuns));
       window.addEventListener("resize", () => side && drawTimeline());
 
