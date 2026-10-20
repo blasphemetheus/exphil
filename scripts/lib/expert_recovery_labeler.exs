@@ -531,15 +531,79 @@ defmodule ExPhil.Agents.ExpertRecoveryLabeler do
   is an extrapolation (10-08 22:12: `airdodge_with_jump` labels on the bot's
   low, jump-in-hand states).
   """
+  @query_pad 256
+
   def nearest_d2(index, queries, k \\ @k) do
-    q = Nx.tensor(queries, type: :f32)
     # one jitted call: the {batch, n} distance matrix (256 x 214k f32 = 219 MB)
     # lives only inside the executable. Eagerly it was a device buffer per
     # chunk freed only at the beam's next GC — the 10-08 22:16 RESOURCE_EXHAUSTED
     # after ~100 chunks (and the 12-seed rollout's death at seed 8).
-    {idx, d2} = Nx.Defn.jit(&nearest_kernel/3).(q, index.x, k: k)
-    :erlang.garbage_collect()
-    {idx, d2}
+    padded_query(queries, compiled(:nearest_kernel, &nearest_kernel/3, index.x, k))
+  end
+
+  # One compiled executable per {kernel, k, index shape}, kept in
+  # :persistent_term: Nx.Defn.jit's cache is not hit from the per-call Task
+  # (it re-compiled every call, ~1 s), and a compiled function is callable
+  # from any process.
+  defp compiled(name, fun, x, k) do
+    key = {__MODULE__, name, k, Nx.shape(x), Nx.type(x)}
+
+    f =
+      case :persistent_term.get(key, nil) do
+        nil ->
+          f = Nx.Defn.compile(fun, [Nx.template({@query_pad, elem(Nx.shape(x), 1)}, :f32), Nx.template(Nx.shape(x), Nx.type(x)), [k: k]], compiler: EXLA)
+          :persistent_term.put(key, f)
+          f
+
+        f ->
+          f
+      end
+
+    fn q -> f.(q, x) end
+  end
+
+  # Batch shape = JIT executable (10-20, Bradley: "do the known 2x speed up").
+  # The lockstep labeller queries one row per OPEN trip, and trips close
+  # every step, so the last chunk had a new shape on almost every call and
+  # XLA compiled a new executable each time (~650 ms per new shape). Pad the
+  # batch with zero rows to a multiple of @query_pad and slice the answers
+  # back: a handful of shapes for a whole run.
+  # (@query_pad is set above nearest_d2/3, where it is first used.)
+  #
+  # And NO :erlang.garbage_collect() per call: it cost ~195 ms every time
+  # (the index's labels / holds are a 1.9 M-row tuple on the process heap, a
+  # full GC walks ~1 GB) — the 256-query kNN itself runs in 6.6 ms. It was
+  # there (10-08) because each run leaves a 1.8 GB device buffer alive until
+  # the owning process is collected (13 calls = RESOURCE_EXHAUSTED). So each
+  # kernel call runs in its own short-lived Task: the results come back as
+  # host tensors and the Task's exit frees every device buffer it touched.
+
+  # Every call runs the ONE {@query_pad, d} executable, chunk by chunk (the
+  # {256, n} distance matrix is 1.9 GB; a 768-row batch would be 5.8 GB).
+  defp padded_query(queries, kernel) do
+    # the default backend / defn compiler are PROCESS-local: without carrying
+    # them over, the Task evaluates the kernel eagerly on the CPU (hours)
+    backend = Nx.default_backend()
+    defn_opts = Nx.Defn.default_options()
+
+    {idxs, d2s} =
+      queries
+      |> Enum.chunk_every(@query_pad)
+      |> Enum.map(fn chunk ->
+        n = length(chunk)
+
+        Task.async(fn ->
+          Nx.default_backend(backend)
+          Nx.Defn.default_options(defn_opts)
+          q = Nx.tensor(chunk, type: :f32) |> Nx.pad(0.0, [{0, @query_pad - n, 0}, {0, 0, 0}])
+          {idx, d2} = kernel.(q)
+          {Nx.slice_along_axis(idx, 0, n, axis: 0) |> Nx.backend_copy(Nx.BinaryBackend), Nx.slice_along_axis(d2, 0, n, axis: 0) |> Nx.backend_copy(Nx.BinaryBackend)}
+        end)
+        |> Task.await(:infinity)
+      end)
+      |> Enum.unzip()
+
+    {Nx.concatenate(idxs, axis: 0), Nx.concatenate(d2s, axis: 0)}
   end
 
   import Nx.Defn
@@ -556,10 +620,7 @@ defmodule ExPhil.Agents.ExpertRecoveryLabeler do
 
   @doc "Like `nearest_d2/3` but with the squared distance of EVERY neighbour: `{idx {batch, k}, d2 {batch, k}}` (the label review export)."
   def nearest_d2k(index, queries, k \\ @k) do
-    q = Nx.tensor(queries, type: :f32)
-    {idx, d2} = Nx.Defn.jit(&nearest_kernel_k/3).(q, index.x, k: k)
-    :erlang.garbage_collect()
-    {idx, d2}
+    padded_query(queries, compiled(:nearest_kernel_k, &nearest_kernel_k/3, index.x, k))
   end
 
   defn nearest_kernel_k(q, x, opts \\ []) do
