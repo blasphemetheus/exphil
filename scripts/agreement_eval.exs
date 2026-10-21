@@ -181,14 +181,7 @@ decode =
         p_shoulder_on: Nx.subtract(1.0, Axon.Activations.softmax(sh)[[.., 0]]),
         nll: nll
       }
-      |> then(fn m ->
-        if dur != nil and dur_cap do
-          %{mask: mask, duration: dur_t} = ExPhil.Training.Imitation.Loss.stick_decision_targets(inputs, tgt, dur_cap)
-          Map.merge(m, %{mask: mask, dur: Nx.argmax(dur, axis: -1) |> Nx.as_type(:s64), dur_t: Nx.as_type(dur_t, :s64)})
-        else
-          m
-        end
-      end)
+      |> then(fn m -> if dur != nil, do: Map.put(m, :dur, Nx.argmax(dur, axis: -1) |> Nx.as_type(:s64)), else: m end)
     end,
     compiler: EXLA
   )
@@ -228,8 +221,23 @@ samples =
   games
   |> Enum.with_index()
   |> Enum.flat_map(fn {g, gi} ->
+    pair = fn t -> a = elem(g.actions, t); {a.main_x, a.main_y} end
     for t <- Range.new(window - 1, g.n - 1, stride) do
-      %{game: gi, t: t, action: bool_action.(elem(g.actions, t)), prev: bool_action.(elem(g.actions, t - 1))}
+      a = elem(g.actions, t)
+      pr = elem(g.actions, t - 1)
+      {mask, dur_t} =
+        if dur_cap do
+          # decision frame: the pair changes, any button changes, or the previous pair's hold age (trailing run
+          # inside the window, 1..window) is a multiple of the cap; duration target = frames the pair survives
+          event = pair.(t) != pair.(t - 1) or a.buttons != pr.buttons
+          age = Enum.reduce_while(0..(window - 1), 0, fn k, acc -> if t - 1 - k >= 0 and pair.(t - 1 - k) == pair.(t - 1), do: {:cont, acc + 1}, else: {:halt, acc} end)
+          cont = age >= dur_cap and rem(age, dur_cap) == 0
+          dur_t = Enum.reduce_while(1..(dur_cap - 1), 0, fn j, acc -> if t + j < g.n and pair.(t + j) == pair.(t), do: {:cont, acc + 1}, else: {:halt, acc} end)
+          {event or cont, dur_t}
+        else
+          {true, nil}
+        end
+      %{game: gi, t: t, action: bool_action.(a), prev: bool_action.(pr), mask: mask, dur_t: dur_t}
     end
   end)
 
@@ -263,10 +271,10 @@ rows =
       }
       ra = s.action
       pr = s.prev
-      decision = if d[:mask], do: Enum.at(d.mask, i) == 1.0, else: true
+      decision = s.mask
       pa = if decision, do: pa, else: %{pa | main_x: pr.main_x, main_y: pr.main_y}
-      dur_ok = decision and d[:dur] != nil and Enum.at(d.dur, i) == Enum.at(d.dur_t, i)
-      dur_pm1 = decision and d[:dur] != nil and abs(Enum.at(d.dur, i) - Enum.at(d.dur_t, i)) <= 1
+      dur_ok = decision and d[:dur] != nil and Enum.at(d.dur, i) == s.dur_t
+      dur_pm1 = decision and d[:dur] != nil and abs(Enum.at(d.dur, i) - s.dur_t) <= 1
       pb = Enum.at(d.p_buttons, i)
       probs = %{jump: max(Enum.at(pb, 2), Enum.at(pb, 3)), attack: Enum.at(pb, 0), special: Enum.at(pb, 1), grab: Enum.at(pb, 4),
         trigger: Enum.max([Enum.at(pb, 5), Enum.at(pb, 6), Enum.at(d.p_shoulder_on, i)])}
