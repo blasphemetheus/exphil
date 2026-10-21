@@ -26,6 +26,23 @@ for (const m of models){ m.era = eras.find(e=> m.d0>=e.a && m.d0<=e.b) || eras.r
 const byEra = eras.map(e=>({e, ms: models.filter(m=>m.era===e)}));
 const counts = {}; for (const m of models) counts[m.out]=(counts[m.out]||0)+1;
 
+// league (fighting strength in the sim) — optional
+let league = null; try { league = JSON.parse(fs.readFileSync("/home/blewf/git/exphil/eval_runs/league/1021_full/league.json","utf8")); } catch (e) {}
+const leagueHTML = league ? (() => {
+  const names = league.standings.map(x=>x.name);
+  const cell = v => v==null ? '<td class="muted">—</td>' : `<td style="background:${v>=0.5?`rgba(31,111,67,${(v-0.5)*1.2})`:`rgba(165,44,34,${(0.5-v)*1.2})`}">${Math.round(v*100)}</td>`;
+  const games = league.pairs.reduce((n,x)=>n+x.games.length,0);
+  return `<section class="tail league" id="league">
+  <h2>League: who beats whom in the sim (2026-10-21)</h2>
+  <p class="focus">Every playable checkpoint against every other in the parity sim on Final Destination: ${league.pairs.length} pairs, both ports, ${league.envs} parallel games of ${league.frames/60} s per side, ${games} games in all, scored by stocks then percent. Elo is a Bradley–Terry fit. This ranks <b>fighting strength against bots</b>, which is a different axis from imitation fidelity: the PPO policy wins with a style no human plays. Unsupported on the batched sim path (no autoregressive head): ${league.unsupported.map(u=>esc(u.name)).join(", ")}.</p>
+  <div class="tablewrap"><table><tr><th>Elo</th><th>Model</th><th>Win rate</th><th>Games</th><th>Line</th></tr>
+  ${league.standings.map(x=>`<tr><td><b>${x.elo}</b></td><td class="mono">${esc(x.name)}</td><td>${Math.round(x.win_rate*100)}%</td><td>${x.games}</td><td class="muted">${esc(x.line)}</td></tr>`).join("")}</table></div>
+  <h3 style="margin:14px 0 4px;font-size:14px">Win matrix: share of games the row won against the column</h3>
+  <div class="tablewrap"><table class="matrix"><tr><th></th>${names.map(n=>`<th>${esc(n)}</th>`).join("")}</tr>
+  ${names.map(a=>`<tr><th>${esc(a)}</th>${names.map(b=>a===b?'<td class="muted">·</td>':cell(league.win_matrix[a][b])).join("")}</tr>`).join("")}</table></div>
+  <p class="src">eval_runs/league/1021_full/league.json · scripts/league.exs</p>
+</section>`; })() : "";
+
 const cards = byEra.map(({e,ms})=>`
 <section class="era" id="${e.id}">
   <header class="erahead">
@@ -109,6 +126,10 @@ th{font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--mute
 .tablewrap{overflow-x:auto}
 ol.lessons{padding-left:22px;max-width:80ch}ol.lessons li{margin-bottom:6px}
 .muted{color:var(--muted)}
+.league{margin-top:22px;border-top:2px solid var(--accent)}
+.mono{font-family:var(--mono);font-size:12px}
+table.matrix td,table.matrix th{font-family:var(--mono);font-size:11px;text-align:center;padding:4px 6px}
+table.matrix tr>th:first-child{text-align:right}
 @media (max-width:860px){.wrap{grid-template-columns:1fr}nav{position:static;height:auto;border-right:0;border-bottom:1px solid var(--line);padding-right:max(16px,env(safe-area-inset-right,0px))}nav a{display:inline-block;margin:2px 2px 2px 0}nav a b{display:inline;margin-right:4px}.cards{grid-template-columns:1fr}dl{grid-template-columns:1fr}}
 @media (prefers-reduced-motion:no-preference){html{scroll-behavior:smooth}}
 </style>
@@ -117,6 +138,7 @@ ol.lessons{padding-left:22px;max-width:80ch}ol.lessons li{margin-bottom:6px}
   <h1>ExPhil models</h1>
   <p class="sub">${models.length} checkpoint entries · ${eras.length} eras · Mar–Oct 2026</p>
   ${eras.map(e=>`<a href="#${e.id}"><b>${esc(e.range)}</b>${esc(e.name)}</a>`).join("")}
+  ${league ? '<a href="#league"><b>league</b>Who beats whom (Elo)</a>' : ""}
   <a href="#instruments"><b>evals</b>How we measured</a>
   <a href="#lessons"><b>lessons</b>What we learned</a>
 </nav>
@@ -124,7 +146,7 @@ ol.lessons{padding-left:22px;max-width:80ch}ol.lessons li{margin-bottom:6px}
   <div class="intro">
     <h1>Every model we trained, and what it was for</h1>
     <p>One card per checkpoint family, in date order, grouped by what the program was focused on at the time. Each card says what we were trying to do, what changed from the one before, what the numbers said, and what happened to it. Numbers are copied from the handoff docs and the registry; the source line on each card says where.</p>
-    <p>Only two generalist models were ever crowned for play, and one multishine model is still production. Most entries are superseded by the next step of their own line, which is the normal shape of this work.</p>
+    <p>Only two generalist models were ever crowned for play, and one multishine model is still production. Most entries are superseded by the next step of their own line, which is the normal shape of this work. The league section below ranks the playable ones by fighting strength in the sim.</p>
   </div>
   <div class="filters" role="group" aria-label="filter by line">
     <span class="lbl">Line</span>
@@ -135,6 +157,7 @@ ol.lessons{padding-left:22px;max-width:80ch}ol.lessons li{margin-bottom:6px}
     ${Object.entries(OUT).map(([k,v])=>`<button class="chip" data-f="out" data-v="${k}" aria-pressed="true" id="f-out-${k}">${v} <span class="muted">${counts[k]||0}</span></button>`).join("")}
     <span class="count" id="shown"></span>
   </div>
+  ${leagueHTML}
   ${cards}
   <section class="tail" id="instruments">
     <h2>How we measured (the eval instruments)</h2>
