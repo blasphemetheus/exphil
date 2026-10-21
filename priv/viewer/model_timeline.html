@@ -1,0 +1,998 @@
+<title>ExPhil Model Timeline</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* layout: left rail of eras (desktop), one scrolling column of era bands with model cards */
+:root{--bg:#f7f6f2;--fg:#1d1c1a;--muted:#6b675e;--line:#d9d5cb;--card:#ffffff;--accent:#8a4b1f;--rail:#efece4;
+ --ok:#1f6f43;--okbg:#dff2e6;--bad:#a52c22;--badbg:#f9e0dc;--cand:#1d5c8a;--candbg:#dcebf7;--sup:#6b675e;--supbg:#ebe8e1;--park:#7a5c0f;--parkbg:#f6ecc9;--diag:#5b3f8a;--diagbg:#eae2f6;
+ --display:"IBM Plex Sans",system-ui,sans-serif;--mono:"IBM Plex Mono",ui-monospace,monospace}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--bg:#17161a;--fg:#ebe8e2;--muted:#a39e93;--line:#3a383f;--card:#211f25;--accent:#e0955b;--rail:#1d1c21;
+ --ok:#7fd3a0;--okbg:#1b3a2a;--bad:#f0938a;--badbg:#44211d;--cand:#8fc3ec;--candbg:#1c3449;--sup:#a39e93;--supbg:#2b2930;--park:#e5c25a;--parkbg:#3d321a;--diag:#c4aaf0;--diagbg:#302544;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#17161a;--fg:#ebe8e2;--muted:#a39e93;--line:#3a383f;--card:#211f25;--accent:#e0955b;--rail:#1d1c21;
+ --ok:#7fd3a0;--okbg:#1b3a2a;--bad:#f0938a;--badbg:#44211d;--cand:#8fc3ec;--candbg:#1c3449;--sup:#a39e93;--supbg:#2b2930;--park:#e5c25a;--parkbg:#3d321a;--diag:#c4aaf0;--diagbg:#302544;color-scheme:dark}
+body{background:var(--bg);color:var(--fg);font-family:var(--display);font-size:14px;line-height:1.45;margin:0}
+.wrap{display:grid;grid-template-columns:220px minmax(0,1fr);gap:0;min-height:100%}
+nav{background:var(--rail);border-right:1px solid var(--line);padding-block:18px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:12px;position:sticky;top:0;height:100vh;overflow:auto;box-sizing:border-box}
+nav h1{font-size:15px;margin:0 0 4px;letter-spacing:.01em}
+nav .sub{font-size:11px;color:var(--muted);margin:0 0 14px}
+nav a{display:block;color:var(--fg);text-decoration:none;font-size:12px;padding:5px 6px;border-radius:4px;border-left:3px solid transparent}
+nav a:hover,nav a:focus-visible{background:var(--card);outline:none}
+nav a b{display:block;font-family:var(--mono);font-size:10px;color:var(--accent);font-weight:500}
+main{padding-block:18px 60px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));min-width:0}
+.intro{max-width:72ch}
+.intro h1{font-size:24px;margin:0 0 6px;text-wrap:balance}
+.intro p{margin:0 0 8px;color:var(--muted)}
+.filters{display:flex;flex-wrap:wrap;gap:6px;margin:14px 0 10px;align-items:center}
+.filters .lbl{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-right:4px}
+.chip{border:1px solid var(--line);background:var(--card);color:var(--fg);border-radius:999px;padding:3px 10px;font-size:12px;cursor:pointer;font-family:inherit}
+.chip[aria-pressed="true"]{border-color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent)}
+.chip:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.count{font-family:var(--mono);font-size:11px;color:var(--muted);margin-left:auto}
+.era{margin-top:26px;border-top:2px solid var(--accent);padding-top:10px}
+.eratag{font-family:var(--mono);font-size:11px;color:var(--accent)}
+.era h2{font-size:18px;margin:2px 0 6px;text-wrap:balance}
+.focus{max-width:80ch;margin:0 0 4px}
+.src{font-family:var(--mono);font-size:10.5px;color:var(--muted);margin:4px 0 0;word-break:break-word}
+.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:12px;margin-top:12px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:6px;padding:12px 14px;min-width:0}
+.card[hidden]{display:none}
+.cardtop{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-bottom:6px}
+.date{font-family:var(--mono);font-size:11px;color:var(--muted)}
+.pill{font-size:10.5px;padding:1px 8px;border-radius:999px;letter-spacing:.02em;font-weight:500}
+.pill.line{background:var(--supbg);color:var(--fg)}
+.pill-crowned{background:var(--okbg);color:var(--ok)}.pill-failed{background:var(--badbg);color:var(--bad)}.pill-candidate{background:var(--candbg);color:var(--cand)}
+.pill-superseded{background:var(--supbg);color:var(--sup)}.pill-parked{background:var(--parkbg);color:var(--park)}.pill-diagnostic{background:var(--diagbg);color:var(--diag)}
+.card h3{font-family:var(--mono);font-weight:500;font-size:13px;margin:0 0 4px;word-break:break-word}
+.meta{display:flex;flex-wrap:wrap;gap:4px 12px;font-size:11.5px;color:var(--muted);margin-bottom:8px}
+dl{display:grid;grid-template-columns:70px minmax(0,1fr);gap:4px 10px;margin:0;font-size:12.5px}
+dt{color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.05em;padding-top:2px}
+dd{margin:0;min-width:0}
+dd.verdict{font-weight:500}
+.card[data-out="crowned"]{border-color:var(--ok)}.card[data-out="failed"]{border-left:4px solid var(--bad)}
+.tail{margin-top:34px;border-top:2px solid var(--line);padding-top:10px}
+.tail h2{font-size:18px;margin:0 0 8px}
+table{border-collapse:collapse;width:100%;font-size:12.5px}
+th,td{text-align:left;vertical-align:top;padding:6px 8px;border-bottom:1px solid var(--line)}
+th{font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted)}
+.tablewrap{overflow-x:auto}
+ol.lessons{padding-left:22px;max-width:80ch}ol.lessons li{margin-bottom:6px}
+.muted{color:var(--muted)}
+@media (max-width:860px){.wrap{grid-template-columns:1fr}nav{position:static;height:auto;border-right:0;border-bottom:1px solid var(--line);padding-right:max(16px,env(safe-area-inset-right,0px))}nav a{display:inline-block;margin:2px 2px 2px 0}nav a b{display:inline;margin-right:4px}.cards{grid-template-columns:1fr}dl{grid-template-columns:1fr}}
+@media (prefers-reduced-motion:no-preference){html{scroll-behavior:smooth}}
+</style>
+<div class="wrap">
+<nav>
+  <h1>ExPhil models</h1>
+  <p class="sub">61 checkpoint entries · 11 eras · Mar–Oct 2026</p>
+  <a href="#E1"><b>2026-03-01 .. 2026-03-27</b>Architecture benchmark + first imitation runs</a><a href="#E2"><b>2026-07-02 .. 2026-07-14</b>Candidate bake-off, clean_200, E2, birth of scripted-expert DAgger drills</a><a href="#E3"><b>2026-07-15 .. 2026-07-24</b>Mewtwo combo 'newera' rounds + interp roadmap</a><a href="#E4"><b>2026-07-24 .. 2026-07-31</b>Multishine teacher solved; exposure bias; latency campaign (laptop, CPU)</a><a href="#E5"><b>2026-08-02 .. 2026-08-24</b>Delay campaign + human-netplay crowns; curation loop; peak science</a><a href="#E6"><b>2026-08-25 .. 2026-09-09</b>Generalist Fox from the erickfm corpus (fox_gen v1 → v2)</a><a href="#E7"><b>2026-09-10 .. 2026-09-17</b>Multishine under sampling + proof contract (Track B met)</a><a href="#E8"><b>2026-09-17 .. 2026-09-23</b>V3/V3.1 identity-conditioned Fox; sim integration; search-as-teacher; critic/PPO</a><a href="#E9"><b>2026-09-24 .. 2026-09-30</b>Mewtwo IL + PPO; Fox Mamba v1/v2</a><a href="#E10"><b>2026-10-01 .. 2026-10-10</b>Input-coherence program on the MinGRU testbed (coh_* queues 1–45)</a><a href="#E11"><b>2026-10-11 .. 2026-10-21</b>Full Fox Mamba v3 run; live look; r9o DAgger; labeler + label review page</a>
+  <a href="#instruments"><b>evals</b>How we measured</a>
+  <a href="#lessons"><b>lessons</b>What we learned</a>
+</nav>
+<main>
+  <div class="intro">
+    <h1>Every model we trained, and what it was for</h1>
+    <p>One card per checkpoint family, in date order, grouped by what the program was focused on at the time. Each card says what we were trying to do, what changed from the one before, what the numbers said, and what happened to it. Numbers are copied from the handoff docs and the registry; the source line on each card says where.</p>
+    <p>Only two generalist models were ever crowned for play, and one multishine model is still production. Most entries are superseded by the next step of their own line, which is the normal shape of this work.</p>
+  </div>
+  <div class="filters" role="group" aria-label="filter by line">
+    <span class="lbl">Line</span>
+    <button class="chip" data-f="line" data-v="early" aria-pressed="true" id="f-line-early">Early + benchmarks</button><button class="chip" data-f="line" data-v="mewtwo" aria-pressed="true" id="f-line-mewtwo">Mewtwo</button><button class="chip" data-f="line" data-v="multishine" aria-pressed="true" id="f-line-multishine">Fox multishine (drills)</button><button class="chip" data-f="line" data-v="generalist" aria-pressed="true" id="f-line-generalist">Generalist Fox (replay BC)</button><button class="chip" data-f="line" data-v="sim" aria-pressed="true" id="f-line-sim">Sim / RL / DAgger</button><button class="chip" data-f="line" data-v="mamba" aria-pressed="true" id="f-line-mamba">Fox Mamba + coherence</button>
+  </div>
+  <div class="filters" role="group" aria-label="filter by outcome">
+    <span class="lbl">Outcome</span>
+    <button class="chip" data-f="out" data-v="crowned" aria-pressed="true" id="f-out-crowned">crowned <span class="muted">6</span></button><button class="chip" data-f="out" data-v="candidate" aria-pressed="true" id="f-out-candidate">candidate / kept <span class="muted">13</span></button><button class="chip" data-f="out" data-v="failed" aria-pressed="true" id="f-out-failed">failed / reverted <span class="muted">18</span></button><button class="chip" data-f="out" data-v="superseded" aria-pressed="true" id="f-out-superseded">superseded <span class="muted">18</span></button><button class="chip" data-f="out" data-v="parked" aria-pressed="true" id="f-out-parked">parked <span class="muted">2</span></button><button class="chip" data-f="out" data-v="diagnostic" aria-pressed="true" id="f-out-diagnostic">diagnostic <span class="muted">4</span></button>
+    <span class="count" id="shown"></span>
+  </div>
+  
+<section class="era" id="E1">
+  <header class="erahead">
+    <div class="eratag">E1 · 2026-03-01 .. 2026-03-27</div>
+    <h2>Architecture benchmark + first imitation runs</h2>
+    <p class="focus">Wire 35+ Edifice backbones, benchmark on 30 Mewtwo replays (3 epochs), fix button mode collapse (sqrt pos_weight + focal), 200-file Mamba sweeps on HuggingFace replays. Later found: the '200-file scaling collapse' was a poisoned embedding-cache entry (GOTCHA #51) — March recipe comparisons invalid.</p>
+    <p class="src">checkpoints/benchmark_results_*.json; memory project_mode_collapse_fix.md; project_cache_poisoning_resolution.md</p>
+  </header>
+  <div class="cards">
+  <article class="card" data-line="early" data-out="superseded">
+    <div class="cardtop"><span class="date">2026-03-04</span><span class="pill pill-superseded">superseded</span><span class="pill line">Early + benchmarks</span></div>
+    <h3>benchmark_* (jamba_mewtwo_20ep_v3-5, min_gru_* , 35+ archs)</h3>
+    <div class="meta"><span>architecture benchmark</span><span>all (MLP, GRU, LSTM, Mamba, Mamba-2, Jamba, MinGRU, DeltaNet, S4/S5, RetNet, ...)</span></div>
+    <dl>
+      <dt>Trying to</dt><dd>Which backbone to build on; wire Edifice's 22+ new backbones and compare val loss/throughput.</dd>
+      <dt>Changed</dt><dd>First runs in the repo; later 'best' tags min_gru/h3.</dd>
+      <dt>Data</dt><dd>./replays/mewtwo, 30 files, 166k train frames, 3 epochs</dd>
+      <dt>Result</dt><dd>Per-arch val ~4.7 (min_gru ep1 4.72); Jamba eval had ALL buttons at 0% (mode collapse).</dd>
+      <dt>Verdict</dt><dd class="verdict">superseded (architecture bake-offs explicitly deprioritized later)</dd>
+    </dl>
+    <p class="src">checkpoints/benchmark_results_20260303_230515.json, _latest.json; memory project_mode_collapse_fix.md</p>
+  </article>
+  <article class="card" data-line="early" data-out="failed">
+    <div class="cardtop"><span class="date">2026-03-26</span><span class="pill pill-failed">failed / reverted</span><span class="pill line">Early + benchmarks</span></div>
+    <h3>mamba_200 / mlp_200 / neutral_weight_200 / entropy_high / sweep_g*_bw* / test_175</h3>
+    <div class="meta"><span>early imitation (200-file sweeps)</span><span>Mamba (and MLP)</span></div>
+    <dl>
+      <dt>Trying to</dt><dd>Fix button mode collapse (sqrt pos_weight, focal γ, button weight) and scale from 100 to 200 files.</dd>
+      <dt>Changed</dt><dd>Focal/pos_weight/oversampling stack; focal_gamma 3.0 chosen from this sweep.</dd>
+      <dt>Data</dt><dd>./replays/huggingface, ~200 files, 3-5 epochs</dd>
+      <dt>Result</dt><dd>val ~5.2-5.7 (test_175 5.19, mlp_200 5.61); '200-file collapse' observed.</dd>
+      <dt>Verdict</dt><dd class="verdict">invalidated — collapse was a poisoned cache entry (GOTCHA #51); recipe conclusions untrusted</dd>
+    </dl>
+    <p class="src">registry.json entries 2026-03-26/27; memory project_cache_poisoning_resolution.md</p>
+  </article></div>
+</section>
+<section class="era" id="E2">
+  <header class="erahead">
+    <div class="eratag">E2 · 2026-07-02 .. 2026-07-14</div>
+    <h2>Candidate bake-off, clean_200, E2, birth of scripted-expert DAgger drills</h2>
+    <p class="focus">4-candidate sweep (mamba/min_gru/gated_deltanet), clean_200 Mamba line, E2 prev-action+delay-2; then the drill system (multishine, mewtwo_fair, fox_recovery) and the NaN saga (logit clamp fix). Facing-blind bug #55 (all pre-07-08 checkpoints).</p>
+    <p class="src">HANDOFF_2026-07-08.md</p>
+  </header>
+  <div class="cards">
+  <article class="card" data-line="early" data-out="failed">
+    <div class="cardtop"><span class="date">2026-07-02</span><span class="pill pill-failed">failed / reverted</span><span class="pill line">Early + benchmarks</span></div>
+    <h3>cand_mamba_base / cand_mamba_nw / cand_mingru / cand_gdn; clean_200</h3>
+    <div class="meta"><span>candidate sweep (clean_200 line)</span><span>Mamba / MinGRU / GatedDeltaNet</span></div>
+    <dl>
+      <dt>Trying to</dt><dd>Pick a backbone after the callback-trainer rewrite; clean_200 = first run after the cache fix.</dd>
+      <dt>Changed</dt><dd>4-arm sweep under the new Trainer/Pipeline.</dd>
+      <dt>Data</dt><dd>./replays/huggingface, 200 files, 10 epochs</dd>
+      <dt>Result</dt><dd>cand_* val ~8.7-8.8 (poisoned val); clean_200 val 5.17, diversity 22.8%.</dd>
+      <dt>Verdict</dt><dd class="verdict">sweep invalid (poisoned val); clean_200 superseded by v2/v3</dd>
+    </dl>
+    <p class="src">registry.json 2026-07-02; memory project_cache_poisoning_resolution.md</p>
+  </article>
+  <article class="card" data-line="early" data-out="superseded">
+    <div class="cardtop"><span class="date">2026-07-07</span><span class="pill pill-superseded">superseded</span><span class="pill line">Early + benchmarks</span></div>
+    <h3>clean_200_v2 / clean_200_v3_long</h3>
+    <div class="meta"><span>clean_200 line</span><span>Mamba</span></div>
+    <dl>
+      <dt>Trying to</dt><dd>Clean-recipe Mamba baseline to compare E2 against on diagnostics + live.</dd>
+      <dt>Changed</dt><dd>v3_long = 30 epochs; both pre-07-07 label-smoothing×pos_weight poison (GOTCHA #53) and facing-blind (#55).</dd>
+      <dt>Data</dt><dd>./replays/huggingface, 200 files, 10 / 30 epochs</dd>
+      <dt>Result</dt><dd>val 5.03 (v2), 4.75 (v3_long).</dd>
+      <dt>Verdict</dt><dd class="verdict">superseded (facing-blind; retrain upgrades for free)</dd>
+    </dl>
+    <p class="src">registry.json; GOTCHAS.md #53 line ~2355; HANDOFF_2026-07-08.md</p>
+  </article>
+  <article class="card" data-line="multishine" data-out="failed">
+    <div class="cardtop"><span class="date">2026-07-08</span><span class="pill pill-failed">failed / reverted</span><span class="pill line">Fox multishine (drills)</span></div>
+    <h3>multishine_delay/prevact/robust/dagger1-4/daggerloop; mewtwo_fair_dagger0/loop_i1-2; fox_recovery_dagger</h3>
+    <div class="meta"><span>scripted-expert DAgger drills (birth)</span><span>GRU (window 60, 2 layers; Mamba diverged in the drill)</span></div>
+    <dl>
+      <dt>Trying to</dt><dd>Self-improving drill loop: retrain → probe game → relabel with a scripted expert → grow pool (DRILL_INFRASTRUCTURE.md).</dd>
+      <dt>Changed</dt><dd>First drill policies; prev-channel leak and facing bug found via live feedback.</dd>
+      <dt>Data</dt><dd>recorded fixtures + relabeled rollouts (drill pools)</dd>
+      <dt>Result</dt><dd>Fox multishine 15→207 JCs/game over 6 rounds (metric later shown to be lying — aerial shines); Mewtwo SH-fair 3→49 fairs/game, 90% landed, L-cancel 47.7%.</dd>
+      <dt>Verdict</dt><dd class="verdict">superseded (pre-07-08 facing-blind; multishine metric invalid)</dd>
+    </dl>
+    <p class="src">HANDOFF_2026-07-08.md 'Where we are', scoreboard table</p>
+  </article>
+  <article class="card" data-line="early" data-out="diagnostic">
+    <div class="cardtop"><span class="date">2026-07-10</span><span class="pill pill-diagnostic">diagnostic</span><span class="pill line">Early + benchmarks</span></div>
+    <h3>e2_prevact_delay2_20260710</h3>
+    <div class="meta"><span>clean_200 line (E2)</span><span>Mamba</span></div>
+    <dl>
+      <dt>Trying to</dt><dd>First big facing-sighted model with prev-action and delay-2 labels; compare vs clean_200_v3_long.</dd>
+      <dt>Changed</dt><dd>prev-action channel + action delay 2.</dd>
+      <dt>Data</dt><dd>./replays/huggingface, 500 files × 50 epochs, --prev-action --action-delay 2</dd>
+      <dt>Result</dt><dd>val 2.83 (registry 2.99), 'healthiest press-rate profile ever'; live: neutral run-offs, 2-3x over-shielding (prev-action momentum, hysteresis amplifies holds).</dd>
+      <dt>Verdict</dt><dd class="verdict">superseded (diagnostic value only)</dd>
+    </dl>
+    <p class="src">HANDOFF_2026-07-08.md 07-10 addendum; registry.json</p>
+  </article>
+  <article class="card" data-line="mewtwo" data-out="superseded">
+    <div class="cardtop"><span class="date">2026-07-12</span><span class="pill pill-superseded">superseded</span><span class="pill line">Mewtwo</span></div>
+    <h3>mewtwo_combo_replicate215741 / stopab_tl08 / tl15 / lr15 / poolgrow_r1</h3>
+    <div class="meta"><span>Mewtwo combo drill (old era)</span><span>GRU</span></div>
+    <dl>
+      <dt>Trying to</dt><dd>Tech-chase/combo ladder rung 2: conversion after knockdown; test LR, stopping point, pool growth.</dd>
+      <dt>Changed</dt><dd>LR 2e-4 vs 1e-4; pool growth 42→48.</dd>
+      <dt>Data</dt><dd>28-48 replay pools (fixtures + on-policy probes) vs tech_random dummy</dd>
+      <dt>Result</dt><dd>poolgrow_r1 27.9% conversion (43 knockdowns, best clearing the &gt;=30 bar); LR 1e-4 runs &lt;=12%; NaN at ep17-99 on every 2e-4 run.</dd>
+      <dt>Verdict</dt><dd class="verdict">superseded — the dummy was a lvl-3 CPU the whole era (GOTCHA #57); scores historical only</dd>
+    </dl>
+    <p class="src">HANDOFF_2026-07-08.md 07-12/07-13 addenda</p>
+  </article></div>
+</section>
+<section class="era" id="E3">
+  <header class="erahead">
+    <div class="eratag">E3 · 2026-07-15 .. 2026-07-24</div>
+    <h2>Mewtwo combo 'newera' rounds + interp roadmap</h2>
+    <p class="focus">GRU drill rounds r8–r17a vs TechRandom dummy; report-card gates; backbone screens (mamba_2 chosen for r15/r16, later reversed); LEACE/steering; interp P0–P3. Verdict: taught the button SEQUENCE not the DECISION (armed approaches/min 0.17, conversion 5%).</p>
+    <p class="src">HANDOFF_2026-07-15..07-24.md; GOALS.md</p>
+  </header>
+  <div class="cards">
+  <article class="card" data-line="mewtwo" data-out="parked">
+    <div class="cardtop"><span class="date">2026-07-16</span><span class="pill pill-parked">parked</span><span class="pill line">Mewtwo</span></div>
+    <h3>mewtwo_combo_newera_r9 … r14 (+ screen_gru2x/mamba/min_gru/mamba2 r13)</h3>
+    <div class="meta"><span>Mewtwo combo 'newera'</span><span>GRU (screens: mamba, mamba_2, min_gru, gru2x)</span></div>
+    <dl>
+      <dt>Trying to</dt><dd>Chase conversion with the real TechRandom dummy; fix DJ spam/shield-lock (copycat causal confusion).</dd>
+      <dt>Changed</dt><dd>r13 = DJ scrub + per-column debounce + dropout 0.6; r14 = 100 epochs full.</dd>
+      <dt>Data</dt><dd>24-54 game explicit pools, sighted expert, dropout 0.4-0.6, transition weight</dd>
+      <dt>Result</dt><dd>r12 39 conv (6.1/8 card); r14 best 6.0/9 card, 9 conv, DJ frequency solved; shield-lock tail p95 215 persists. mamba_2 screen 8.6/10 &gt; mamba 8.1 &gt; gru2x.</dd>
+      <dt>Verdict</dt><dd class="verdict">superseded (Mewtwo line parked; GOALS: 'learned the sequence, not the decision')</dd>
+    </dl>
+    <p class="src">HANDOFF_2026-07-17.md scoreboard; HANDOFF_2026-07-21.md verdicts</p>
+  </article>
+  <article class="card" data-line="mewtwo" data-out="diagnostic">
+    <div class="cardtop"><span class="date">2026-07-19</span><span class="pill pill-diagnostic">diagnostic</span><span class="pill line">Mewtwo</span></div>
+    <h3>r14_shield_steer.bin (steer vector)</h3>
+    <div class="meta"><span>Mewtwo combo (interp intervention)</span><span>GRU r14 + activation steering</span></div>
+    <dl>
+      <dt>Trying to</dt><dd>Live mitigation of the prev-action shield-lock via steering (LEACE α&lt;1 was dead).</dd>
+      <dt>Changed</dt><dd>Not a retrain — steer vector applied at α=1.0.</dd>
+      <dt>Data</dt><dd>shield-concept vector from interp probes</dd>
+      <dt>Result</dt><dd>r14 + steer α=1.0 = first 9/9 card, 0 shield breaks, p95 215→32; α=0.5 worse than baseline.</dd>
+      <dt>Verdict</dt><dd class="verdict">diagnostic artifact (causal result), superseded</dd>
+    </dl>
+    <p class="src">HANDOFF_2026-07-20.md scoreboard</p>
+  </article>
+  <article class="card" data-line="mewtwo" data-out="failed">
+    <div class="cardtop"><span class="date">2026-07-21</span><span class="pill pill-failed">failed / reverted</span><span class="pill line">Mewtwo</span></div>
+    <h3>mewtwo_combo_newera_r15 / r16 / r17a</h3>
+    <div class="meta"><span>Mewtwo combo 'newera' (rung-2)</span><span>Mamba-2 (sequential scan)</span></div>
+    <dl>
+      <dt>Trying to</dt><dd>Make the bot INITIATE (gate-10 armed approaches/min &gt;=1.0) via conversion weighting, probe-as-regularizer, human BC, opener weighting.</dd>
+      <dt>Changed</dt><dd>r15 conversion-weight 3.0 + probe-reg; r16 + human BC; r17a + 4 levers.</dd>
+      <dt>Data</dt><dd>62-game pool; r16 adds archive-human BC (--bc-sample 20, 10.1%); r17a adds opener weighting, probe-reg, style conditioning</dd>
+      <dt>Result</dt><dd>r15 card 8.3/10, 7 conversions, armed/min ~0; r16 armed/min 0.17 (FAIL, target &gt;=1.0), 5% conversion; r17a stopped at ep48/100 for vacation, never scored.</dd>
+      <dt>Verdict</dt><dd class="verdict">failed (did not move initiation); Mewtwo line reframed as a decision problem</dd>
+    </dl>
+    <p class="src">HANDOFF_2026-07-22.md r15 result; HANDOFF_2026-07-23.md r16 verdict; HANDOFF_2026-07-24e.md</p>
+  </article>
+  <article class="card" data-line="multishine" data-out="failed">
+    <div class="cardtop"><span class="date">2026-07-24</span><span class="pill pill-failed">failed / reverted</span><span class="pill line">Fox multishine (drills)</span></div>
+    <h3>multishine_v3 / multishine_dagger_v3_r1</h3>
+    <div class="meta"><span>Fox multishine (table teacher era)</span><span>GRU</span></div>
+    <dl>
+      <dt>Trying to</dt><dd>BC the solved 9-frame multishine teacher; the policy gate of Track B.</dd>
+      <dt>Changed</dt><dd>First policy trained on a REAL multishine fixture (old fixture was 24.6% grounded, chain 1).</dd>
+      <dt>Data</dt><dd>clean closed-loop teacher fixture (max chain 186), table-driven teacher (live chain 103)</dd>
+      <dt>Result</dt><dd>BC loss 0.00148 in 12 epochs; 99.3% offline agreement but live held one reflector ~2000 frames, never shined.</dd>
+      <dt>Verdict</dt><dd class="verdict">failed live — root cause exposure bias (not the af convention, GOTCHA #81)</dd>
+    </dl>
+    <p class="src">HANDOFF_2026-07-24c.md; HANDOFF_2026-07-26.md</p>
+  </article></div>
+</section>
+<section class="era" id="E4">
+  <header class="erahead">
+    <div class="eratag">E4 · 2026-07-24 .. 2026-07-31</div>
+    <h2>Multishine teacher solved; exposure bias; latency campaign (laptop, CPU)</h2>
+    <p class="focus">Scripted closed-loop teacher (chain 186), ShineChain v3 metric, exposure bias/absorbing states, recovery synth + crouch coverage, perturbation, scheduled sampling (dead), delay ladder, sync-d2 harness on the 5090, DAgger through the delayed bridge, queue-as-input + SS-on-queue breakthrough (g2).</p>
+    <p class="src">HANDOFF_2026-07-24b..07-31.md; EXPOSURE_BIAS.md; LATENCY_ARCHITECTURE.md</p>
+  </header>
+  <div class="cards">
+  <article class="card" data-line="multishine" data-out="candidate">
+    <div class="cardtop"><span class="date">2026-07-27</span><span class="pill pill-candidate">candidate / kept</span><span class="pill line">Fox multishine (drills)</span></div>
+    <h3>ms_synth_a-c / ms_noise / ms_pa / ms_w2-16 / ms_perturb / ms_synth_ss / ms_crouch_a-l / ms_ledge_a</h3>
+    <div class="meta"><span>Fox multishine (exposure-bias campaign, laptop CPU)</span><span>GRU (tiny; ~2 min CPU train)</span></div>
+    <dl>
+      <dt>Trying to</dt><dd>Beat the absorbing states (reflector hold, crouch absorber) with synthesized recoveries and coverage; test window, prev-action, noise, scheduled sampling, perturbation.</dd>
+      <dt>Changed</dt><dd>synth = manufactured recovery states; crouch = crouch-absorber coverage; ss = scheduled sampling.</dd>
+      <dt>Data</dt><dd>fixture + RecoverySynth off-trajectory states; crouch coverage; perturbed teacher recordings</dd>
+      <dt>Result</dt><dd>baseline chains 1; synth 29-58 self/min chains 3-7; perturb chains 1-2; SS does not replicate (0/~1/7-56 across seeds); crouch_a chains 19-22, escape rate 6/12 seeds; sampling T=0.5 rescues dead seeds.</dd>
+      <dt>Verdict</dt><dd class="verdict">superseded (mechanism findings kept; recipes folded into ms_open_z)</dd>
+    </dl>
+    <p class="src">HANDOFF_2026-07-27.md, 27b, 27c, 27d; EXPOSURE_BIAS.md</p>
+  </article>
+  <article class="card" data-line="multishine" data-out="superseded">
+    <div class="cardtop"><span class="date">2026-07-28</span><span class="pill pill-superseded">superseded</span><span class="pill line">Fox multishine (drills)</span></div>
+    <h3>ms_open_z (ms_open_x/y/zz, ms_rerec_a, ms_shift_a/b, ms_delay1_a-c)</h3>
+    <div class="meta"><span>Fox multishine (laptop champion)</span><span>GRU</span></div>
+    <dl>
+      <dt>Trying to</dt><dd>Close the opening absorber; the latency campaign (delay-0 brittleness, --action-delay 1 shift).</dd>
+      <dt>Changed</dt><dd>Opening-synth added (4/4 escape); shift arms (ms_shift) produce metronomes.</dd>
+      <dt>Data</dt><dd>--synth-recovery --synth-crouch --synth-opening + dead-seed openings, --x-hold-extend 3 --prev-action, delay-0</dd>
+      <dt>Result</dt><dd>165-186 self/min, chains 15-30 (stand dummy, async windowed) = all-time laptop record; +1 frame delay collapses chains 27→2; cpu-1 ~70/min c4-6.</dd>
+      <dt>Verdict</dt><dd class="verdict">superseded by 5090 farm/g-line</dd>
+    </dl>
+    <p class="src">HANDOFF_2026-07-28.md, 07-29.md</p>
+  </article>
+  <article class="card" data-line="multishine" data-out="superseded">
+    <div class="cardtop"><span class="date">2026-07-30</span><span class="pill pill-superseded">superseded</span><span class="pill line">Fox multishine (drills)</span></div>
+    <h3>ms_d1_dagger1-3 (R3 = ms_d1_dagger3_policy), ms_d1_dagger3_r4e10/e22</h3>
+    <div class="meta"><span>Fox multishine (DAgger through the delayed bridge)</span><span>GRU</span></div>
+    <dl>
+      <dt>Trying to</dt><dd>Teach anticipation for +1 delay by DAgger through the delayed bridge with the shifted teacher.</dd>
+      <dt>Changed</dt><dd>R3 = transition-weight 2.0 + prev-action-dropout 0.6; R4 = margin fattening (resume).</dd>
+      <dt>Data</dt><dd>closed_loop_d1 teacher fixture + rollouts through online_delay=1 bridge</dd>
+      <dt>Result</dt><dd>R3 = d1 champion: sync d3 133-194/min c2-84 (delay-preference inversion); R4 live-counterproductive (c2).</dd>
+      <dt>Verdict</dt><dd class="verdict">superseded (campaign worked; retired R4 objective)</dd>
+    </dl>
+    <p class="src">HANDOFF_2026-07-29b.md; HANDOFF_2026-07-30.md</p>
+  </article>
+  <article class="card" data-line="multishine" data-out="superseded">
+    <div class="cardtop"><span class="date">2026-07-30</span><span class="pill pill-superseded">superseded</span><span class="pill line">Fox multishine (drills)</span></div>
+    <h3>ms_farm9_a-c / ms_farm11_a1-b2 / ms_farm12_*</h3>
+    <div class="meta"><span>Fox multishine (5090 seed farm)</span><span>GRU</span></div>
+    <dl>
+      <dt>Trying to</dt><dd>Re-score the lineage on the trusted sync-d2 harness; seed variance.</dd>
+      <dt>Changed</dt><dd>First 5090-trained ms policies; sync --frame-delay 2 harness (cal 0.99).</dd>
+      <dt>Data</dt><dd>champion recipe (farm-6 ARM B), fresh seeds, ~40 s/seed on the 5090</dd>
+      <dt>Result</dt><dd>sync d2: 258-288/min, chains 79-176 (first probe 264); headless == windowed; 'farm-11 perfect bots'.</dd>
+      <dt>Verdict</dt><dd class="verdict">superseded by queue/SS arms</dd>
+    </dl>
+    <p class="src">HANDOFF_2026-07-30.md tables; HANDOFF_2026-07-31.md intro</p>
+  </article>
+  <article class="card" data-line="multishine" data-out="failed">
+    <div class="cardtop"><span class="date">2026-07-31</span><span class="pill pill-failed">failed / reverted</span><span class="pill line">Fox multishine (drills)</span></div>
+    <h3>ms_g1_jq / ms_g1_mdq / ms_g1_jitter5 / ms_q_ctrl1 / ms_q_queue1</h3>
+    <div class="meta"><span>Fox multishine g-line (queue-as-input)</span><span>GRU</span></div>
+    <dl>
+      <dt>Trying to</dt><dd>Grind-1: make one checkpoint chain at d2/d3/d4 by feeding the in-flight input queue and a delay id.</dd>
+      <dt>Changed</dt><dd>Teacher-forced queue (mdq) vs jitter vs both (jq).</dd>
+      <dt>Data</dt><dd>multi-delay {2,3,4} shifted pools + pipeline-offset 2 + queue-depth 4 + delay-id one-hot (+ shift-jitter)</dd>
+      <dt>Result</dt><dd>mdq d2 77 c2 / d3 73 c1 / d4 111 c9; jq d3 = 0 shines (crouch absorber, delay-id channel triggered: id=4 at real d3 → 431 c430).</dd>
+      <dt>Verdict</dt><dd class="verdict">failed (no arm chained &gt;=20); led to SS-on-queue</dd>
+    </dl>
+    <p class="src">HANDOFF_2026-07-31.md grind-1 table; HANDOFF_2026-08-03.md item 1</p>
+  </article>
+  <article class="card" data-line="multishine" data-out="superseded">
+    <div class="cardtop"><span class="date">2026-07-31</span><span class="pill pill-superseded">superseded</span><span class="pill line">Fox multishine (drills)</span></div>
+    <h3>ms_g2_mdq_ss</h3>
+    <div class="meta"><span>Fox multishine g-line</span><span>GRU</span></div>
+    <dl>
+      <dt>Trying to</dt><dd>Grind-2: break the d3 rung by self-sampling the queue channel (SS-on-queue).</dd>
+      <dt>Changed</dt><dd>Scheduled sampling on the queue input.</dd>
+      <dt>Data</dt><dd>mdq recipe + --scheduled-sampling 0.5 --ss-ramp 10 (all 4 queue slots self-sampled)</dd>
+      <dt>Result</dt><dd>d2 140 c6 / d3 380.5 c367 (×3 identical) / d4 435 c436; Direct loopback verified sharp 5f latency at --frame-delay 3; vs human 21-29 shines, chain 1.</dd>
+      <dt>Verdict</dt><dd class="verdict">superseded (Direct showpiece until g4/g10b)</dd>
+    </dl>
+    <p class="src">HANDOFF_2026-07-31.md grind-2; HANDOFF_2026-08-02.md; HANDOFF_2026-08-04.md table</p>
+  </article></div>
+</section>
+<section class="era" id="E5">
+  <header class="erahead">
+    <div class="eratag">E5 · 2026-08-02 .. 2026-08-24</div>
+    <h2>Delay campaign + human-netplay crowns; curation loop; peak science</h2>
+    <p class="focus">ms_g4→g6 (reverted)→g10b→g15→g19_ep4 crown chain; human-snippet curation, opponent-mask augmentation, AWBC, gate-sweep (peaks are transient), F3 distillation; interp P4–P6, CycleSim, SAE; memory-watch/menus/JIT; stage geometry; full-game IL harness (fox_il_v1/v2, edgeB, convC2 generalist crown).</p>
+    <p class="src">HANDOFF_2026-08-02..08-25.md; memory project_status_archive.md, project_status_2026-08-mid.md</p>
+  </header>
+  <div class="cards">
+  <article class="card" data-line="mewtwo" data-out="parked">
+    <div class="cardtop"><span class="date">2026-08-02</span><span class="pill pill-parked">parked</span><span class="pill line">Mewtwo</span></div>
+    <h3>mc_g1_mdq_ss</h3>
+    <div class="meta"><span>Mewtwo (SS-on-queue arm)</span><span>GRU</span></div>
+    <dl>
+      <dt>Trying to</dt><dd>Does SS-on-queue generalize to the Mewtwo punish cycle under delay?</dd>
+      <dt>Changed</dt><dd>Only Mewtwo policy trained with the full grind-2 recipe.</dd>
+      <dt>Data</dt><dd>--expert mewtwo_combo composite, 130,847 fixture frames × 3 delay pools, 60 epochs, best loss 0.58</dd>
+      <dt>Result</dt><dd>stand d3: 3 fairs/3 landed/L-cancel 1/3 (champion-parity activity two rungs deeper); conversion vs tech_random never evaluated.</dd>
+      <dt>Verdict</dt><dd class="verdict">parked (netplay-safe curiosity, not demo-grade)</dd>
+    </dl>
+    <p class="src">HANDOFF_2026-08-02.md</p>
+  </article>
+  <article class="card" data-line="multishine" data-out="superseded">
+    <div class="cardtop"><span class="date">2026-08-03</span><span class="pill pill-superseded">superseded</span><span class="pill line">Fox multishine (drills)</span></div>
+    <h3>ms_g3_jq_ss / ms_g4_d2mix / ms_g5_ladder8</h3>
+    <div class="meta"><span>Fox multishine g-line</span><span>GRU</span></div>
+    <dl>
+      <dt>Trying to</dt><dd>Explain the d2 inversion; test the delay ladder past d4.</dd>
+      <dt>Changed</dt><dd>g4 = d2 source-distribution arm; g5 = ladder to d8.</dd>
+      <dt>Data</dt><dd>grind-3/4/5 pools: SS + jitter; d2 source mix; multi-delay {2,4,6,8}</dd>
+      <dt>Result</dt><dd>g4 = d3 record 424.4 c423; vs human 40 shines chain 2 (best of the day); g5 d2 pin shattered 205.8 c73; d6/d8 metronomes (18-frame netplay rejected).</dd>
+      <dt>Verdict</dt><dd class="verdict">g4 = production 08-04..08-05 (after g6 reversal); superseded by g10b</dd>
+    </dl>
+    <p class="src">HANDOFF_2026-08-03.md items 5-6; HANDOFF_2026-08-04.md table</p>
+  </article>
+  <article class="card" data-line="multishine" data-out="failed">
+    <div class="cardtop"><span class="date">2026-08-03</span><span class="pill pill-failed">failed / reverted</span><span class="pill line">Fox multishine (drills)</span></div>
+    <h3>ms_g6_sp1 (+ sp2, g7_pressure, g8_snippets, g9_sp34)</h3>
+    <div class="meta"><span>Fox multishine g-line</span><span>GRU</span></div>
+    <dl>
+      <dt>Trying to</dt><dd>One checkpoint for the whole netplay band; test rung spacing and fight-state mixing.</dd>
+      <dt>Changed</dt><dd>Rung set {2,3} only.</dd>
+      <dt>Data</dt><dd>multi-delay {2,3} champion recipe; g7 = whole-rollout pressure mix; g8 = 103 mined snippets</dd>
+      <dt>Result</dt><dd>d2 434.5 c434 / d3 413.4 c409 / d4 332.4 c313 (id override 3) — crowned 08-03; vs human: 0 shines in 2 games. g7 +43% under pressure but stand 72.9 c1; g8 stand 385.5 c374, no pressure gain.</dd>
+      <dt>Verdict</dt><dd class="verdict">CROWN REVERTED 08-04 — the 'g6 lesson' (dummy ranking inverts against humans; overfit to opponent-percent as cycle clock)</dd>
+    </dl>
+    <p class="src">HANDOFF_2026-08-03b.md; HANDOFF_2026-08-04.md headline; CLAUDE.md standing rule</p>
+  </article>
+  <article class="card" data-line="multishine" data-out="crowned">
+    <div class="cardtop"><span class="date">2026-08-04</span><span class="pill pill-crowned">crowned</span><span class="pill line">Fox multishine (drills)</span></div>
+    <h3>ms_g10_human (invalid) / ms_g10b_human</h3>
+    <div class="meta"><span>Fox multishine g-line (human curation loop)</span><span>GRU</span></div>
+    <dl>
+      <dt>Trying to</dt><dd>Curation cycle 3: fix the fight-state/absorber gap with aligned human-game snippets.</dd>
+      <dt>Changed</dt><dd>First human-corpus snippets; alignment of miner delay to the drill.</dd>
+      <dt>Data</dt><dd>g4 recipe + 12,339 REAL-HUMAN snippet frames re-mined at --action-delay 2 (g10 mined at 5 = misaligned)</dd>
+      <dt>Result</dt><dd>stand d3 421.4 c421; YS collapse 0/3 then 11/11 no-collapse (chains 43-208); rung-0 1.44; HUMAN NETPLAY chain 4 at d4 (record), local chain 22; later strict chain 58 vs a still Fox, 1 vs Mewtwo.</dd>
+      <dt>Verdict</dt><dd class="verdict">CROWNED 08-05 (deploy --frame-delay 4); superseded by g15 (08-09)</dd>
+    </dl>
+    <p class="src">HANDOFF_2026-08-04b.md headline + 08-05 addendum; memory project_status_archive.md</p>
+  </article>
+  <article class="card" data-line="multishine" data-out="failed">
+    <div class="cardtop"><span class="date">2026-08-04</span><span class="pill pill-failed">failed / reverted</span><span class="pill line">Fox multishine (drills)</span></div>
+    <h3>ms_g11_yaug / ms_g11b_yaug; bakeoff_gru / bakeoff_mamba2; ms_g12_margin</h3>
+    <div class="meta"><span>Fox multishine g-line (lever A/Bs)</span><span>GRU (bakeoff: mamba_2)</span></div>
+    <dl>
+      <dt>Trying to</dt><dd>Fix the YS platform absorber (altitude augmentation); bake-off #27; widen aerial-shine margins for the delay gap.</dd>
+      <dt>Changed</dt><dd>Single-lever arms off g10b.</dd>
+      <dt>Data</dt><dd>g10b recipe + y-augmentation; champion recipe on mamba_2; margin-weight lever</dd>
+      <dt>Result</dt><dd>g11b all-time stand record 428.4 c427 but ~80% YS collapse (n=10); mamba_2 stand 121.8 c1, rung-0 2.91 (fits data, fails closed-loop → GRU stays); g12 margins moved (−0.23/+0.28/+0.33) stand held, human A/B negative.</dd>
+      <dt>Verdict</dt><dd class="verdict">parked / failed (g10b &gt; g4 &gt; g11b)</dd>
+    </dl>
+    <p class="src">HANDOFF_2026-08-04b.md evening addendum; HANDOFF_2026-08-07 via memory archive</p>
+  </article>
+  <article class="card" data-line="multishine" data-out="crowned">
+    <div class="cardtop"><span class="date">2026-08-08</span><span class="pill pill-crowned">crowned</span><span class="pill line">Fox multishine (drills)</span></div>
+    <h3>ms_g13_oppmix / ms_g13b_oppmix / ms_g14_oppmask / ms_g15_oppmask_full</h3>
+    <div class="meta"><span>Fox multishine g-line (opponent-character augmentation)</span><span>GRU</span></div>
+    <dl>
+      <dt>Trying to</dt><dd>Opponent character is the fight-state wall (chain 58 vs still Fox → 1 vs still Mewtwo); teach invariance via masking.</dd>
+      <dt>Changed</dt><dd>g13 coherent redress → inverted; g14 partial scramble (dependence floor 1.08); g15 full scramble.</dd>
+      <dt>Data</dt><dd>g10b recipe + opponent-character redress (g13), per-frame 3-field scramble (g14), full-block scramble (g15)</dd>
+      <dt>Result</dt><dd>g15: stand 430.4 c426 record (×3 bit-identical), YS c24/21/13 no collapse, chains 12-13 vs Bradley's LIVE Mewtwo, rung-0 4.28 (scramble detection); champion card: netplay chain 46 record, {3,1,46,6} decider vs g10b.</dd>
+      <dt>Verdict</dt><dd class="verdict">ms_g15_oppmask_full CROWNED 08-09, champion-of-record until 08-24; now the FALLBACK</dd>
+    </dl>
+    <p class="src">HANDOFF_2026-08-08.md; CLAUDE.md Current Status; memory project_status_archive.md</p>
+  </article>
+  <article class="card" data-line="generalist" data-out="superseded">
+    <div class="cardtop"><span class="date">2026-08-09</span><span class="pill pill-superseded">superseded</span><span class="pill line">Generalist Fox (replay BC)</span></div>
+    <h3>fox_il_v1 / fox_il_v2 / fox_il_v2_long</h3>
+    <div class="meta"><span>full-game IL harness (pre-generalist)</span><span>GRU (temporal)</span></div>
+    <dl>
+      <dt>Trying to</dt><dd>Validate full-game imitation at scale (the representation question behind the multishine program).</dd>
+      <dt>Changed</dt><dd>v1 had fixed player_port 1 (62% wrong player); v2 = corrected corpus via MmapCorpus.</dd>
+      <dt>Data</dt><dd>v1: 900 HF games/5.4M frames stride 30; v2: mmap corpus fox_v2 4,418 games/41.4M frames (fixed port bug)</dd>
+      <dt>Result</dt><dd>v1 val 5.49→4.95 in 10 epochs; v2 val 5.687→5.374 monotone (49 min); live: completes games vs CPU, 42 actions, loses 2 stocks takes 0.</dd>
+      <dt>Verdict</dt><dd class="verdict">harness validated; superseded by fox_gen line</dd>
+    </dl>
+    <p class="src">HANDOFF_2026-08-08.md discovery 2; memory project_status_archive.md 08-08</p>
+  </article>
+  <article class="card" data-line="generalist" data-out="crowned">
+    <div class="cardtop"><span class="date">2026-08-11</span><span class="pill pill-crowned">crowned</span><span class="pill line">Generalist Fox (replay BC)</span></div>
+    <h3>fox_il_v2_edgeA / edgeB / convC1 / convC2 / convC3 / convC4</h3>
+    <div class="meta"><span>full-game IL (edge/conversion DAgger mixes)</span><span>GRU</span></div>
+    <dl>
+      <dt>Trying to</dt><dd>Kill the SD loop and add conversions by targeted snippet mixes; blind human decider for a generalist crown.</dd>
+      <dt>Changed</dt><dd>edgeB = edge mix only; convC2 = edge + conversion stacked; C3/C4 = flaw-mix doses.</dd>
+      <dt>Data</dt><dd>fox_v2 corpus + edge-DAgger snippets (edgeB) + merged edge+conversion mix x18 (convC2), x12 (C3), x19 (C4)</dd>
+      <dt>Result</dt><dd>edgeB SDs 18.4→0.6; convC2 async stocks 0.9/game vs 0.5, 6-game blind decider: only human stock taken, dmg 113 vs 94 → GENERALIST CROWN 08-12; C3 dilution regression; C4 = C2−ε, val 5.447.</dd>
+      <dt>Verdict</dt><dd class="verdict">convC2 crowned (pre-erickfm generalist); superseded by fox_gen/V3 line</dd>
+    </dl>
+    <p class="src">memory project_status_2026-08-mid.md (convC2 crown, flaw campaign); registry.json val 5.39-5.48</p>
+  </article>
+  <article class="card" data-line="multishine" data-out="superseded">
+    <div class="cardtop"><span class="date">2026-08-13</span><span class="pill pill-superseded">superseded</span><span class="pill line">Fox multishine (drills)</span></div>
+    <h3>ms_awbc_b1 / b2 / b3; ms_g16_awbc</h3>
+    <div class="meta"><span>Fox multishine g-line (advantage-weighted BC)</span><span>GRU</span></div>
+    <dl>
+      <dt>Trying to</dt><dd>First outcome-signal test: do shine-reward advantage weights improve chains?</dd>
+      <dt>Changed</dt><dd>Loss re-weighting by return-to-go.</dd>
+      <dt>Data</dt><dd>champion recipe; B2 = AWBC loss weights on chain-critical frames; B3 = shuffled placebo; g16 = g15 recipe + --awbc</dd>
+      <dt>Result</dt><dd>B2 333.5/min c302 vs B1 284.6 c249 (+17/+21%); B3 placebo collapsed to c2; deploy rung no inversion (chain 21). g16 253.6 fox / 109.8 mewtwo (best fixed-stack at the time; stack had the nx grad regression #98).</dd>
+      <dt>Verdict</dt><dd class="verdict">AWBC graduated (regional, starves non-shine skills); g16 superseded</dd>
+    </dl>
+    <p class="src">memory project_status_archive.md (0813_awbc_ms RESULTS summary; 08-14..16 arc)</p>
+  </article>
+  <article class="card" data-line="multishine" data-out="superseded">
+    <div class="cardtop"><span class="date">2026-08-19</span><span class="pill pill-superseded">superseded</span><span class="pill line">Fox multishine (drills)</span></div>
+    <h3>ms_g15r_gradfix / ms_g15r2 / ms_g17_lr4e-4 / ms_g17_lr8e-4 / ms_g18 (ep90)</h3>
+    <div class="meta"><span>Fox multishine g-line (replicates on the fixed stack)</span><span>GRU</span></div>
+    <dl>
+      <dt>Trying to</dt><dd>Replicate the champion on the fixed nx stack; is lr the lever; why do runs collapse?</dd>
+      <dt>Changed</dt><dd>Same recipe, different seeds/lr; collapse guard (loss&lt;1e-5 → restore).</dd>
+      <dt>Data</dt><dd>g15 recipe replicates; g17 = lr arms; g18 = awbc + collapse guard</dd>
+      <dt>Result</dt><dd>g15r2 ep50 rescue 362.5/min c353 (best fixed-stack ever, then collapsed ep51); g17 negative (151.8 c88 / 103.9 c5); g18 attempt-1 collapsed ep10, attempt-2 419.4 c415 at EPOCH 13 (mewtwo 99.9 c2).</dd>
+      <dt>Verdict</dt><dd class="verdict">superseded — discovery: run-to-run variance dominates; chain skill lives on transient peaks</dd>
+    </dl>
+    <p class="src">memory project_status_archive.md HANDOFF_2026-08-19 addendum; eval_runs/0819_g15r2, 0820_collapse_forensics</p>
+  </article>
+  <article class="card" data-line="multishine" data-out="crowned">
+    <div class="cardtop"><span class="date">2026-08-20</span><span class="pill pill-crowned">crowned</span><span class="pill line">Fox multishine (drills)</span></div>
+    <h3>ms_g19 → ms_g19_ep4.bin</h3>
+    <div class="meta"><span>Fox multishine g-line</span><span>GRU (windowed, queue+delay-id, trained ids {2,3})</span></div>
+    <dl>
+      <dt>Trying to</dt><dd>Recipe fix for transient peaks: save every epoch and select by behavioral argmax across a multi-gate profile.</dd>
+      <dt>Changed</dt><dd>Epoch-4 snapshot picked by gate sweep (final epoch gated 122.8).</dd>
+      <dt>Data</dt><dd>g15 recipe (+human snippets, oppmask) with --snapshot-all + gate_sweep every epoch</dd>
+      <dt>Result</dt><dd>stand d3 437.4/min c438 ×3 (all-time record); d4+id3 388.4 c389; YS no-collapse; mewtwo 93.9 c1; d2 dead; human session chains 96 &amp; 163 (records, 08-21 blind local decider); NETPLAY CHAIN 62 (08-22); crown decider 08-24 FD-pinned {32,12} vs g15 {3,3,13}.</dd>
+      <dt>Verdict</dt><dd class="verdict">CROWNED PRODUCTION 2026-08-24 (deploy netplay --frame-delay 4 --delay-id-override 3; local d3)</dd>
+    </dl>
+    <p class="src">CLAUDE.md Current Status; memory project_status_archive.md (0820_g19_gatesweep, 0820_g19_decider); DEPLOY_KNOBS.md; eval_runs/0824_crown_decider</p>
+  </article>
+  <article class="card" data-line="multishine" data-out="superseded">
+    <div class="cardtop"><span class="date">2026-08-21</span><span class="pill pill-superseded">superseded</span><span class="pill line">Fox multishine (drills)</span></div>
+    <h3>ms_g20 (ep13) / ms_g20si / ms_g20si2; ms_p1_anneal / ms_p2_ss0 / ms_p2_ssfull</h3>
+    <div class="meta"><span>Fox multishine g-line (peak science)</span><span>GRU</span></div>
+    <dl>
+      <dt>Trying to</dt><dd>Is the trajectory shape stable (R-WANDER)? Is lr or SS the hopping mechanism?</dd>
+      <dt>Changed</dt><dd>Replicate + anneal + SS dose arms.</dd>
+      <dt>Data</dt><dd>g19 recipe replicate; lr anneal; SS 0 / full on the queue</dd>
+      <dt>Result</dt><dd>g20 ep13 stand 435, MEWTWO 424.4 c422 (all-time record, opponent-invariant) but d4-id3 DEAD (1.0); P1 anneal = drift/hop (53% dwell); P2 null (ss0 ep18 439.4 c440 = highest single gate ever; full SS softens bimodality).</dd>
+      <dt>Verdict</dt><dd class="verdict">superseded (decider pool member; hopping mechanism intrinsic/open)</dd>
+    </dl>
+    <p class="src">memory project_status_archive.md (0820_g20_replicate, 0821_peak_p2_ss RESULTS)</p>
+  </article>
+  <article class="card" data-line="multishine" data-out="crowned">
+    <div class="cardtop"><span class="date">2026-08-22</span><span class="pill pill-crowned">crowned</span><span class="pill line">Fox multishine (drills)</span></div>
+    <h3>ms_f3_a2_anchor (ep13) / ms_f3_a3_anchor2x (ep8) / ms_f3_a4_dose2x</h3>
+    <div class="meta"><span>Fox multishine g-line (F3 KL-distillation anchor)</span><span>GRU</span></div>
+    <dl>
+      <dt>Trying to</dt><dd>Protect skill while absorbing data (anchor) and test whether dose is toxic.</dd>
+      <dt>Changed</dt><dd>KL anchor on/off × human-snippet dose 1x/2x.</dd>
+      <dt>Data</dt><dd>g19 recipe + distill-KL to teacher g19_ep4; human dose 1x vs 2x; a4 = 2x dose no anchor</dd>
+      <dt>Result</dt><dd>a3 ep8: fox 438.4 c439 ×3 (new stand record) / mewtwo 434.4 c433 / d4-id3 376.4 c372 = best all-around profile; stability dose-driven (2x 61-77% dwell vs 1x 20-40%); anchor = opponent-invariant profile shaping.</dd>
+      <dt>Verdict</dt><dd class="verdict">candidate/decider-pool (not crowned; dose was never toxic)</dd>
+    </dl>
+    <p class="src">memory project_status_archive.md (eval_runs/0819_f3_distill RESULTS, 08-22 attribution)</p>
+  </article>
+  <article class="card" data-line="multishine" data-out="candidate">
+    <div class="cardtop"><span class="date">2026-08-24</span><span class="pill pill-candidate">candidate / kept</span><span class="pill line">Fox multishine (drills)</span></div>
+    <h3>ms_g19r1 / ms_g19r2 / ms_g19r3 (ep4)</h3>
+    <div class="meta"><span>Fox multishine g-line (transfer replicates)</span><span>GRU</span></div>
+    <dl>
+      <dt>Trying to</dt><dd>Pick a broadly-transferring checkpoint where the champion is popo-only; transfer decider (D7) vs opponent character.</dd>
+      <dt>Changed</dt><dd>Seed replicates of g19 scored on a multi-gate profile.</dd>
+      <dt>Data</dt><dd>g19 recipe reruns for the transfer decider</dd>
+      <dt>Result</dt><dd>ms_g19r3_ep4 = transfer-selected candidate ('broad transfer where champion is popo-only'); decider paused mid-setup, key unread; 3 banked games discarded.</dd>
+      <dt>Verdict</dt><dd class="verdict">candidate (D7 transfer decider never completed)</dd>
+    </dl>
+    <p class="src">CLAUDE.md Production note; memory project_status_2026-08-28.md thread 3</p>
+  </article></div>
+</section>
+<section class="era" id="E6">
+  <header class="erahead">
+    <div class="eratag">E6 · 2026-08-25 .. 2026-09-09</div>
+    <h2>Generalist Fox from the erickfm corpus (fox_gen v1 → v2)</h2>
+    <p class="focus">BC on 7,911 then 28k master Fox games; decode ladder (T=0.5, mode-of-N, critic selector — all mode-seeking decodes die live); AR head; port/opponent corpus bugs (#107); window-180; BPTT; clean loss (taunt mechanism); the delay-0 LABEL LEAK (#113) and INVARIANTS/causal labels.</p>
+    <p class="src">HANDOFF_2026-08-26..09-09.md; V2_PREP.md; memory 08-28..09-05 status</p>
+  </header>
+  <div class="cards">
+  <article class="card" data-line="generalist" data-out="superseded">
+    <div class="cardtop"><span class="date">2026-08-25</span><span class="pill pill-superseded">superseded</span><span class="pill line">Generalist Fox (replay BC)</span></div>
+    <h3>fox_gen_pilot1 / fox_gen_pilot1_fixed</h3>
+    <div class="meta"><span>generalist Fox (erickfm corpus)</span><span>GRU-60</span></div>
+    <dl>
+      <dt>Trying to</dt><dd>Generalist restart pilot: does BC on master replays produce a playable Fox? Expected idle/crouch BC baseline.</dd>
+      <dt>Changed</dt><dd>First erickfm-corpus policy; metadata-corrected copy (_fixed).</dd>
+      <dt>Data</dt><dd>300 of the 7,911 erickfm master-master Fox games, 20 epochs</dd>
+      <dt>Result</dt><dd>val 4.694 (registry 4.78); live: mostly idles, crouches when approached, occasional jab/dtilt/short-hop.</dd>
+      <dt>Verdict</dt><dd class="verdict">superseded by fox_gen_v1</dd>
+    </dl>
+    <p class="src">HANDOFF_2026-08-25.md lines 56-62; registry.json</p>
+  </article>
+  <article class="card" data-line="generalist" data-out="superseded">
+    <div class="cardtop"><span class="date">2026-08-26</span><span class="pill pill-superseded">superseded</span><span class="pill line">Generalist Fox (replay BC)</span></div>
+    <h3>fox_gen_v1 (ep10 = default) + critic_fox_gen_v1</h3>
+    <div class="meta"><span>generalist Fox (erickfm corpus)</span><span>GRU-60 (512,512,256), stride 5, batch 256, f32, lr 1e-4, --stage-internals (296-dim)</span></div>
+    <dl>
+      <dt>Trying to</dt><dd>Full generalist BC run; find a decode that plays.</dd>
+      <dt>Changed</dt><dd>First full-corpus generalist; parallel (independent) heads.</dd>
+      <dt>Data</dt><dd>7,911 master Fox games (~90M frames), 10 epochs, ~11.4 h — later found 43% of demos were the OPPONENT (port-1 imitation, E1)</dd>
+      <dt>Result</dt><dd>val 6.639→5.789; argmax dead in ~32 s (4 SDs); T=0.5: 35% conversions, 0.50 armed/min, 1.7 deaths/game; default live decode --temperature 0.5 --buttons-temperature 0.5 (Bradley: 'less taunty, hints of a fast scrappy game'); Leg S headroom +29 pts; no ground movement (DASH 0.1%).</dd>
+      <dt>Verdict</dt><dd class="verdict">superseded (v1 decode ladder exhausted — L9: mode-seeking decodes die live)</dd>
+    </dl>
+    <p class="src">HANDOFF_2026-08-26.md §2; memory project_status_2026-08-28_evening.md, 08-29.md, 08-30.md (E1)</p>
+  </article>
+  <article class="card" data-line="generalist" data-out="failed">
+    <div class="cardtop"><span class="date">2026-08-29</span><span class="pill pill-failed">failed / reverted</span><span class="pill line">Generalist Fox (replay BC)</span></div>
+    <h3>fox_gen_v1_B1 / B2 / B3 (AWBC arms)</h3>
+    <div class="meta"><span>generalist Fox</span><span>GRU-60</span></div>
+    <dl>
+      <dt>Trying to</dt><dd>Does outcome re-weighting reduce pathologies (taunts, pummel loops) on the generalist?</dd>
+      <dt>Changed</dt><dd>AWBC on human corpus with Rewards.Standard.</dd>
+      <dt>Data</dt><dd>3 epochs from v1 ep10, seed 828; B2 = outcome-weighted (AWBC), B3 = shuffled placebo, B1 plain</dd>
+      <dt>Result</dt><dd>val 5.73/5.67/5.77; NULL by prereg (max ratio 1.5x, ranges overlap; B2 worst on d_up); Bradley: all three feel better than ep10, B1&gt;=B2, no human-callable ranking.</dd>
+      <dt>Verdict</dt><dd class="verdict">failed/null (AWBC at default sharpness is dry)</dd>
+    </dl>
+    <p class="src">memory project_status_2026-08-29.md; registry.json</p>
+  </article>
+  <article class="card" data-line="generalist" data-out="candidate">
+    <div class="cardtop"><span class="date">2026-08-31</span><span class="pill pill-candidate">candidate / kept</span><span class="pill line">Generalist Fox (replay BC)</span></div>
+    <h3>fox_gen_v1.1_ARhead / INDhead → v1.1_AR / v1.1_IND (unfreeze) → v1.2_ARrefit / INDrefit</h3>
+    <div class="meta"><span>generalist Fox (autoregressive head)</span><span>GRU-60 + slippi-ai-style residual AR head (sequential component sampling)</span></div>
+    <dl>
+      <dt>Trying to</dt><dd>Fix independent heads (P(up|B) 2.9x in experts, 1.05x in IND) so up-B recoveries happen; AUTOREGRESSIVE_HEAD_PLAN.md.</dd>
+      <dt>Changed</dt><dd>AR head (teacher-forced tf_* inputs, fused sampler 2.53 ms) vs IND control.</dd>
+      <dt>Data</dt><dd>head-only refit on 12.14M captured rows; unfreeze 3 epochs from ep10 on the --select-character-port corpus; v1.2 = refit of the atrophied wire</dd>
+      <dt>Result</dt><dd>8a bracket: AR up-B route 8.3% vs IND 0.0, recovery deaths 35.4 vs 51.1%; unfreeze val AR 5.4797 vs IND 5.9733 (0.5-nat conditioning gap); both crush ep10 recovery (died 28/36% vs 61%); v1.2_ARrefit passed both gates; Bradley: 'survival much better, airdodge panic down; NO POSITIONAL PLAY'.</dd>
+      <dt>Verdict</dt><dd class="verdict">superseded (AR head KEPT as the standard head)</dd>
+    </dl>
+    <p class="src">memory project_status_2026-08-30.md, 2026-08-31.md; registry.json</p>
+  </article>
+  <article class="card" data-line="generalist" data-out="candidate">
+    <div class="cardtop"><span class="date">2026-09-01</span><span class="pill pill-candidate">candidate / kept</span><span class="pill line">Generalist Fox (replay BC)</span></div>
+    <h3>fox_gen_v1.3_AR / IND / ARrefit / INDrefit (+ dynamics_fox_v11AR)</h3>
+    <div class="meta"><span>generalist Fox (corpus-corruption fix)</span><span>GRU-60 + AR head</span></div>
+    <dl>
+      <dt>Trying to</dt><dd>Pre-registered: does fixing the zero-self/opponent-slot corruption invert approach_delta (retreat → approach)?</dd>
+      <dt>Changed</dt><dd>First policy on an uncorrupted port-remapped corpus.</dd>
+      <dt>Data</dt><dd>v1.1 recipe rerun on the repaired loader (GOTCHA #107: opponent had been DROPPED on ~44% of files) + head refit</dd>
+      <dt>Result</dt><dd>val AR 5.3242 / IND 5.7643; approach_delta −0.20..−0.26 → +0.04/+0.11/+0.19 (expert's rising-with-distance sign); died 44% (ambiguous); Bradley: first punish structure (uthrow→uair), survival mixed; combo-depth probe: knowledge present, state-visitation caps it.</dd>
+      <dt>Verdict</dt><dd class="verdict">primary PASSED; superseded by v1.4/w180/v15</dd>
+    </dl>
+    <p class="src">memory project_status_2026-08-31.md 09-01 entries; registry.json</p>
+  </article>
+  <article class="card" data-line="multishine" data-out="candidate">
+    <div class="cardtop"><span class="date">2026-09-02</span><span class="pill pill-candidate">candidate / kept</span><span class="pill line">Fox multishine (drills)</span></div>
+    <h3>fox_gen_v1.3_AWBCdrill</h3>
+    <div class="meta"><span>generalist Fox (drill mix)</span><span>GRU-60 + AR head</span></div>
+    <dl>
+      <dt>Trying to</dt><dd>Close the 1-2-hit punish cap with savestate-style drills + AWBC on drill replays.</dd>
+      <dt>Changed</dt><dd>First drill-mix generalist.</dd>
+      <dt>Data</dt><dd>v1.3 + 538 uthrow drill episodes sliced to 129,658 AWBC-weighted frames (Drill 1 hit-confirm)</dd>
+      <dt>Result</dt><dd>val 5.19; 0-19% band 2.9→3.7 mean hits, 30→41% deep; but 8+-hit laser strings doubled (12→26%), mean dmg flat 16.4→17.5 (expert 27).</dd>
+      <dt>Verdict</dt><dd class="verdict">PARTIAL (AWBC amplified reachable laser continuations); live transfer look owed</dd>
+    </dl>
+    <p class="src">memory project_status_2026-09-02.md; registry.json</p>
+  </article>
+  <article class="card" data-line="generalist" data-out="superseded">
+    <div class="cardtop"><span class="date">2026-09-03</span><span class="pill pill-superseded">superseded</span><span class="pill line">Generalist Fox (replay BC)</span></div>
+    <h3>fox_gen_v1.4_long</h3>
+    <div class="meta"><span>generalist Fox (compute arm)</span><span>GRU-60 + AR head</span></div>
+    <dl>
+      <dt>Trying to</dt><dd>Is the generalist underfit? Compute-only control for the drill 2x2.</dd>
+      <dt>Changed</dt><dd>Epochs only.</dd>
+      <dt>Data</dt><dd>v1.3 recipe at 2.3x compute (4 epochs)</dd>
+      <dt>Result</dt><dd>val 5.324→5.241 monotone (best fox_gen val at the time); T=1.0 survives full games (frozen 0.00, d_up 410/min); drill metric 1.9 hits (flat-to-worse) → scale and drills are independent levers.</dd>
+      <dt>Verdict</dt><dd class="verdict">underfit CONFIRMED; superseded</dd>
+    </dl>
+    <p class="src">memory project_status_2026-09-02.md 09-03 dawn addendum; registry.json</p>
+  </article>
+  <article class="card" data-line="generalist" data-out="superseded">
+    <div class="cardtop"><span class="date">2026-09-04</span><span class="pill pill-superseded">superseded</span><span class="pill line">Generalist Fox (replay BC)</span></div>
+    <h3>fox_gen_w180 / fox_gen_w180b</h3>
+    <div class="meta"><span>generalist Fox (context arm)</span><span>GRU, window 180 (vs 60) + AR head</span></div>
+    <dl>
+      <dt>Trying to</dt><dd>Is context (window length) a lever for the neutral layer (dash-dance, approach)?</dd>
+      <dt>Changed</dt><dd>--window-size 180 (the first launch silently ignored --window; GOTCHA #108).</dd>
+      <dt>Data</dt><dd>same corpus, 2 / 6 epochs</dd>
+      <dt>Result</dt><dd>val 5.339 (w180) / 5.2082 (w180b, all-time fox_gen best); toward-sign flips positive, approach gradient near-expert at 70-100; d_up spray 430-450/min unchanged; Bradley: 'still random-feeling, can't combo, punishable, SDs'.</dd>
+      <dt>Verdict</dt><dd class="verdict">context lever CONFIRMED → BPTT build; superseded</dd>
+    </dl>
+    <p class="src">memory project_status_2026-09-03.md; registry.json</p>
+  </article>
+  <article class="card" data-line="generalist" data-out="superseded">
+    <div class="cardtop"><span class="date">2026-09-05</span><span class="pill pill-superseded">superseded</span><span class="pill line">Generalist Fox (replay BC)</span></div>
+    <h3>fox_gen_v15_bptt (shakeout) / fox_gen_v15_full</h3>
+    <div class="meta"><span>generalist Fox (v1.5 BPTT)</span><span>GRU 512x3 carried-state BPTT (unroll 80, batch 128) + AR head</span></div>
+    <dl>
+      <dt>Trying to</dt><dd>slippi-ai parity plank 1: truncated BPTT over games with carried recurrent state (after the eager-slice recompile fix, GOTCHA #112).</dd>
+      <dt>Changed</dt><dd>First BPTT-trained generalist; needs --stateful-step live.</dd>
+      <dt>Data</dt><dd>shakeout 2,500 files 2 epochs; full 10,037 files (7,911 FOX + 2,126 partner files), 6 epochs, resume from v1 ep10 trunk</dd>
+      <dt>Result</dt><dd>shakeout val 5.85; full val 5.3005 (5.536→5.30 monotone, ~2.1 h/epoch); Bradley: best-yet but taunt/shield-grab spam → taunt mechanism = pos_weight sqrt-cap 30 (corpus taunts 0.02/min vs bot 0.5-0.7).</dd>
+      <dt>Verdict</dt><dd class="verdict">superseded by v16/v2 (clean loss)</dd>
+    </dl>
+    <p class="src">memory project_status_2026-09-04_throughput.md; project_status_2026-09-05_v2_launch.md; registry.json</p>
+  </article>
+  <article class="card" data-line="generalist" data-out="candidate">
+    <div class="cardtop"><span class="date">2026-09-05</span><span class="pill pill-candidate">candidate / kept</span><span class="pill line">Generalist Fox (replay BC)</span></div>
+    <h3>fox_gen_v16a_cleanloss / v16b_neutral05 / v16c_transition3 / v16d_offstage4</h3>
+    <div class="meta"><span>generalist Fox (v16 ablation twins on shakeout_v15)</span><span>GRU BPTT + AR head</span></div>
+    <dl>
+      <dt>Trying to</dt><dd>Ablate the v1-era anti-collapse stack (pos_weight :auto, focal, oversample 3x, entropy, neutral 0.25) and single-knob variants.</dd>
+      <dt>Changed</dt><dd>v16a = all those knobs zeroed; b/c/d = neutral weight 0.5 / transition 3 / offstage 4.</dd>
+      <dt>Data</dt><dd>shakeout_v15 (2,500 files), 2 epochs each</dd>
+      <dt>Result</dt><dd>v16a val 2.25 (shakeout split, not comparable to full-corpus vals): NO collapse, d_up 0.49/min, taunts 0.08, spam cycles gone, Bradley 'pretty good'; frozen-input 0→0.11 (passivity). v16b 2.47, v16c 2.78, v16d 2.35.</dd>
+      <dt>Verdict</dt><dd class="verdict">v16a adopted as the v2 loss recipe</dd>
+    </dl>
+    <p class="src">memory project_status_2026-09-05_v2_launch.md item 2; registry.json</p>
+  </article>
+  <article class="card" data-line="generalist" data-out="failed">
+    <div class="cardtop"><span class="date">2026-09-07</span><span class="pill pill-failed">failed / reverted</span><span class="pill line">Generalist Fox (replay BC)</span></div>
+    <h3>fox_gen_v2 (20260905_224919)</h3>
+    <div class="meta"><span>generalist Fox (v2)</span><span>GRU BPTT + AR head, clean loss</span></div>
+    <dl>
+      <dt>Trying to</dt><dd>v2 = BPTT × data scale (slippi-ai filters) × clean loss; 'plays at T=1.0' gate.</dd>
+      <dt>Changed</dt><dd>First 28k-file run.</dd>
+      <dt>Data</dt><dd>28,452 fox-containing files from the deduped (33% content-hash dups removed) + filtered corpus, 8 epochs planned (~4.5-5 h/epoch)</dd>
+      <dt>Result</dt><dd>stopped 09-07 at epoch 7 (plateau); readout = PASSIVE; val ~1.83 is LEAKED-TARGET optimistic (trained at delay 0 → GOTCHA #113).</dd>
+      <dt>Verdict</dt><dd class="verdict">failed (passivity = delay-0 label leak); superseded by V3</dd>
+    </dl>
+    <p class="src">memory project_status_2026-09-05_v2_launch.md ('PRIOR: fox_gen_v2 TRAINING' + 09-09 update)</p>
+  </article>
+  <article class="card" data-line="generalist" data-out="diagnostic">
+    <div class="cardtop"><span class="date">2026-09-09</span><span class="pill pill-diagnostic">diagnostic</span><span class="pill line">Generalist Fox (replay BC)</span></div>
+    <h3>fox_gen_v16e_delay1 / v16f_causal_default / v16f_causal_scratch / v16g_afb24_scratch</h3>
+    <div class="meta"><span>generalist Fox (label-leak fix twins)</span><span>GRU BPTT + AR head</span></div>
+    <dl>
+      <dt>Trying to</dt><dd>Prove the delay-0 label leak is the root of the pathology board (passivity, never initiating).</dd>
+      <dt>Changed</dt><dd>Label alignment: state[t]→controller[t+1].</dd>
+      <dt>Data</dt><dd>shakeout_v15, 2 epochs; v16e = v16a + --frame-delay 1; v16f = causal labels (rebased numbering); v16g = + --action-frame-buckets 24</dd>
+      <dt>Result</dt><dd>v16e val 2.415: p(dash-out from standing) 0.0002→0.11-0.15 (experts 0.13-0.29), headless idle 0.188→0.02, dwell 34.7→3.2 f; v16f WAIT probe 0.33 (v16e 0.27, expert 0.41) PASSED; v16g no benefit (not in v3). Jab chain not fixed.</dd>
+      <dt>Verdict</dt><dd class="verdict">diagnostic twins; GATES DONE → V3 ready</dd>
+    </dl>
+    <p class="src">memory project_status_2026-09-05_v2_launch.md (09-09 updates); registry.json</p>
+  </article></div>
+</section>
+<section class="era" id="E7">
+  <header class="erahead">
+    <div class="eratag">E7 · 2026-09-10 .. 2026-09-17</div>
+    <h2>Multishine under sampling + proof contract (Track B met)</h2>
+    <p class="focus">g23a first SAMPLED multishiner; coverage DAgger g24–g27 (future-dependent label conflicts found and fixed); tiny proof recipe (context fit, delay-4, coverage rounds) → Track B declared met at rungs 0/2/4; V3 preflight.</p>
+    <p class="src">HANDOFF_2026-09-12b, 09-13d, 09-17.md; memory project_status_2026-09-13_context_fit.md</p>
+  </header>
+  <div class="cards">
+  <article class="card" data-line="multishine" data-out="candidate">
+    <div class="cardtop"><span class="date">2026-09-10</span><span class="pill pill-candidate">candidate / kept</span><span class="pill line">Fox multishine (drills)</span></div>
+    <h3>ms_g20a / g20b / g21a / g22a / g22b / ms_g23a_ep57 / ms_g23b (control)</h3>
+    <div class="meta"><span>Fox multishine g-line (multishine under SAMPLING)</span><span>GRU (AR head removed for this line), 60 epochs, --action-frame-buckets 24</span></div>
+    <dl>
+      <dt>Trying to</dt><dd>g19's record was ARGMAX (45/min c3 sampled); make a checkpoint that multishines when sampled at T=1.0.</dd>
+      <dt>Changed</dt><dd>AR head out (released B mid-air), converge 60 ep, action-frame buckets, re-mined snippets.</dd>
+      <dt>Data</dt><dd>g19 recipe re-mined with closed_d1.slp (one-frame teacher conflict fixed) + snippets; g23b = no snippets</dd>
+      <dt>Result</dt><dd>ms_g23a_ep57: chains 438/4/423 at T=1.0 (d3, id 2 new numbering) vs stand dummy; but 54-62/min c2-3 vs level-1 CPU and 35.7/min c2 vs Bradley ('not impressive') → STATE COVERAGE is the gap; rungs d1/d2 chain &lt;=4.</dd>
+      <dt>Verdict</dt><dd class="verdict">candidate (technique floor); superseded by proof-contract candidates</dd>
+    </dl>
+    <p class="src">memory project_status_2026-09-05_v2_launch.md (09-10 EVENING, 09-11 01:00 updates); eval_runs/0910_g20_causal/RESULTS.md</p>
+  </article>
+  <article class="card" data-line="multishine" data-out="candidate">
+    <div class="cardtop"><span class="date">2026-09-11</span><span class="pill pill-candidate">candidate / kept</span><span class="pill line">Fox multishine (drills)</span></div>
+    <h3>ms_g24a (ep55)</h3>
+    <div class="meta"><span>Fox multishine g-line (coverage DAgger round 1)</span><span>GRU</span></div>
+    <dl>
+      <dt>Trying to</dt><dd>New gate = shines/min vs --dummy cpu; iterate rollouts→relabel→retrain with both metrics gated.</dd>
+      <dt>Changed</dt><dd>First DAgger on live human/CPU states for the sampled line.</dd>
+      <dt>Data</dt><dd>g23a pool + Bradley's session + 8 CPU games relabeled</dd>
+      <dt>Result</dt><dd>CPU gate 69-71/min c8-13 vs g23a 49-56 c2-3 (+30%, chains 4x); stand floor fell 296 c277 → 111 c27 (trade-off).</dd>
+      <dt>Verdict</dt><dd class="verdict">candidate (coverage); superseded</dd>
+    </dl>
+    <p class="src">memory project_status_2026-09-05_v2_launch.md (09-11 04:35 update)</p>
+  </article>
+  <article class="card" data-line="multishine" data-out="failed">
+    <div class="cardtop"><span class="date">2026-09-12</span><span class="pill pill-failed">failed / reverted</span><span class="pill line">Fox multishine (drills)</span></div>
+    <h3>ms_g25a</h3>
+    <div class="meta"><span>Fox multishine g-line (label-free augmentation)</span><span>GRU, physical delay ids 3,4,5</span></div>
+    <dl>
+      <dt>Trying to</dt><dd>Fix the coverage map's collapsed cells (opp shield/grab/shine, opp behind, mirror) without new labels.</dd>
+      <dt>Changed</dt><dd>Synthetic context augmentation.</dd>
+      <dt>Data</dt><dd>g24a pool + mirror + randomized opponent-context augmentation (from coverage-map probe)</dd>
+      <dt>Result</dt><dd>map first-decision cells fixed (0.00→0.94+) but aerial press collapsed (0.31); LIVE stand 93/min c2 (ep57 296, g24a 111); CPU g24a-level → synthetic context != real.</dd>
+      <dt>Verdict</dt><dd class="verdict">FAILED live → root cause found: drill delayed labels = recorded future (10/11 loop states conflict at shift 4)</dd>
+    </dl>
+    <p class="src">memory project_status_2026-09-05_v2_launch.md (09-12 18:40, 19:00); HANDOFF_2026-09-12b.md</p>
+  </article>
+  <article class="card" data-line="multishine" data-out="failed">
+    <div class="cardtop"><span class="date">2026-09-12</span><span class="pill pill-failed">failed / reverted</span><span class="pill line">Fox multishine (drills)</span></div>
+    <h3>ms_g26a (stopped ep48)</h3>
+    <div class="meta"><span>Fox multishine g-line (item-14 labels)</span><span>GRU, physical ids 3,4,5</span></div>
+    <dl>
+      <dt>Trying to</dt><dd>Does removing the future-dependent label conflict restore chaining?</dd>
+      <dt>Changed</dt><dd>Structurally conflict-free delayed labels (INVARIANTS item 14).</dd>
+      <dt>Data</dt><dd>g24a pool with Labels.at_delay + phase-indexed label_ahead (0 conflicts at shifts 3,4,5)</dd>
+      <dt>Result</dt><dd>floor 67/min c4 (WORST; ep57 296), CPU 49-51 == ep57 despite 0.998 fixture fit; low-loss guard fired 4x on healthy epochs.</dd>
+      <dt>Verdict</dt><dd class="verdict">FAILED → suspect label_ahead off-loop HOLD rule; led to g27 hold-vs-drop</dd>
+    </dl>
+    <p class="src">memory project_status_2026-09-05_v2_launch.md (09-12 23:30 update)</p>
+  </article>
+  <article class="card" data-line="multishine" data-out="candidate">
+    <div class="cardtop"><span class="date">2026-09-14</span><span class="pill pill-candidate">candidate / kept</span><span class="pill line">Fox multishine (drills)</span></div>
+    <h3>ms_g27drop / ms_g27hold</h3>
+    <div class="meta"><span>Fox multishine g-line (hold-vs-drop A/B)</span><span>GRU, rungs 3/4/5</span></div>
+    <dl>
+      <dt>Trying to</dt><dd>Settle whether held off-loop labels (~85% of the g-line's rung-3/4/5 frames) caused the collapse.</dd>
+      <dt>Changed</dt><dd>Only the off-loop label rule differs.</dd>
+      <dt>Data</dt><dd>g26 pool; off-loop delayed labels DROP (abstain) vs HOLD (legacy)</dd>
+      <dt>Result</dt><dd>drop wins every readout: stand 391 vs 371/min (g26a 67), CPU chain 14-52 vs 1, map flat 0.999 incl. mirror vs 0.874; g26a's 67 floor does not reproduce under the numerical guard.</dd>
+      <dt>Verdict</dt><dd class="verdict">drop = standard; g-line superseded by the proof contract</dd>
+    </dl>
+    <p class="src">memory project_status_2026-09-13_context_fit.md (09-14 14:30); docs/planning/G26_HOLD_VS_DROP_2026-09-14.md</p>
+  </article>
+  <article class="card" data-line="multishine" data-out="candidate">
+    <div class="cardtop"><span class="date">2026-09-13</span><span class="pill pill-candidate">candidate / kept</span><span class="pill line">Fox multishine (drills)</span></div>
+    <h3>proof candidates: 0913_context_fit/round21, 0914_delay4_proof/round21, 0914_coverage_round/round21, 0915_local_zero/corrected_bootstrap (eval_runs/*/candidate.bin)</h3>
+    <div class="meta"><span>Fox multishine PROOF CONTRACT (Track B)</span><span>tiny windowed GRU F32 (GRU64x2), AR head, window 16, queue 3; delay 2 / 4 / 0 variants</span></div>
+    <dl>
+      <dt>Trying to</dt><dd>Minimal provable recipe: warm-history recovery, interruptions, any opponent body, under declared delay rungs.</dd>
+      <dt>Changed</dt><dd>Recorded-teacher-clip method; gates in fixed order; declared held-out.</dd>
+      <dt>Data</dt><dd>canonical fixture + 18 cold/warm recorded teacher clips (clips_v6) + 9 orig + 39 coverage handoffs (5 opponent bodies), 21 epochs</dd>
+      <dt>Result</dt><dd>context_fit: warm 12/12, interruptions 6/6 (chains 35-39); Bradley live: chain 101, 209 shines/min ('easily the best version I've played'); delay-4: 12/12 cold+warm, chains 13-14; coverage: held-out 24/24 (22/24 under pressure); local zero demo 30/30 standing + 30/30 CPU over 6 stages × 5 opponents.</dd>
+      <dt>Verdict</dt><dd class="verdict">Track B MET (GOALS 09-19); no default multishine policy installed in play scripts</dd>
+    </dl>
+    <p class="src">memory project_status_2026-09-13_context_fit.md; HANDOFF_2026-09-17.md §1a-1c; GOALS.md Track B</p>
+  </article>
+  <article class="card" data-line="mewtwo" data-out="failed">
+    <div class="cardtop"><span class="date">2026-09-15</span><span class="pill pill-failed">failed / reverted</span><span class="pill line">Mewtwo</span></div>
+    <h3>mewtwo_neutral v1–v5 (eval_runs/0915_mewtwo_neutral/v5/candidate.bin)</h3>
+    <div class="meta"><span>Mewtwo neutral (teacher-driven)</span><span>GRU128</span></div>
+    <dl>
+      <dt>Trying to</dt><dd>Track A: a student that goes in with SH-fair from the approved neutral teacher.</dd>
+      <dt>Changed</dt><dd>Rules teacher approved; five learned rounds.</dd>
+      <dt>Data</dt><dd>MewtwoNeutralTeacher labels on controlled FD/Fox cases</dd>
+      <dt>Result</dt><dd>none consistent: best standing openings 12/9/5 (v2), CPU-6 openings 0-3/game, stocks lost.</dd>
+      <dt>Verdict</dt><dd class="verdict">none promoted (experimental only)</dd>
+    </dl>
+    <p class="src">HANDOFF_2026-09-17.md §1e; GOALS.md Track A</p>
+  </article></div>
+</section>
+<section class="era" id="E8">
+  <header class="erahead">
+    <div class="eratag">E8 · 2026-09-17 .. 2026-09-23</div>
+    <h2>V3/V3.1 identity-conditioned Fox; sim integration; search-as-teacher; critic/PPO</h2>
+    <p class="focus">Full-corpus BPTT GRU with player-tag identity; V3 NaN divergences → V3.1 (weight decay+cosine) ep3 crown; melee-sim-light wrapped (NIF 28k fps); policy-guided oracle DAgger (mix2–mix4); critic R2; PPO R3 on AR heads.</p>
+    <p class="src">HANDOFF_2026-09-18, 09-22a, 09-23.md; memory project_status_2026-09-18/09-20</p>
+  </header>
+  <div class="cards">
+  <article class="card" data-line="generalist" data-out="superseded">
+    <div class="cardtop"><span class="date">2026-09-18</span><span class="pill pill-superseded">superseded</span><span class="pill line">Generalist Fox (replay BC)</span></div>
+    <h3>fox_v3_20260917_050901 (+ resume1-4; best = resume3/model_batch215000_policy.bin)</h3>
+    <div class="meta"><span>generalist Fox V3 (identity recipe)</span><span>GRU 512x2 BPTT unroll 80, batch 128, F32 highest, AR head, --player-tag-map (identity channel)</span></div>
+    <dl>
+      <dt>Trying to</dt><dd>Full-scale generalist that plays like the corpus and conditions on player identity (Track D).</dd>
+      <dt>Changed</dt><dd>First run with identity conditioning, causal labels, NaN census sanitizer.</dd>
+      <dt>Data</dt><dd>28,452 Fox games / 281M frames / 76 GB clean corpus; reaction 0 (causal labels); ~6.3 h/epoch</dd>
+      <dt>Result</dt><dd>4.4 passes; diverged 3x (non-finite grad → NaN clip → all-NaN weights with finite loss; GRU kernel norm drift w/o weight decay); best held-out 1.94 (preflight split, later shown train-fit) / 2.316 on the genuine split; D1 live passed; style conditioning live (--style-tag flips jump-button habit).</dd>
+      <dt>Verdict</dt><dd class="verdict">superseded by V3.1 (guard + fatal-batch capture landed)</dd>
+    </dl>
+    <p class="src">HANDOFF_2026-09-18.md; GOALS.md Track D; memory project_status_2026-09-18_v3_1_and_sim.md</p>
+  </article>
+  <article class="card" data-line="generalist" data-out="crowned">
+    <div class="cardtop"><span class="date">2026-09-20</span><span class="pill pill-crowned">crowned</span><span class="pill line">Generalist Fox (replay BC)</span></div>
+    <h3>fox_v3_1_20260919_022008_ep3 (model_best_policy.bin); ep4</h3>
+    <div class="meta"><span>generalist Fox V3.1</span><span>GRU 512x2 BPTT 80 + AR head + identity</span></div>
+    <dl>
+      <dt>Trying to</dt><dd>Fix V3's norm drift/divergence and squeeze held-out loss.</dd>
+      <dt>Changed</dt><dd>Weight decay + cosine + guard; warm start.</dd>
+      <dt>Data</dt><dd>same corpus, warm start from V3 215k, AdamW weight decay 0.05, cosine LR, non-finite-gradient guard</dd>
+      <dt>Result</dt><dd>val 2.253→2.193→2.158 (ep3), ep4 2.1735 worse (284 skips); GENUINE held-out 2.066 vs 215k 2.316 (GOTCHA #122); D3 style conditioning passed n=10 (C2→C2 10/10); Bradley: 'definitely the best version of a bot I've made'. Deploy --stateful-step --live-af --reaction-delay 0 --temperature 1.0.</dd>
+      <dt>Verdict</dt><dd class="verdict">CROWNED generalist (09-20) = the frozen prior for the sim/PPO line</dd>
+    </dl>
+    <p class="src">memory project_status_2026-09-20_v3_1_gates.md; GOALS.md Track D</p>
+  </article>
+  <article class="card" data-line="sim" data-out="candidate">
+    <div class="cardtop"><span class="date">2026-09-21</span><span class="pill pill-candidate">candidate / kept</span><span class="pill line">Sim / RL / DAgger</span></div>
+    <h3>fox_v3_1_step8_ctrl / mix / mix2 / mix3 / mix3b / mix4</h3>
+    <div class="meta"><span>generalist Fox (search-as-teacher expert iteration in melee-sim-light)</span><span>GRU V3.1 ep3 fine-tunes (1,400-file slice, 1 pass 2e-5)</span></div>
+    <dl>
+      <dt>Trying to</dt><dd>Step 8: distill a sim search oracle (0.88-0.93 converting starts) back into the prior without habit drift (fingerprint gate).</dd>
+      <dt>Changed</dt><dd>mix (random-program oracle, rejected) → mix2 (policy-guided) → mix3/3b (iterate) → mix4 (style-penalized selection).</dd>
+      <dt>Data</dt><dd>V3.1-ep3 + oracle episodes: policy-guided best-of-64 search (T=1.2 → T=1.0), ×30 → ×10 oversample; mix4 adds a style term in selection</dd>
+      <dt>Result</dt><dd>mix2 conv 0.32 vs self / 0.61 vs idle (ep3 0.22/0.45, ctrl 0.14), fingerprint 6/6 PASS, mix2−ep3 +0.10 [0.03,0.17]; mix3 0.37/0.67 fails 3/8 tells; mix3b val 2.02, 2/8 out; mix4 0.33/0.65, val 2.01, 7/8 tells; Bradley (mix4): takes a stock, owns neutral sometimes, SDs at the edge, multi-jabs.</dd>
+      <dt>Verdict</dt><dd class="verdict">mix2 = clean artifact; mix4 = strongest near-clean (became the PPO prior); superseded by the Mamba line</dd>
+    </dl>
+    <p class="src">memory project_status_2026-09-20_v3_1_gates.md (sim line 09-21 entries); registry.json search_distillation tags</p>
+  </article>
+  <article class="card" data-line="sim" data-out="failed">
+    <div class="cardtop"><span class="date">2026-09-23</span><span class="pill pill-failed">failed / reverted</span><span class="pill line">Sim / RL / DAgger</span></div>
+    <h3>fox GRU PPO v1_fixed head_iter40/100/200 (+ eval_candidate/candidate_policy.bin); critic refit_v2</h3>
+    <div class="meta"><span>RL on the prior (Fox)</span><span>V3.1/mix4 GRU trunk FROZEN; PPO on the AR heads only; critic = trunk ⊕ scalars (R2)</span></div>
+    <dl>
+      <dt>Trying to</dt><dd>R3: can clipped PPO with a KL anchor improve the prior without leaving the imitation manifold?</dd>
+      <dt>Changed</dt><dd>First PPO that ever executed in the repo (July PPO never ran; Polaris nil-arg JIT bug fixed).</dd>
+      <dt>Data</dt><dd>melee-sim-light self-play vs the frozen prior, 64 envs, 200 iterations, KL-to-prior 0.05</dd>
+      <dt>Result</dt><dd>critic R2 test EV 0.314 (passed); iter200 vs frozen prior 182W/18L = 91.0% (control 49%); style half NOT passed (3/6 tells; aerial_per_min 36.9 vs prior 20.5 vs humans 17.0); Bradley beat it 4 straight, 'best played'.</dd>
+      <dt>Verdict</dt><dd class="verdict">not promoted (style/transfer incomplete; frozen-ditto gate = exploit shape)</dd>
+    </dl>
+    <p class="src">HANDOFF_2026-09-23.md; HANDOFF_2026-09-24.md 'Working Fox PPO infrastructure'; HANDOFF_2026-09-24b.md §win-rate/style</p>
+  </article></div>
+</section>
+<section class="era" id="E9">
+  <header class="erahead">
+    <div class="eratag">E9 · 2026-09-24 .. 2026-09-30</div>
+    <h2>Mewtwo IL + PPO; Fox Mamba v1/v2</h2>
+    <p class="focus">Mewtwo prior + head-only PPO (iter150/300, opponent pool), degenerate zoo; Fox Mamba v1 trained end-to-end (Xid 31 crash root-caused + fixed); prev-action Mamba v2.</p>
+    <p class="src">HANDOFF_2026-09-24, 09-24b, 09-25, 09-25b §4/§7f–§7l.md</p>
+  </header>
+  <div class="cards">
+  <article class="card" data-line="mewtwo" data-out="failed">
+    <div class="cardtop"><span class="date">2026-09-24</span><span class="pill pill-failed">failed / reverted</span><span class="pill line">Mewtwo</span></div>
+    <h3>mewtwo_il_v1_20260924 (model_best = ep6; golden_tipper = ep12)</h3>
+    <div class="meta"><span>Mewtwo prior (full-game IL)</span><span>GRU 2×1024 (10.46M params), AR heads, f32/highest, stateful BPTT 80</span></div>
+    <dl>
+      <dt>Trying to</dt><dd>A whole-game Mewtwo imitation prior for PPO (the generalist recipe applied to Track A).</dd>
+      <dt>Changed</dt><dd>First Mewtwo full-game prior (Astra's run).</dd>
+      <dt>Data</dt><dd>418 Mewtwo games / 5,244,420 frames (local + 261 public), 334/42/42 split, 12 epochs, patience 6</dd>
+      <dt>Result</dt><dd>best val 3.1043 (ep6); final train 2.311/val 3.1513; live: bot lost 8 stocks, 7 flagged no-hit SDs, few/no kills.</dd>
+      <dt>Verdict</dt><dd class="verdict">prior for PPO; not promoted</dd>
+    </dl>
+    <p class="src">HANDOFF_2026-09-24.md §4; registry.json mewtwo-gru-il-v1-best-ep6</p>
+  </article>
+  <article class="card" data-line="mewtwo" data-out="failed">
+    <div class="cardtop"><span class="date">2026-09-25</span><span class="pill pill-failed">failed / reverted</span><span class="pill line">Mewtwo</span></div>
+    <h3>mewtwo_ppo_v1 head_iter70/150/300 (mewtwo_ppo_v1_iter150/300_policy.bin) and mewtwo_ppo_pool_v2 (head_iter200 → mewtwo_ppo_pool_v2_policy.bin)</h3>
+    <div class="meta"><span>RL on the prior (Mewtwo)</span><span>mewtwo_il_v1 trunk frozen; PPO on AR heads; critic from 12 rounds of ditto rollouts</span></div>
+    <dl>
+      <dt>Trying to</dt><dd>Fix the self-destruct half of Mewtwo; then de-saturate the gate with an opponent pool.</dd>
+      <dt>Changed</dt><dd>v1 = frozen-ditto opponent; pool v2 = opponent pool with held-out head.</dd>
+      <dt>Data</dt><dd>sim self-play 64×600f, 300 iterations, --kl-coef 0.01; pool v2 = frozen prior + v1 heads 70/150/300, head100 held out, &lt;=200 iterations</dd>
+      <dt>Result</dt><dd>deaths/min 4.03→1.25 (−69%), kills/min 4.02→4.44; iter150 199W/1L, iter300 60W/0L in 0.7-min games; iter300 DEGENERATE (roll ×13, grab ×3.7, bthrow, aerials −92%; zoo Entry 1), iter150 Bradley's pick; pool v2 66% vs held-out head100 (prior 5%); Bradley 33 games: 'probably the best Mewtwo', still SDs, no neutral/combos, 'felt like a bot'.</dd>
+      <dt>Verdict</dt><dd class="verdict">not promoted (lever = bigger prior + reward for openings, not more PPO)</dd>
+    </dl>
+    <p class="src">HANDOFF_2026-09-25.md §4.1, §4.7; HANDOFF_2026-09-25b.md §4.1-4.2; memory project_status_2026-09-26_mamba_fix.md</p>
+  </article>
+  <article class="card" data-line="mamba" data-out="candidate">
+    <div class="cardtop"><span class="date">2026-09-27</span><span class="pill pill-candidate">candidate / kept</span><span class="pill line">Fox Mamba + coherence</span></div>
+    <h3>fox_mamba_v1_20260925 (+ _ep2); coh_fullscale_mamba_v1 symlink</h3>
+    <div class="meta"><span>Fox Mamba line (fullscale)</span><span>Mamba 512,512,256, window 80 (windowed, not BPTT), AR head, lr 2e-4</span></div>
+    <dl>
+      <dt>Trying to</dt><dd>F1: a Mamba generalist end-to-end (60-fps latency win) after root-causing the Xid 31 GPU crash (per-call workspace churn, Edifice 622fb39).</dd>
+      <dt>Changed</dt><dd>First Mamba full-corpus policy; windowed; no prev-action.</dd>
+      <dt>Data</dt><dd>replays/erickfm_ranked/v2_filtered Fox corpus, 1 epoch (429,769 updates, ~8.4 h) then epoch 2; holdout 16 games</dd>
+      <dt>Result</dt><dd>val 2.3896 (ep1), 2.3542 (ep2) vs GRU V3.1 2.066; full-Agent latency median 5.23 ms; sim vs GRU PPO candidate 0–4 (two close, two blowouts); engagement scan: camping mild, multi-jab = spurious A press-edges.</dd>
+      <dt>Verdict</dt><dd class="verdict">development artifact (candidate tag); superseded by v3</dd>
+    </dl>
+    <p class="src">HANDOFF_2026-09-25b.md §7f, §7i, §7j; registry.json fox-mamba-v1</p>
+  </article></div>
+</section>
+<section class="era" id="E10">
+  <header class="erahead">
+    <div class="eratag">E10 · 2026-10-01 .. 2026-10-10</div>
+    <h2>Input-coherence program on the MinGRU testbed (coh_* queues 1–45)</h2>
+    <p class="focus">Why bots flicker/freeze: prev-action channel, dropout, scheduled sampling (out), carried-state BPTT (freezes, out), chunk targets + event heads (win), stick duration, onset weight, expert-labeled recovery DAgger with coverage gates; 'silent fall' recovery tail.</p>
+    <p class="src">HANDOFF_2026-09-25b §7m–§8d; INPUT_COHERENCE_2026-10-01.md; memory 10-08/10-10/10_input_coherence</p>
+  </header>
+  <div class="cards">
+  <article class="card" data-line="mamba" data-out="failed">
+    <div class="cardtop"><span class="date">2026-10-01</span><span class="pill pill-failed">failed / reverted</span><span class="pill line">Fox Mamba + coherence</span></div>
+    <h3>fox_mamba_v2_prevact_20260930 (coh_fullscale_mamba_v2)</h3>
+    <div class="meta"><span>Fox Mamba line</span><span>Mamba 512,512,256, window 80, --prev-action (dropout 0.15)</span></div>
+    <dl>
+      <dt>Trying to</dt><dd>slippi-ai comparison: prev-action input should kill the ~5x button press-edge flicker (multi-jab).</dd>
+      <dt>Changed</dt><dd>Previous-action channel in the trunk.</dd>
+      <dt>Data</dt><dd>v2_filtered Fox corpus, 1 epoch (428,898 steps)</dd>
+      <dt>Result</dt><dd>val 0.9703 (TEACHER-FORCED with the channel; not comparable); live: flicker gone but FREEZES/SDs (exposure bias), ablation idles 84%; fidelity 0.179 best-at-the-time but SD 4.1/min.</dd>
+      <dt>Verdict</dt><dd class="verdict">failed live → spawned the input-coherence program</dd>
+    </dl>
+    <p class="src">HANDOFF_2026-09-25b.md §7k-§7m; memory project_status_2026-10_input_coherence.md; registry.json</p>
+  </article>
+  <article class="card" data-line="mamba" data-out="diagnostic">
+    <div class="cardtop"><span class="date">2026-10-01 .. 2026-10-10</span><span class="pill pill-diagnostic">diagnostic</span><span class="pill line">Fox Mamba + coherence</span></div>
+    <h3>coh_* MinGRU testbed (coh_base, coh_prev_q, coh_prev_d*, coh_prev_blk*, coh_ss*, coh_gru_q, coh_bptt_q, coh_evt2, coh_evt2ctx_ck8(_off3_dur8e…), coh_evt2ctx_ck8_off3_dur8e_on30u/on5u, …_dag345g/dag6w/dag7w/veto10/edge15, coh_mamba_*)</h3>
+    <div class="meta"><span>input-coherence program (testbed arms, queues 1–45)</span><span>MinGRU (train_fox_mamba.exs --max-files 400, ~2 min/run); a few small Mamba twins; GRU carried-state BPTT arms</span></div>
+    <dl>
+      <dt>Trying to</dt><dd>Understand flicker/freeze/'silent fall' before any full run: prev-action, dropout, scheduled sampling, carried state, chunk targets, event heads, stick duration, onset weight, expert-relabel DAgger with coverage gates.</dd>
+      <dt>Changed</dt><dd>One knob per arm; closed-loop sim evals (coherence, fidelity, recovery drill, DecisionMap, side-B trips).</dd>
+      <dt>Data</dt><dd>400-file Fox slice; later + expert-labeled (kNN labeler v1–v5) DAgger sets of the bot's own offstage/near-edge states (r1–r7w)</dd>
+      <dt>Result</dt><dd>OUT: per-frame/block dropout, scheduled sampling (switch not dial), change-frame weighting, carried-state BPTT (bptt_q freezes 1731/1800 f), danger-context head, onset ×30 (bends Firefox angle). IN: chunk targets K=8 (dmg 29→56, SD 2.1→1.0), event heads + context (evt2ctx), stick duration dur8e (fidelity 0.175), --onset-weight 5, gated ×1 expert DAgger (dag6w best closed loop SD/min 0.84 — a seed; dag34g_x2 'certainly better at recovering'). Port recipe = windowed + prev_q + events + context + ck8 + offstage weight 3, &gt;=3 ep.</dd>
+      <dt>Verdict</dt><dd class="verdict">testbed (no deploy); recipe frozen into eval_runs/1011_full/recipe.sh</dd>
+    </dl>
+    <p class="src">memory project_status_2026-10_input_coherence.md, 2026-10-08_recovery_levers.md, 2026-10-10_sideb_arms.md; HANDOFF_2026-09-25b.md §7m–§8d; INPUT_COHERENCE_2026-10-01.md</p>
+  </article></div>
+</section>
+<section class="era" id="E11">
+  <header class="erahead">
+    <div class="eratag">E11 · 2026-10-11 .. 2026-10-21</div>
+    <h2>Full Fox Mamba v3 run; live look; r9o DAgger; labeler + label review page</h2>
+    <p class="focus">Port recipe at full scale, 2 seeds × 3 epochs: scale is the lever for recovery; s906 ep2 candidate; Bradley live look; r9o onstage DAgger regressed; labeler v7–v10, kNN 20–90× speedup, label review page for hand verification.</p>
+    <p class="src">HANDOFF_2026-09-25b §8e; memory project_status_2026-10-16_r9o_labeler.md</p>
+  </header>
+  <div class="cards">
+  <article class="card" data-line="mamba" data-out="candidate">
+    <div class="cardtop"><span class="date">2026-10-12 .. 2026-10-14</span><span class="pill pill-candidate">candidate / kept</span><span class="pill line">Fox Mamba + coherence</span></div>
+    <h3>coh_fox_mamba_v3_ep1/ep2/ep3 (seed 905) and coh_fox_mamba_v3s906_ep1/ep2/ep2r/ep3 (seed 906)</h3>
+    <div class="meta"><span>Fox Mamba v3 (full run of the port recipe)</span><span>Mamba 512,512,256, window 80, lr 2e-4 (ep3 1e-4); pq prev-action quantized + event heads + context + ck8/off3/dur8 + --onset-weight 5; AR head; T=1.0</span></div>
+    <dl>
+      <dt>Trying to</dt><dd>Bradley: 'have we learned enough to do a full run?' — measure whether scale moves the recovery tail; 2 seeds × 3 epochs; gate on the closed-loop row, not val.</dd>
+      <dt>Changed</dt><dd>Testbed recipe at full scale; curve.txt readout per epoch.</dd>
+      <dt>Data</dt><dd>full v2_filtered Fox corpus (~430k updates/epoch, ~6-8.5 h); NO DAgger mix on any epoch</dd>
+      <dt>Result</dt><dd>ep1 both seeds: decided return 0.73 (testbed 0.36-0.38), died 0.28; ep2 s905 0.791/0.600/6; **ep2 s906 0.847/0.333/3 (died 0.147, fidelity 0.104, drill 0.813) = first row to pass all three bars, re-roll 0.831/0.407/5 confirms**; ep3 flat-to-worse on both seeds (s906 0.735/0.577/5); val rose while the tail improved (3.04→3.08→3.17). LIVE 10-14 (31 games FD): Bradley 'actually pretty cool and good … sometimes owning me'; bot 1–29 (11 to last stock); input rates/L-cancel/recovery at expert level, fidelity 0.087; deficits: unforced deaths 44% (Firefox 16, Illusion 10, jump spent 18/42), offense 88 vs 133 dmg/min, tech rate 0.26 vs 0.45-0.51, OOS drop 8 vs 27%.</dd>
+      <dt>Verdict</dt><dd class="verdict">CANDIDATE = checkpoints/coh_fox_mamba_v3s906_ep2/model_best_policy.bin (current, as of 10-21); fallback coh_fox_mamba_v3_ep3</dd>
+    </dl>
+    <p class="src">HANDOFF_2026-09-25b.md §8e (EPOCH 1-3 READ, SEED 906 READs, SECOND ROLL, LIVE LOOK, INSTRUMENT READS); memory project_status_2026-10-16_r9o_labeler.md; MEMORY.md resume line</p>
+  </article>
+  <article class="card" data-line="mamba" data-out="failed">
+    <div class="cardtop"><span class="date">2026-10-16</span><span class="pill pill-failed">failed / reverted</span><span class="pill line">Fox Mamba + coherence</span></div>
+    <h3>coh_fox_mamba_v3s906_ep3_dag9o and _dag9o_r (round r9o)</h3>
+    <div class="meta"><span>Fox Mamba v3 (expert-labeled DAgger epoch)</span><span>Mamba v3 recipe, mixed epoch 3 from s906 ep2</span></div>
+    <dl>
+      <dt>Trying to</dt><dd>Close the residual (Firefox charged too close, carried Illusions, jump spent early) with expert labels on the bot's own states; count the dose first.</dd>
+      <dt>Changed</dt><dd>First full-scale mixed epoch (MIX non-empty).</dd>
+      <dt>Data</dt><dd>r9o: labeler v6 :onstage window, 783k labelled frames of the bot's own offstage AND onstage states (seeded with the 31 live games), interleaved mix (~10 h/epoch)</dd>
+      <dt>Result</dt><dd>return 0.689 / carried died 0.742 / side-B 10; re-roll 0.636 / 0.667 / 12 — worse than plain ep3 (0.735/0.577/5), pooled ~2.5σ; airdodge-with-jump ×5-11 the expert; origin trace: cross-edge label BORROWS (wavelands labelled as in-hand airdodges) → labeler v8 (offstage dim), v9 (settled stick, one flick = one change row), v10 (provenance + source clips); kNN 10 ms/call (GOTCHA #143).</dd>
+      <dt>Verdict</dt><dd class="verdict">FAILED (regression real); candidate stays s906 ep2; NEXT = relabel 3 r9o parts with v9 chain, then dose-matched NULL arm + v9 arm (~10 h GPU each, Bradley decides)</dd>
+    </dl>
+    <p class="src">HANDOFF_2026-09-25b.md §8e 'ROUND r9o RESULT', 'ORIGIN TRACE', '10-20', '10-21'; memory project_status_2026-10-16_r9o_labeler.md; MEMORY.md resume line</p>
+  </article></div>
+</section>
+  <section class="tail" id="instruments">
+    <h2>How we measured (the eval instruments)</h2>
+    <div class="tablewrap"><table><tr><th>Instrument</th><th>What it measures</th><th>Era</th></tr>
+    <tr><td>Stand-dummy shines/min + max chain (sync headless, d2/d3)</td><td>Technique floor of multishine policies vs a standing Fox dummy; deterministic on FD/BF; saturates ~439/min. Never crown on it alone (g6 lesson).</td><td class="muted">E4–E7</td></tr><tr><td>ShineChain v3 over .slp</td><td>Grounded multishine chain length from replays (continues through ≤8-frame aerial-reflector gaps). The ONLY valid chain claim; qtrace B-press cycles overcount 10x.</td><td class="muted">E4+</td></tr><tr><td>Netplay / human-session chain</td><td>Chain vs a human over Slippi Direct at the deploy rung (d4 + --delay-id-override 3). Record 62 (ms_g19_ep4, 08-22).</td><td class="muted">E5</td></tr><tr><td>Blind stage-pinned decider</td><td>Bradley plays arms blind on pinned stages; canonical chains + blind impressions. Used to crown convC2 (08-12) and ms_g19_ep4 (08-24, FD, n=5).</td><td class="muted">E5</td></tr><tr><td>promote_check rungs</td><td>Deploy rung / Yoshi's Story collapse (n&gt;=8 buckets) / vs-CPU / rung-0 opponent-sensitivity. Advisory thresholds.</td><td class="muted">E5</td></tr><tr><td>gate_sweep (per-epoch behavioral argmax)</td><td>Stand gate at every saved epoch; chain skill lives on transient peaks, loss anti-correlates after ep8.</td><td class="muted">E5</td></tr><tr><td>Teacher-forced val loss (trainer split) / genuine held-out (heldout_full.json)</td><td>Next-input CE on held-out games. Preflight 'held-out' was train-fit (GOTCHA #122); never compare across label delays (delay-0 leak makes val optimistic).</td><td class="muted">all</td></tr><tr><td>Report card / StyleCard gates (x/9, x/10) + conversion % (trace_tech_chase) + armed approaches/min</td><td>Mewtwo combo drill hygiene and the Track A gates (A1 approaches &gt;=1.0, A2 conversion &gt;=25%).</td><td class="muted">E3</td></tr><tr><td>Leg S pass@k (interp_passk) / headroom triad</td><td>Selection vs capacity vs data headroom offline; valid only for pass@k gaps and checkpoint comparisons, never for ranking decodes.</td><td class="muted">E6</td></tr><tr><td>loop_report (d_up press/min, GRAB_WAIT&gt;PUMMEL loops, taunts) + pathology_scan</td><td>Dense impulse pathologies of generalist decodes; d_up/min is the reproducible axis.</td><td class="muted">E6</td></tr><tr><td>TV distance per situation / situation_hist / neutral_range_scorecard / position-dependence probes</td><td>Offline behavioral distance to expert by situation; approach_delta sign (retreat vs approach).</td><td class="muted">E6</td></tr><tr><td>Fingerprint tells (8 tells; sim_r1_compare) + degeneracy_check</td><td>Habit drift of search/PPO arms vs the prior (short-hop, lightshield, grabs...); zoo signatures (roll-grab-bthrow).</td><td class="muted">E8–E9</td></tr><tr><td>Sim win rate vs frozen prior / held-out opponent head</td><td>PPO strength; frozen-ditto gate saturates at 100%; held-out opponent de-saturates (66%).</td><td class="muted">E8–E9</td></tr><tr><td>Sim closed-loop suite: coherence scoreboard, fidelity scorecard, recovery drill, DecisionMap, SilenceMap, recovery_curve_row (decided return / carried died / carried side-B)</td><td>Batched melee-sim-light rollouts; the three bars (return &gt;=0.75, carried-off died &lt;=0.60, carried side-B &lt;=5 per 155 eps). Roll noise: return ±0.02.</td><td class="muted">E10–E11</td></tr><tr><td>Live look (Bradley) + live_scorecard / sd_review / death_classifier / tech_report / punish_quality</td><td>The human gate; live instruments on the .slp of the session (fidelity, death kinds, tech rate, OOS options).</td><td class="muted">all</td></tr><tr><td>CycleSim</td><td>Dolphin-free full-cycle multishine simulator; cannot score queue-embed lineages.</td><td class="muted">E5</td></tr></table></div>
+  </section>
+  <section class="tail" id="lessons">
+    <h2>Lessons recorded along the way</h2>
+    <ol class="lessons"><li>Never crown on stand-dummy numbers; rank by chain strength at the DEPLOY rung (ms_g6_sp1: dummy record, zero shines vs a human — overfit to the frozen dummy).</li><li>Never deploy at an untrained delay-id (id4 untrained → bare d4 collapses chaining; override to 3).</li><li>The eval opponent is part of the input distribution — never compare across dummies; YS claims need n&gt;=8 run-level buckets.</li><li>Chain skill lives on transient peaks; final loss anti-correlates with behavior → gate-sweep every epoch; run-to-run variance dominates knobs (replicates first).</li><li>Delay-0 LABEL LEAK (GOTCHA #113): Slippi records the input on the frame it produced; delay-0 training learns to continue states, never initiate. Labels are now causal by construction.</li><li>Drill delayed labels were the recorded future (policy's own broken trajectory), not the expert's — every DAgger round since g19 trained against conflicts; fixed by phase-indexed label_ahead, off-loop labels DROP (hold loses).</li><li>Exposure bias / absorbing states (crouch absorber): one frame of slip lands in unseen states; coverage (synth, DAgger from own rollouts) is the lever, not features.</li><li>Mode-seeking decodes die live (argmax buttons, mode-of-N ×2, critic argmax selector) — L9, do not retest; sample at T=1.0.</li><li>Mix damage is invisible to teacher-forced metrics; val and the recovery tail are decoupled — gate epochs on closed-loop rows, not val.</li><li>Labels off the policy manifold teach the teacher's habits (random-program oracle failed fingerprint); policy-guided search + control arm + fingerprint gate.</li><li>Every retrain carries ALL validated mixes; preserve absolute shares (dilution regressed convC3); declare a new round for a new budget.</li><li>Count a weighting arm's dose before launching (edge-window arm lifted 9 presses).</li><li>Port/opponent corpus bugs (#107, E1): 43% of fox_gen_v1 demos were the opponent; always --select-character-port with opponent remap.</li><li>Frozen-ditto PPO win rate saturates; an opponent pool and a human are the honest tests; 100% = exploit shape.</li><li>Harness rung law: suite --response-delay = id+2; one knob --reaction-delay k everywhere; run a known-pass control before reading a new harness.</li><li>Pre-register predictions; sync pools cannot measure offense (async is the offense rung); no mix during any live beam.</li></ol>
+  </section>
+</main>
+</div>
+<script>
+(function(){
+  const on={line:new Set(),out:new Set()};
+  document.querySelectorAll(".chip").forEach(c=>{on[c.dataset.f].add(c.dataset.v); c.addEventListener("click",()=>{const p=c.getAttribute("aria-pressed")!=="true"; c.setAttribute("aria-pressed",String(p)); p?on[c.dataset.f].add(c.dataset.v):on[c.dataset.f].delete(c.dataset.v); apply();});});
+  function apply(){let n=0; document.querySelectorAll(".card").forEach(k=>{const show=on.line.has(k.dataset.line)&&on.out.has(k.dataset.out); k.hidden=!show; if(show)n++;});
+    document.getElementById("shown").textContent=n+" of 61 shown";}
+  apply();
+})();
+</script>

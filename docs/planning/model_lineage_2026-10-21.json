@@ -1,0 +1,915 @@
+{
+ "eras": [
+  {
+   "id": "E1",
+   "range": "2026-03-01 .. 2026-03-27",
+   "name": "Architecture benchmark + first imitation runs",
+   "focus": "Wire 35+ Edifice backbones, benchmark on 30 Mewtwo replays (3 epochs), fix button mode collapse (sqrt pos_weight + focal), 200-file Mamba sweeps on HuggingFace replays. Later found: the '200-file scaling collapse' was a poisoned embedding-cache entry (GOTCHA #51) — March recipe comparisons invalid.",
+   "sources": "checkpoints/benchmark_results_*.json; memory project_mode_collapse_fix.md; project_cache_poisoning_resolution.md"
+  },
+  {
+   "id": "E2",
+   "range": "2026-07-02 .. 2026-07-14",
+   "name": "Candidate bake-off, clean_200, E2, birth of scripted-expert DAgger drills",
+   "focus": "4-candidate sweep (mamba/min_gru/gated_deltanet), clean_200 Mamba line, E2 prev-action+delay-2; then the drill system (multishine, mewtwo_fair, fox_recovery) and the NaN saga (logit clamp fix). Facing-blind bug #55 (all pre-07-08 checkpoints).",
+   "sources": "HANDOFF_2026-07-08.md"
+  },
+  {
+   "id": "E3",
+   "range": "2026-07-15 .. 2026-07-24",
+   "name": "Mewtwo combo 'newera' rounds + interp roadmap",
+   "focus": "GRU drill rounds r8–r17a vs TechRandom dummy; report-card gates; backbone screens (mamba_2 chosen for r15/r16, later reversed); LEACE/steering; interp P0–P3. Verdict: taught the button SEQUENCE not the DECISION (armed approaches/min 0.17, conversion 5%).",
+   "sources": "HANDOFF_2026-07-15..07-24.md; GOALS.md"
+  },
+  {
+   "id": "E4",
+   "range": "2026-07-24 .. 2026-07-31",
+   "name": "Multishine teacher solved; exposure bias; latency campaign (laptop, CPU)",
+   "focus": "Scripted closed-loop teacher (chain 186), ShineChain v3 metric, exposure bias/absorbing states, recovery synth + crouch coverage, perturbation, scheduled sampling (dead), delay ladder, sync-d2 harness on the 5090, DAgger through the delayed bridge, queue-as-input + SS-on-queue breakthrough (g2).",
+   "sources": "HANDOFF_2026-07-24b..07-31.md; EXPOSURE_BIAS.md; LATENCY_ARCHITECTURE.md"
+  },
+  {
+   "id": "E5",
+   "range": "2026-08-02 .. 2026-08-24",
+   "name": "Delay campaign + human-netplay crowns; curation loop; peak science",
+   "focus": "ms_g4→g6 (reverted)→g10b→g15→g19_ep4 crown chain; human-snippet curation, opponent-mask augmentation, AWBC, gate-sweep (peaks are transient), F3 distillation; interp P4–P6, CycleSim, SAE; memory-watch/menus/JIT; stage geometry; full-game IL harness (fox_il_v1/v2, edgeB, convC2 generalist crown).",
+   "sources": "HANDOFF_2026-08-02..08-25.md; memory project_status_archive.md, project_status_2026-08-mid.md"
+  },
+  {
+   "id": "E6",
+   "range": "2026-08-25 .. 2026-09-09",
+   "name": "Generalist Fox from the erickfm corpus (fox_gen v1 → v2)",
+   "focus": "BC on 7,911 then 28k master Fox games; decode ladder (T=0.5, mode-of-N, critic selector — all mode-seeking decodes die live); AR head; port/opponent corpus bugs (#107); window-180; BPTT; clean loss (taunt mechanism); the delay-0 LABEL LEAK (#113) and INVARIANTS/causal labels.",
+   "sources": "HANDOFF_2026-08-26..09-09.md; V2_PREP.md; memory 08-28..09-05 status"
+  },
+  {
+   "id": "E7",
+   "range": "2026-09-10 .. 2026-09-17",
+   "name": "Multishine under sampling + proof contract (Track B met)",
+   "focus": "g23a first SAMPLED multishiner; coverage DAgger g24–g27 (future-dependent label conflicts found and fixed); tiny proof recipe (context fit, delay-4, coverage rounds) → Track B declared met at rungs 0/2/4; V3 preflight.",
+   "sources": "HANDOFF_2026-09-12b, 09-13d, 09-17.md; memory project_status_2026-09-13_context_fit.md"
+  },
+  {
+   "id": "E8",
+   "range": "2026-09-17 .. 2026-09-23",
+   "name": "V3/V3.1 identity-conditioned Fox; sim integration; search-as-teacher; critic/PPO",
+   "focus": "Full-corpus BPTT GRU with player-tag identity; V3 NaN divergences → V3.1 (weight decay+cosine) ep3 crown; melee-sim-light wrapped (NIF 28k fps); policy-guided oracle DAgger (mix2–mix4); critic R2; PPO R3 on AR heads.",
+   "sources": "HANDOFF_2026-09-18, 09-22a, 09-23.md; memory project_status_2026-09-18/09-20"
+  },
+  {
+   "id": "E9",
+   "range": "2026-09-24 .. 2026-09-30",
+   "name": "Mewtwo IL + PPO; Fox Mamba v1/v2",
+   "focus": "Mewtwo prior + head-only PPO (iter150/300, opponent pool), degenerate zoo; Fox Mamba v1 trained end-to-end (Xid 31 crash root-caused + fixed); prev-action Mamba v2.",
+   "sources": "HANDOFF_2026-09-24, 09-24b, 09-25, 09-25b §4/§7f–§7l.md"
+  },
+  {
+   "id": "E10",
+   "range": "2026-10-01 .. 2026-10-10",
+   "name": "Input-coherence program on the MinGRU testbed (coh_* queues 1–45)",
+   "focus": "Why bots flicker/freeze: prev-action channel, dropout, scheduled sampling (out), carried-state BPTT (freezes, out), chunk targets + event heads (win), stick duration, onset weight, expert-labeled recovery DAgger with coverage gates; 'silent fall' recovery tail.",
+   "sources": "HANDOFF_2026-09-25b §7m–§8d; INPUT_COHERENCE_2026-10-01.md; memory 10-08/10-10/10_input_coherence"
+  },
+  {
+   "id": "E11",
+   "range": "2026-10-11 .. 2026-10-21",
+   "name": "Full Fox Mamba v3 run; live look; r9o DAgger; labeler + label review page",
+   "focus": "Port recipe at full scale, 2 seeds × 3 epochs: scale is the lever for recovery; s906 ep2 candidate; Bradley live look; r9o onstage DAgger regressed; labeler v7–v10, kNN 20–90× speedup, label review page for hand verification.",
+   "sources": "HANDOFF_2026-09-25b §8e; memory project_status_2026-10-16_r9o_labeler.md"
+  }
+ ],
+ "instruments": [
+  {
+   "name": "Stand-dummy shines/min + max chain (sync headless, d2/d3)",
+   "measures": "Technique floor of multishine policies vs a standing Fox dummy; deterministic on FD/BF; saturates ~439/min. Never crown on it alone (g6 lesson).",
+   "era": "E4–E7"
+  },
+  {
+   "name": "ShineChain v3 over .slp",
+   "measures": "Grounded multishine chain length from replays (continues through ≤8-frame aerial-reflector gaps). The ONLY valid chain claim; qtrace B-press cycles overcount 10x.",
+   "era": "E4+"
+  },
+  {
+   "name": "Netplay / human-session chain",
+   "measures": "Chain vs a human over Slippi Direct at the deploy rung (d4 + --delay-id-override 3). Record 62 (ms_g19_ep4, 08-22).",
+   "era": "E5"
+  },
+  {
+   "name": "Blind stage-pinned decider",
+   "measures": "Bradley plays arms blind on pinned stages; canonical chains + blind impressions. Used to crown convC2 (08-12) and ms_g19_ep4 (08-24, FD, n=5).",
+   "era": "E5"
+  },
+  {
+   "name": "promote_check rungs",
+   "measures": "Deploy rung / Yoshi's Story collapse (n>=8 buckets) / vs-CPU / rung-0 opponent-sensitivity. Advisory thresholds.",
+   "era": "E5"
+  },
+  {
+   "name": "gate_sweep (per-epoch behavioral argmax)",
+   "measures": "Stand gate at every saved epoch; chain skill lives on transient peaks, loss anti-correlates after ep8.",
+   "era": "E5"
+  },
+  {
+   "name": "Teacher-forced val loss (trainer split) / genuine held-out (heldout_full.json)",
+   "measures": "Next-input CE on held-out games. Preflight 'held-out' was train-fit (GOTCHA #122); never compare across label delays (delay-0 leak makes val optimistic).",
+   "era": "all"
+  },
+  {
+   "name": "Report card / StyleCard gates (x/9, x/10) + conversion % (trace_tech_chase) + armed approaches/min",
+   "measures": "Mewtwo combo drill hygiene and the Track A gates (A1 approaches >=1.0, A2 conversion >=25%).",
+   "era": "E3"
+  },
+  {
+   "name": "Leg S pass@k (interp_passk) / headroom triad",
+   "measures": "Selection vs capacity vs data headroom offline; valid only for pass@k gaps and checkpoint comparisons, never for ranking decodes.",
+   "era": "E6"
+  },
+  {
+   "name": "loop_report (d_up press/min, GRAB_WAIT>PUMMEL loops, taunts) + pathology_scan",
+   "measures": "Dense impulse pathologies of generalist decodes; d_up/min is the reproducible axis.",
+   "era": "E6"
+  },
+  {
+   "name": "TV distance per situation / situation_hist / neutral_range_scorecard / position-dependence probes",
+   "measures": "Offline behavioral distance to expert by situation; approach_delta sign (retreat vs approach).",
+   "era": "E6"
+  },
+  {
+   "name": "Fingerprint tells (8 tells; sim_r1_compare) + degeneracy_check",
+   "measures": "Habit drift of search/PPO arms vs the prior (short-hop, lightshield, grabs...); zoo signatures (roll-grab-bthrow).",
+   "era": "E8–E9"
+  },
+  {
+   "name": "Sim win rate vs frozen prior / held-out opponent head",
+   "measures": "PPO strength; frozen-ditto gate saturates at 100%; held-out opponent de-saturates (66%).",
+   "era": "E8–E9"
+  },
+  {
+   "name": "Sim closed-loop suite: coherence scoreboard, fidelity scorecard, recovery drill, DecisionMap, SilenceMap, recovery_curve_row (decided return / carried died / carried side-B)",
+   "measures": "Batched melee-sim-light rollouts; the three bars (return >=0.75, carried-off died <=0.60, carried side-B <=5 per 155 eps). Roll noise: return ±0.02.",
+   "era": "E10–E11"
+  },
+  {
+   "name": "Live look (Bradley) + live_scorecard / sd_review / death_classifier / tech_report / punish_quality",
+   "measures": "The human gate; live instruments on the .slp of the session (fidelity, death kinds, tech rate, OOS options).",
+   "era": "all"
+  },
+  {
+   "name": "CycleSim",
+   "measures": "Dolphin-free full-cycle multishine simulator; cannot score queue-embed lineages.",
+   "era": "E5"
+  }
+ ],
+ "lessons": [
+  "Never crown on stand-dummy numbers; rank by chain strength at the DEPLOY rung (ms_g6_sp1: dummy record, zero shines vs a human — overfit to the frozen dummy).",
+  "Never deploy at an untrained delay-id (id4 untrained → bare d4 collapses chaining; override to 3).",
+  "The eval opponent is part of the input distribution — never compare across dummies; YS claims need n>=8 run-level buckets.",
+  "Chain skill lives on transient peaks; final loss anti-correlates with behavior → gate-sweep every epoch; run-to-run variance dominates knobs (replicates first).",
+  "Delay-0 LABEL LEAK (GOTCHA #113): Slippi records the input on the frame it produced; delay-0 training learns to continue states, never initiate. Labels are now causal by construction.",
+  "Drill delayed labels were the recorded future (policy's own broken trajectory), not the expert's — every DAgger round since g19 trained against conflicts; fixed by phase-indexed label_ahead, off-loop labels DROP (hold loses).",
+  "Exposure bias / absorbing states (crouch absorber): one frame of slip lands in unseen states; coverage (synth, DAgger from own rollouts) is the lever, not features.",
+  "Mode-seeking decodes die live (argmax buttons, mode-of-N ×2, critic argmax selector) — L9, do not retest; sample at T=1.0.",
+  "Mix damage is invisible to teacher-forced metrics; val and the recovery tail are decoupled — gate epochs on closed-loop rows, not val.",
+  "Labels off the policy manifold teach the teacher's habits (random-program oracle failed fingerprint); policy-guided search + control arm + fingerprint gate.",
+  "Every retrain carries ALL validated mixes; preserve absolute shares (dilution regressed convC3); declare a new round for a new budget.",
+  "Count a weighting arm's dose before launching (edge-window arm lifted 9 presses).",
+  "Port/opponent corpus bugs (#107, E1): 43% of fox_gen_v1 demos were the opponent; always --select-character-port with opponent remap.",
+  "Frozen-ditto PPO win rate saturates; an opponent pool and a human are the honest tests; 100% = exploit shape.",
+  "Harness rung law: suite --response-delay = id+2; one knob --reaction-delay k everywhere; run a known-pass control before reading a new harness.",
+  "Pre-register predictions; sync pools cannot measure offense (async is the offense rung); no mix during any live beam."
+ ],
+ "models": [
+  {
+   "name": "benchmark_* (jamba_mewtwo_20ep_v3-5, min_gru_* , 35+ archs)",
+   "date": "2026-03-04",
+   "family": "architecture benchmark",
+   "backbone": "all (MLP, GRU, LSTM, Mamba, Mamba-2, Jamba, MinGRU, DeltaNet, S4/S5, RetNet, ...)",
+   "data": "./replays/mewtwo, 30 files, 166k train frames, 3 epochs",
+   "intent": "Which backbone to build on; wire Edifice's 22+ new backbones and compare val loss/throughput.",
+   "distinguishes": "First runs in the repo; later 'best' tags min_gru/h3.",
+   "result": "Per-arch val ~4.7 (min_gru ep1 4.72); Jamba eval had ALL buttons at 0% (mode collapse).",
+   "verdict": "superseded (architecture bake-offs explicitly deprioritized later)",
+   "sources": "checkpoints/benchmark_results_20260303_230515.json, _latest.json; memory project_mode_collapse_fix.md"
+  },
+  {
+   "name": "mamba_200 / mlp_200 / neutral_weight_200 / entropy_high / sweep_g*_bw* / test_175",
+   "date": "2026-03-26",
+   "family": "early imitation (200-file sweeps)",
+   "backbone": "Mamba (and MLP)",
+   "data": "./replays/huggingface, ~200 files, 3-5 epochs",
+   "intent": "Fix button mode collapse (sqrt pos_weight, focal γ, button weight) and scale from 100 to 200 files.",
+   "distinguishes": "Focal/pos_weight/oversampling stack; focal_gamma 3.0 chosen from this sweep.",
+   "result": "val ~5.2-5.7 (test_175 5.19, mlp_200 5.61); '200-file collapse' observed.",
+   "verdict": "invalidated — collapse was a poisoned cache entry (GOTCHA #51); recipe conclusions untrusted",
+   "sources": "registry.json entries 2026-03-26/27; memory project_cache_poisoning_resolution.md"
+  },
+  {
+   "name": "cand_mamba_base / cand_mamba_nw / cand_mingru / cand_gdn; clean_200",
+   "date": "2026-07-02",
+   "family": "candidate sweep (clean_200 line)",
+   "backbone": "Mamba / MinGRU / GatedDeltaNet",
+   "data": "./replays/huggingface, 200 files, 10 epochs",
+   "intent": "Pick a backbone after the callback-trainer rewrite; clean_200 = first run after the cache fix.",
+   "distinguishes": "4-arm sweep under the new Trainer/Pipeline.",
+   "result": "cand_* val ~8.7-8.8 (poisoned val); clean_200 val 5.17, diversity 22.8%.",
+   "verdict": "sweep invalid (poisoned val); clean_200 superseded by v2/v3",
+   "sources": "registry.json 2026-07-02; memory project_cache_poisoning_resolution.md"
+  },
+  {
+   "name": "clean_200_v2 / clean_200_v3_long",
+   "date": "2026-07-07",
+   "family": "clean_200 line",
+   "backbone": "Mamba",
+   "data": "./replays/huggingface, 200 files, 10 / 30 epochs",
+   "intent": "Clean-recipe Mamba baseline to compare E2 against on diagnostics + live.",
+   "distinguishes": "v3_long = 30 epochs; both pre-07-07 label-smoothing×pos_weight poison (GOTCHA #53) and facing-blind (#55).",
+   "result": "val 5.03 (v2), 4.75 (v3_long).",
+   "verdict": "superseded (facing-blind; retrain upgrades for free)",
+   "sources": "registry.json; GOTCHAS.md #53 line ~2355; HANDOFF_2026-07-08.md"
+  },
+  {
+   "name": "multishine_delay/prevact/robust/dagger1-4/daggerloop; mewtwo_fair_dagger0/loop_i1-2; fox_recovery_dagger",
+   "date": "2026-07-08",
+   "family": "scripted-expert DAgger drills (birth)",
+   "backbone": "GRU (window 60, 2 layers; Mamba diverged in the drill)",
+   "data": "recorded fixtures + relabeled rollouts (drill pools)",
+   "intent": "Self-improving drill loop: retrain → probe game → relabel with a scripted expert → grow pool (DRILL_INFRASTRUCTURE.md).",
+   "distinguishes": "First drill policies; prev-channel leak and facing bug found via live feedback.",
+   "result": "Fox multishine 15→207 JCs/game over 6 rounds (metric later shown to be lying — aerial shines); Mewtwo SH-fair 3→49 fairs/game, 90% landed, L-cancel 47.7%.",
+   "verdict": "superseded (pre-07-08 facing-blind; multishine metric invalid)",
+   "sources": "HANDOFF_2026-07-08.md 'Where we are', scoreboard table"
+  },
+  {
+   "name": "e2_prevact_delay2_20260710",
+   "date": "2026-07-10",
+   "family": "clean_200 line (E2)",
+   "backbone": "Mamba",
+   "data": "./replays/huggingface, 500 files × 50 epochs, --prev-action --action-delay 2",
+   "intent": "First big facing-sighted model with prev-action and delay-2 labels; compare vs clean_200_v3_long.",
+   "distinguishes": "prev-action channel + action delay 2.",
+   "result": "val 2.83 (registry 2.99), 'healthiest press-rate profile ever'; live: neutral run-offs, 2-3x over-shielding (prev-action momentum, hysteresis amplifies holds).",
+   "verdict": "superseded (diagnostic value only)",
+   "sources": "HANDOFF_2026-07-08.md 07-10 addendum; registry.json"
+  },
+  {
+   "name": "mewtwo_combo_replicate215741 / stopab_tl08 / tl15 / lr15 / poolgrow_r1",
+   "date": "2026-07-12",
+   "family": "Mewtwo combo drill (old era)",
+   "backbone": "GRU",
+   "data": "28-48 replay pools (fixtures + on-policy probes) vs tech_random dummy",
+   "intent": "Tech-chase/combo ladder rung 2: conversion after knockdown; test LR, stopping point, pool growth.",
+   "distinguishes": "LR 2e-4 vs 1e-4; pool growth 42→48.",
+   "result": "poolgrow_r1 27.9% conversion (43 knockdowns, best clearing the >=30 bar); LR 1e-4 runs <=12%; NaN at ep17-99 on every 2e-4 run.",
+   "verdict": "superseded — the dummy was a lvl-3 CPU the whole era (GOTCHA #57); scores historical only",
+   "sources": "HANDOFF_2026-07-08.md 07-12/07-13 addenda"
+  },
+  {
+   "name": "mewtwo_combo_newera_r9 … r14 (+ screen_gru2x/mamba/min_gru/mamba2 r13)",
+   "date": "2026-07-16",
+   "family": "Mewtwo combo 'newera'",
+   "backbone": "GRU (screens: mamba, mamba_2, min_gru, gru2x)",
+   "data": "24-54 game explicit pools, sighted expert, dropout 0.4-0.6, transition weight",
+   "intent": "Chase conversion with the real TechRandom dummy; fix DJ spam/shield-lock (copycat causal confusion).",
+   "distinguishes": "r13 = DJ scrub + per-column debounce + dropout 0.6; r14 = 100 epochs full.",
+   "result": "r12 39 conv (6.1/8 card); r14 best 6.0/9 card, 9 conv, DJ frequency solved; shield-lock tail p95 215 persists. mamba_2 screen 8.6/10 > mamba 8.1 > gru2x.",
+   "verdict": "superseded (Mewtwo line parked; GOALS: 'learned the sequence, not the decision')",
+   "sources": "HANDOFF_2026-07-17.md scoreboard; HANDOFF_2026-07-21.md verdicts"
+  },
+  {
+   "name": "r14_shield_steer.bin (steer vector)",
+   "date": "2026-07-19",
+   "family": "Mewtwo combo (interp intervention)",
+   "backbone": "GRU r14 + activation steering",
+   "data": "shield-concept vector from interp probes",
+   "intent": "Live mitigation of the prev-action shield-lock via steering (LEACE α<1 was dead).",
+   "distinguishes": "Not a retrain — steer vector applied at α=1.0.",
+   "result": "r14 + steer α=1.0 = first 9/9 card, 0 shield breaks, p95 215→32; α=0.5 worse than baseline.",
+   "verdict": "diagnostic artifact (causal result), superseded",
+   "sources": "HANDOFF_2026-07-20.md scoreboard"
+  },
+  {
+   "name": "mewtwo_combo_newera_r15 / r16 / r17a",
+   "date": "2026-07-21",
+   "family": "Mewtwo combo 'newera' (rung-2)",
+   "backbone": "Mamba-2 (sequential scan)",
+   "data": "62-game pool; r16 adds archive-human BC (--bc-sample 20, 10.1%); r17a adds opener weighting, probe-reg, style conditioning",
+   "intent": "Make the bot INITIATE (gate-10 armed approaches/min >=1.0) via conversion weighting, probe-as-regularizer, human BC, opener weighting.",
+   "distinguishes": "r15 conversion-weight 3.0 + probe-reg; r16 + human BC; r17a + 4 levers.",
+   "result": "r15 card 8.3/10, 7 conversions, armed/min ~0; r16 armed/min 0.17 (FAIL, target >=1.0), 5% conversion; r17a stopped at ep48/100 for vacation, never scored.",
+   "verdict": "failed (did not move initiation); Mewtwo line reframed as a decision problem",
+   "sources": "HANDOFF_2026-07-22.md r15 result; HANDOFF_2026-07-23.md r16 verdict; HANDOFF_2026-07-24e.md"
+  },
+  {
+   "name": "multishine_v3 / multishine_dagger_v3_r1",
+   "date": "2026-07-24",
+   "family": "Fox multishine (table teacher era)",
+   "backbone": "GRU",
+   "data": "clean closed-loop teacher fixture (max chain 186), table-driven teacher (live chain 103)",
+   "intent": "BC the solved 9-frame multishine teacher; the policy gate of Track B.",
+   "distinguishes": "First policy trained on a REAL multishine fixture (old fixture was 24.6% grounded, chain 1).",
+   "result": "BC loss 0.00148 in 12 epochs; 99.3% offline agreement but live held one reflector ~2000 frames, never shined.",
+   "verdict": "failed live — root cause exposure bias (not the af convention, GOTCHA #81)",
+   "sources": "HANDOFF_2026-07-24c.md; HANDOFF_2026-07-26.md"
+  },
+  {
+   "name": "ms_synth_a-c / ms_noise / ms_pa / ms_w2-16 / ms_perturb / ms_synth_ss / ms_crouch_a-l / ms_ledge_a",
+   "date": "2026-07-27",
+   "family": "Fox multishine (exposure-bias campaign, laptop CPU)",
+   "backbone": "GRU (tiny; ~2 min CPU train)",
+   "data": "fixture + RecoverySynth off-trajectory states; crouch coverage; perturbed teacher recordings",
+   "intent": "Beat the absorbing states (reflector hold, crouch absorber) with synthesized recoveries and coverage; test window, prev-action, noise, scheduled sampling, perturbation.",
+   "distinguishes": "synth = manufactured recovery states; crouch = crouch-absorber coverage; ss = scheduled sampling.",
+   "result": "baseline chains 1; synth 29-58 self/min chains 3-7; perturb chains 1-2; SS does not replicate (0/~1/7-56 across seeds); crouch_a chains 19-22, escape rate 6/12 seeds; sampling T=0.5 rescues dead seeds.",
+   "verdict": "superseded (mechanism findings kept; recipes folded into ms_open_z)",
+   "sources": "HANDOFF_2026-07-27.md, 27b, 27c, 27d; EXPOSURE_BIAS.md"
+  },
+  {
+   "name": "ms_open_z (ms_open_x/y/zz, ms_rerec_a, ms_shift_a/b, ms_delay1_a-c)",
+   "date": "2026-07-28",
+   "family": "Fox multishine (laptop champion)",
+   "backbone": "GRU",
+   "data": "--synth-recovery --synth-crouch --synth-opening + dead-seed openings, --x-hold-extend 3 --prev-action, delay-0",
+   "intent": "Close the opening absorber; the latency campaign (delay-0 brittleness, --action-delay 1 shift).",
+   "distinguishes": "Opening-synth added (4/4 escape); shift arms (ms_shift) produce metronomes.",
+   "result": "165-186 self/min, chains 15-30 (stand dummy, async windowed) = all-time laptop record; +1 frame delay collapses chains 27→2; cpu-1 ~70/min c4-6.",
+   "verdict": "superseded by 5090 farm/g-line",
+   "sources": "HANDOFF_2026-07-28.md, 07-29.md"
+  },
+  {
+   "name": "ms_d1_dagger1-3 (R3 = ms_d1_dagger3_policy), ms_d1_dagger3_r4e10/e22",
+   "date": "2026-07-30",
+   "family": "Fox multishine (DAgger through the delayed bridge)",
+   "backbone": "GRU",
+   "data": "closed_loop_d1 teacher fixture + rollouts through online_delay=1 bridge",
+   "intent": "Teach anticipation for +1 delay by DAgger through the delayed bridge with the shifted teacher.",
+   "distinguishes": "R3 = transition-weight 2.0 + prev-action-dropout 0.6; R4 = margin fattening (resume).",
+   "result": "R3 = d1 champion: sync d3 133-194/min c2-84 (delay-preference inversion); R4 live-counterproductive (c2).",
+   "verdict": "superseded (campaign worked; retired R4 objective)",
+   "sources": "HANDOFF_2026-07-29b.md; HANDOFF_2026-07-30.md"
+  },
+  {
+   "name": "ms_farm9_a-c / ms_farm11_a1-b2 / ms_farm12_*",
+   "date": "2026-07-30",
+   "family": "Fox multishine (5090 seed farm)",
+   "backbone": "GRU",
+   "data": "champion recipe (farm-6 ARM B), fresh seeds, ~40 s/seed on the 5090",
+   "intent": "Re-score the lineage on the trusted sync-d2 harness; seed variance.",
+   "distinguishes": "First 5090-trained ms policies; sync --frame-delay 2 harness (cal 0.99).",
+   "result": "sync d2: 258-288/min, chains 79-176 (first probe 264); headless == windowed; 'farm-11 perfect bots'.",
+   "verdict": "superseded by queue/SS arms",
+   "sources": "HANDOFF_2026-07-30.md tables; HANDOFF_2026-07-31.md intro"
+  },
+  {
+   "name": "ms_g1_jq / ms_g1_mdq / ms_g1_jitter5 / ms_q_ctrl1 / ms_q_queue1",
+   "date": "2026-07-31",
+   "family": "Fox multishine g-line (queue-as-input)",
+   "backbone": "GRU",
+   "data": "multi-delay {2,3,4} shifted pools + pipeline-offset 2 + queue-depth 4 + delay-id one-hot (+ shift-jitter)",
+   "intent": "Grind-1: make one checkpoint chain at d2/d3/d4 by feeding the in-flight input queue and a delay id.",
+   "distinguishes": "Teacher-forced queue (mdq) vs jitter vs both (jq).",
+   "result": "mdq d2 77 c2 / d3 73 c1 / d4 111 c9; jq d3 = 0 shines (crouch absorber, delay-id channel triggered: id=4 at real d3 → 431 c430).",
+   "verdict": "failed (no arm chained >=20); led to SS-on-queue",
+   "sources": "HANDOFF_2026-07-31.md grind-1 table; HANDOFF_2026-08-03.md item 1"
+  },
+  {
+   "name": "ms_g2_mdq_ss",
+   "date": "2026-07-31",
+   "family": "Fox multishine g-line",
+   "backbone": "GRU",
+   "data": "mdq recipe + --scheduled-sampling 0.5 --ss-ramp 10 (all 4 queue slots self-sampled)",
+   "intent": "Grind-2: break the d3 rung by self-sampling the queue channel (SS-on-queue).",
+   "distinguishes": "Scheduled sampling on the queue input.",
+   "result": "d2 140 c6 / d3 380.5 c367 (×3 identical) / d4 435 c436; Direct loopback verified sharp 5f latency at --frame-delay 3; vs human 21-29 shines, chain 1.",
+   "verdict": "superseded (Direct showpiece until g4/g10b)",
+   "sources": "HANDOFF_2026-07-31.md grind-2; HANDOFF_2026-08-02.md; HANDOFF_2026-08-04.md table"
+  },
+  {
+   "name": "mc_g1_mdq_ss",
+   "date": "2026-08-02",
+   "family": "Mewtwo (SS-on-queue arm)",
+   "backbone": "GRU",
+   "data": "--expert mewtwo_combo composite, 130,847 fixture frames × 3 delay pools, 60 epochs, best loss 0.58",
+   "intent": "Does SS-on-queue generalize to the Mewtwo punish cycle under delay?",
+   "distinguishes": "Only Mewtwo policy trained with the full grind-2 recipe.",
+   "result": "stand d3: 3 fairs/3 landed/L-cancel 1/3 (champion-parity activity two rungs deeper); conversion vs tech_random never evaluated.",
+   "verdict": "parked (netplay-safe curiosity, not demo-grade)",
+   "sources": "HANDOFF_2026-08-02.md"
+  },
+  {
+   "name": "ms_g3_jq_ss / ms_g4_d2mix / ms_g5_ladder8",
+   "date": "2026-08-03",
+   "family": "Fox multishine g-line",
+   "backbone": "GRU",
+   "data": "grind-3/4/5 pools: SS + jitter; d2 source mix; multi-delay {2,4,6,8}",
+   "intent": "Explain the d2 inversion; test the delay ladder past d4.",
+   "distinguishes": "g4 = d2 source-distribution arm; g5 = ladder to d8.",
+   "result": "g4 = d3 record 424.4 c423; vs human 40 shines chain 2 (best of the day); g5 d2 pin shattered 205.8 c73; d6/d8 metronomes (18-frame netplay rejected).",
+   "verdict": "g4 = production 08-04..08-05 (after g6 reversal); superseded by g10b",
+   "sources": "HANDOFF_2026-08-03.md items 5-6; HANDOFF_2026-08-04.md table"
+  },
+  {
+   "name": "ms_g6_sp1 (+ sp2, g7_pressure, g8_snippets, g9_sp34)",
+   "date": "2026-08-03",
+   "family": "Fox multishine g-line",
+   "backbone": "GRU",
+   "data": "multi-delay {2,3} champion recipe; g7 = whole-rollout pressure mix; g8 = 103 mined snippets",
+   "intent": "One checkpoint for the whole netplay band; test rung spacing and fight-state mixing.",
+   "distinguishes": "Rung set {2,3} only.",
+   "result": "d2 434.5 c434 / d3 413.4 c409 / d4 332.4 c313 (id override 3) — crowned 08-03; vs human: 0 shines in 2 games. g7 +43% under pressure but stand 72.9 c1; g8 stand 385.5 c374, no pressure gain.",
+   "verdict": "CROWN REVERTED 08-04 — the 'g6 lesson' (dummy ranking inverts against humans; overfit to opponent-percent as cycle clock)",
+   "sources": "HANDOFF_2026-08-03b.md; HANDOFF_2026-08-04.md headline; CLAUDE.md standing rule"
+  },
+  {
+   "name": "ms_g10_human (invalid) / ms_g10b_human",
+   "date": "2026-08-04",
+   "family": "Fox multishine g-line (human curation loop)",
+   "backbone": "GRU",
+   "data": "g4 recipe + 12,339 REAL-HUMAN snippet frames re-mined at --action-delay 2 (g10 mined at 5 = misaligned)",
+   "intent": "Curation cycle 3: fix the fight-state/absorber gap with aligned human-game snippets.",
+   "distinguishes": "First human-corpus snippets; alignment of miner delay to the drill.",
+   "result": "stand d3 421.4 c421; YS collapse 0/3 then 11/11 no-collapse (chains 43-208); rung-0 1.44; HUMAN NETPLAY chain 4 at d4 (record), local chain 22; later strict chain 58 vs a still Fox, 1 vs Mewtwo.",
+   "verdict": "CROWNED 08-05 (deploy --frame-delay 4); superseded by g15 (08-09)",
+   "sources": "HANDOFF_2026-08-04b.md headline + 08-05 addendum; memory project_status_archive.md"
+  },
+  {
+   "name": "ms_g11_yaug / ms_g11b_yaug; bakeoff_gru / bakeoff_mamba2; ms_g12_margin",
+   "date": "2026-08-04",
+   "family": "Fox multishine g-line (lever A/Bs)",
+   "backbone": "GRU (bakeoff: mamba_2)",
+   "data": "g10b recipe + y-augmentation; champion recipe on mamba_2; margin-weight lever",
+   "intent": "Fix the YS platform absorber (altitude augmentation); bake-off #27; widen aerial-shine margins for the delay gap.",
+   "distinguishes": "Single-lever arms off g10b.",
+   "result": "g11b all-time stand record 428.4 c427 but ~80% YS collapse (n=10); mamba_2 stand 121.8 c1, rung-0 2.91 (fits data, fails closed-loop → GRU stays); g12 margins moved (−0.23/+0.28/+0.33) stand held, human A/B negative.",
+   "verdict": "parked / failed (g10b > g4 > g11b)",
+   "sources": "HANDOFF_2026-08-04b.md evening addendum; HANDOFF_2026-08-07 via memory archive"
+  },
+  {
+   "name": "ms_g13_oppmix / ms_g13b_oppmix / ms_g14_oppmask / ms_g15_oppmask_full",
+   "date": "2026-08-08",
+   "family": "Fox multishine g-line (opponent-character augmentation)",
+   "backbone": "GRU",
+   "data": "g10b recipe + opponent-character redress (g13), per-frame 3-field scramble (g14), full-block scramble (g15)",
+   "intent": "Opponent character is the fight-state wall (chain 58 vs still Fox → 1 vs still Mewtwo); teach invariance via masking.",
+   "distinguishes": "g13 coherent redress → inverted; g14 partial scramble (dependence floor 1.08); g15 full scramble.",
+   "result": "g15: stand 430.4 c426 record (×3 bit-identical), YS c24/21/13 no collapse, chains 12-13 vs Bradley's LIVE Mewtwo, rung-0 4.28 (scramble detection); champion card: netplay chain 46 record, {3,1,46,6} decider vs g10b.",
+   "verdict": "ms_g15_oppmask_full CROWNED 08-09, champion-of-record until 08-24; now the FALLBACK",
+   "sources": "HANDOFF_2026-08-08.md; CLAUDE.md Current Status; memory project_status_archive.md"
+  },
+  {
+   "name": "fox_il_v1 / fox_il_v2 / fox_il_v2_long",
+   "date": "2026-08-09",
+   "family": "full-game IL harness (pre-generalist)",
+   "backbone": "GRU (temporal)",
+   "data": "v1: 900 HF games/5.4M frames stride 30; v2: mmap corpus fox_v2 4,418 games/41.4M frames (fixed port bug)",
+   "intent": "Validate full-game imitation at scale (the representation question behind the multishine program).",
+   "distinguishes": "v1 had fixed player_port 1 (62% wrong player); v2 = corrected corpus via MmapCorpus.",
+   "result": "v1 val 5.49→4.95 in 10 epochs; v2 val 5.687→5.374 monotone (49 min); live: completes games vs CPU, 42 actions, loses 2 stocks takes 0.",
+   "verdict": "harness validated; superseded by fox_gen line",
+   "sources": "HANDOFF_2026-08-08.md discovery 2; memory project_status_archive.md 08-08"
+  },
+  {
+   "name": "fox_il_v2_edgeA / edgeB / convC1 / convC2 / convC3 / convC4",
+   "date": "2026-08-11",
+   "family": "full-game IL (edge/conversion DAgger mixes)",
+   "backbone": "GRU",
+   "data": "fox_v2 corpus + edge-DAgger snippets (edgeB) + merged edge+conversion mix x18 (convC2), x12 (C3), x19 (C4)",
+   "intent": "Kill the SD loop and add conversions by targeted snippet mixes; blind human decider for a generalist crown.",
+   "distinguishes": "edgeB = edge mix only; convC2 = edge + conversion stacked; C3/C4 = flaw-mix doses.",
+   "result": "edgeB SDs 18.4→0.6; convC2 async stocks 0.9/game vs 0.5, 6-game blind decider: only human stock taken, dmg 113 vs 94 → GENERALIST CROWN 08-12; C3 dilution regression; C4 = C2−ε, val 5.447.",
+   "verdict": "convC2 crowned (pre-erickfm generalist); superseded by fox_gen/V3 line",
+   "sources": "memory project_status_2026-08-mid.md (convC2 crown, flaw campaign); registry.json val 5.39-5.48"
+  },
+  {
+   "name": "ms_awbc_b1 / b2 / b3; ms_g16_awbc",
+   "date": "2026-08-13",
+   "family": "Fox multishine g-line (advantage-weighted BC)",
+   "backbone": "GRU",
+   "data": "champion recipe; B2 = AWBC loss weights on chain-critical frames; B3 = shuffled placebo; g16 = g15 recipe + --awbc",
+   "intent": "First outcome-signal test: do shine-reward advantage weights improve chains?",
+   "distinguishes": "Loss re-weighting by return-to-go.",
+   "result": "B2 333.5/min c302 vs B1 284.6 c249 (+17/+21%); B3 placebo collapsed to c2; deploy rung no inversion (chain 21). g16 253.6 fox / 109.8 mewtwo (best fixed-stack at the time; stack had the nx grad regression #98).",
+   "verdict": "AWBC graduated (regional, starves non-shine skills); g16 superseded",
+   "sources": "memory project_status_archive.md (0813_awbc_ms RESULTS summary; 08-14..16 arc)"
+  },
+  {
+   "name": "ms_g15r_gradfix / ms_g15r2 / ms_g17_lr4e-4 / ms_g17_lr8e-4 / ms_g18 (ep90)",
+   "date": "2026-08-19",
+   "family": "Fox multishine g-line (replicates on the fixed stack)",
+   "backbone": "GRU",
+   "data": "g15 recipe replicates; g17 = lr arms; g18 = awbc + collapse guard",
+   "intent": "Replicate the champion on the fixed nx stack; is lr the lever; why do runs collapse?",
+   "distinguishes": "Same recipe, different seeds/lr; collapse guard (loss<1e-5 → restore).",
+   "result": "g15r2 ep50 rescue 362.5/min c353 (best fixed-stack ever, then collapsed ep51); g17 negative (151.8 c88 / 103.9 c5); g18 attempt-1 collapsed ep10, attempt-2 419.4 c415 at EPOCH 13 (mewtwo 99.9 c2).",
+   "verdict": "superseded — discovery: run-to-run variance dominates; chain skill lives on transient peaks",
+   "sources": "memory project_status_archive.md HANDOFF_2026-08-19 addendum; eval_runs/0819_g15r2, 0820_collapse_forensics"
+  },
+  {
+   "name": "ms_g19 → ms_g19_ep4.bin",
+   "date": "2026-08-20",
+   "family": "Fox multishine g-line",
+   "backbone": "GRU (windowed, queue+delay-id, trained ids {2,3})",
+   "data": "g15 recipe (+human snippets, oppmask) with --snapshot-all + gate_sweep every epoch",
+   "intent": "Recipe fix for transient peaks: save every epoch and select by behavioral argmax across a multi-gate profile.",
+   "distinguishes": "Epoch-4 snapshot picked by gate sweep (final epoch gated 122.8).",
+   "result": "stand d3 437.4/min c438 ×3 (all-time record); d4+id3 388.4 c389; YS no-collapse; mewtwo 93.9 c1; d2 dead; human session chains 96 & 163 (records, 08-21 blind local decider); NETPLAY CHAIN 62 (08-22); crown decider 08-24 FD-pinned {32,12} vs g15 {3,3,13}.",
+   "verdict": "CROWNED PRODUCTION 2026-08-24 (deploy netplay --frame-delay 4 --delay-id-override 3; local d3)",
+   "sources": "CLAUDE.md Current Status; memory project_status_archive.md (0820_g19_gatesweep, 0820_g19_decider); DEPLOY_KNOBS.md; eval_runs/0824_crown_decider"
+  },
+  {
+   "name": "ms_g20 (ep13) / ms_g20si / ms_g20si2; ms_p1_anneal / ms_p2_ss0 / ms_p2_ssfull",
+   "date": "2026-08-21",
+   "family": "Fox multishine g-line (peak science)",
+   "backbone": "GRU",
+   "data": "g19 recipe replicate; lr anneal; SS 0 / full on the queue",
+   "intent": "Is the trajectory shape stable (R-WANDER)? Is lr or SS the hopping mechanism?",
+   "distinguishes": "Replicate + anneal + SS dose arms.",
+   "result": "g20 ep13 stand 435, MEWTWO 424.4 c422 (all-time record, opponent-invariant) but d4-id3 DEAD (1.0); P1 anneal = drift/hop (53% dwell); P2 null (ss0 ep18 439.4 c440 = highest single gate ever; full SS softens bimodality).",
+   "verdict": "superseded (decider pool member; hopping mechanism intrinsic/open)",
+   "sources": "memory project_status_archive.md (0820_g20_replicate, 0821_peak_p2_ss RESULTS)"
+  },
+  {
+   "name": "ms_f3_a2_anchor (ep13) / ms_f3_a3_anchor2x (ep8) / ms_f3_a4_dose2x",
+   "date": "2026-08-22",
+   "family": "Fox multishine g-line (F3 KL-distillation anchor)",
+   "backbone": "GRU",
+   "data": "g19 recipe + distill-KL to teacher g19_ep4; human dose 1x vs 2x; a4 = 2x dose no anchor",
+   "intent": "Protect skill while absorbing data (anchor) and test whether dose is toxic.",
+   "distinguishes": "KL anchor on/off × human-snippet dose 1x/2x.",
+   "result": "a3 ep8: fox 438.4 c439 ×3 (new stand record) / mewtwo 434.4 c433 / d4-id3 376.4 c372 = best all-around profile; stability dose-driven (2x 61-77% dwell vs 1x 20-40%); anchor = opponent-invariant profile shaping.",
+   "verdict": "candidate/decider-pool (not crowned; dose was never toxic)",
+   "sources": "memory project_status_archive.md (eval_runs/0819_f3_distill RESULTS, 08-22 attribution)"
+  },
+  {
+   "name": "ms_g19r1 / ms_g19r2 / ms_g19r3 (ep4)",
+   "date": "2026-08-24",
+   "family": "Fox multishine g-line (transfer replicates)",
+   "backbone": "GRU",
+   "data": "g19 recipe reruns for the transfer decider",
+   "intent": "Pick a broadly-transferring checkpoint where the champion is popo-only; transfer decider (D7) vs opponent character.",
+   "distinguishes": "Seed replicates of g19 scored on a multi-gate profile.",
+   "result": "ms_g19r3_ep4 = transfer-selected candidate ('broad transfer where champion is popo-only'); decider paused mid-setup, key unread; 3 banked games discarded.",
+   "verdict": "candidate (D7 transfer decider never completed)",
+   "sources": "CLAUDE.md Production note; memory project_status_2026-08-28.md thread 3"
+  },
+  {
+   "name": "fox_gen_pilot1 / fox_gen_pilot1_fixed",
+   "date": "2026-08-25",
+   "family": "generalist Fox (erickfm corpus)",
+   "backbone": "GRU-60",
+   "data": "300 of the 7,911 erickfm master-master Fox games, 20 epochs",
+   "intent": "Generalist restart pilot: does BC on master replays produce a playable Fox? Expected idle/crouch BC baseline.",
+   "distinguishes": "First erickfm-corpus policy; metadata-corrected copy (_fixed).",
+   "result": "val 4.694 (registry 4.78); live: mostly idles, crouches when approached, occasional jab/dtilt/short-hop.",
+   "verdict": "superseded by fox_gen_v1",
+   "sources": "HANDOFF_2026-08-25.md lines 56-62; registry.json"
+  },
+  {
+   "name": "fox_gen_v1 (ep10 = default) + critic_fox_gen_v1",
+   "date": "2026-08-26",
+   "family": "generalist Fox (erickfm corpus)",
+   "backbone": "GRU-60 (512,512,256), stride 5, batch 256, f32, lr 1e-4, --stage-internals (296-dim)",
+   "data": "7,911 master Fox games (~90M frames), 10 epochs, ~11.4 h — later found 43% of demos were the OPPONENT (port-1 imitation, E1)",
+   "intent": "Full generalist BC run; find a decode that plays.",
+   "distinguishes": "First full-corpus generalist; parallel (independent) heads.",
+   "result": "val 6.639→5.789; argmax dead in ~32 s (4 SDs); T=0.5: 35% conversions, 0.50 armed/min, 1.7 deaths/game; default live decode --temperature 0.5 --buttons-temperature 0.5 (Bradley: 'less taunty, hints of a fast scrappy game'); Leg S headroom +29 pts; no ground movement (DASH 0.1%).",
+   "verdict": "superseded (v1 decode ladder exhausted — L9: mode-seeking decodes die live)",
+   "sources": "HANDOFF_2026-08-26.md §2; memory project_status_2026-08-28_evening.md, 08-29.md, 08-30.md (E1)"
+  },
+  {
+   "name": "fox_gen_v1_B1 / B2 / B3 (AWBC arms)",
+   "date": "2026-08-29",
+   "family": "generalist Fox",
+   "backbone": "GRU-60",
+   "data": "3 epochs from v1 ep10, seed 828; B2 = outcome-weighted (AWBC), B3 = shuffled placebo, B1 plain",
+   "intent": "Does outcome re-weighting reduce pathologies (taunts, pummel loops) on the generalist?",
+   "distinguishes": "AWBC on human corpus with Rewards.Standard.",
+   "result": "val 5.73/5.67/5.77; NULL by prereg (max ratio 1.5x, ranges overlap; B2 worst on d_up); Bradley: all three feel better than ep10, B1>=B2, no human-callable ranking.",
+   "verdict": "failed/null (AWBC at default sharpness is dry)",
+   "sources": "memory project_status_2026-08-29.md; registry.json"
+  },
+  {
+   "name": "fox_gen_v1.1_ARhead / INDhead → v1.1_AR / v1.1_IND (unfreeze) → v1.2_ARrefit / INDrefit",
+   "date": "2026-08-31",
+   "family": "generalist Fox (autoregressive head)",
+   "backbone": "GRU-60 + slippi-ai-style residual AR head (sequential component sampling)",
+   "data": "head-only refit on 12.14M captured rows; unfreeze 3 epochs from ep10 on the --select-character-port corpus; v1.2 = refit of the atrophied wire",
+   "intent": "Fix independent heads (P(up|B) 2.9x in experts, 1.05x in IND) so up-B recoveries happen; AUTOREGRESSIVE_HEAD_PLAN.md.",
+   "distinguishes": "AR head (teacher-forced tf_* inputs, fused sampler 2.53 ms) vs IND control.",
+   "result": "8a bracket: AR up-B route 8.3% vs IND 0.0, recovery deaths 35.4 vs 51.1%; unfreeze val AR 5.4797 vs IND 5.9733 (0.5-nat conditioning gap); both crush ep10 recovery (died 28/36% vs 61%); v1.2_ARrefit passed both gates; Bradley: 'survival much better, airdodge panic down; NO POSITIONAL PLAY'.",
+   "verdict": "superseded (AR head KEPT as the standard head)",
+   "sources": "memory project_status_2026-08-30.md, 2026-08-31.md; registry.json"
+  },
+  {
+   "name": "fox_gen_v1.3_AR / IND / ARrefit / INDrefit (+ dynamics_fox_v11AR)",
+   "date": "2026-09-01",
+   "family": "generalist Fox (corpus-corruption fix)",
+   "backbone": "GRU-60 + AR head",
+   "data": "v1.1 recipe rerun on the repaired loader (GOTCHA #107: opponent had been DROPPED on ~44% of files) + head refit",
+   "intent": "Pre-registered: does fixing the zero-self/opponent-slot corruption invert approach_delta (retreat → approach)?",
+   "distinguishes": "First policy on an uncorrupted port-remapped corpus.",
+   "result": "val AR 5.3242 / IND 5.7643; approach_delta −0.20..−0.26 → +0.04/+0.11/+0.19 (expert's rising-with-distance sign); died 44% (ambiguous); Bradley: first punish structure (uthrow→uair), survival mixed; combo-depth probe: knowledge present, state-visitation caps it.",
+   "verdict": "primary PASSED; superseded by v1.4/w180/v15",
+   "sources": "memory project_status_2026-08-31.md 09-01 entries; registry.json"
+  },
+  {
+   "name": "fox_gen_v1.3_AWBCdrill",
+   "date": "2026-09-02",
+   "family": "generalist Fox (drill mix)",
+   "backbone": "GRU-60 + AR head",
+   "data": "v1.3 + 538 uthrow drill episodes sliced to 129,658 AWBC-weighted frames (Drill 1 hit-confirm)",
+   "intent": "Close the 1-2-hit punish cap with savestate-style drills + AWBC on drill replays.",
+   "distinguishes": "First drill-mix generalist.",
+   "result": "val 5.19; 0-19% band 2.9→3.7 mean hits, 30→41% deep; but 8+-hit laser strings doubled (12→26%), mean dmg flat 16.4→17.5 (expert 27).",
+   "verdict": "PARTIAL (AWBC amplified reachable laser continuations); live transfer look owed",
+   "sources": "memory project_status_2026-09-02.md; registry.json"
+  },
+  {
+   "name": "fox_gen_v1.4_long",
+   "date": "2026-09-03",
+   "family": "generalist Fox (compute arm)",
+   "backbone": "GRU-60 + AR head",
+   "data": "v1.3 recipe at 2.3x compute (4 epochs)",
+   "intent": "Is the generalist underfit? Compute-only control for the drill 2x2.",
+   "distinguishes": "Epochs only.",
+   "result": "val 5.324→5.241 monotone (best fox_gen val at the time); T=1.0 survives full games (frozen 0.00, d_up 410/min); drill metric 1.9 hits (flat-to-worse) → scale and drills are independent levers.",
+   "verdict": "underfit CONFIRMED; superseded",
+   "sources": "memory project_status_2026-09-02.md 09-03 dawn addendum; registry.json"
+  },
+  {
+   "name": "fox_gen_w180 / fox_gen_w180b",
+   "date": "2026-09-04",
+   "family": "generalist Fox (context arm)",
+   "backbone": "GRU, window 180 (vs 60) + AR head",
+   "data": "same corpus, 2 / 6 epochs",
+   "intent": "Is context (window length) a lever for the neutral layer (dash-dance, approach)?",
+   "distinguishes": "--window-size 180 (the first launch silently ignored --window; GOTCHA #108).",
+   "result": "val 5.339 (w180) / 5.2082 (w180b, all-time fox_gen best); toward-sign flips positive, approach gradient near-expert at 70-100; d_up spray 430-450/min unchanged; Bradley: 'still random-feeling, can't combo, punishable, SDs'.",
+   "verdict": "context lever CONFIRMED → BPTT build; superseded",
+   "sources": "memory project_status_2026-09-03.md; registry.json"
+  },
+  {
+   "name": "fox_gen_v15_bptt (shakeout) / fox_gen_v15_full",
+   "date": "2026-09-05",
+   "family": "generalist Fox (v1.5 BPTT)",
+   "backbone": "GRU 512x3 carried-state BPTT (unroll 80, batch 128) + AR head",
+   "data": "shakeout 2,500 files 2 epochs; full 10,037 files (7,911 FOX + 2,126 partner files), 6 epochs, resume from v1 ep10 trunk",
+   "intent": "slippi-ai parity plank 1: truncated BPTT over games with carried recurrent state (after the eager-slice recompile fix, GOTCHA #112).",
+   "distinguishes": "First BPTT-trained generalist; needs --stateful-step live.",
+   "result": "shakeout val 5.85; full val 5.3005 (5.536→5.30 monotone, ~2.1 h/epoch); Bradley: best-yet but taunt/shield-grab spam → taunt mechanism = pos_weight sqrt-cap 30 (corpus taunts 0.02/min vs bot 0.5-0.7).",
+   "verdict": "superseded by v16/v2 (clean loss)",
+   "sources": "memory project_status_2026-09-04_throughput.md; project_status_2026-09-05_v2_launch.md; registry.json"
+  },
+  {
+   "name": "fox_gen_v16a_cleanloss / v16b_neutral05 / v16c_transition3 / v16d_offstage4",
+   "date": "2026-09-05",
+   "family": "generalist Fox (v16 ablation twins on shakeout_v15)",
+   "backbone": "GRU BPTT + AR head",
+   "data": "shakeout_v15 (2,500 files), 2 epochs each",
+   "intent": "Ablate the v1-era anti-collapse stack (pos_weight :auto, focal, oversample 3x, entropy, neutral 0.25) and single-knob variants.",
+   "distinguishes": "v16a = all those knobs zeroed; b/c/d = neutral weight 0.5 / transition 3 / offstage 4.",
+   "result": "v16a val 2.25 (shakeout split, not comparable to full-corpus vals): NO collapse, d_up 0.49/min, taunts 0.08, spam cycles gone, Bradley 'pretty good'; frozen-input 0→0.11 (passivity). v16b 2.47, v16c 2.78, v16d 2.35.",
+   "verdict": "v16a adopted as the v2 loss recipe",
+   "sources": "memory project_status_2026-09-05_v2_launch.md item 2; registry.json"
+  },
+  {
+   "name": "fox_gen_v2 (20260905_224919)",
+   "date": "2026-09-07",
+   "family": "generalist Fox (v2)",
+   "backbone": "GRU BPTT + AR head, clean loss",
+   "data": "28,452 fox-containing files from the deduped (33% content-hash dups removed) + filtered corpus, 8 epochs planned (~4.5-5 h/epoch)",
+   "intent": "v2 = BPTT × data scale (slippi-ai filters) × clean loss; 'plays at T=1.0' gate.",
+   "distinguishes": "First 28k-file run.",
+   "result": "stopped 09-07 at epoch 7 (plateau); readout = PASSIVE; val ~1.83 is LEAKED-TARGET optimistic (trained at delay 0 → GOTCHA #113).",
+   "verdict": "failed (passivity = delay-0 label leak); superseded by V3",
+   "sources": "memory project_status_2026-09-05_v2_launch.md ('PRIOR: fox_gen_v2 TRAINING' + 09-09 update)"
+  },
+  {
+   "name": "fox_gen_v16e_delay1 / v16f_causal_default / v16f_causal_scratch / v16g_afb24_scratch",
+   "date": "2026-09-09",
+   "family": "generalist Fox (label-leak fix twins)",
+   "backbone": "GRU BPTT + AR head",
+   "data": "shakeout_v15, 2 epochs; v16e = v16a + --frame-delay 1; v16f = causal labels (rebased numbering); v16g = + --action-frame-buckets 24",
+   "intent": "Prove the delay-0 label leak is the root of the pathology board (passivity, never initiating).",
+   "distinguishes": "Label alignment: state[t]→controller[t+1].",
+   "result": "v16e val 2.415: p(dash-out from standing) 0.0002→0.11-0.15 (experts 0.13-0.29), headless idle 0.188→0.02, dwell 34.7→3.2 f; v16f WAIT probe 0.33 (v16e 0.27, expert 0.41) PASSED; v16g no benefit (not in v3). Jab chain not fixed.",
+   "verdict": "diagnostic twins; GATES DONE → V3 ready",
+   "sources": "memory project_status_2026-09-05_v2_launch.md (09-09 updates); registry.json"
+  },
+  {
+   "name": "ms_g20a / g20b / g21a / g22a / g22b / ms_g23a_ep57 / ms_g23b (control)",
+   "date": "2026-09-10",
+   "family": "Fox multishine g-line (multishine under SAMPLING)",
+   "backbone": "GRU (AR head removed for this line), 60 epochs, --action-frame-buckets 24",
+   "data": "g19 recipe re-mined with closed_d1.slp (one-frame teacher conflict fixed) + snippets; g23b = no snippets",
+   "intent": "g19's record was ARGMAX (45/min c3 sampled); make a checkpoint that multishines when sampled at T=1.0.",
+   "distinguishes": "AR head out (released B mid-air), converge 60 ep, action-frame buckets, re-mined snippets.",
+   "result": "ms_g23a_ep57: chains 438/4/423 at T=1.0 (d3, id 2 new numbering) vs stand dummy; but 54-62/min c2-3 vs level-1 CPU and 35.7/min c2 vs Bradley ('not impressive') → STATE COVERAGE is the gap; rungs d1/d2 chain <=4.",
+   "verdict": "candidate (technique floor); superseded by proof-contract candidates",
+   "sources": "memory project_status_2026-09-05_v2_launch.md (09-10 EVENING, 09-11 01:00 updates); eval_runs/0910_g20_causal/RESULTS.md"
+  },
+  {
+   "name": "ms_g24a (ep55)",
+   "date": "2026-09-11",
+   "family": "Fox multishine g-line (coverage DAgger round 1)",
+   "backbone": "GRU",
+   "data": "g23a pool + Bradley's session + 8 CPU games relabeled",
+   "intent": "New gate = shines/min vs --dummy cpu; iterate rollouts→relabel→retrain with both metrics gated.",
+   "distinguishes": "First DAgger on live human/CPU states for the sampled line.",
+   "result": "CPU gate 69-71/min c8-13 vs g23a 49-56 c2-3 (+30%, chains 4x); stand floor fell 296 c277 → 111 c27 (trade-off).",
+   "verdict": "candidate (coverage); superseded",
+   "sources": "memory project_status_2026-09-05_v2_launch.md (09-11 04:35 update)"
+  },
+  {
+   "name": "ms_g25a",
+   "date": "2026-09-12",
+   "family": "Fox multishine g-line (label-free augmentation)",
+   "backbone": "GRU, physical delay ids 3,4,5",
+   "data": "g24a pool + mirror + randomized opponent-context augmentation (from coverage-map probe)",
+   "intent": "Fix the coverage map's collapsed cells (opp shield/grab/shine, opp behind, mirror) without new labels.",
+   "distinguishes": "Synthetic context augmentation.",
+   "result": "map first-decision cells fixed (0.00→0.94+) but aerial press collapsed (0.31); LIVE stand 93/min c2 (ep57 296, g24a 111); CPU g24a-level → synthetic context != real.",
+   "verdict": "FAILED live → root cause found: drill delayed labels = recorded future (10/11 loop states conflict at shift 4)",
+   "sources": "memory project_status_2026-09-05_v2_launch.md (09-12 18:40, 19:00); HANDOFF_2026-09-12b.md"
+  },
+  {
+   "name": "ms_g26a (stopped ep48)",
+   "date": "2026-09-12",
+   "family": "Fox multishine g-line (item-14 labels)",
+   "backbone": "GRU, physical ids 3,4,5",
+   "data": "g24a pool with Labels.at_delay + phase-indexed label_ahead (0 conflicts at shifts 3,4,5)",
+   "intent": "Does removing the future-dependent label conflict restore chaining?",
+   "distinguishes": "Structurally conflict-free delayed labels (INVARIANTS item 14).",
+   "result": "floor 67/min c4 (WORST; ep57 296), CPU 49-51 == ep57 despite 0.998 fixture fit; low-loss guard fired 4x on healthy epochs.",
+   "verdict": "FAILED → suspect label_ahead off-loop HOLD rule; led to g27 hold-vs-drop",
+   "sources": "memory project_status_2026-09-05_v2_launch.md (09-12 23:30 update)"
+  },
+  {
+   "name": "ms_g27drop / ms_g27hold",
+   "date": "2026-09-14",
+   "family": "Fox multishine g-line (hold-vs-drop A/B)",
+   "backbone": "GRU, rungs 3/4/5",
+   "data": "g26 pool; off-loop delayed labels DROP (abstain) vs HOLD (legacy)",
+   "intent": "Settle whether held off-loop labels (~85% of the g-line's rung-3/4/5 frames) caused the collapse.",
+   "distinguishes": "Only the off-loop label rule differs.",
+   "result": "drop wins every readout: stand 391 vs 371/min (g26a 67), CPU chain 14-52 vs 1, map flat 0.999 incl. mirror vs 0.874; g26a's 67 floor does not reproduce under the numerical guard.",
+   "verdict": "drop = standard; g-line superseded by the proof contract",
+   "sources": "memory project_status_2026-09-13_context_fit.md (09-14 14:30); docs/planning/G26_HOLD_VS_DROP_2026-09-14.md"
+  },
+  {
+   "name": "proof candidates: 0913_context_fit/round21, 0914_delay4_proof/round21, 0914_coverage_round/round21, 0915_local_zero/corrected_bootstrap (eval_runs/*/candidate.bin)",
+   "date": "2026-09-13",
+   "family": "Fox multishine PROOF CONTRACT (Track B)",
+   "backbone": "tiny windowed GRU F32 (GRU64x2), AR head, window 16, queue 3; delay 2 / 4 / 0 variants",
+   "data": "canonical fixture + 18 cold/warm recorded teacher clips (clips_v6) + 9 orig + 39 coverage handoffs (5 opponent bodies), 21 epochs",
+   "intent": "Minimal provable recipe: warm-history recovery, interruptions, any opponent body, under declared delay rungs.",
+   "distinguishes": "Recorded-teacher-clip method; gates in fixed order; declared held-out.",
+   "result": "context_fit: warm 12/12, interruptions 6/6 (chains 35-39); Bradley live: chain 101, 209 shines/min ('easily the best version I've played'); delay-4: 12/12 cold+warm, chains 13-14; coverage: held-out 24/24 (22/24 under pressure); local zero demo 30/30 standing + 30/30 CPU over 6 stages × 5 opponents.",
+   "verdict": "Track B MET (GOALS 09-19); no default multishine policy installed in play scripts",
+   "sources": "memory project_status_2026-09-13_context_fit.md; HANDOFF_2026-09-17.md §1a-1c; GOALS.md Track B"
+  },
+  {
+   "name": "mewtwo_neutral v1–v5 (eval_runs/0915_mewtwo_neutral/v5/candidate.bin)",
+   "date": "2026-09-15",
+   "family": "Mewtwo neutral (teacher-driven)",
+   "backbone": "GRU128",
+   "data": "MewtwoNeutralTeacher labels on controlled FD/Fox cases",
+   "intent": "Track A: a student that goes in with SH-fair from the approved neutral teacher.",
+   "distinguishes": "Rules teacher approved; five learned rounds.",
+   "result": "none consistent: best standing openings 12/9/5 (v2), CPU-6 openings 0-3/game, stocks lost.",
+   "verdict": "none promoted (experimental only)",
+   "sources": "HANDOFF_2026-09-17.md §1e; GOALS.md Track A"
+  },
+  {
+   "name": "fox_v3_20260917_050901 (+ resume1-4; best = resume3/model_batch215000_policy.bin)",
+   "date": "2026-09-18",
+   "family": "generalist Fox V3 (identity recipe)",
+   "backbone": "GRU 512x2 BPTT unroll 80, batch 128, F32 highest, AR head, --player-tag-map (identity channel)",
+   "data": "28,452 Fox games / 281M frames / 76 GB clean corpus; reaction 0 (causal labels); ~6.3 h/epoch",
+   "intent": "Full-scale generalist that plays like the corpus and conditions on player identity (Track D).",
+   "distinguishes": "First run with identity conditioning, causal labels, NaN census sanitizer.",
+   "result": "4.4 passes; diverged 3x (non-finite grad → NaN clip → all-NaN weights with finite loss; GRU kernel norm drift w/o weight decay); best held-out 1.94 (preflight split, later shown train-fit) / 2.316 on the genuine split; D1 live passed; style conditioning live (--style-tag flips jump-button habit).",
+   "verdict": "superseded by V3.1 (guard + fatal-batch capture landed)",
+   "sources": "HANDOFF_2026-09-18.md; GOALS.md Track D; memory project_status_2026-09-18_v3_1_and_sim.md"
+  },
+  {
+   "name": "fox_v3_1_20260919_022008_ep3 (model_best_policy.bin); ep4",
+   "date": "2026-09-20",
+   "family": "generalist Fox V3.1",
+   "backbone": "GRU 512x2 BPTT 80 + AR head + identity",
+   "data": "same corpus, warm start from V3 215k, AdamW weight decay 0.05, cosine LR, non-finite-gradient guard",
+   "intent": "Fix V3's norm drift/divergence and squeeze held-out loss.",
+   "distinguishes": "Weight decay + cosine + guard; warm start.",
+   "result": "val 2.253→2.193→2.158 (ep3), ep4 2.1735 worse (284 skips); GENUINE held-out 2.066 vs 215k 2.316 (GOTCHA #122); D3 style conditioning passed n=10 (C2→C2 10/10); Bradley: 'definitely the best version of a bot I've made'. Deploy --stateful-step --live-af --reaction-delay 0 --temperature 1.0.",
+   "verdict": "CROWNED generalist (09-20) = the frozen prior for the sim/PPO line",
+   "sources": "memory project_status_2026-09-20_v3_1_gates.md; GOALS.md Track D"
+  },
+  {
+   "name": "fox_v3_1_step8_ctrl / mix / mix2 / mix3 / mix3b / mix4",
+   "date": "2026-09-21",
+   "family": "generalist Fox (search-as-teacher expert iteration in melee-sim-light)",
+   "backbone": "GRU V3.1 ep3 fine-tunes (1,400-file slice, 1 pass 2e-5)",
+   "data": "V3.1-ep3 + oracle episodes: policy-guided best-of-64 search (T=1.2 → T=1.0), ×30 → ×10 oversample; mix4 adds a style term in selection",
+   "intent": "Step 8: distill a sim search oracle (0.88-0.93 converting starts) back into the prior without habit drift (fingerprint gate).",
+   "distinguishes": "mix (random-program oracle, rejected) → mix2 (policy-guided) → mix3/3b (iterate) → mix4 (style-penalized selection).",
+   "result": "mix2 conv 0.32 vs self / 0.61 vs idle (ep3 0.22/0.45, ctrl 0.14), fingerprint 6/6 PASS, mix2−ep3 +0.10 [0.03,0.17]; mix3 0.37/0.67 fails 3/8 tells; mix3b val 2.02, 2/8 out; mix4 0.33/0.65, val 2.01, 7/8 tells; Bradley (mix4): takes a stock, owns neutral sometimes, SDs at the edge, multi-jabs.",
+   "verdict": "mix2 = clean artifact; mix4 = strongest near-clean (became the PPO prior); superseded by the Mamba line",
+   "sources": "memory project_status_2026-09-20_v3_1_gates.md (sim line 09-21 entries); registry.json search_distillation tags"
+  },
+  {
+   "name": "fox GRU PPO v1_fixed head_iter40/100/200 (+ eval_candidate/candidate_policy.bin); critic refit_v2",
+   "date": "2026-09-23",
+   "family": "RL on the prior (Fox)",
+   "backbone": "V3.1/mix4 GRU trunk FROZEN; PPO on the AR heads only; critic = trunk ⊕ scalars (R2)",
+   "data": "melee-sim-light self-play vs the frozen prior, 64 envs, 200 iterations, KL-to-prior 0.05",
+   "intent": "R3: can clipped PPO with a KL anchor improve the prior without leaving the imitation manifold?",
+   "distinguishes": "First PPO that ever executed in the repo (July PPO never ran; Polaris nil-arg JIT bug fixed).",
+   "result": "critic R2 test EV 0.314 (passed); iter200 vs frozen prior 182W/18L = 91.0% (control 49%); style half NOT passed (3/6 tells; aerial_per_min 36.9 vs prior 20.5 vs humans 17.0); Bradley beat it 4 straight, 'best played'.",
+   "verdict": "not promoted (style/transfer incomplete; frozen-ditto gate = exploit shape)",
+   "sources": "HANDOFF_2026-09-23.md; HANDOFF_2026-09-24.md 'Working Fox PPO infrastructure'; HANDOFF_2026-09-24b.md §win-rate/style"
+  },
+  {
+   "name": "mewtwo_il_v1_20260924 (model_best = ep6; golden_tipper = ep12)",
+   "date": "2026-09-24",
+   "family": "Mewtwo prior (full-game IL)",
+   "backbone": "GRU 2×1024 (10.46M params), AR heads, f32/highest, stateful BPTT 80",
+   "data": "418 Mewtwo games / 5,244,420 frames (local + 261 public), 334/42/42 split, 12 epochs, patience 6",
+   "intent": "A whole-game Mewtwo imitation prior for PPO (the generalist recipe applied to Track A).",
+   "distinguishes": "First Mewtwo full-game prior (Astra's run).",
+   "result": "best val 3.1043 (ep6); final train 2.311/val 3.1513; live: bot lost 8 stocks, 7 flagged no-hit SDs, few/no kills.",
+   "verdict": "prior for PPO; not promoted",
+   "sources": "HANDOFF_2026-09-24.md §4; registry.json mewtwo-gru-il-v1-best-ep6"
+  },
+  {
+   "name": "mewtwo_ppo_v1 head_iter70/150/300 (mewtwo_ppo_v1_iter150/300_policy.bin) and mewtwo_ppo_pool_v2 (head_iter200 → mewtwo_ppo_pool_v2_policy.bin)",
+   "date": "2026-09-25",
+   "family": "RL on the prior (Mewtwo)",
+   "backbone": "mewtwo_il_v1 trunk frozen; PPO on AR heads; critic from 12 rounds of ditto rollouts",
+   "data": "sim self-play 64×600f, 300 iterations, --kl-coef 0.01; pool v2 = frozen prior + v1 heads 70/150/300, head100 held out, <=200 iterations",
+   "intent": "Fix the self-destruct half of Mewtwo; then de-saturate the gate with an opponent pool.",
+   "distinguishes": "v1 = frozen-ditto opponent; pool v2 = opponent pool with held-out head.",
+   "result": "deaths/min 4.03→1.25 (−69%), kills/min 4.02→4.44; iter150 199W/1L, iter300 60W/0L in 0.7-min games; iter300 DEGENERATE (roll ×13, grab ×3.7, bthrow, aerials −92%; zoo Entry 1), iter150 Bradley's pick; pool v2 66% vs held-out head100 (prior 5%); Bradley 33 games: 'probably the best Mewtwo', still SDs, no neutral/combos, 'felt like a bot'.",
+   "verdict": "not promoted (lever = bigger prior + reward for openings, not more PPO)",
+   "sources": "HANDOFF_2026-09-25.md §4.1, §4.7; HANDOFF_2026-09-25b.md §4.1-4.2; memory project_status_2026-09-26_mamba_fix.md"
+  },
+  {
+   "name": "fox_mamba_v1_20260925 (+ _ep2); coh_fullscale_mamba_v1 symlink",
+   "date": "2026-09-27",
+   "family": "Fox Mamba line (fullscale)",
+   "backbone": "Mamba 512,512,256, window 80 (windowed, not BPTT), AR head, lr 2e-4",
+   "data": "replays/erickfm_ranked/v2_filtered Fox corpus, 1 epoch (429,769 updates, ~8.4 h) then epoch 2; holdout 16 games",
+   "intent": "F1: a Mamba generalist end-to-end (60-fps latency win) after root-causing the Xid 31 GPU crash (per-call workspace churn, Edifice 622fb39).",
+   "distinguishes": "First Mamba full-corpus policy; windowed; no prev-action.",
+   "result": "val 2.3896 (ep1), 2.3542 (ep2) vs GRU V3.1 2.066; full-Agent latency median 5.23 ms; sim vs GRU PPO candidate 0–4 (two close, two blowouts); engagement scan: camping mild, multi-jab = spurious A press-edges.",
+   "verdict": "development artifact (candidate tag); superseded by v3",
+   "sources": "HANDOFF_2026-09-25b.md §7f, §7i, §7j; registry.json fox-mamba-v1"
+  },
+  {
+   "name": "fox_mamba_v2_prevact_20260930 (coh_fullscale_mamba_v2)",
+   "date": "2026-10-01",
+   "family": "Fox Mamba line",
+   "backbone": "Mamba 512,512,256, window 80, --prev-action (dropout 0.15)",
+   "data": "v2_filtered Fox corpus, 1 epoch (428,898 steps)",
+   "intent": "slippi-ai comparison: prev-action input should kill the ~5x button press-edge flicker (multi-jab).",
+   "distinguishes": "Previous-action channel in the trunk.",
+   "result": "val 0.9703 (TEACHER-FORCED with the channel; not comparable); live: flicker gone but FREEZES/SDs (exposure bias), ablation idles 84%; fidelity 0.179 best-at-the-time but SD 4.1/min.",
+   "verdict": "failed live → spawned the input-coherence program",
+   "sources": "HANDOFF_2026-09-25b.md §7k-§7m; memory project_status_2026-10_input_coherence.md; registry.json"
+  },
+  {
+   "name": "coh_* MinGRU testbed (coh_base, coh_prev_q, coh_prev_d*, coh_prev_blk*, coh_ss*, coh_gru_q, coh_bptt_q, coh_evt2, coh_evt2ctx_ck8(_off3_dur8e…), coh_evt2ctx_ck8_off3_dur8e_on30u/on5u, …_dag345g/dag6w/dag7w/veto10/edge15, coh_mamba_*)",
+   "date": "2026-10-01 .. 2026-10-10",
+   "family": "input-coherence program (testbed arms, queues 1–45)",
+   "backbone": "MinGRU (train_fox_mamba.exs --max-files 400, ~2 min/run); a few small Mamba twins; GRU carried-state BPTT arms",
+   "data": "400-file Fox slice; later + expert-labeled (kNN labeler v1–v5) DAgger sets of the bot's own offstage/near-edge states (r1–r7w)",
+   "intent": "Understand flicker/freeze/'silent fall' before any full run: prev-action, dropout, scheduled sampling, carried state, chunk targets, event heads, stick duration, onset weight, expert-relabel DAgger with coverage gates.",
+   "distinguishes": "One knob per arm; closed-loop sim evals (coherence, fidelity, recovery drill, DecisionMap, side-B trips).",
+   "result": "OUT: per-frame/block dropout, scheduled sampling (switch not dial), change-frame weighting, carried-state BPTT (bptt_q freezes 1731/1800 f), danger-context head, onset ×30 (bends Firefox angle). IN: chunk targets K=8 (dmg 29→56, SD 2.1→1.0), event heads + context (evt2ctx), stick duration dur8e (fidelity 0.175), --onset-weight 5, gated ×1 expert DAgger (dag6w best closed loop SD/min 0.84 — a seed; dag34g_x2 'certainly better at recovering'). Port recipe = windowed + prev_q + events + context + ck8 + offstage weight 3, >=3 ep.",
+   "verdict": "testbed (no deploy); recipe frozen into eval_runs/1011_full/recipe.sh",
+   "sources": "memory project_status_2026-10_input_coherence.md, 2026-10-08_recovery_levers.md, 2026-10-10_sideb_arms.md; HANDOFF_2026-09-25b.md §7m–§8d; INPUT_COHERENCE_2026-10-01.md"
+  },
+  {
+   "name": "coh_fox_mamba_v3_ep1/ep2/ep3 (seed 905) and coh_fox_mamba_v3s906_ep1/ep2/ep2r/ep3 (seed 906)",
+   "date": "2026-10-12 .. 2026-10-14",
+   "family": "Fox Mamba v3 (full run of the port recipe)",
+   "backbone": "Mamba 512,512,256, window 80, lr 2e-4 (ep3 1e-4); pq prev-action quantized + event heads + context + ck8/off3/dur8 + --onset-weight 5; AR head; T=1.0",
+   "data": "full v2_filtered Fox corpus (~430k updates/epoch, ~6-8.5 h); NO DAgger mix on any epoch",
+   "intent": "Bradley: 'have we learned enough to do a full run?' — measure whether scale moves the recovery tail; 2 seeds × 3 epochs; gate on the closed-loop row, not val.",
+   "distinguishes": "Testbed recipe at full scale; curve.txt readout per epoch.",
+   "result": "ep1 both seeds: decided return 0.73 (testbed 0.36-0.38), died 0.28; ep2 s905 0.791/0.600/6; **ep2 s906 0.847/0.333/3 (died 0.147, fidelity 0.104, drill 0.813) = first row to pass all three bars, re-roll 0.831/0.407/5 confirms**; ep3 flat-to-worse on both seeds (s906 0.735/0.577/5); val rose while the tail improved (3.04→3.08→3.17). LIVE 10-14 (31 games FD): Bradley 'actually pretty cool and good … sometimes owning me'; bot 1–29 (11 to last stock); input rates/L-cancel/recovery at expert level, fidelity 0.087; deficits: unforced deaths 44% (Firefox 16, Illusion 10, jump spent 18/42), offense 88 vs 133 dmg/min, tech rate 0.26 vs 0.45-0.51, OOS drop 8 vs 27%.",
+   "verdict": "CANDIDATE = checkpoints/coh_fox_mamba_v3s906_ep2/model_best_policy.bin (current, as of 10-21); fallback coh_fox_mamba_v3_ep3",
+   "sources": "HANDOFF_2026-09-25b.md §8e (EPOCH 1-3 READ, SEED 906 READs, SECOND ROLL, LIVE LOOK, INSTRUMENT READS); memory project_status_2026-10-16_r9o_labeler.md; MEMORY.md resume line"
+  },
+  {
+   "name": "coh_fox_mamba_v3s906_ep3_dag9o and _dag9o_r (round r9o)",
+   "date": "2026-10-16",
+   "family": "Fox Mamba v3 (expert-labeled DAgger epoch)",
+   "backbone": "Mamba v3 recipe, mixed epoch 3 from s906 ep2",
+   "data": "r9o: labeler v6 :onstage window, 783k labelled frames of the bot's own offstage AND onstage states (seeded with the 31 live games), interleaved mix (~10 h/epoch)",
+   "intent": "Close the residual (Firefox charged too close, carried Illusions, jump spent early) with expert labels on the bot's own states; count the dose first.",
+   "distinguishes": "First full-scale mixed epoch (MIX non-empty).",
+   "result": "return 0.689 / carried died 0.742 / side-B 10; re-roll 0.636 / 0.667 / 12 — worse than plain ep3 (0.735/0.577/5), pooled ~2.5σ; airdodge-with-jump ×5-11 the expert; origin trace: cross-edge label BORROWS (wavelands labelled as in-hand airdodges) → labeler v8 (offstage dim), v9 (settled stick, one flick = one change row), v10 (provenance + source clips); kNN 10 ms/call (GOTCHA #143).",
+   "verdict": "FAILED (regression real); candidate stays s906 ep2; NEXT = relabel 3 r9o parts with v9 chain, then dose-matched NULL arm + v9 arm (~10 h GPU each, Bradley decides)",
+   "sources": "HANDOFF_2026-09-25b.md §8e 'ROUND r9o RESULT', 'ORIGIN TRACE', '10-20', '10-21'; memory project_status_2026-10-16_r9o_labeler.md; MEMORY.md resume line"
+  }
+ ]
+}
