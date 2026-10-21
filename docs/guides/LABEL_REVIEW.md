@@ -33,12 +33,22 @@ frame, with the expert rows the label was sampled from.
 - **Pane**: the run's clip (the sim viewer). Nothing plays until a run is
   picked; it loads paused at frame 0. Purple triangles on its seek bar are
   the label's edges.
-- **Timeline**: per frame, the cell band (colour), gated frames (red: the
-  state was farther than the d² gate from every expert row, so it is
-  input-only), context frames (grey), and six lanes — B, jump, shoulder, A,
-  stick-up, stick-sideways — each split into the real press (red, top) and
-  the label (purple, bottom). Triangles: edges (label below, real above).
-  Click to seek; ← → step; [ ] jump between label edges; n / p change run.
+- **Timeline** (top to bottom): the readout cell name where a cell starts;
+  **doing** = the red Fox's action state, one named block per run of frames
+  (dash, turn, jumpsquat, jump, dair, shine, up-b, ledge hang, …), coloured by
+  family (ground move / air / attack / special / defence / hit / ledge; the
+  full action name is in the hover tooltip); **height** = the y curve against
+  a dashed stage-level line, tan = on the ground, blue = airborne, a brown bar
+  = offstage past the edge, a red bar = hitstun, a lilac bar = no double jump
+  left; then six press lanes — B, jump, L/R, A, stick-up, stick-sideways —
+  each split into the real press (red, top) and the label (purple, bottom);
+  then the edges (a press that was not there the frame before), real above,
+  label below, named when the run has fewer than 40; then frame ticks.
+  Gated frames (red: the state was farther than the d² gate from every
+  expert row, so input-only) and context frames (grey) tint the whole column.
+  Hovering any column writes that frame's action, where it is, and both
+  presses on the line above the timeline. Click to seek; ← → step; [ ] jump
+  between label edges; n / p change run.
 - **Detail**: the frame's state (action, height, distance past the edge,
   jumps, hitstun), the real press, the label, the prev the label conditions
   on, and the k nearest expert rows: what each row presses or holds, its OWN

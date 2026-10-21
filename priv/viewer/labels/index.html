@@ -59,7 +59,7 @@
       .nb.cross td { background: #fde7e5; }
       .nb.hold td { color: var(--muted); }
       #timeline { border: 1px solid var(--line); background: var(--card); }
-      svg { display: block; width: 100%; height: 150px; }
+      svg { display: block; width: 100%; height: 230px; }
       .legend { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 11px; color: var(--muted); padding: 3px 8px; }
       .legend i { display: inline-block; width: 12px; height: 8px; vertical-align: middle; margin-right: 4px; }
       .nav { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; padding: 4px 8px; }
@@ -101,6 +101,7 @@
             <button id="bEdgeNext" title="]">next label edge</button>
             <span id="pos" class="muted"></span>
           </div>
+          <div class="nav"><span id="hover" class="muted">hover the timeline for the frame's state and presses</span></div>
           <div class="nav refrow">
             <span class="muted">paste this to Claude:</span>
             <input id="ref" type="text" readonly value="pick a run" title="run id @ frame (title) link — select all and copy, or press copy ref" />
@@ -112,7 +113,10 @@
             <span><i style="background:var(--label)"></i>the label (what the teacher says the red Fox should press here)</span>
             <span><i style="background:#f3d9d7"></i>gated (d² over the gate: input-only)</span>
             <span><i style="background:#e5e7e0"></i>context (input-only)</span>
-            <span>▲ edge (side_b / up_b / b / jump / airdodge / a) — rows: B · jump · shoulder · A · stick-up · stick-side</span>
+            <span><b>doing</b> = the red Fox's action state (<i style="background:#dcdcd6"></i>ground move <i style="background:#cfe0f5"></i>air <i style="background:#f6c58f"></i>attack <i style="background:#f7dd9b"></i>special <i style="background:#c9e6ea"></i>defence <i style="background:#f3c1c1"></i>hit <i style="background:#bfe3c8"></i>ledge)</span>
+            <span><b>height</b> lane: tan = on ground, blue = airborne, dashed = stage level, <i style="background:#8a6d3b"></i>offstage, <i style="background:#d9534f"></i>hitstun, <i style="background:#b08ad6"></i>no double jump left</span>
+            <span>press lanes B · jump · L/R · A · stick↑ (y ≥ 0.75) · stick↔ (|x−0.5| ≥ 0.25): top half = real, bottom half = label</span>
+            <span>▲ edge = a press that was not there the frame before (side_b / up_b / b / jump / airdodge / a); real above, label below; named when fewer than 40</span>
           </div>
         </div>
       </section>
@@ -219,36 +223,94 @@
         { key: "up", name: "stick↑", test: (c) => c.ms[1] >= 0.75 },
         { key: "sidex", name: "stick↔", test: (c) => Math.abs(c.ms[0] - 0.5) >= 0.25 }
       ];
+      // what the red Fox is DOING each frame: short name + family colour (full name in the tooltip)
+      const SHORT = { STANDING: "stand", WALK_SLOW: "walk", WALK_MIDDLE: "walk", WALK_FAST: "walk", TURNING: "turn", TURNING_RUN: "run turn", DASHING: "dash", RUNNING: "run", RUN_BRAKE: "run stop",
+        KNEE_BEND: "jumpsquat", JUMPING_FORWARD: "jump", JUMPING_BACKWARD: "jump (back)", JUMPING_ARIAL_FORWARD: "double jump", JUMPING_ARIAL_BACKWARD: "double jump", FALLING: "fall", FALLING_FORWARD: "fall", FALLING_BACKWARD: "fall",
+        FALLING_AERIAL: "fall (DJ used)", FALLING_AERIAL_FORWARD: "fall (DJ used)", FALLING_AERIAL_BACKWARD: "fall (DJ used)", DEAD_FALL: "freefall", SPECIAL_FALL_FORWARD: "freefall", SPECIAL_FALL_BACK: "freefall", TUMBLING: "tumble",
+        CROUCH_START: "crouch", CROUCHING: "crouch", CROUCH_END: "crouch", LANDING: "land", LANDING_SPECIAL: "landing lag", PLATFORM_DROP: "plat drop", EDGE_TEETERING_START: "teeter", EDGE_TEETERING: "teeter",
+        NAIR: "nair", FAIR: "fair", BAIR: "bair", UAIR: "uair", DAIR: "dair", NAIR_LANDING: "nair land", FAIR_LANDING: "fair land", BAIR_LANDING: "bair land", UAIR_LANDING: "uair land", DAIR_LANDING: "dair land",
+        DOWN_B_GROUND_START: "shine", DOWN_B_GROUND: "shine", DOWN_B_AIR: "shine (air)", DOWN_B_STUN: "shine", SHINE_TURN: "shine turn", SHINE_RELEASE_AIR: "shine release", NEUTRAL_B_ATTACKING: "laser", NEUTRAL_B_CHARGING: "laser",
+        NEUTRAL_B_ATTACKING_AIR: "laser (air)", NEUTRAL_B_CHARGING_AIR: "laser (air)", FOX_ILLUSION_START: "side-b", FOX_ILLUSION: "side-b", FOX_ILLUSION_SHORTENED: "side-b short", FIREFOX_WAIT_GROUND: "up-b charge", FIREFOX_WAIT_AIR: "up-b charge",
+        FIREFOX_GROUND: "up-b", FIREFOX_AIR: "up-b", SWORD_DANCE_1: "side-b", SWORD_DANCE_1_AIR: "side-b", UP_B_GROUND: "up-b", AIRDODGE: "airdodge", SPOTDODGE: "spotdodge", ROLL_FORWARD: "roll", ROLL_BACKWARD: "roll",
+        SHIELD_START: "shield", SHIELD: "shield", SHIELD_RELEASE: "shield off", SHIELD_STUN: "shieldstun", EDGE_CATCHING: "ledge grab", EDGE_HANGING: "ledge hang", EDGE_GETUP_SLOW: "ledge getup", EDGE_GETUP_QUICK: "ledge getup",
+        EDGE_ATTACK_SLOW: "ledge attack", EDGE_ATTACK_QUICK: "ledge attack", EDGE_ROLL_SLOW: "ledge roll", EDGE_ROLL_QUICK: "ledge roll", EDGE_JUMP_1_SLOW: "ledge jump", EDGE_JUMP_2_SLOW: "ledge jump", EDGE_JUMP_1_QUICK: "ledge jump", EDGE_JUMP_2_QUICK: "ledge jump",
+        GRAB: "grab", GRAB_RUNNING: "dash grab", GRAB_WAIT: "holding", GRAB_PUMMEL: "pummel", DASH_ATTACK: "dash attack", UPTILT: "utilt", DOWNTILT: "dtilt", UPSMASH: "usmash", DOWNSMASH: "dsmash", NEUTRAL_ATTACK_1: "jab", NEUTRAL_ATTACK_2: "jab 2",
+        WALL_TECH: "walltech", WALL_TECH_JUMP: "walljump tech", NEUTRAL_TECH: "tech", FORWARD_TECH: "tech", BACKWARD_TECH: "tech" };
+      function shortName(n) { if (!n) return "?"; if (SHORT[n]) return SHORT[n]; const m = /^(FTILT|FSMASH)/.exec(n); if (m) return m[1].toLowerCase(); if (/^DAMAGE|^THROWN/.test(n)) return "hit"; if (/^DEAD/.test(n)) return "dead"; return n.toLowerCase().replace(/_/g, " "); }
+      function family(n, ground) {
+        n = n || "";
+        if (/^DEAD|^NOTHING|HALO|^ENTRY/.test(n)) return ["#e6e6e2", "dead"];
+        if (/EDGE_|SLIDING_OFF/.test(n)) return ["#bfe3c8", "ledge"];
+        if (/DAMAGE|TUMBL|THROWN|BOUNCE|BUMP|SHIELD_BREAK|LYING|TECH_MISS/.test(n)) return ["#f3c1c1", "hit"];
+        if (/TECH|AIRDODGE|SPOTDODGE|ROLL|SHIELD/.test(n)) return ["#c9e6ea", "defence"];
+        if (/FIREFOX|ILLUSION|_B_|SWORD_DANCE|SHINE|LASER/.test(n)) return ["#f7dd9b", "special"];
+        if (/ATTACK|TILT|SMASH|^[NFBUD]AIR|GRAB|THROW|PUMMEL/.test(n)) return ["#f6c58f", "attack"];
+        if (/JUMP|FALL|AERIAL|KNEE_BEND|PLATFORM_DROP/.test(n) || !ground) return ["#cfe0f5", "air"];
+        return ["#dcdcd6", "ground"];
+      }
+      function pressWords(c) { if (!c) return "—"; const b = ["a", "b", "x", "y", "z", "l", "r"].filter((k) => c[k]).map((k) => k.toUpperCase()); const sx = c.ms[0] - 0.5, sy = c.ms[1] - 0.5; let st = ""; if (Math.abs(sx) >= 0.15 || Math.abs(sy) >= 0.15) st = "stick " + (Math.abs(sx) >= 0.15 ? (sx > 0 ? "→" : "←") : "") + (Math.abs(sy) >= 0.15 ? (sy > 0 ? "↑" : "↓") : "") + ` (${c.ms[0].toFixed(2)},${c.ms[1].toFixed(2)})`; if (c.sh > 0.3 && !c.l) b.push("L" + c.sh.toFixed(1)); return [b.join("+"), st].filter(Boolean).join(" ") || "nothing"; }
+      // layout: cell names 0-12 | action band 14-30 | where (height / ground / offstage) 32-70 | six press lanes | edges | frame ticks
+      const ACT_Y = 14, WHERE_Y = 32, WHERE_H = 38, LANE_TOP = 74, LANE_H = 16, EDGE_Y = LANE_TOP + 6 * LANE_H, H_ALL = EDGE_Y + 44;
       function drawTimeline() {
-        const svg = $("#tl"); const W = svg.clientWidth || 900, H = 150; const n = side.rows.length; const x = (i) => (i / n) * W, w = Math.max(W / n, 1);
-        const laneH = 16, top = 22;
+        const svg = $("#tl"); const W = svg.clientWidth || 900, H = H_ALL; const n = side.rows.length; const x = (i) => (i / n) * W, w = Math.max(W / n, 1);
+        const rows = side.rows;
         let s = "";
-        // cell band + gated / context shading
-        side.rows.forEach((r) => {
+        // cell band + gated / context shading (whole height)
+        rows.forEach((r) => {
           const c = r.cell ? cellColors[r.cell] || "#eee" : "transparent";
           s += `<rect x="${x(r.i)}" y="0" width="${w + 0.3}" height="${H}" fill="${c}"/>`;
           if (r.gated) s += `<rect x="${x(r.i)}" y="0" width="${w + 0.3}" height="${H}" fill="#f3d9d7" opacity="0.9"/>`;
           else if (r.input_only) s += `<rect x="${x(r.i)}" y="0" width="${w + 0.3}" height="${H}" fill="#e5e7e0" opacity="0.7"/>`;
         });
         // cell names where a cell starts
-        let last = null; side.rows.forEach((r) => { if (r.cell !== last) { if (r.cell) s += `<text x="${x(r.i) + 2}" y="10" font-size="9" fill="#4b4d47">${r.cell}</text>`; last = r.cell; } });
+        let last = null; rows.forEach((r) => { if (r.cell !== last) { if (r.cell) s += `<text x="${x(r.i) + 2}" y="10" font-size="9" fill="#4b4d47">${r.cell}</text>`; last = r.cell; } });
+        // action band: one block per run of the same action state, named
+        let segs = []; rows.forEach((r) => { const g = segs[segs.length - 1]; if (g && g.name === r.name) g.end = r.i; else segs.push({ name: r.name, start: r.i, end: r.i, ground: r.ground }); });
+        segs.forEach((g) => {
+          const [fill, fam] = family(g.name, g.ground); const x0 = x(g.start), ww = x(g.end + 1) - x0; const nm = shortName(g.name);
+          s += `<rect x="${x0}" y="${ACT_Y}" width="${ww}" height="16" fill="${fill}" stroke="#fff" stroke-width="0.6"><title>${g.name} (${fam}) frames ${g.start}–${g.end}</title></rect>`;
+          const fit = Math.floor(ww / 5.2); if (fit >= 2) s += `<text x="${x0 + 2}" y="${ACT_Y + 11.5}" font-size="9" fill="#20211f" style="pointer-events:none">${esc(nm.length > fit ? nm.slice(0, fit) : nm)}</text>`;
+        });
+        s += `<text x="2" y="${ACT_Y - 1}" font-size="8" fill="#4b4d47">doing</text>`;
+        // where: ground / air stripe, offstage hatch, hitstun, no double jump, height curve
+        const ys = rows.map((r) => r.y ?? 0); const ymin = Math.min(0, ...ys) - 2, ymax = Math.max(10, ...ys) + 2; const yy = (v) => WHERE_Y + WHERE_H - 2 - ((v - ymin) / (ymax - ymin)) * (WHERE_H - 4);
+        rows.forEach((r) => {
+          const xx = x(r.i);
+          s += `<rect x="${xx}" y="${WHERE_Y}" width="${w + 0.3}" height="${WHERE_H}" fill="${r.ground ? "#e4dccb" : "#eaf1fb"}"/>`;
+          if (r.dist > 0) s += `<rect x="${xx}" y="${WHERE_Y + WHERE_H - 5}" width="${w + 0.3}" height="5" fill="#8a6d3b"><title>offstage: ${r.dist} past the edge</title></rect>`;
+          if (r.hit > 0) s += `<rect x="${xx}" y="${WHERE_Y}" width="${w + 0.3}" height="5" fill="#d9534f"><title>hitstun ${r.hit}</title></rect>`;
+          else if (!r.ground && r.jumps === 0) s += `<rect x="${xx}" y="${WHERE_Y}" width="${w + 0.3}" height="5" fill="#b08ad6"><title>no double jump left</title></rect>`;
+        });
+        s += `<line x1="0" x2="${W}" y1="${yy(0)}" y2="${yy(0)}" stroke="#4b4d47" stroke-width="0.6" stroke-dasharray="3 3"/>`;
+        s += `<polyline points="${rows.map((r) => `${x(r.i) + w / 2},${yy(r.y ?? 0)}`).join(" ")}" fill="none" stroke="#20211f" stroke-width="1.2"/>`;
+        s += `<text x="2" y="${WHERE_Y + 15}" font-size="8" fill="#4b4d47">height</text>`;
         LANES.forEach((l, k) => {
-          const y0 = top + k * laneH;
+          const y0 = LANE_TOP + k * LANE_H;
+          s += `<line x1="0" x2="${W}" y1="${y0}" y2="${y0}" stroke="#fff" stroke-width="0.8"/>`;
           s += `<text x="2" y="${y0 + 11}" font-size="9" fill="#4b4d47">${l.name}</text>`;
-          side.rows.forEach((r) => {
-            if (r.actual && l.test(r.actual)) s += `<rect x="${x(r.i)}" y="${y0 + 2}" width="${w + 0.3}" height="${laneH / 2 - 3}" fill="var(--actual)"/>`;
-            if (r.label && l.test(r.label)) s += `<rect x="${x(r.i)}" y="${y0 + laneH / 2}" width="${w + 0.3}" height="${laneH / 2 - 3}" fill="var(--label)"/>`;
+          rows.forEach((r) => {
+            if (r.actual && l.test(r.actual)) s += `<rect x="${x(r.i)}" y="${y0 + 2}" width="${w + 0.3}" height="${LANE_H / 2 - 3}" fill="var(--actual)"/>`;
+            if (r.label && l.test(r.label)) s += `<rect x="${x(r.i)}" y="${y0 + LANE_H / 2}" width="${w + 0.3}" height="${LANE_H / 2 - 3}" fill="var(--label)"/>`;
           });
         });
-        // edges
-        side.rows.forEach((r) => {
-          r.label_edges.forEach((e, k) => { s += `<polygon points="${x(r.i) + w / 2 - 4},${H - 2} ${x(r.i) + w / 2 + 4},${H - 2} ${x(r.i) + w / 2},${H - 10}" fill="var(--label)"><title>label ${e} @${r.i}</title></polygon>`; });
-          r.actual_edges.forEach((e, k) => { s += `<polygon points="${x(r.i) + w / 2 - 4},${H - 14} ${x(r.i) + w / 2 + 4},${H - 14} ${x(r.i) + w / 2},${H - 22}" fill="var(--actual)"><title>real ${e} @${r.i}</title></polygon>`; });
+        s += `<text x="${W - 2}" y="${LANE_TOP + 7}" font-size="8" fill="#4b4d47" text-anchor="end">top half = real press, bottom half = label</text>`;
+        // edges, named when there is room
+        const nl = rows.reduce((a, r) => a + r.label_edges.length, 0), na = rows.reduce((a, r) => a + r.actual_edges.length, 0);
+        rows.forEach((r) => {
+          const cx = x(r.i) + w / 2;
+          r.actual_edges.forEach((e, k) => { const ty = EDGE_Y + 10; s += `<polygon points="${cx - 4},${ty + 8} ${cx + 4},${ty + 8} ${cx},${ty}" fill="var(--actual)"><title>real ${e} @${r.i}</title></polygon>`; if (na <= 40) s += `<text x="${cx + 5}" y="${ty + 7}" font-size="8" fill="var(--actual)">${e}</text>`; });
+          r.label_edges.forEach((e, k) => { const ty = EDGE_Y + 22; s += `<polygon points="${cx - 4},${ty + 8} ${cx + 4},${ty + 8} ${cx},${ty}" fill="var(--label)"><title>label ${e} @${r.i}</title></polygon>`; if (nl <= 40) s += `<text x="${cx + 5}" y="${ty + 7}" font-size="8" fill="var(--label)">${e}</text>`; });
         });
+        s += `<text x="2" y="${EDGE_Y + 8}" font-size="8" fill="#4b4d47">edges</text>`;
+        // frame ticks
+        const step = n > 300 ? 50 : n > 120 ? 20 : 10;
+        for (let i = 0; i < n; i += step) s += `<line x1="${x(i)}" x2="${x(i)}" y1="${H - 10}" y2="${H - 6}" stroke="#4b4d47"/><text x="${x(i) + 2}" y="${H - 1}" font-size="8" fill="#4b4d47">${i}</text>`;
         s += `<line id="cursor" x1="0" x2="0" y1="0" y2="${H}" stroke="#20211f" stroke-width="1.5"/>`;
-        svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
+        svg.setAttribute("viewBox", `0 0 ${W} ${H}`); svg.style.height = H + "px";
         svg.innerHTML = s;
         svg.onclick = (ev) => { const r = svg.getBoundingClientRect(); seek(Math.floor(((ev.clientX - r.left) / r.width) * n)); };
+        svg.onmousemove = (ev) => { const b = svg.getBoundingClientRect(); const i = Math.min(n - 1, Math.max(0, Math.floor(((ev.clientX - b.left) / b.width) * n))); const r = rows[i]; $("#hover").textContent = `f${i}: ${shortName(r.name)} (${r.name} f${r.af ?? "?"}) · ${r.ground ? "on ground" : "in the air"}, y ${fmt(r.y)}, ${r.dist > 0 ? r.dist + " past the edge" : -r.dist + " inside the edge"} · real: ${pressWords(r.actual)} · label: ${r.label ? pressWords(r.label) : r.gated ? "gated" : "none"}`; };
+        svg.onmouseleave = () => { $("#hover").textContent = ""; };
         moveCursor();
       }
       function moveCursor() {
