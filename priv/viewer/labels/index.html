@@ -44,7 +44,13 @@
       .roles .p1 { border-left-color: var(--actual); }
       .roles .p2 { border-left-color: #2f6fb3; }
       .roles b { font-size: 13px; }
-      .top { display: grid; grid-template-columns: minmax(0, 3fr) minmax(300px, 2fr); gap: 8px; min-height: 0; }
+      .top { display: grid; grid-template-columns: minmax(0, 3fr) minmax(280px, 2fr) minmax(0, 3fr); gap: 8px; min-height: 0; }
+      .srcwrap { display: flex; flex-direction: column; min-height: 0; }
+      .srcwrap iframe { flex: 1; min-height: 0; }
+      #srccap { font-size: 11px; padding: 2px 4px; color: var(--muted); border: 1px solid var(--line); border-bottom: 0; background: #f3eefb; }
+      tr.nb.clip { cursor: pointer; }
+      tr.nb.clip:hover td { background: var(--sel); }
+      tr.nb.src td { outline: 2px solid var(--label); outline-offset: -2px; }
       iframe { border: 1px solid var(--line); background: var(--card); width: 100%; height: 100%; display: block; box-sizing: border-box; }
       #detail { overflow: auto; font-size: 12px; }
       #detail h2 { margin: 0 0 4px; font-size: 13px; }
@@ -90,6 +96,10 @@
         <div class="top">
           <iframe id="pane" src="/coach/pane.html?id=main" title="run"></iframe>
           <div id="detail" class="card"><span class="muted">pick a run on the left; nothing plays until you do</span></div>
+          <div class="srcwrap">
+            <div id="srccap">source: the expert moment a label was copied from — click a row in the table (rows with ▶ have a clip: frames with an edge)</div>
+            <iframe id="src" src="/coach/pane.html?id=src" title="expert source clip"></iframe>
+          </div>
         </div>
         <div id="timeline">
           <div class="nav">
@@ -116,7 +126,7 @@
             <span><b>doing</b> = the red Fox's action state (<i style="background:#dcdcd6"></i>ground move <i style="background:#cfe0f5"></i>air <i style="background:#f6c58f"></i>attack <i style="background:#f7dd9b"></i>special <i style="background:#c9e6ea"></i>defence <i style="background:#f3c1c1"></i>hit <i style="background:#bfe3c8"></i>ledge)</span>
             <span><b>height</b> lane: tan = on ground, blue = airborne, dashed = stage level, <i style="background:#8a6d3b"></i>offstage, <i style="background:#d9534f"></i>hitstun, <i style="background:#b08ad6"></i>no double jump left</span>
             <span>press lanes B · jump · L/R · A · stick↑ (y ≥ 0.75) · stick↔ (|x−0.5| ≥ 0.25): top half = real, bottom half = label</span>
-            <span>▲ edge = a press that was not there the frame before (side_b / up_b / b / jump / airdodge / a); real above, label below; named when fewer than 40</span>
+            <span>▲ edge = a press that was not there the frame before (side_b / up_b / b / jump / airdodge / a); real above, label below; named when fewer than 40. The <b>n/8</b> after a label edge = how many of the frame's 8 nearest expert rows press that button: 1/8 is a lone row (suspect), 4/8 is a real option</span>
           </div>
         </div>
       </section>
@@ -248,6 +258,9 @@
         if (/JUMP|FALL|AERIAL|KNEE_BEND|PLATFORM_DROP/.test(n) || !ground) return ["#cfe0f5", "air"];
         return ["#dcdcd6", "ground"];
       }
+      // how many of the frame's k nearest expert rows press the button behind a label edge (jump = X or Y, airdodge = L or R, side_b / up_b / b = B)
+      const EDGE_BTN = { jump: /\b[XY]\b/, airdodge: /\b[LR]\b/, a: /\bA\b/, b: /\bB\b/, side_b: /\bB\b/, up_b: /\bB\b/ };
+      function votes(r, e) { const re = EDGE_BTN[e]; if (!re || !r.nbs) return "?"; return r.nbs.filter((n) => !n.hold && re.test((n.press || "").split(" stick")[0])).length; }
       function pressWords(c) { if (!c) return "—"; const b = ["a", "b", "x", "y", "z", "l", "r"].filter((k) => c[k]).map((k) => k.toUpperCase()); const sx = c.ms[0] - 0.5, sy = c.ms[1] - 0.5; let st = ""; if (Math.abs(sx) >= 0.15 || Math.abs(sy) >= 0.15) st = "stick " + (Math.abs(sx) >= 0.15 ? (sx > 0 ? "→" : "←") : "") + (Math.abs(sy) >= 0.15 ? (sy > 0 ? "↑" : "↓") : "") + ` (${c.ms[0].toFixed(2)},${c.ms[1].toFixed(2)})`; if (c.sh > 0.3 && !c.l) b.push("L" + c.sh.toFixed(1)); return [b.join("+"), st].filter(Boolean).join(" ") || "nothing"; }
       // layout: cell names 0-12 | action band 14-30 | where (height / ground / offstage) 32-70 | six press lanes | edges | frame ticks
       const ACT_Y = 14, WHERE_Y = 32, WHERE_H = 38, LANE_TOP = 74, LANE_H = 16, EDGE_Y = LANE_TOP + 6 * LANE_H, H_ALL = EDGE_Y + 44;
@@ -299,7 +312,7 @@
         rows.forEach((r) => {
           const cx = x(r.i) + w / 2;
           r.actual_edges.forEach((e, k) => { const ty = EDGE_Y + 10; s += `<polygon points="${cx - 4},${ty + 8} ${cx + 4},${ty + 8} ${cx},${ty}" fill="var(--actual)"><title>real ${e} @${r.i}</title></polygon>`; if (na <= 40) s += `<text x="${cx + 5}" y="${ty + 7}" font-size="8" fill="var(--actual)">${e}</text>`; });
-          r.label_edges.forEach((e, k) => { const ty = EDGE_Y + 22; s += `<polygon points="${cx - 4},${ty + 8} ${cx + 4},${ty + 8} ${cx},${ty}" fill="var(--label)"><title>label ${e} @${r.i}</title></polygon>`; if (nl <= 40) s += `<text x="${cx + 5}" y="${ty + 7}" font-size="8" fill="var(--label)">${e}</text>`; });
+          r.label_edges.forEach((e, k) => { const ty = EDGE_Y + 22; const v = votes(r, e), kk = (r.nbs || []).length; s += `<polygon points="${cx - 4},${ty + 8} ${cx + 4},${ty + 8} ${cx},${ty}" fill="var(--label)"><title>label ${e} @${r.i}: ${v} of the ${kk} nearest expert rows press it</title></polygon>`; if (nl <= 40) s += `<text x="${cx + 5}" y="${ty + 7}" font-size="8" fill="var(--label)">${e} ${v}/${kk}</text>`; });
         });
         s += `<text x="2" y="${EDGE_Y + 8}" font-size="8" fill="#4b4d47">edges</text>`;
         // frame ticks
@@ -330,7 +343,7 @@
       function renderDetail() {
         if (!side) return;
         const r = side.rows[frame];
-        const nbs = (r.nbs || []).map((n) => `<tr class="nb${n.hold ? " hold" : ""}${!n.hold && r.cell && n.cell !== r.cell && n.cell !== "hit" && n.cell !== "onstage" ? " cross" : ""}"><td>${n.hold ? "hold" : esc(n.press)}</td><td>${esc(n.cell)}</td><td>${fmt(n.d2, 2)}</td></tr>`).join("");
+        const nbs = (r.nbs || []).map((n, k) => `<tr data-k="${k}" class="nb${n.hold ? " hold" : ""}${!n.hold && r.cell && n.cell !== r.cell && n.cell !== "hit" && n.cell !== "onstage" ? " cross" : ""}${n.clip ? " clip" : ""}${srcKey === r.i + "/" + k ? " src" : ""}"><td>${n.hold ? "hold" : esc(n.press)}</td><td>${esc(n.cell)}</td><td>${fmt(n.d2, 2)}</td><td class="muted">${n.game ? `${esc(n.game.slice(0, 14))} f${n.frame}${n.clip ? " ▶" : ""}` : ""}</td></tr>`).join("");
         $("#detail").innerHTML = `
           <h2>red Fox = ${roleOf(cur)} · ${esc(cur.label)} — frame ${r.i} (game ${r.frame})</h2>
           <table>
@@ -340,12 +353,26 @@
             <tr><th>label (teacher says)</th><td>${ctrlHTML(r.label)} ${r.label_edges.length ? `<span class="chip lab">${r.label_edges.join(" ")}</span>` : ""}</td></tr>
             <tr><th>prev (what the label conditions on)</th><td>${ctrlHTML(r.prev)}</td></tr>
           </table>
-          ${r.nbs ? `<h2 style="margin-top:6px">the ${r.nbs.length} nearest expert rows (one was sampled)</h2><table><tr><th>row</th><th>its cell</th><th>d²</th></tr>${nbs}</table><div class="muted">pink row = an expert row from another cell than this frame's (a borrow); grey = hold (keeps prev)</div>` : ""}`;
+          ${r.nbs ? `<h2 style="margin-top:6px">the ${r.nbs.length} nearest expert rows (one was sampled)</h2><table><tr><th>row</th><th>its cell</th><th>d²</th><th>source replay</th></tr>${nbs}</table><div class="muted">pink row = an expert row from another cell than this frame's (a borrow); grey = hold (keeps prev); ▶ = click to play the expert moment this row came from in the right-hand pane</div>` : ""}`;
+        document.querySelectorAll("#detail tr.nb.clip").forEach((tr) => { tr.onclick = () => showSource(Number(tr.dataset.k)); });
+        // on a frame with a label edge, show the first row's source without a click
+        if (r.nbs && r.label_edges.length && !srcKey.startsWith(r.i + "/")) { const k = r.nbs.findIndex((n) => n.clip); if (k >= 0) showSource(k); }
+      }
+      // ---- expert source pane: plays the clip a neighbour row came from, paused at that row's frame
+      let srcKey = "";
+      function showSource(k) {
+        const r = side && side.rows[frame]; const n = r && r.nbs && r.nbs[k]; if (!n || !n.clip) return;
+        srcKey = r.i + "/" + k;
+        document.querySelectorAll("#detail tr.nb").forEach((tr) => tr.classList.toggle("src", Number(tr.dataset.k) === k));
+        $("#srccap").innerHTML = `<b>row ${k + 1} of ${r.nbs.length}</b>: expert replay <code>${esc(n.game)}</code> at its frame ${n.frame} — the expert there ${n.hold ? "held the same input (a hold row)" : "pressed <b>" + esc(n.press) + "</b>"} · its cell ${esc(n.cell)} · d² ${fmt(n.d2, 2)}. Paused on that frame; play to see what came next.`;
+        $("#src").contentWindow.postMessage({ load: `${base}/${n.clip}.msltrace.json`, label: `[EXPERT SOURCE row ${k + 1}] ${n.game} f${n.frame}: ${n.hold ? "hold" : n.press}`, seek: n.at }, "*");
+        $("#src").contentWindow.postMessage({ marks: [{ i: n.at, label: n.hold ? "hold" : n.press, color: "#6a3fb5" }] }, "*");
       }
 
       // ---- wiring --------------------------------------------------------------------
       window.addEventListener("message", (ev) => {
         const m = ev.data || {};
+        if (m.id && m.id !== "main") return;   // the source pane plays the expert clip; its frames and keys do not drive the run
         if (typeof m.frame === "number" && side && m.frame !== frame) { frame = m.frame; renderDetail(); moveCursor(); syncUrl(); }
         if (m.paneKey) key(m.paneKey);
       });

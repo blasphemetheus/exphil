@@ -93,6 +93,10 @@ edges_of = fn c, p -> if c && p, do: events |> Enum.filter(fn {_, f} -> f.(c, p)
         names = [{4, "A"}, {5, "B"}, {6, "X"}, {7, "Y"}, {8, "Z"}, {9, "L"}, {10, "R"}]
         pressed = for {c, n} <- names, Enum.at(row, c) > 0.5 and Enum.at(prow, c) < 0.5, do: n
         held = for {c, n} <- names, Enum.at(row, c) > 0.5 and Enum.at(prow, c) > 0.5, do: n
+        # analog shoulder (column 11) counts as L: a wavedash / airdodge row would otherwise read as a plain stick row
+        sh = Enum.at(row, 11) || 0.0; psh = Enum.at(prow, 11) || 0.0
+        pressed = if sh > 0.3 and psh <= 0.3 and "L" not in pressed and "R" not in pressed, do: pressed ++ ["L#{Float.round(sh, 1)}"], else: pressed
+        held = if sh > 0.3 and psh > 0.3 and "L" not in held and "R" not in held, do: held ++ ["L#{Float.round(sh, 1)}"], else: held
         stick = "#{Float.round(Enum.at(row, 0) - 0.5, 2)},#{Float.round(Enum.at(row, 1) - 0.5, 2)}"
         (if(pressed == [], do: "", else: "press " <> Enum.join(pressed)) <> if(held == [], do: "", else: " hold " <> Enum.join(held)) <> " stick " <> stick) |> String.trim()
       end
@@ -101,6 +105,17 @@ edges_of = fn c, p -> if c && p, do: events |> Enum.filter(fn {_, f} -> f.(c, p)
   else
     {nil, nil}
   end
+
+# provenance of an index row (v10 indexes): {game basename, game index, replay frame}; nil on older indexes
+game_paths = if index && index.meta[:game_paths], do: List.to_tuple(index.meta.game_paths), else: nil
+src_of = fn j ->
+  if index[:src] && game_paths do
+    [g, fr] = elem(index.src, j)
+    %{game: Path.basename(elem(game_paths, g), ".slp"), gi: g, frame: fr}
+  else
+    %{}
+  end
+end
 
 # neighbours for a list of label states ({p, prev, opp, prev_p})
 neighbours = fn states ->
@@ -111,13 +126,15 @@ neighbours = fn states ->
     |> Enum.flat_map(fn q ->
       {idx, d2} = L.nearest_d2k(index, q, index.k)
       Enum.zip_with(Nx.to_list(idx), Nx.to_list(d2), fn ns, ds ->
-        Enum.zip_with(ns, ds, fn j, d -> %{hold: elem(index.hold, j) == 1, cell: row_cell.(j), press: press_of.(j), d2: Float.round(d / 1, 3)} end)
+        Enum.zip_with(ns, ds, fn j, d -> Map.merge(%{hold: elem(index.hold, j) == 1, cell: row_cell.(j), press: press_of.(j), d2: Float.round(d / 1, 3)}, src_of.(j)) end)
       end)
     end)
   else
     List.duplicate(nil, length(states))
   end
 end
+
+clip_id = fn game, centre -> "clip_#{String.slice(game, 0, 24)}_c#{centre}" |> String.replace(~r/[^A-Za-z0-9_-]+/, "_") end
 
 write_run = fn source, id, frames, label, chars ->
   # frames: [%{gs, p, opp, prev_p, actual, label, prev, input_only, gated, cell}]
@@ -132,6 +149,26 @@ write_run = fn source, id, frames, label, chars ->
         jumps: f.p.jumps_left, hit: f.p.hitstun_frames_left, ground: f.p.on_ground == true,
         input_only: f.input_only, gated: f.gated, actual: ctrl.(f.actual), label: ctrl.(f.label), prev: ctrl.(f.prev),
         actual_edges: edges_of.(f.actual, f.prev_actual), label_edges: edges_of.(f.label, f.prev), nbs: nbs[i]}
+    end)
+  # source clips (the expert moment each neighbour row came from) for the frames with an edge: the clip is 91 f
+  # centred on a 30-frame bucket, so near rows of one game share a clip; `at` = the row's frame inside the clip
+  rows =
+    Enum.map(rows, fn r ->
+      if r.nbs && (r.label_edges != [] or r.actual_edges != []) do
+        nbs =
+          Enum.map(r.nbs, fn n ->
+            if n[:game] do
+              centre = div(n.frame, 30) * 30 + 15
+              Process.put(:clip_refs, [{n.gi, centre} | Process.get(:clip_refs, [])])
+              Map.merge(n, %{clip: clip_id.(n.game, centre), at: n.frame - (centre - 45)})
+            else
+              n
+            end
+          end)
+        %{r | nbs: nbs}
+      else
+        r
+      end
     end)
   label_events = rows |> Enum.flat_map(fn r -> Enum.map(r.label_edges, &%{i: r.i, event: &1, cell: r.cell, who: "label"}) end)
   actual_events = rows |> Enum.flat_map(fn r -> Enum.map(r.actual_edges, &%{i: r.i, event: &1, cell: r.cell, who: "actual"}) end)
@@ -234,6 +271,48 @@ slp_runs =
     end)
   end)
 
-manifest = %{created: DateTime.utc_now() |> DateTime.to_iso8601(), index: opts[:index], runs: set_runs ++ slp_runs, cells: L.carried_cells(), events: Enum.map(events, &elem(&1, 0))}
+# ---- source clips: the expert moments the neighbour rows came from --------------
+clip_refs = Process.get(:clip_refs, []) |> Enum.uniq()
+clips_written =
+  if clip_refs == [] do
+    0
+  else
+    by_game = Enum.group_by(clip_refs, &elem(&1, 0), &elem(&1, 1))
+    Output.puts("source clips: #{length(clip_refs)} from #{map_size(by_game)} expert games")
+    by_game
+    |> Enum.with_index()
+    |> Enum.map(fn {{gi, centres}, k} ->
+      path = elem(game_paths, gi)
+      game = Path.basename(path, ".slp")
+      if rem(k + 1, 25) == 0, do: Output.puts("  #{k + 1} games")
+      case Peppi.metadata(path) do
+        {:ok, meta} ->
+          own = Enum.find(meta.players, &(String.downcase(&1.character_name || "") == "fox"))
+          opp = own && Enum.find(meta.players, &(&1.port != own.port))
+          chars = [Trace.char_id(own.character_name), Trace.char_id(opp.character_name)]
+          {:ok, replay} = Peppi.parse(path, player_port: own.port)
+          by_frame =
+            replay
+            |> Peppi.to_training_frames(player_port: own.port, opponent_port: opp.port, remap_ports: true)
+            |> Enum.reject(&(&1.game_state.frame < 0))
+            |> Map.new(&{&1.game_state.frame, &1.game_state})
+          Enum.count(centres, fn centre ->
+            states = Enum.flat_map((centre - 45)..(centre + 45), fn f -> if(by_frame[f], do: [by_frame[f]], else: []) end)
+            if states != [] do
+              Trace.from_game_states(states, label: "EXPERT SOURCE #{game} f#{centre - 45}–#{centre + 45} (red = the expert the row came from, port #{own.port})", chars: chars)
+              |> Trace.write!(Path.join(out, "#{clip_id.(game, centre)}.msltrace.json"))
+              true
+            else
+              false
+            end
+          end)
+        _ ->
+          0
+      end
+    end)
+    |> Enum.sum()
+  end
+
+manifest = %{created: DateTime.utc_now() |> DateTime.to_iso8601(), index: opts[:index], runs: set_runs ++ slp_runs, cells: L.carried_cells(), events: Enum.map(events, &elem(&1, 0)), clips: clips_written}
 File.write!(Path.join(out, "manifest.json"), Jason.encode!(manifest))
-Output.puts("RESULT label review: #{length(set_runs)} DAgger runs + #{length(slp_runs)} expert excursions -> #{out}/manifest.json")
+Output.puts("RESULT label review: #{length(set_runs)} DAgger runs + #{length(slp_runs)} expert excursions + #{clips_written} source clips -> #{out}/manifest.json")

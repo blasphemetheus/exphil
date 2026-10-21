@@ -391,7 +391,8 @@ defmodule ExPhil.Agents.ExpertRecoveryLabeler do
           hold = same_input?(f1.controller, f0.controller)
           cont = stick == :settled and not hold and travel_continuation?(fm, f0, f1)
           c1 = if stick == :settled and not cont, do: %{f1.controller | main_stick: settled_main_stick(f0, f1, rest)}, else: f1.controller
-          [{v, controller_row(c1, t), hold or cont, controller_row(f0.controller, t)}]
+          # 5th element: the replay frame this row came from (provenance: the review page plays the source clip)
+          [{v, controller_row(c1, t), hold or cont, controller_row(f0.controller, t), f1.game_state.frame}]
         else
           []
         end
@@ -463,16 +464,24 @@ defmodule ExPhil.Agents.ExpertRecoveryLabeler do
   end
 
   @doc "Pack rows into tensors: %{x: {n, d} f32, labels: {n, 12} f32, hold: {n} u8, prev_labels: {n, 12} f32, n: n}."
-  def pack(rows) do
+  @doc """
+  Packs `{v, row, hold, prev_row}` tuples into the index tensors. `srcs`
+  (optional, same length) is each row's provenance `{game_index, frame}`;
+  with it the index carries `src` (s32 {n, 2}) and the review page can play
+  the expert clip a label was copied from.
+  """
+  def pack(rows, srcs \\ nil) do
     n = length(rows)
 
-    %{
+    base = %{
       x: Nx.tensor(Enum.map(rows, &elem(&1, 0)), type: :f32),
       labels: Nx.tensor(Enum.map(rows, &elem(&1, 1)), type: :f32),
       hold: Nx.tensor(Enum.map(rows, fn r -> if(elem(r, 2), do: 1, else: 0) end), type: :u8),
       prev_labels: Nx.tensor(Enum.map(rows, &elem(&1, 3)), type: :f32),
       n: n
     }
+
+    if srcs, do: Map.put(base, :src, Nx.tensor(Enum.map(srcs, fn {g, f} -> [g, f] end), type: :s32)), else: base
   end
 
   def save(index, path) do
@@ -484,6 +493,7 @@ defmodule ExPhil.Agents.ExpertRecoveryLabeler do
       dims: dim_names(window), k: @k, n: index.n, window: window,
       x: Nx.to_binary(index.x), labels: Nx.to_binary(index.labels), hold: Nx.to_binary(index.hold),
       prev_labels: Nx.to_binary(index.prev_labels),
+      src: if(index[:src], do: Nx.to_binary(index.src)),
       meta: Map.get(index, :meta, %{})
     }, [:compressed]))
   end
@@ -512,6 +522,8 @@ defmodule ExPhil.Agents.ExpertRecoveryLabeler do
       labels: rows12.(m.labels),
       hold: Nx.from_binary(m.hold, :u8) |> Nx.to_list() |> List.to_tuple(),
       prev_labels: if(m[:prev_labels], do: rows12.(m.prev_labels)),
+      # provenance (v10 indexes): tuple of [game_index, frame] per row; game paths in meta.game_paths
+      src: if(m[:src], do: Nx.from_binary(m.src, :s32) |> Nx.reshape({m.n, 2}) |> Nx.to_list() |> List.to_tuple()),
       n: m.n, k: m.k, dims: m.dims, meta: m.meta, window: Map.get(m, :window, :offstage)
     }
   end

@@ -52,11 +52,28 @@ frame, with the expert rows the label was sampled from.
 - **Detail**: the frame's state (action, height, distance past the edge,
   jumps, hitstun), the real press, the label, the prev the label conditions
   on, and the k nearest expert rows: what each row presses or holds, its OWN
-  cell and its d². A pink row is a borrow from another cell — the 10-16
-  finding (airdodges offstage-high from wavelands over the stage) reads as
-  "off_high_inhand frame, drift_inhand rows" here.
+  cell, its d², and (v10 indexes) the replay and frame it came from. A pink
+  row is a borrow from another cell — the 10-16 finding (airdodges
+  offstage-high from wavelands over the stage) reads as "off_high_inhand
+  frame, drift_inhand rows" here.
+- **Source pane** (right, 10-21): the hand-verification. Click a row marked
+  ▶ and the right-hand pane plays the expert replay that row came from, paused
+  on that very frame, with the row's press marked on its seek bar. The
+  question to answer by eye is "is this the same situation as the red Fox's,
+  and is what the expert did next sensible?" — a label that differs from the
+  real press is fine when the source is a look-alike moment and a sane play;
+  it is a labeler fault when the source is a different situation. Rows have
+  a clip on every frame with an edge (label or real); on a frame with a label
+  edge the first row's source loads without a click. Note that the nearest
+  rows are often consecutive frames of ONE expert game (the same moment three
+  times), so 3/8 can be one expert, not three.
 
 ## Export
+
+Source clips need an index built after 10-21 (`expert_recovery_index_v10.bin`
+or later: rows carry `{game, frame}`); `scripts/labeler_v10_source_clips.sh`
+builds one and exports with clips. Older indexes export without the ▶ rows.
+
 
 ```sh
 scripts/launch_unit.sh exphil-label-review 'env EDIFICE_LOCAL_NX=1 mix run --no-compile scripts/label_review_export.exs \

@@ -52,10 +52,10 @@ files = split |> File.read!() |> Jason.decode!() |> Map.fetch!("train")
 Output.banner("Expert recovery index")
 Output.config([{"split", split}, {"train files", length(files)}, {"games wanted", want}, {"stage", stage}, {"window", window}, {"stick", stick}, {"out", out}])
 
-{rows, used} =
-  Enum.reduce_while(files, {[], 0}, fn path, {acc, used} ->
+{rows, used, game_paths} =
+  Enum.reduce_while(files, {[], 0, []}, fn path, {acc, used, paths} ->
     if used >= want do
-      {:halt, {acc, used}}
+      {:halt, {acc, used, paths}}
     else
       case Peppi.metadata(path) do
         {:ok, %{stage: ^stage} = meta} ->
@@ -69,20 +69,24 @@ Output.config([{"split", split}, {"train files", length(files)}, {"games wanted"
               |> Peppi.to_training_frames(player_port: own.port, opponent_port: opp.port, remap_ports: true)
               |> Enum.reject(&(&1.game_state.frame < 0))
 
-            new = L.index_rows(frames, stage, window, stick: stick)
+            # each row tagged with {game_index, frame}: the review page plays the clip a label came from
+            new = L.index_rows(frames, stage, window, stick: stick) |> Enum.map(fn {v, r, h, pr, fr} -> {{v, r, h, pr}, {used, fr}} end)
             if rem(used + 1, 25) == 0, do: Output.puts("  #{used + 1} games")
-            {:cont, {[new | acc], used + 1}}
+            {:cont, {[new | acc], used + 1, [path | paths]}}
           else
-            {:cont, {acc, used}}
+            {:cont, {acc, used, paths}}
           end
 
         _ ->
-          {:cont, {acc, used}}
+          {:cont, {acc, used, paths}}
       end
     end
   end)
 
-rows = rows |> Enum.reverse() |> Enum.concat()
+tagged = rows |> Enum.reverse() |> Enum.concat()
+rows = Enum.map(tagged, &elem(&1, 0))
+srcs = Enum.map(tagged, &elem(&1, 1))
+game_paths = Enum.reverse(game_paths)
 n = length(rows)
 holds = Enum.count(rows, &elem(&1, 2))
 b_share = Enum.count(rows, fn {_, r, _, _} -> Enum.at(r, 5) > 0.5 end) / max(n, 1)
@@ -109,7 +113,7 @@ cells =
     %{}
   end
 
-index = L.pack(rows) |> Map.put(:window, window) |> Map.put(:meta, %{games: used, split: split, stage: stage, window: window, stick: stick, cells: cells, built_at: DateTime.utc_now() |> DateTime.to_iso8601()})
+index = L.pack(rows, srcs) |> Map.put(:window, window) |> Map.put(:meta, %{games: used, game_paths: game_paths, split: split, stage: stage, window: window, stick: stick, cells: cells, built_at: DateTime.utc_now() |> DateTime.to_iso8601()})
 L.save(index, out)
 
 Output.puts("RESULT expert recovery index: #{used} games, #{n} #{window} rows, hold share #{Float.round(holds / max(n, 1), 3)}, " <>
