@@ -1,0 +1,180 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Engine read-out</title>
+    <!-- Engine read-out (2026-10-22): a replay the model has read. Open as /engine/?run=/runs/<dir>
+         (scripts/engine_export.exs). Per scored frame: the model's press probabilities (5 lanes),
+         its surprise at the real input, its top guess vs the real input, and the situation labels.
+         One coach pane (/coach/pane.html) plays the replay; click a lane to seek; the pane's frame
+         drives the cursor. First Stockfish-style view: "what did the model expect here?" -->
+    <style>
+      :root { --bg: #f6f5f1; --fg: #1d1c1a; --muted: #6b675e; --line: #d8d4ca; --card: #fff; --accent: #8a4b1f;
+        --real: #b3261e; --model: #6a3fb5; --jump: #1d5c8a; --attack: #a3501a; --special: #2f7d4a; --grab: #7a5c0f; --trigger: #5a5a5a; --surp: #c7362b; --sel: #fff2c2; }
+      * { box-sizing: border-box; }
+      body { margin: 0; font: 13px/1.4 system-ui, sans-serif; background: var(--bg); color: var(--fg); display: grid; grid-template-columns: 290px minmax(0, 1fr); height: 100vh; }
+      aside { border-right: 1px solid var(--line); overflow: auto; padding: 10px; background: #efece4; }
+      aside h1 { font-size: 15px; margin: 0 0 2px; }
+      aside .sub { font-size: 11px; color: var(--muted); margin-bottom: 8px; }
+      .game { padding: 6px 8px; border-radius: 4px; cursor: pointer; border-left: 3px solid transparent; }
+      .game:hover { background: var(--card); } .game.sel { background: var(--card); border-left-color: var(--accent); }
+      .game b { display: block; font-size: 12px; word-break: break-all; }
+      .game span { font-size: 11px; color: var(--muted); }
+      main { display: grid; grid-template-rows: auto minmax(200px, 1fr) auto auto; min-height: 0; padding: 8px; gap: 6px; }
+      .head { display: flex; flex-wrap: wrap; gap: 10px; align-items: baseline; }
+      .head h2 { font-size: 15px; margin: 0; }
+      .head .muted, .muted { color: var(--muted); font-size: 12px; }
+      .top { display: grid; grid-template-columns: minmax(0, 3fr) minmax(320px, 2fr); gap: 8px; min-height: 0; }
+      iframe { width: 100%; height: 100%; border: 1px solid var(--line); background: #000; min-height: 0; }
+      .card { background: var(--card); border: 1px solid var(--line); border-radius: 6px; padding: 10px; overflow: auto; font-size: 12.5px; }
+      .card h3 { font-size: 12px; margin: 8px 0 4px; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); }
+      .card h3:first-child { margin-top: 0; }
+      .row { display: grid; grid-template-columns: 70px 1fr; gap: 4px 8px; }
+      .bar { height: 10px; background: #e8e5dd; border-radius: 3px; position: relative; margin: 3px 0; }
+      .bar i { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 3px; }
+      .bar b { position: absolute; right: 4px; top: -3px; font-size: 10px; font-weight: 500; }
+      .chip { display: inline-block; padding: 1px 7px; border-radius: 999px; font-size: 11px; margin: 1px 2px 1px 0; background: #ebe8e1; }
+      .chip.real { background: #f9e0dc; color: var(--real); } .chip.model { background: #eae2f6; color: var(--model); }
+      .chip.ok { background: #dff2e6; color: #1f6f43; } .chip.bad { background: #f9e0dc; color: var(--real); }
+      canvas { width: 100%; display: block; border: 1px solid var(--line); background: var(--card); cursor: crosshair; }
+      .lanes { display: grid; grid-template-columns: 1fr; gap: 4px; }
+      .legend { display: flex; flex-wrap: wrap; gap: 10px; font-size: 11px; color: var(--muted); align-items: center; }
+      .legend i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; vertical-align: -1px; margin-right: 3px; }
+      .nav button { font: inherit; font-size: 12px; padding: 3px 9px; border: 1px solid var(--line); background: var(--card); border-radius: 4px; cursor: pointer; }
+      .nav button:hover { background: var(--sel); }
+      .nav { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+      kbd { font: 11px ui-monospace, monospace; border: 1px solid var(--line); border-radius: 3px; padding: 0 4px; background: #fff; }
+    </style>
+  </head>
+  <body>
+    <aside>
+      <h1>Engine read-out</h1>
+      <div class="sub" id="sub">loading…</div>
+      <div id="games"></div>
+    </aside>
+    <main>
+      <div class="head">
+        <h2 id="title">pick a game</h2>
+        <span class="muted" id="desc"></span>
+        <div class="nav" style="margin-left:auto">
+          <button id="prevsurp" title="previous frame in the top 2% of surprise">◀ surprise</button>
+          <button id="nextsurp">surprise ▶</button>
+          <button id="prevpress" title="previous real press (jump/attack/special/grab/trigger)">◀ press</button>
+          <button id="nextpress">press ▶</button>
+          <span class="muted"><kbd>←</kbd><kbd>→</kbd> step · <kbd>shift</kbd> ±30 f</span>
+        </div>
+      </div>
+      <div class="top">
+        <iframe id="pane" src="/coach/pane.html?id=main" title="replay"></iframe>
+        <div class="card" id="detail"><span class="muted">pick a game on the left</span></div>
+      </div>
+      <div class="lanes">
+        <div class="legend"><b>whole game</b>
+          <span><i style="background:var(--surp)"></i>surprise −log p(real input), taller = the model expected something else</span>
+          <span><i style="background:var(--jump)"></i>P(jump)</span><span><i style="background:var(--attack)"></i>P(attack)</span><span><i style="background:var(--special)"></i>P(special)</span><span><i style="background:var(--grab)"></i>P(grab)</span><span><i style="background:var(--trigger)"></i>P(trigger)</span>
+          <span><i style="background:var(--real)"></i>real press</span><span><i style="background:var(--model)"></i>model's top guess pressed</span>
+        </div>
+        <canvas id="overview" height="150"></canvas>
+        <div class="legend"><b>around the cursor</b> <span class="muted">(±120 frames; the model is scored every <span id="stride">2</span> frames)</span></div>
+        <canvas id="zoom" height="190"></canvas>
+      </div>
+    </main>
+    <script type="module">
+      const $ = (s) => document.querySelector(s);
+      const params = new URLSearchParams(location.search);
+      const base = params.get("run") || "/runs/1022_engine";
+      const FAM = ["jump", "attack", "special", "grab", "trigger"];
+      const COL = { jump: "#1d5c8a", attack: "#a3501a", special: "#2f7d4a", grab: "#7a5c0f", trigger: "#5a5a5a", surp: "#c7362b", real: "#b3261e", model: "#6a3fb5" };
+      const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+      const fmt = (x, d = 2) => (x == null || Number.isNaN(x) ? "?" : Number(x).toFixed(d));
+      let manifest, cur, rows = [], byI = new Map(), frame = 0, surpCut = 0, pressIdx = [], surpIdx = [];
+      const pane = $("#pane");
+
+      manifest = await (await fetch(`${base}/manifest.json`)).json();
+      $("#stride").textContent = manifest.stride;
+      const o = manifest.overall || {};
+      $("#sub").innerHTML = `${esc((manifest.policy || "").split("/").slice(-2).join("/"))}<br>${manifest.games.length} held-out games · joint top-1 ${o.joint}% · option families ${o.families}% · change frames ${manifest.change?.families}%`;
+      $("#games").innerHTML = manifest.games.map((g, k) => `<div class="game" data-k="${k}"><b>${esc(g.game)}</b><span>vs ${esc(g.opponent)} · ${g.frames} f · surprise ${fmt(g.surprise, 2)}</span></div>`).join("");
+      document.querySelectorAll(".game").forEach((el) => (el.onclick = () => pick(Number(el.dataset.k))));
+
+      async function pick(k) {
+        cur = manifest.games[k];
+        document.querySelectorAll(".game").forEach((el) => el.classList.toggle("sel", Number(el.dataset.k) === k));
+        const side = await (await fetch(`${base}/${cur.sidecar}`)).json();
+        rows = side.rows; byI = new Map(rows.map((r) => [r.i, r]));
+        const nlls = rows.map((r) => r.nll).sort((a, b) => a - b);
+        surpCut = nlls[Math.floor(nlls.length * 0.98)] ?? Infinity;
+        surpIdx = rows.filter((r) => r.nll >= surpCut).map((r) => r.i);
+        pressIdx = rows.filter((r) => r.real_edges.length).map((r) => r.i);
+        $("#title").textContent = cur.game;
+        $("#desc").textContent = `red Fox is the expert the model reads · opponent ${cur.opponent} · ${rows.length} scored frames · ${surpIdx.length} high-surprise · ${pressIdx.length} real presses`;
+        pane.contentWindow.postMessage({ load: `${base}/${cur.trace}`, label: `[ENGINE] ${cur.game}`, seek: 0 }, "*");
+        pane.contentWindow.postMessage({ marks: surpIdx.slice(0, 60).map((i) => ({ i, label: "surprise", color: COL.surp })) }, "*");
+        frame = 0; drawOverview(); drawZoom(); renderDetail(); history.replaceState(null, "", `?run=${encodeURIComponent(base)}&g=${k}`);
+      }
+
+      // nearest scored row at or before a frame
+      function rowAt(i) { for (let d = 0; d <= manifest.stride; d++) { const r = byI.get(i - d); if (r) return r; } return null; }
+
+      function seek(i) { if (!cur) return; frame = Math.max(0, Math.min(cur.frames - 1, i)); pane.contentWindow.postMessage({ seek: frame }, "*"); drawZoom(); drawOverview(); renderDetail(); }
+      const jump = (list, dir) => { if (!list.length) return; const nxt = dir > 0 ? list.find((i) => i > frame) : [...list].reverse().find((i) => i < frame); if (nxt != null) seek(nxt); };
+      $("#nextsurp").onclick = () => jump(surpIdx, 1); $("#prevsurp").onclick = () => jump(surpIdx, -1);
+      $("#nextpress").onclick = () => jump(pressIdx, 1); $("#prevpress").onclick = () => jump(pressIdx, -1);
+      function key(k, shift) { const s = shift ? 30 : manifest.stride; if (k === "ArrowLeft") seek(frame - s); else if (k === "ArrowRight") seek(frame + s); }
+      window.addEventListener("keydown", (e) => { if (e.target instanceof Element && e.target.matches("input,textarea")) return; key(e.key, e.shiftKey); });
+      window.addEventListener("message", (ev) => { const m = ev.data || {}; if (m.id && m.id !== "main") return;
+        if (typeof m.frame === "number" && cur && m.frame !== frame) { frame = m.frame; drawZoom(); drawOverview(); renderDetail(); }
+        if (m.paneKey) key(m.paneKey, false); });
+
+      // ---- lanes ----------------------------------------------------------------------
+      function setup(c) { const r = c.getBoundingClientRect(); const dpr = devicePixelRatio || 1; c.width = Math.round(r.width * dpr); const ctx = c.getContext("2d"); ctx.setTransform(dpr, 0, 0, dpr, 0, 0); return { ctx, w: r.width, h: c.height }; }
+      function lanes(c, from, to) {
+        const { ctx, w, h } = setup(c); ctx.clearRect(0, 0, w, h);
+        const x = (i) => ((i - from) / Math.max(1, to - from)) * w;
+        const nL = 1 + FAM.length, lh = h / nL;
+        // lane backgrounds + names
+        for (let k = 0; k < nL; k++) { ctx.fillStyle = k % 2 ? "#faf9f6" : "#fff"; ctx.fillRect(0, k * lh, w, lh); ctx.fillStyle = "#9a958b"; ctx.font = "10px system-ui"; ctx.fillText(k === 0 ? "surprise" : "P(" + FAM[k - 1] + ")", 4, k * lh + 10); }
+        const step = Math.max(1, Math.floor((to - from) / w / 2)) * manifest.stride;
+        for (let i = from; i <= to; i += manifest.stride) {
+          const r = byI.get(i); if (!r) continue;
+          const x0 = x(i), bw = Math.max(1, x(i + manifest.stride) - x0);
+          // surprise bar (cap 12 nats)
+          const sh = Math.min(1, r.nll / 12) * (lh - 4);
+          ctx.fillStyle = r.nll >= surpCut ? COL.surp : "#e2b4ae"; ctx.fillRect(x0, lh - 2 - sh, bw, sh);
+          FAM.forEach((f, k) => {
+            const y0 = (k + 1) * lh; const ph = r.p[f] * (lh - 4);
+            ctx.fillStyle = COL[f]; ctx.globalAlpha = 0.55; ctx.fillRect(x0, y0 + lh - 2 - ph, bw, ph); ctx.globalAlpha = 1;
+            if (r.real_edges.includes(f)) { ctx.fillStyle = COL.real; ctx.fillRect(x0, y0 + 1, Math.max(2, bw), 5); }
+            if (r.model_edges.includes(f)) { ctx.fillStyle = COL.model; ctx.fillRect(x0, y0 + 7, Math.max(2, bw), 4); }
+          });
+        }
+        // cursor
+        ctx.strokeStyle = "#1d1c1a"; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(x(frame) + 0.5, 0); ctx.lineTo(x(frame) + 0.5, h); ctx.stroke();
+        c.onclick = (e) => { const r = c.getBoundingClientRect(); seek(Math.round(from + ((e.clientX - r.left) / r.width) * (to - from))); };
+      }
+      function drawOverview() { if (cur) lanes($("#overview"), 0, cur.frames - 1); }
+      function drawZoom() { if (cur) lanes($("#zoom"), Math.max(0, frame - 120), Math.min(cur.frames - 1, frame + 120)); }
+      window.addEventListener("resize", () => { drawOverview(); drawZoom(); });
+
+      // ---- detail -----------------------------------------------------------------------
+      function renderDetail() {
+        if (!cur) return;
+        const r = rowAt(frame);
+        if (!r) { $("#detail").innerHTML = `<span class="muted">frame ${frame}: before the first scored frame (the model needs ${manifest.stride === 2 ? "its 80-frame window" : "history"})</span>`; return; }
+        const fam = (f, cls) => `<span class="chip ${cls}">${esc(f.main)} stick</span>${f.c !== "neutral" ? `<span class="chip ${cls}">c ${esc(f.c)}</span>` : ""}${FAM.filter((k) => f[k]).map((k) => `<span class="chip ${cls}">${k}</span>`).join("")}`;
+        const bars = FAM.map((f) => `<div class="row"><span>${f}</span><div class="bar"><i style="width:${Math.round(r.p[f] * 100)}%;background:${COL[f]}"></i><b>${fmt(r.p[f], 2)}</b></div></div>`).join("");
+        const agree = r.changed ? (r.m.families ? `<span class="chip ok">same option family</span>` : `<span class="chip bad">different option</span>`) : `<span class="chip">hold frame</span>`;
+        $("#detail").innerHTML = `
+          <h3>frame ${r.frame} · ${esc(r.name)}${r.decision ? "" : ' <span class="muted">(stick: hold rule)</span>'}</h3>
+          <div>${(r.sits || []).map((s) => `<span class="chip">${esc(s)}</span>`).join("") || '<span class="muted">no situation label</span>'}</div>
+          <h3>the expert really did</h3><div>${fam(r.real, "real")}${r.real_edges.length ? ` <span class="chip real">pressed ${r.real_edges.join(" ")}</span>` : ""}${r.changed ? "" : ' <span class="muted">(unchanged from the previous frame)</span>'}</div>
+          <h3>the model's top guess</h3><div>${fam(r.pred, "model")}${r.model_edges.length ? ` <span class="chip model">pressed ${r.model_edges.join(" ")}</span>` : ""} ${agree}</div>
+          <h3>press probabilities</h3>${bars}
+          <h3>surprise</h3><div><b style="color:${r.nll >= surpCut ? COL.surp : "inherit"}">${fmt(r.nll, 2)}</b> nats ${r.nll >= surpCut ? "· top 2% of this game" : ""} <span class="muted">(−log p of the real input under the model; hold frames with no change sit near ${fmt(manifest.hold?.surprise, 1)})</span></div>`;
+      }
+
+      const g0 = params.get("g"); if (g0 != null) pick(Number(g0));
+    </script>
+  </body>
+</html>
