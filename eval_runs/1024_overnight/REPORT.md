@@ -295,3 +295,61 @@ floor — but SD/min 1.1 -> 3.6 and joint -1.7: the bot moves more everywhere, i
 => a blanket anti-passivity weight trades standing-still for self-destructs (the 09-05 history again).
 The targeted version — weight neutral frames only when GROUNDED and ONSTAGE — needs a flag; code for tomorrow.
 Nothing here is promotable to full scale as-is. Stage 2 (master-only) and stage 3 (null arm) continue.
+RESULT CHANGE frames (real input changed): n 6454  joint 15.1%  buttons 69.6%  families 36.2%  main dir 65.9% (bucket 48.4%, ±1 55.9%)  c dir 96.2%  trigger 91.9%  jump 87.5%  attack 95.9%  special 96.4%  surprise 3.74  change recall 51.2%  false change %
+RESULT frames with a real press edge: n 1029  joint 0.6%  buttons 17.4%  families 11.5%  main dir 89.9% (bucket 81.0%, ±1 87.7%)  c dir 99.9%  trigger 83.1%  jump 58.5%  attack 87.1%  special 88.8%  surprise 5.128  change recall 24.4%  false change %
+RESULT press calibration jump: AUC 0.759  mean P on press frames 0.041 vs no-press 0.025  press frames above the no-press median 82.9%  (n 416 / 28954)
+RESULT press calibration attack: AUC 0.887  mean P on press frames 0.068 vs no-press 0.011  press frames above the no-press median 94.0%  (n 133 / 30709)
+RESULT press calibration special: AUC 0.88  mean P on press frames 0.051 vs no-press 0.008  press frames above the no-press median 91.3%  (n 115 / 30420)
+RESULT false press (model press edge on a frame with no real press): 0.0% of 30362
+RESULT STANDING change frames: n 161 change recall 35.4%  families 17.4%  | press edges same-family: jump 0% attack 0% special 0.9% grab 0% trigger 44.7%
+
+STAGE 1 DONE (10:13)
+
+## Stage 2 — master-only full arm, epochs 1-6 (10:13)
+
+### master epoch 1 (lr 0.0002) (10:13)
+val_loss=3.1396
+DONE fox_mamba_master_ep1
+RESULT ALL frames: n 39430  joint 75.7%  buttons 93.4%  families 85.6%  main dir 92.3% (bucket 85.6%, ±1 89.0%)  c dir 99.1%  trigger 97.7%  jump 97.3%  attack 99.2%  special 99.0%  surprise 1.822  change recall 68.2%  false change 4.2%
+RESULT CHANGE frames (real input changed): n 11028  joint 23.8%  buttons 76.7%  families 50.8%  main dir 72.7% (bucket 48.7%, ±1 60.7%)  c dir 97.0%  trigger 93.7%  jump 90.4%  attack 97.0%  special 96.3%  surprise 3.25  change recall 68.2%  false change %
+RESULT frames with a real press edge: n 1314  joint 0.9%  buttons 19.5%  families 7.9%  main dir 88.7% (bucket 77.2%, ±1 85.3%)  c dir 99.4%  trigger 78.6%  jump 57.6%  attack 86.8%  special 84.4%  surprise 4.876  change recall 29.8%  false change %
+RESULT DECISION frames (stick head trained here): n 13176  joint 40.0%  buttons 80.5%  families 62.3%  main dir 77.0% (bucket 56.8%, ±1 66.9%)  c dir 99.2%  trigger 96.7%  jump 92.0%  attack 97.5%  special 96.9%  surprise 2.51  change recall 69.2%  false change 3.9%
+RESULT press calibration jump: AUC 0.854  mean P on press frames 0.073 vs no-press 0.024  press frames above the no-press median 94.5%  (n 523 / 35276)
+RESULT press calibration attack: AUC 0.916  mean P on press frames 0.082 vs no-press 0.009  press frames above the no-press median 98.8%  (n 165 / 38183)
+RESULT press calibration special: AUC 0.948  mean P on press frames 0.16 vs no-press 0.01  press frames above the no-press median 97.6%  (n 207 / 37830)
+RESULT press calibration trigger: AUC 0.887  mean P on press frames 0.34 vs no-press 0.038  press frames above the no-press median 93.8%  (n 387 / 32618)
+RESULT STANDING change frames: n 234 change recall 47% families 34.6%
+EPOCH 1 DONE light (13:01)
+### candidate s906_ep2 on the master held-out split (the comparison)
+RESULT ALL frames: n 39430  joint 75.0%  buttons 93.5%  families 85.9%  main dir 92.6% (bucket 86.4%, ±1 89.6%)  c dir 99.2%  trigger 97.7%  jump 97.3%  attack 99.2%  special 99.0%  surprise 2.978  change recall 72.1%  false change 6.0%
+RESULT CHANGE frames (real input changed): n 11028  joint 26.2%  buttons 77.4%  families 52.1%  main dir 73.9% (bucket 51.6%, ±1 62.9%)  c dir 97.0%  trigger 93.6%  jump 90.7%  attack 97.0%  special 96.6%  surprise 3.263  change recall 72.1%  false change %
+RESULT frames with a real press edge: n 1314  joint 1.9%  buttons 20.8%  families 10.2%  main dir 90.6% (bucket 78.9%, ±1 86.8%)  c dir 99.5%  trigger 79.5%  jump 57.6%  attack 86.7%  special 85.5%  surprise 4.861  change recall 29.6%  false change %
+RESULT press calibration jump: AUC 0.874  mean P on press frames 0.092 vs no-press 0.023  press frames above the no-press median 97.5%  (n 523 / 35276)
+RESULT press calibration attack: AUC 0.939  mean P on press frames 0.11 vs no-press 0.009  press frames above the no-press median 97.6%  (n 165 / 38183)
+
+### master epoch 2 (lr 0.0002) (13:11)
+val_loss=2.9819
+DONE fox_mamba_master_ep2
+RESULT ALL frames: n 39430  joint 76.3%  buttons 93.5%  families 86.0%  main dir 92.7% (bucket 86.2%, ±1 89.5%)  c dir 99.1%  trigger 97.7%  jump 97.3%  attack 99.2%  special 99.0%  surprise 2.29  change recall 70.5%  false change 4.0%
+RESULT CHANGE frames (real input changed): n 11028  joint 25.8%  buttons 77.0%  families 52.3%  main dir 74.1% (bucket 50.9%, ±1 62.7%)  c dir 97.0%  trigger 93.8%  jump 90.6%  attack 97.1%  special 96.4%  surprise 3.167  change recall 70.5%  false change %
+RESULT frames with a real press edge: n 1314  joint 1.1%  buttons 20.3%  families 8.6%  main dir 89.2% (bucket 78.9%, ±1 85.9%)  c dir 99.5%  trigger 78.8%  jump 57.7%  attack 86.8%  special 84.9%  surprise 4.805  change recall 28.8%  false change %
+RESULT DECISION frames (stick head trained here): n 13176  joint 41.5%  buttons 80.8%  families 63.4%  main dir 78.2% (bucket 58.6%, ±1 68.6%)  c dir 99.2%  trigger 96.6%  jump 92.1%  attack 97.5%  special 97.0%  surprise 2.389  change recall 71.5%  false change 4.3%
+RESULT press calibration jump: AUC 0.865  mean P on press frames 0.081 vs no-press 0.023  press frames above the no-press median 96.2%  (n 523 / 35276)
+RESULT press calibration attack: AUC 0.93  mean P on press frames 0.095 vs no-press 0.009  press frames above the no-press median 99.4%  (n 165 / 38183)
+RESULT press calibration special: AUC 0.954  mean P on press frames 0.18 vs no-press 0.009  press frames above the no-press median 98.1%  (n 207 / 37830)
+RESULT press calibration trigger: AUC 0.895  mean P on press frames 0.348 vs no-press 0.034  press frames above the no-press median 93.5%  (n 387 / 32618)
+RESULT STANDING change frames: n 234 change recall 47.4% families 35.9%
+EPOCH 2 DONE light (15:59)
+
+### master epoch 3 (lr 0.0001) (15:59)
+
+## Stage 2 interim READ (Claude, 16:05) — apples to apples on the MASTER held-out split
+                      fam%(change)  joint  change recall  AUC jump   STANDING recall
+candidate s906_ep2        52.1      26.2      72.1         0.874       (49 on corpus)
+master ep1 (lr 2e-4)      50.8      23.8      68.2         0.854        47.0
+master ep2 (lr 2e-4)      52.3      25.8      70.5         0.865        47.4
+ep1 -> ep2 = +1.5 fam / +2.0 joint: beyond the testbed seed floor (±0.4 / ±0.6), so the arm keeps
+running (epochs 3-6 at lr 1e-4, ~2.8 h each, done ~03:00). Read so far: two passes over the 7,853
+master games (~1/4 of the candidate's training frames) MATCH the candidate on option families and
+trail it by 0.4 joint / 1.6 recall; data quality buys compute, it has not yet bought agreement
+above the candidate. Timing: 109 min of 48 ms steps + ~50 min re-embedding per epoch (caches off).
