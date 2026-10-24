@@ -894,3 +894,63 @@ RUNNING: exphil-fox-mamba-ep2 (Mamba epoch 2 via --resume, ~8.5 h). No mix.
 - GOTCHA #138: stick targets never use the top bucket (right/up plays at 0.875, left/down at −1.0, every policy); prev-action channel is raw in training, decoded live. New `--prev-action-quantize`; experimental `EXPHIL_STICK_ROUNDING=nearest` (runtime config, default unchanged).
 - Policy/agent/loss touched earlier today: event heads (`--button-events`, `--stick-events`), AR scheduled sampling (`--ss-steps`, `--ss-ramp-*`), `ExPhil.Eval.{PlayStats,Calibration}`.
 - GPU: unit `exphil-coh-queue6` until ~16:30. No mix until it ends.
+
+### 2026-10-17 — Codex framework upgrade validation
+- GPU labeler released the device; starting sequential saved-batch replay and profiling.
+- Builds and scripts live in `/home/blewf/git/exphil-nx-upgrade`; no shared EXLA rebuilds.
+- Candidate: Nx/EXLA `171dcad6`, XLA 0.11, Axon `b182288c`, Polaris 0.2.
+- Capture: `eval_runs/0925_fox_mamba/crash/step600`; logs under `/tmp/exphil-gpu-upgrade*`.
+- GPU reserved for this validation until a completion entry below.
+
+### 2026-10-17 — Codex GPU released
+
+- Isolated GPU replay/profiling finished; no Codex GPU jobs remain.
+- New EXLA/XLA and fused Mamba builds run successfully. Strict gradient parity still has small failures; full application upgrade/training remains gated.
+- Reports and local tooling are in `/home/blewf/git/exphil-nx-upgrade`; shared native dependencies were not rebuilt.
+
+### 2026-10-17 — Codex repeated GPU validation
+- Starting five fresh-process replays per stack, sequentially, in the isolated worktree. GPU has only a small AppImage context. No shared builds.
+
+### 2026-10-17 — Codex repeated validation complete; GPU released
+- Fifteen full-batch replays, captured-operation diagnostics, and corrected scan validation are complete. No Codex GPU jobs remain.
+- Isolated Edifice commits `d1d5124` and `aabc1a1` fix analysis tracing and per-channel timestep discretization; shared Edifice and native libraries are unchanged.
+- Full-model strict gradient parity remains unresolved. Full application upgrade/training was not started.
+- Reports: `/home/blewf/git/exphil-nx-upgrade/eval_runs/framework_variation_20261017/`.
+
+### 2026-10-17 — Codex layer trace validation
+- GPU is free; starting sequential baseline/candidate layer traces in the isolated worktree. No shared native builds or source edits.
+
+### 2026-10-17 — Codex application validation complete; GPU released
+- Layer traces and fixed-operand float64 checks support accumulated float32 rounding on step600. Fresh baseline/plain/fused runs pass a hash-bound, five-gradient budget; original strict gradient comparisons still fail and remain recorded.
+- All Edifice and Exphil Elixir sources compile against the isolated candidate stack. Native libraries and unrelated dependencies were reused; shared builds were untouched.
+- Fixed absent optional event flags in isolated Exphil (`ad039917`); three regressions pass. Plain and fused-enabled real trainer training/save/resume checks pass through step603 over 187 tensors at the original tolerance, without bitwise equality.
+- Crypto NIF must be loaded before compiler/kernel libraries for the fused check's final fingerprint reporting. Native loader cause is not independently diagnosed.
+- Artifacts: `/home/blewf/git/exphil-nx-upgrade/eval_runs/framework_layers_20261017/` and `framework_full_build_20261017/`.
+- No Codex GPU processes remain. Next gate is representative multi-batch training and evaluation, not more repeats of the same capture.
+
+### 2026-10-17 — Codex bounded multi-batch comparison
+- GPU was free. Reserving it for sequential baseline/plain/fused comparisons in the isolated worktree.
+- Preparing frozen batches from eight training and four held-out games in the original split, then 32 updates and held-out evaluation per stack. No shared builds or policy deployment.
+
+### 2026-10-17 — Codex multi-batch comparison complete; GPU released
+- Baseline/plain/fused each completed 32 updates from step600 across eight games, using identical frozen batches. Same Edifice/Exphil source hashes compiled against both framework stacks.
+- Both comparisons pass the original strict tolerance across 188 tensors (final parameters, optimizer state, and loss arrays). No single-step gradient allowance was used; intermediate gradients were not compared here.
+- Four held-out games / 2,048 examples: final losses 4.47401971 / 4.47401984 / 4.47401944. Existing teacher-forced calibration reports matching accuracies and button calibration at four decimals.
+- Held-out loss rose from about 4.03 on every stack. These short-continuation checkpoints are not promotion candidates; no closed-loop evaluation or deployment was done.
+- Artifacts: `/home/blewf/git/exphil-nx-upgrade/eval_runs/framework_multibatch_20261017/`. No Codex GPU jobs remain; shared native builds were untouched.
+
+### 2026-10-24 — Codex MinGRU stateful integration
+- User requested MinGRU stepping in ExPhil, then GatedDeltaNet/Mamba-2 stepping in Edifice.
+- Editing Agent's stateful dispatch/parameter extraction/reset and focused parity/rollback tests. Existing unrelated dirty files remain untouched.
+- No training processes were active before work. Targeted tests and sequential inference benchmarks only; no policy deployment or training restart.
+- Complete: MinGRU Agent dispatch, weight-derived init, projection/final norm extraction, reset/batch/rollback, and CLI help. 60 targeted Agent/network/CLI tests pass, including autoregressive and batched MinGRU.
+- Edifice adds GatedDeltaNet/Mamba-2 steps with prefix/gradient/rollback checks. SSD matmul source-decay correction can change affected checkpoint outputs; revalidate before deployment. GPU backbone medians: GatedDeltaNet 0.615 -> 0.116 ms, SSD 0.248 -> 0.132 ms. Benchmarks finished; no Codex GPU process remains.
+
+### 2026-10-24 — Codex trained carried-state validation
+- User requested validation of MinGRU carry and improvements for GRU/Mamba/Mamba-2. Adding an offline replay/checkpoint probe, comparing numerical prefix parity separately from window truncation drift. No policy deployment or training. No active training found before targeted Mix runs; CPU evaluation first.
+
+## 2026-10-24 04:15 local — Claude: overnight GPU queue (~20 h) pending the beam
+- Bradley queued three GPU experiments for tonight (`scripts/overnight_1024.sh`, unit `exphil-overnight-1024`, report `eval_runs/1024_overnight/REPORT.md`): a MinGRU testbed queue (12 arms, ~2 h), a master-only Mamba arm (6 epochs, ~8 h), a dose-matched null DAgger epoch (~10 h) + a mini league.
+- It runs `--no-compile` behind the stale-build guard, so it cannot start while `lib/` is newer than `_build` (your agent.ex / cli.ex edits at 04:11). A waiter launches it once the beam is free and `lib/` has been quiet for 10 min, after one `mix compile`.
+- While the unit runs (NO-MIX LAW, GOTCHA #136): please no `mix` in this repo and no lib edits that the next stage would pick up — each stage is a fresh `mix run --no-compile` against `_build/dev`. CPU work via `elixir -pa` and worktree builds (`exphil-nx-upgrade`) are fine. If you need the GPU, `systemctl --user stop exphil-overnight-1024`; every stage resumes (progress.json / existing checkpoints are skipped).
+- Your MinGRU stateful dispatch change affects the testbed's closed-loop evals (Agent batched path); the queue compares arms within one build, so it is internally consistent, but numbers are not comparable to the 10-0x queues if the stepping changed.
