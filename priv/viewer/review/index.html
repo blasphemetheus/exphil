@@ -1,0 +1,243 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Set review</title>
+    <!-- Set review (2026-10-24): one of Bradley's own ranked sets, reviewed the way a player
+         reviews it. Open as /review/?run=/runs/<dir> (scripts/set_review_export.exs).
+         Left: the games of the set and the big moments (stock losses, big combos) — ground truth
+         from the replay, no model. Middle: the replay (coach pane). Right: the GHOSTS (both
+         players' last 15 frames on a stage map, "what you were reacting to") and both
+         CONTROLLERS frame by frame (sticks, triggers, buttons, and a 90-frame input strip).
+         Developer toggle: the model's read (agreement rows), hidden by default. -->
+    <style>
+      :root { --bg: #f6f5f1; --fg: #1d1c1a; --muted: #6b675e; --line: #d8d4ca; --card: #fff; --accent: #8a4b1f; --me: #c0392b; --opp: #2d6cdf; --sel: #fff2c2; --bad: #a52c22; --good: #1f6f43; }
+      * { box-sizing: border-box; }
+      body { margin: 0; font: 13px/1.4 system-ui, sans-serif; background: var(--bg); color: var(--fg); display: grid; grid-template-columns: 300px minmax(0, 1fr) 360px; height: 100vh; }
+      aside, .side { overflow: auto; padding: 10px; }
+      aside { border-right: 1px solid var(--line); background: #efece4; }
+      .side { border-left: 1px solid var(--line); background: #efece4; display: flex; flex-direction: column; gap: 8px; }
+      h1 { font-size: 16px; margin: 0; } .sub { font-size: 11.5px; color: var(--muted); margin: 2px 0 10px; }
+      .tabs { display: flex; gap: 4px; margin-bottom: 8px; }
+      .tab { flex: 1; padding: 6px 4px; text-align: center; border: 1px solid var(--line); border-radius: 4px; background: var(--card); cursor: pointer; font-size: 12px; }
+      .tab.sel { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
+      .tab b { display: block; font-size: 13px; } .tab .w { color: var(--good); } .tab .l { color: var(--bad); }
+      .moment { padding: 7px 8px; border-left: 3px solid transparent; border-radius: 4px; cursor: pointer; margin-bottom: 3px; background: var(--card); }
+      .moment:hover { background: var(--sel); } .moment.sel { border-left-color: var(--accent); background: var(--sel); }
+      .moment .t { font: 11px ui-monospace, monospace; color: var(--muted); }
+      .moment .what { font-size: 12.5px; } .moment.me .what b { color: var(--me); } .moment.opp .what b { color: var(--opp); }
+      .moment .how { font-size: 11px; color: var(--muted); }
+      main { display: grid; grid-template-rows: auto minmax(0, 1fr) auto; min-height: 0; padding: 8px; gap: 6px; }
+      .head { display: flex; gap: 10px; align-items: baseline; flex-wrap: wrap; } .head h2 { font-size: 14px; margin: 0; font-weight: 600; }
+      .muted { color: var(--muted); font-size: 12px; }
+      iframe { width: 100%; height: 100%; border: 1px solid var(--line); background: #000; }
+      .ctl { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+      button { font: inherit; font-size: 12px; padding: 3px 9px; border: 1px solid var(--line); background: var(--card); border-radius: 4px; cursor: pointer; } button:hover { background: var(--sel); }
+      kbd { font: 11px ui-monospace, monospace; border: 1px solid var(--line); border-radius: 3px; padding: 0 4px; background: #fff; }
+      .card { background: var(--card); border: 1px solid var(--line); border-radius: 6px; padding: 8px; }
+      .card h3 { font-size: 11px; margin: 0 0 6px; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); }
+      canvas { display: block; width: 100%; }
+      .pads { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+      .pad h4 { margin: 0 0 2px; font-size: 12px; } .pad.me h4 { color: var(--me); } .pad.opp h4 { color: var(--opp); }
+      .pad .state { font-size: 11px; color: var(--muted); min-height: 2.6em; }
+      .ghosttext { font-size: 11.5px; }
+      .ghosttext b.me { color: var(--me); } .ghosttext b.opp { color: var(--opp); }
+      .strip canvas { cursor: crosshair; }
+      label.dev { font-size: 11px; color: var(--muted); margin-left: auto; cursor: pointer; }
+    </style>
+  </head>
+  <body>
+    <aside>
+      <h1 id="title">Set review</h1>
+      <div class="sub" id="sub">loading…</div>
+      <div class="tabs" id="tabs"></div>
+      <div id="moments"></div>
+    </aside>
+    <main>
+      <div class="head">
+        <h2 id="gtitle">pick a game</h2><span class="muted" id="gsub"></span>
+        <div class="ctl" style="margin-left:auto">
+          <button id="prevm">◀ moment</button><button id="nextm">moment ▶</button>
+          <span class="muted"><kbd>space</kbd> play/pause · <kbd>←</kbd><kbd>→</kbd> 1 frame · <kbd>shift</kbd> 10 · <kbd>,</kbd><kbd>.</kbd> 15 frames</span>
+          <label class="dev"><input type="checkbox" id="dev"> developer: the model's read</label>
+        </div>
+      </div>
+      <iframe id="pane" src="/coach/pane.html?id=main" title="replay"></iframe>
+      <div class="card strip"><h3>inputs, frame by frame — last 90 frames · <span id="stripwho">you</span> <button id="swap" style="padding:0 6px;font-size:11px">show opponent</button> <span class="muted" id="fnum"></span></h3><canvas id="strip" height="118"></canvas><canvas id="devlane" height="70" hidden></canvas></div>
+    </main>
+    <div class="side">
+      <div class="card"><h3>ghosts — the last 15 frames (faint = older)</h3><canvas id="map" height="230"></canvas><div class="ghosttext" id="ghost"></div></div>
+      <div class="card"><h3>controllers this frame</h3>
+        <div class="pads">
+          <div class="pad me"><h4 id="mename">you</h4><canvas id="padme" height="96"></canvas><div class="state" id="stme"></div></div>
+          <div class="pad opp"><h4 id="oppname">opponent</h4><canvas id="padopp" height="96"></canvas><div class="state" id="stopp"></div></div>
+        </div>
+      </div>
+    </div>
+    <script type="module">
+      const $ = (s) => document.querySelector(s);
+      const params = new URLSearchParams(location.search);
+      const base = params.get("run") || "/runs/1024_set_review";
+      const pane = $("#pane");
+      const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+      const NAMES = await fetch("/review/action_names.json").then((r) => (r.ok ? r.json() : {})).catch(() => ({}));
+      const aname = (id) => NAMES[id] || `action ${id}`;
+      const pretty = (n) => String(n || "").toLowerCase().replace(/_/g, " ");
+      const mmss = (f) => { const s = Math.max(0, Math.floor(f / 60)); return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`; };
+      const BTN = ["A", "B", "X", "Y", "Z", "L", "R", "D↑"];
+      let manifest, game, gi = -1, mi = -1, frame = 0, playing = false, stripOpp = false, rows = null;
+
+      manifest = await (await fetch(`${base}/manifest.json`)).json();
+      $("#title").textContent = manifest.label || "Set review";
+      $("#sub").textContent = `${manifest.me} · set ${manifest.score} · ${manifest.games.length} games`;
+      $("#tabs").innerHTML = manifest.games.map((g, k) => `<div class="tab" data-k="${k}"><b>G${k + 1} <span class="${g.winner === "me" ? "w" : "l"}">${g.winner === "me" ? "W" : "L"}</span></b>${g.final.me}–${g.final.opp} · ${stageName(g.stage)}</div>`).join("");
+      document.querySelectorAll(".tab").forEach((el) => (el.onclick = () => pickGame(Number(el.dataset.k))));
+      function stageName(s) { return { 2: "FoD", 3: "PS", 8: "YS", 28: "DL", 31: "BF", 32: "FD" }[s] || `stage ${s}`; }
+
+      async function pickGame(k) {
+        gi = k; const g = manifest.games[k];
+        document.querySelectorAll(".tab").forEach((el) => el.classList.toggle("sel", Number(el.dataset.k) === k));
+        game = await (await fetch(`${base}/${g.game}`)).json();
+        rows = null; if ($("#dev").checked) loadRows();
+        $("#mename").textContent = `${game.me.name} (${game.me.character})`; $("#oppname").textContent = `${game.opp.name} (${game.opp.character})`;
+        $("#gtitle").textContent = `Game ${k + 1} · ${game.me.character} vs ${game.opp.character} on ${stageName(game.stage)} · ${game.winner === "me" ? "won" : "lost"} ${game.final.me}–${game.final.opp}`;
+        $("#gsub").textContent = `${mmss(game.frames)} of play · ${game.moments.length} moments`;
+        renderMoments();
+        pane.contentWindow.postMessage({ load: `${base}/${g.trace}`, label: `[G${k + 1}] ${game.me.name} (red) vs ${game.opp.name}`, seek: 0 }, "*");
+        pane.contentWindow.postMessage({ marks: game.moments.map((m) => ({ i: m.frame - game.first_frame, label: m.type === "stock_loss" ? (m.who === "me" ? "you died" : "they died") : "combo", color: m.who === "me" ? (m.type === "stock_loss" ? "#c0392b" : "#1f6f43") : (m.type === "stock_loss" ? "#1f6f43" : "#c0392b") })) }, "*");
+        frame = 0; mi = -1; playing = false; drawAll();
+        history.replaceState(null, "", `?run=${encodeURIComponent(base)}&g=${k}`);
+      }
+
+      function describe(m) {
+        const you = m.who === "me";
+        if (m.type === "stock_loss") {
+          const victim = you ? "<b>You</b> lost a stock" : `<b>${esc(game.opp.character)}</b> lost a stock`;
+          const by = m.killed_by ? `to ${you ? game.opp.character + "'s" : "your"} ${pretty(m.killed_by)}` : (m.percent < 40 ? "(self-destruct or edgeguard, no recent hit)" : "(no hit in the last 4 s)");
+          const combo = m.combo_hits > 1 ? ` · after a ${m.combo_hits}-hit ${m.combo_damage}% string: ${m.combo_moves.map(pretty).join(", ")}` : "";
+          return { what: `${victim} at ${Math.round(m.percent)}%`, how: `${by}${combo} · ${m.stocks_left} left` };
+        }
+        const dealer = you ? "<b>Your</b>" : `<b>${esc(game.opp.character)}'s</b>`;
+        return { what: `${dealer} combo: ${m.hits} hits, ${m.damage}%`, how: `${Math.round(m.from)}% → ${Math.round(m.to)}% · ${m.moves.map(pretty).join(", ")}` };
+      }
+      function renderMoments() {
+        $("#moments").innerHTML = game.moments.map((m, k) => { const d = describe(m); return `<div class="moment ${m.who}" data-k="${k}"><div class="t">${mmss(m.frame - game.first_frame)} · ${m.type === "stock_loss" ? "stock" : "combo"}</div><div class="what">${d.what}</div><div class="how">${d.how}</div></div>`; }).join("") || '<div class="muted">no moments</div>';
+        document.querySelectorAll(".moment").forEach((el) => (el.onclick = () => pickMoment(Number(el.dataset.k))));
+      }
+      function pickMoment(k) {
+        mi = k; const m = game.moments[k];
+        document.querySelectorAll(".moment").forEach((el) => el.classList.toggle("sel", Number(el.dataset.k) === k));
+        // open paused where it matters: 2 s before the last hit of a death, else the clip start
+        const at = (m.type === "stock_loss" && m.last_hit_frame ? m.last_hit_frame - 120 : m.clip[0]) - game.first_frame;
+        seek(Math.max(0, at)); playing = false;
+      }
+      $("#nextm").onclick = () => pickMoment(Math.min(game.moments.length - 1, mi + 1));
+      $("#prevm").onclick = () => pickMoment(Math.max(0, mi - 1));
+
+      function seek(i) { if (!game) return; frame = Math.max(0, Math.min(game.frames - 1, i)); pane.contentWindow.postMessage({ seek: frame }, "*"); playing = false; drawAll(); }
+      function play() { pane.contentWindow.postMessage({ goto: frame }, "*"); playing = true; }
+      function key(k, shift) {
+        if (k === " " || k === "Spacebar") { if (playing) { pane.contentWindow.postMessage({ pause: true }, "*"); playing = false; } else play(); }
+        else if (k === "ArrowLeft") seek(frame - (shift ? 10 : 1)); else if (k === "ArrowRight") seek(frame + (shift ? 10 : 1));
+        else if (k === ",") seek(frame - 15); else if (k === ".") seek(frame + 15);
+      }
+      window.addEventListener("keydown", (e) => { if (e.target instanceof Element && e.target.matches("input,textarea")) return; if ([" ", "ArrowLeft", "ArrowRight"].includes(e.key)) e.preventDefault(); key(e.key, e.shiftKey); });
+      window.addEventListener("message", (ev) => { const m = ev.data || {}; if (m.id && m.id !== "main") return;
+        if (typeof m.frame === "number" && game && m.frame !== frame) { frame = m.frame; drawAll(); }
+        if (m.paneKey) key(m.paneKey, false); });
+
+      // ---- drawing helpers ---------------------------------------------------------------------
+      function setup(c) { const r = c.getBoundingClientRect(); const dpr = devicePixelRatio || 1; c.width = Math.round(r.width * dpr); const ctx = c.getContext("2d"); ctx.setTransform(dpr, 0, 0, dpr, 0, 0); return { ctx, w: r.width, h: c.height }; }
+      const P = (who, i) => game.p[who][i]; const C = (who, i) => game.c[who][i];
+
+      // ghosts: stage map with both players' last 15 frames
+      function drawMap() {
+        const { ctx, w, h } = setup($("#map")); ctx.clearRect(0, 0, w, h);
+        const geo = game.geometry; const [bl, br, bt, bb] = geo.blast;
+        const sx = w / (br - bl), sy = h / (bt - bb), s = Math.min(sx, sy);
+        const X = (x) => (w / 2) + x * s, Y = (y) => (h / 2) - (y - (bt + bb) / 2) * s;
+        ctx.strokeStyle = "#d8d4ca"; ctx.strokeRect(X(bl), Y(bt), (br - bl) * s, (bt - bb) * s);
+        ctx.strokeStyle = "#1d1c1a"; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(X(-geo.edge), Y(0)); ctx.lineTo(X(geo.edge), Y(0)); ctx.stroke();
+        ctx.lineWidth = 1.5; geo.platforms.forEach(([py, x1, x2]) => { ctx.beginPath(); ctx.moveTo(X(x1), Y(py)); ctx.lineTo(X(x2), Y(py)); ctx.stroke(); });
+        for (const [who, col] of [["opp", "#2d6cdf"], ["me", "#c0392b"]]) {
+          for (let d = 15; d >= 0; d--) {
+            const p = P(who, frame - d); if (!p) continue;
+            const a = d === 0 ? 1 : 0.08 + 0.5 * (1 - d / 15); ctx.globalAlpha = a; ctx.fillStyle = col;
+            ctx.beginPath(); ctx.arc(X(p[0]), Y(p[1] + 6), d === 0 ? 5 : 3.2, 0, Math.PI * 2); ctx.fill();
+            if (d === 0) { ctx.strokeStyle = col; ctx.beginPath(); ctx.moveTo(X(p[0]), Y(p[1] + 6)); ctx.lineTo(X(p[0] + 7 * p[2]), Y(p[1] + 6)); ctx.stroke(); }
+          }
+          ctx.globalAlpha = 1;
+        }
+        const me = P("me", frame), op = P("opp", frame), op15 = P("opp", frame - 15), me15 = P("me", frame - 15);
+        const txt = (p) => p ? `${pretty(aname(p[3]))} f${p[4]}${p[7] ? "" : " (air)"}${p[8] > 0 ? `, hitstun ${Math.round(p[8])}` : ""}${p[10] ? ", invincible" : ""}` : "?";
+        $("#ghost").innerHTML = `<div><b class="me">you</b> now: ${txt(me)} · ${me ? Math.round(me[5]) : "?"}%</div><div><b class="opp">${esc(game.opp.character)}</b> now: ${txt(op)} · ${op ? Math.round(op[5]) : "?"}%</div><div class="muted">15 frames ago — you: ${txt(me15)} · ${esc(game.opp.character)}: ${txt(op15)}${op && op15 ? ` · they were ${Math.round(Math.hypot(op15[0] - (me15?.[0] ?? 0), op15[1] - (me15?.[1] ?? 0)))} units away` : ""}</div>`;
+      }
+
+      // controller pad: main stick, c stick, triggers, buttons
+      function drawPad(c, ctrl) {
+        const { ctx, w, h } = setup(c); ctx.clearRect(0, 0, w, h);
+        if (!ctrl) { ctx.fillStyle = "#9a958b"; ctx.fillText("no input", 4, 12); return; }
+        const [mask, mx, my, cx, cy, l, r] = ctrl;
+        const stick = (x0, val_x, val_y, rad, col) => { ctx.strokeStyle = "#cfcac0"; ctx.beginPath(); ctx.arc(x0, h / 2, rad, 0, Math.PI * 2); ctx.stroke(); ctx.beginPath(); ctx.moveTo(x0 - rad, h / 2); ctx.lineTo(x0 + rad, h / 2); ctx.moveTo(x0, h / 2 - rad); ctx.lineTo(x0, h / 2 + rad); ctx.stroke();
+          const px = x0 + (val_x - 0.5) * 2 * rad, py = h / 2 - (val_y - 0.5) * 2 * rad; ctx.strokeStyle = col; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(x0, h / 2); ctx.lineTo(px, py); ctx.stroke(); ctx.lineWidth = 1; ctx.fillStyle = col; ctx.beginPath(); ctx.arc(px, py, 4, 0, Math.PI * 2); ctx.fill(); };
+        stick(34, mx, my, 28, "#1d1c1a"); stick(92, cx, cy, 18, "#b8860b");
+        ctx.font = "9px system-ui"; ctx.fillStyle = "#9a958b"; ctx.fillText("main", 22, h - 2); ctx.fillText("c", 89, h - 2);
+        // triggers
+        const trig = (x, v, lab) => { ctx.fillStyle = "#e8e5dd"; ctx.fillRect(x, 8, 10, h - 24); ctx.fillStyle = "#5a5a5a"; ctx.fillRect(x, 8 + (h - 24) * (1 - v), 10, (h - 24) * v); ctx.fillStyle = "#9a958b"; ctx.fillText(lab, x + 1, h - 2); };
+        trig(122, l, "L"); trig(136, r, "R");
+        // buttons
+        BTN.forEach((b, i) => { const on = mask & (1 << i); const col = { 0: "#2e8b57", 1: "#c0392b", 2: "#777", 3: "#777", 4: "#6a3fb5", 5: "#444", 6: "#444", 7: "#999" }[i];
+          const bx = 158 + (i % 4) * 30, by = 16 + Math.floor(i / 4) * 40; ctx.beginPath(); ctx.arc(bx + 10, by + 10, 11, 0, Math.PI * 2); ctx.fillStyle = on ? col : "#eeebe4"; ctx.fill(); ctx.strokeStyle = on ? col : "#cfcac0"; ctx.stroke(); ctx.fillStyle = on ? "#fff" : "#9a958b"; ctx.font = "bold 10px system-ui"; ctx.textAlign = "center"; ctx.fillText(b, bx + 10, by + 14); ctx.textAlign = "left"; });
+      }
+      function drawPads() {
+        drawPad($("#padme"), C("me", frame)); drawPad($("#padopp"), C("opp", frame));
+        const st = (p) => p ? `${pretty(aname(p[3]))} · frame ${p[4]} of the move · ${Math.round(p[5])}% · ${p[6]} stocks${p[9] < 60 ? ` · shield ${Math.round(p[9])}` : ""}` : "";
+        $("#stme").textContent = st(P("me", frame)); $("#stopp").textContent = st(P("opp", frame));
+      }
+
+      // input strip: the last 90 frames of one player's controller
+      function drawStrip() {
+        const who = stripOpp ? "opp" : "me"; $("#stripwho").textContent = stripOpp ? game.opp.character : "you"; $("#fnum").textContent = `frame ${frame} · ${mmss(frame)}`;
+        const c = $("#strip"); const { ctx, w, h } = setup(c); ctx.clearRect(0, 0, w, h);
+        const N = 90, from = frame - N + 1, cw = w / N; const rows = ["main", "c", ...BTN.slice(0, 7)]; const rh = h / rows.length;
+        ctx.font = "9px system-ui";
+        rows.forEach((lab, k) => { ctx.fillStyle = k % 2 ? "#faf9f6" : "#fff"; ctx.fillRect(0, k * rh, w, rh); ctx.fillStyle = "#9a958b"; ctx.fillText(lab, 2, k * rh + rh - 2); });
+        const dirGlyph = (x, y) => { const dx = x - 0.5, dy = y - 0.5; if (Math.hypot(dx, dy) < 0.14) return null; return Math.atan2(dy, dx); };
+        for (let i = 0; i < N; i++) {
+          const f = from + i; const ctrl = C(who, f); if (!ctrl) continue; const x0 = i * cw;
+          const [mask, mx, my, cx, cy] = ctrl;
+          const arrow = (row, ang, mag, col) => { if (ang == null) return; const cxp = x0 + cw / 2, cyp = row * rh + rh / 2, r = Math.min(cw, rh) * 0.42 * Math.min(1, mag * 2); ctx.strokeStyle = col; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(cxp, cyp); ctx.lineTo(cxp + Math.cos(ang) * r, cyp - Math.sin(ang) * r); ctx.stroke(); ctx.lineWidth = 1; };
+          arrow(0, dirGlyph(mx, my), Math.hypot(mx - 0.5, my - 0.5), "#1d1c1a"); arrow(1, dirGlyph(cx, cy), Math.hypot(cx - 0.5, cy - 0.5), "#b8860b");
+          for (let b = 0; b < 7; b++) if (mask & (1 << b)) { const prev = C(who, f - 1); const edge = !(prev && (prev[0] & (1 << b))); ctx.fillStyle = edge ? "#c0392b" : "#555"; ctx.fillRect(x0, (b + 2) * rh + 2, Math.max(1, cw - 0.5), rh - 4); }
+        }
+        // cursor + 15-frame reference
+        ctx.strokeStyle = "#1d1c1a"; ctx.beginPath(); ctx.moveTo(w - cw / 2, 0); ctx.lineTo(w - cw / 2, h); ctx.stroke();
+        ctx.strokeStyle = "#8a4b1f"; ctx.setLineDash([3, 3]); ctx.beginPath(); ctx.moveTo(w - 15.5 * cw, 0); ctx.lineTo(w - 15.5 * cw, h); ctx.stroke(); ctx.setLineDash([]);
+        c.onclick = (e) => { const r = c.getBoundingClientRect(); seek(from + Math.floor(((e.clientX - r.left) / r.width) * N)); };
+        if ($("#dev").checked) drawDev(from, N, cw);
+      }
+      $("#swap").onclick = () => { stripOpp = !stripOpp; $("#swap").textContent = stripOpp ? "show you" : "show opponent"; drawStrip(); };
+
+      // developer layer: the model's read (P(press) + surprise) from the agreement rows, if exported
+      async function loadRows() {
+        try { const txt = await (await fetch(`${base}/rows.jsonl`)).text(); const all = txt.trim().split("\n").map((l) => JSON.parse(l)); const byG = all.filter((r) => r.g === gi); rows = new Map(byG.map((r) => [r.frame, r])); } catch (e) { rows = new Map(); }
+        drawStrip();
+      }
+      $("#dev").onchange = () => { $("#devlane").hidden = !$("#dev").checked; if ($("#dev").checked && !rows) loadRows(); else drawStrip(); };
+      function drawDev(from, N, cw) {
+        const c = $("#devlane"); const { ctx, w, h } = setup(c); ctx.clearRect(0, 0, w, h);
+        ctx.fillStyle = "#9a958b"; ctx.font = "9px system-ui"; ctx.fillText(rows && rows.size ? "model: P(jump) blue · P(attack) orange · P(special) green · P(trigger) grey · surprise red (−log p of your input)" : "model rows not exported for this set yet (eval_runs/<run>/rows.jsonl)", 2, 10);
+        if (!rows) return;
+        const FAM = { jump: "#1d5c8a", attack: "#a3501a", special: "#2f7d4a", trigger: "#5a5a5a" };
+        for (let i = 0; i < N; i++) { const r = rows.get(from + i); if (!r) continue; const x0 = i * cw;
+          let k = 0; for (const [f, col] of Object.entries(FAM)) { const ph = r.p[f] * (h - 14); ctx.fillStyle = col; ctx.globalAlpha = 0.6; ctx.fillRect(x0 + k * (cw / 4), h - ph, cw / 4, ph); ctx.globalAlpha = 1; k++; }
+          const sh = Math.min(1, r.nll / 10) * (h - 14); ctx.strokeStyle = "#c7362b"; ctx.beginPath(); ctx.moveTo(x0 + cw / 2, h); ctx.lineTo(x0 + cw / 2, h - sh); ctx.stroke(); }
+      }
+
+      function drawAll() { if (!game) return; drawMap(); drawPads(); drawStrip(); }
+      window.addEventListener("resize", drawAll);
+      const g0 = params.get("g"); pickGame(g0 != null ? Number(g0) : 0);
+    </script>
+  </body>
+</html>
