@@ -31,6 +31,7 @@
       .moment .t { font: 11px ui-monospace, monospace; color: var(--muted); }
       .moment .what { font-size: 12.5px; } .moment.me .what b { color: var(--me); } .moment.opp .what b { color: var(--opp); }
       .moment .how { font-size: 11px; color: var(--muted); }
+      .moment .ponr { font-size: 11.5px; margin-top: 4px; padding-top: 4px; border-top: 1px dashed var(--line); }
       .moment .tag { float: right; font-size: 10px; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); }
       main { display: grid; grid-template-rows: auto minmax(0, 1fr) auto; min-height: 0; padding: 8px; gap: 6px; }
       .head { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; } .head h2 { font-size: 14px; margin: 0; font-weight: 600; }
@@ -121,8 +122,9 @@
       function loadTrace(at) {
         const g = manifest.games[gi];
         pane.contentWindow.postMessage({ load: `${base}/${ghosts ? g.ghost_trace : g.trace}`, label: `[G${gi + 1}] ${game.me.name} (red) vs ${game.opp.name}${ghosts ? " · ghosts = 15 f ago" : ""}`, seek: at }, "*");
-        pane.contentWindow.postMessage({ marks: game.moments.filter((m) => m.type === "stock_loss" || m.type === "sd").map((m) => ({ i: m.frame - game.first_frame, label: m.who === "me" ? "you died" : "they died", color: m.who === "me" ? "#c0392b" : "#1f6f43" })) }, "*");
+        pane.contentWindow.postMessage({ marks: deathMarks() }, "*");
       }
+      const deathMarks = () => game.moments.filter((m) => m.type === "stock_loss" || m.type === "sd").map((m) => ({ i: m.frame - game.first_frame, label: m.who === "me" ? "you died" : "they died", color: m.who === "me" ? "#c0392b" : "#1f6f43" }));
       $("#ghosts").onchange = () => { ghosts = $("#ghosts").checked; if (game) { loadTrace(frame); playing = false; } };
 
       function renderFilters() {
@@ -137,8 +139,8 @@
           case "stock_loss": { const victim = you ? "<b>You</b> lost a stock" : `<b>${esc(oc)}</b> lost a stock`;
             const by = attackish(m.killed_by) ? `to ${you ? oc + "'s" : "your"} ${pretty(m.killed_by)}` : `(last hit ${(m.frame - m.last_hit_frame) / 60 | 0} s earlier while ${you ? oc : "you"} ${pretty(m.killed_by)} — a laser or an earlier hit)`;
             const combo = m.combo_hits > 1 ? ` · after a ${m.combo_hits}-hit ${m.combo_damage}% string: ${m.combo_moves.map(pretty).join(", ")}` : "";
-            return { what: `${victim} at ${Math.round(m.percent)}%`, how: `${by}${combo} · ${m.stocks_left} left` }; }
-          case "sd": return { what: you ? `<b>You</b> self-destructed at ${Math.round(m.percent)}%` : `<b>${esc(oc)}</b> self-destructed at ${Math.round(m.percent)}%`, how: `no hit in the last 4 s${m.combo_moves.length ? ` · last touch: ${m.combo_moves.map(pretty).join(", ")}` : ""} · ${m.stocks_left} left` };
+            return { what: `${victim} at ${Math.round(m.percent)}%`, how: `${by}${combo} · ${m.stocks_left} left`, ponr: ponrText(m) }; }
+          case "sd": return { what: you ? `<b>You</b> self-destructed at ${Math.round(m.percent)}%` : `<b>${esc(oc)}</b> self-destructed at ${Math.round(m.percent)}%`, how: `no hit in the last 4 s${m.combo_moves.length ? ` · last touch: ${m.combo_moves.map(pretty).join(", ")}` : ""} · ${m.stocks_left} left`, ponr: ponrText(m) };
           case "combo": return { what: `<b>${you ? "Your" : esc(oc) + "'s"}</b> combo: ${m.hits} hits, ${m.damage}%`, how: `${Math.round(m.from)}% → ${Math.round(m.to)}% · ${m.moves.map(pretty).join(", ")}` };
           case "edgeguard": return { what: `<b>${you ? "You" : esc(oc)}</b> edgeguarded ${you ? oc : "you"}: ${m.outcome === "stock" ? "took the stock" : "they got back"}`, how: `${(m.frames / 60).toFixed(1)} s offstage${m.damage ? ` · ${m.damage}% dealt` : ""}` };
           case "recovery": return { what: `<b>You</b> recovered from low: ${m.outcome === "stock" ? "did not make it" : "made it back"}`, how: `${(m.frames / 60).toFixed(1)} s below the ledge` };
@@ -147,17 +149,38 @@
         }
         return { what: m.type, how: "" };
       }
+      // the point of no return (ExPhil.Melee.Checkmate over the offstage frames; Fox only)
+      const means = (r) => r.means.length ? r.means.map((x) => ({ jump: "double jump", up_b: "up-B", side_b: "side-B", air_dodge: "air dodge", wall_jump: "wall jump" }[x] || x)).join(" + ") : "drift";
+      function ponrText(m) {
+        const q = m.ponr; if (!q) return m.who === "me" ? "" : "(point of no return: Fox only for now)";
+        const routes = q.routes_at_choice ? [...new Map(q.routes_at_choice.map((r) => [means(r) + " → " + r.to, r])).values()] : [];
+        const list = routes.slice(0, 3).map((r) => `${means(r)} → ${r.to}`).join("; ") + (routes.length > 3 ? `; +${routes.length - 3} more` : "");
+        const since = (f) => `${mmss(f - game.first_frame)} (f${f})`;
+        switch (q.kind) {
+          case "direct_ko": return `<b>Dead from the hit.</b> No recovery existed once you left the stage at ${since(q.offstage_from)}; the only questions are the DI and what came before.`;
+          case "failed_recovery": return `<b>Recoverable until ${since(q.last_choice_frame)}</b> — ${q.routes_at_choice?.length ?? 0} ways back: ${list}. Point of no return ${q.ponr_frame - q.last_choice_frame} frames later; what you did: ${q.actions_after_choice.map(pretty).join(" → ")}.`;
+          case "unforced": return `<b>Never checkmated.</b> A route existed on every frame down (${list}); it was not used. What you did: ${q.actions_after_choice.map(pretty).join(" → ")}.`;
+          case "hit_during_recovery": return `<b>Had ${q.routes_at_choice?.length ?? 0} ways back at ${since(q.last_choice_frame)}</b> (${list}), then got hit again and died in that hitstun${q.wall_bounce ? " — <b>and bounced off the wall without a wall tech</b>" : ""}.`;
+          case "sd": return `<b>Self-destruct with routes open</b> at ${since(q.last_choice_frame)}: ${list}.`;
+        }
+        return "";
+      }
       function renderMoments() {
         shown = game.moments.map((m, k) => ({ m, k })).filter(({ m }) => on.has("all") || (on.has(m.type) && important(m)));
-        $("#moments").innerHTML = shown.map(({ m, k }) => { const d = describe(m); return `<div class="moment ${m.who}" data-k="${k}"><span class="tag">${TYPES[m.type] || m.type}</span><div class="t">${mmss(m.frame - game.first_frame)}</div><div class="what">${d.what}</div><div class="how">${d.how}</div></div>`; }).join("") || '<div class="muted">nothing of this kind in this game</div>';
+        $("#moments").innerHTML = shown.map(({ m, k }) => { const d = describe(m); return `<div class="moment ${m.who}" data-k="${k}"><span class="tag">${TYPES[m.type] || m.type}</span><div class="t">${mmss(m.frame - game.first_frame)}</div><div class="what">${d.what}</div><div class="how">${d.how}</div>${d.ponr ? `<div class="ponr">${d.ponr}</div>` : ""}</div>`; }).join("") || '<div class="muted">nothing of this kind in this game</div>';
         document.querySelectorAll(".moment").forEach((el) => { el.onclick = () => pickMoment(Number(el.dataset.k)); el.classList.toggle("sel", Number(el.dataset.k) === mi); });
       }
       function pickMoment(k) {
         mi = k; const m = game.moments[k];
         document.querySelectorAll(".moment").forEach((el) => el.classList.toggle("sel", Number(el.dataset.k) === k));
         // open paused where it matters: 2 s before a killing hit, else 1 s into the clip
-        const at = (m.type === "stock_loss" && m.last_hit_frame ? m.last_hit_frame - 120 : m.clip[0] + 60) - game.first_frame;
+        const q = m.ponr;
+        const at = (q && q.last_choice_frame ? q.last_choice_frame - 45 : m.type === "stock_loss" && m.last_hit_frame ? m.last_hit_frame - 120 : m.clip[0] + 60) - game.first_frame;
         seek(Math.max(0, at)); playing = false;
+        const marks = deathMarks();
+        if (q && q.last_choice_frame) marks.push({ i: q.last_choice_frame - game.first_frame, label: "last choice", color: "#b8860b" });
+        if (q && q.ponr_frame) marks.push({ i: q.ponr_frame - game.first_frame, label: q.kind === "direct_ko" ? "dead from the hit" : "point of no return", color: "#c0392b" });
+        pane.contentWindow.postMessage({ marks }, "*");
         document.querySelector(`.moment[data-k="${k}"]`)?.scrollIntoView({ block: "nearest" });
       }
       const step = (dir) => { if (!shown.length) return; const idx = shown.findIndex((s) => s.k === mi); const nxt = shown[Math.max(0, Math.min(shown.length - 1, (idx < 0 ? (dir > 0 ? -1 : shown.length) : idx) + dir))]; if (nxt) pickMoment(nxt.k); };
@@ -196,7 +219,7 @@
       }
       function drawPads() {
         drawPad($("#padme"), C("me", frame)); drawPad($("#padopp"), C("opp", frame));
-        const st = (p) => p ? `${pretty(aname(p[3]))} · frame ${p[4]} of the move${p[7] ? "" : " · airborne"} · ${Math.round(p[5])}% · ${p[6]} stocks${p[9] < 60 ? ` · shield ${Math.round(p[9])}` : ""}${p[8] > 0.5 ? ` · hitstun ${Math.round(p[8])}` : ""}` : "";
+        const st = (p) => p ? `${pretty(aname(p[3]))} · frame ${p[4]} of the move${p[7] ? "" : " · airborne"} · ${Math.round(p[5])}% · ${p[6]} stocks${p[9] < 60 ? ` · shield ${Math.round(p[9])}` : ""}${p[8] > 0.5 ? ` · hitstun ${Math.round(p[8])}` : ""}${p[11] != null ? ` · jumps ${p[11]}` : ""}` : "";
         $("#stme").textContent = st(P("me", frame)); $("#stopp").textContent = st(P("opp", frame));
         const me15 = P("me", frame - 15), op15 = P("opp", frame - 15), op = P("opp", frame);
         const txt = (p) => p ? `${pretty(aname(p[3]))} f${p[4]}` : "?";
@@ -209,6 +232,10 @@
         const N = 90, from = frame - N + 1, cw = w / N; const rowsL = ["main", "c", ...BTN]; const rh = h / rowsL.length;
         ctx.font = "9px system-ui";
         rowsL.forEach((lab, k) => { ctx.fillStyle = k % 2 ? "#faf9f6" : "#fff"; ctx.fillRect(0, k * rh, w, rh); ctx.fillStyle = "#9a958b"; ctx.fillText(lab, 2, k * rh + rh - 1.5); });
+        const q = mi >= 0 && game.moments[mi].ponr;
+        if (q && who === "me") { const xo = (f) => (f - game.first_frame - from) * cw;
+          if (q.last_choice_frame && q.ponr_frame) { ctx.fillStyle = "rgba(184,134,11,0.14)"; ctx.fillRect(xo(q.last_choice_frame), 0, xo(q.ponr_frame) - xo(q.last_choice_frame), h); }
+          if (q.ponr_frame) { ctx.fillStyle = "rgba(192,57,43,0.12)"; ctx.fillRect(xo(q.ponr_frame), 0, w - xo(q.ponr_frame), h); } }
         const ang = (x, y) => { const dx = x - 0.5, dy = y - 0.5; return Math.hypot(dx, dy) < 0.14 ? null : Math.atan2(dy, dx); };
         for (let i = 0; i < N; i++) {
           const f = from + i; const ctrl = C(who, f); if (!ctrl) continue; const x0 = i * cw; const [mask, mx, my, cx, cy] = ctrl;

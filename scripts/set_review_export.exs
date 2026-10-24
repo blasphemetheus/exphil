@@ -18,6 +18,13 @@ alias ExPhil.Data.Peppi
 alias ExPhil.Sim.Trace
 alias ExPhil.Training.Output
 alias ExPhil.Interp.ActionNames
+alias ExPhil.Melee.Checkmate
+
+fox_names = %{341 => "BLASTER_GROUND_START", 342 => "BLASTER_GROUND_LOOP", 343 => "BLASTER_GROUND_END", 344 => "BLASTER_AIR_START", 345 => "BLASTER_AIR_LOOP", 346 => "BLASTER_AIR_END",
+  347 => "ILLUSION_GROUND_START", 348 => "ILLUSION_GROUND", 349 => "ILLUSION_GROUND_END", 350 => "ILLUSION_AIR_START", 351 => "ILLUSION_AIR", 352 => "ILLUSION_AIR_END",
+  353 => "FIREFOX_GROUND_START", 354 => "FIREFOX_AIR_START", 355 => "FIREFOX_GROUND", 356 => "FIREFOX_AIR", 357 => "FIREFOX_GROUND_END", 358 => "FIREFOX_AIR_END", 359 => "FIREFOX_BOUNCE",
+  360 => "SHINE_GROUND_START", 361 => "SHINE_GROUND", 362 => "SHINE_GROUND_END", 363 => "SHINE_GROUND_TURN", 364 => "SHINE_GROUND_END2", 365 => "SHINE_AIR_START", 366 => "SHINE_AIR", 367 => "SHINE_AIR_END", 368 => "SHINE_AIR_TURN", 369 => "SHINE_AIR_END2"}
+name_for = fn id, character -> if String.downcase(character || "") == "fox" and Map.has_key?(fox_names, id), do: fox_names[id], else: ActionNames.name(id || 0) end
 
 {opts, _, bad} = OptionParser.parse(System.argv(), strict: [me: :string, slp: [:string, :keep], out: :string, label: :string])
 if bad != [], do: raise("bad options: #{inspect(bad)}")
@@ -54,7 +61,16 @@ games =
     me = Enum.find(meta.players, &(&1.netplay_name == me_name)) || raise("#{me_name} not in #{path}: #{inspect(Enum.map(meta.players, & &1.netplay_name))}")
     opp = Enum.find(meta.players, &(&1.port != me.port))
     {:ok, replay} = Peppi.parse(path)
-    raw = replay.frames |> Enum.filter(&(&1.frame_number >= 0)) |> Enum.sort_by(& &1.frame_number)
+    # netplay replays carry ROLLBACK duplicates (the same frame number more than once); keep the last
+    # copy of each frame so array index == frame - first (the moments are keyed by frame number)
+    raw =
+      replay.frames
+      |> Enum.filter(&(&1.frame_number >= 0))
+      |> Enum.reduce(%{}, fn f, acc -> Map.put(acc, f.frame_number, f) end)
+      |> Map.values()
+      |> Enum.sort_by(& &1.frame_number)
+    dup = length(Enum.filter(replay.frames, &(&1.frame_number >= 0))) - length(raw)
+    if dup > 0, do: Output.puts("    #{dup} rollback duplicate frames dropped")
     first = hd(raw).frame_number
     n = length(raw)
 
@@ -64,6 +80,8 @@ games =
       |> Peppi.to_training_frames(player_port: me.port, opponent_port: opp.port, remap_ports: true)
       |> Enum.reject(&(&1.game_state.frame < 0))
       |> Enum.map(& &1.game_state)
+      # rollback duplicates here too: keep the last copy per frame so viewer index == frame - first
+      |> Enum.reduce(%{}, fn gs, acc -> Map.put(acc, gs.frame, gs) end) |> Map.values() |> Enum.sort_by(& &1.frame)
 
     id = Path.basename(path, ".slp")
     chars = [Trace.char_id(me.character_name), Trace.char_id(opp.character_name)]
@@ -76,7 +94,7 @@ games =
     # per-frame arrays, both players (raw ports)
     pf = fn f, port ->
       p = Map.get(f.players, port)
-      if p == nil, do: nil, else: [r1.(p.x), r1.(p.y), (if p.facing && p.facing < 0, do: -1, else: 1), p.action, p.action_frame, r1.(p.percent), p.stock, (if p.on_ground, do: 1, else: 0), p.hitstun_frames_left || 0, r1.(p.shield_strength), (if p.invulnerable, do: 1, else: 0)]
+      if p == nil, do: nil, else: [r1.(p.x), r1.(p.y), (if p.facing && p.facing < 0, do: -1, else: 1), p.action, p.action_frame, r1.(p.percent), p.stock, (if p.on_ground, do: 1, else: 0), max(p.hitstun_frames_left || 0, 0), r1.(p.shield_strength), (if p.invulnerable, do: 1, else: 0), p.jumps_left]
     end
     cf = fn f, port ->
       p = Map.get(f.players, port)
@@ -104,7 +122,8 @@ games =
         d = get.(i, other)
         recent_attack = fn -> Enum.find_value(1..12, fn k -> dk = if(i - k >= 0, do: get.(i - k, other)); if(dk && attack?.(dk.action), do: dk.action) end) end
         mv = if attack?.(d && d.action), do: d.action, else: recent_attack.() || (d && d.action)
-        %{frame: elem(arr, i).frame_number, victim: who.(port), damage: Float.round((p1.percent - p0.percent) * 1.0, 1), to: r1.(p1.percent), move: mv, move_name: ActionNames.name(mv || 0)}
+        dealer_char = if other == me.port, do: me.character_name, else: opp.character_name
+        %{frame: elem(arr, i).frame_number, victim: who.(port), damage: Float.round((p1.percent - p0.percent) * 1.0, 1), to: r1.(p1.percent), move: mv, move_name: name_for.(mv, dealer_char)}
       end
 
     deaths =
@@ -219,8 +238,97 @@ games =
           clip: [max(first, h.frame - 180), min(first + n - 1, h.frame + 120)]}
       end)
 
-    sds = deaths |> Enum.filter(&(&1.killed_by == nil)) |> Enum.map(&%{&1 | type: "sd"})
-    deaths = Enum.reject(deaths, &(&1.killed_by == nil))
+    # ---- point of no return (Fox only: ExPhil.Melee.Checkmate is calibrated for Fox) -----------------
+    # For each death: walk the offstage episode frame by frame; a frame is CHECKMATE when no plan in the
+    # kinematic search (drift / jumps left / side-B / up-B / air dodge / wall jump) reaches a ledge, the
+    # stage or a platform before the blast zone. PONR = the first frame from which every later frame is
+    # checkmate. Last choice = the last frame before it with ≥ 2 surviving routes (a real decision), or
+    # the last frame with any route. Availability is read from the state: special fall (36/37) = no
+    # specials / air dodge; wall jump once per airtime (203 seen since leaving the ground).
+    fox_ports = Enum.filter([me, opp], &(String.downcase(&1.character_name || "") == "fox")) |> Enum.map(& &1.port)
+    # 35 = FallSpecial (helpless after up-B / air dodge), 36/37 its F/B variants: no specials, no air dodge
+    special_fall? = fn p -> trunc(p.action || 0) in [35, 36, 37] end
+    ledge? = fn p -> trunc(p.action || 0) in 252..263 end
+    dead? = fn p -> trunc(p.action || 0) <= 10 end
+    # hitstun_frames_left carries DENORMAL floats (3e-44) when idle: anything under half a frame is none
+    hitstun? = fn p -> (p.hitstun_frames_left || 0) > 0.5 or trunc(p.action || 0) in 75..91 or trunc(p.action || 0) in [247, 249] end
+
+    ponr_of = fn death ->
+      port = if death.who == "me", do: me.port, else: opp.port
+      i_d = Enum.find_index(raw, &(&1.frame_number == death.frame))
+      if port not in fox_ports or i_d == nil do
+        nil
+      else
+        # episode start: after the last grounded / ledge frame
+        i0 =
+          Enum.reduce_while((i_d - 1)..max(0, i_d - 900)//-1, i_d, fn j, _ ->
+            pj = get.(j, port)
+            if pj == nil or pj.on_ground or ledge?.(pj), do: {:halt, j + 1}, else: {:cont, j}
+          end)
+
+        evals =
+          Enum.reduce(i0..(i_d - 1), {[], false}, fn j, {acc, wj_used} ->
+            pj = get.(j, port)
+            cond do
+              pj == nil or dead?.(pj) -> {acc, wj_used}
+              # in hitstun nothing can be done but DI / a wall tech: not evaluated (the search assumes control)
+              hitstun?.(pj) -> {[%{i: j, frame: elem(arr, j).frame_number, mate: nil, actionable: false, hitstun: true, wall_bounce: trunc(pj.action || 0) in [247, 249], st: nil} | acc], wj_used}
+              true ->
+                wj_used = wj_used or trunc(pj.action || 0) == 203
+                sf = special_fall?.(pj)
+                st = ExPhil.Sim.GA.checkmate_state(pj, stage) |> Map.merge(%{up_b: not sf, side_b: not sf, air_dodge: not sf, wall_jump: not wj_used})
+                a = Checkmate.analyze(st)
+                {[%{i: j, frame: elem(arr, j).frame_number, mate: a.checkmate?, actionable: not sf, hitstun: false, wall_bounce: false, st: st} | acc], wj_used}
+            end
+          end)
+          |> elem(0) |> Enum.reverse()
+
+        if evals == [] do
+          nil
+        else
+          # PONR: the trailing run of frames that are checkmate OR hitstun-until-death; it starts at a checkmate
+          # frame (dead with control) or at the hit (dead from the hit = direct KO)
+          tail = evals |> Enum.reverse() |> Enum.take_while(&(&1.mate == true or &1.hitstun)) |> Enum.reverse()
+          ponr = List.first(tail)
+          died_in_hitstun = evals != [] and List.last(evals).hitstun
+          wall_bounce = Enum.any?(evals, & &1.wall_bounce)
+          alive = Enum.filter(evals, &(&1.mate == false and &1.actionable))
+          last_route = alive |> Enum.filter(&(ponr == nil or &1.i < ponr.i)) |> List.last()
+          # last real choice: walking back from the last route frame, the last ACTIONABLE frame with ≥ 2 routes
+          {last_choice, r_choice} =
+            if last_route do
+              alive
+              |> Enum.filter(&(&1.i <= last_route.i and &1.i >= last_route.i - 90))
+              |> Enum.reverse()
+              |> Enum.find_value({nil, nil}, fn e -> r = Checkmate.routes(e.st); if r.count >= 2, do: {e, r} end)
+            else
+              {nil, nil}
+            end
+          r_last = last_route && Checkmate.routes(last_route.st)
+          fmt_routes = fn r -> r && Enum.map(r.routes, &%{means: Enum.map(&1.means, fn m -> to_string(m) end), to: to_string(&1.outcome), frames: Map.get(&1, :fastest)}) end
+          kind = cond do
+            died_in_hitstun and last_route == nil -> "direct_ko"      # never free offstage: dead from the hit (DI / tech question)
+            died_in_hitstun -> "hit_during_recovery"                  # had routes, then got hit again and died in that hitstun
+            ponr == nil and last_route != nil -> "unforced"           # never checkmated: died with a route still available
+            last_route == nil -> "direct_ko"
+            death.killed_by == nil -> "sd"
+            true -> "failed_recovery"
+          end
+          %{kind: kind, wall_bounce: wall_bounce, died_in_hitstun: died_in_hitstun, offstage_from: elem(arr, i0).frame_number, ponr_frame: ponr && ponr.frame,
+            last_route_frame: last_route && last_route.frame, routes_at_last: fmt_routes.(r_last), verdict_at_last: r_last && to_string(r_last.verdict),
+            last_choice_frame: last_choice && last_choice.frame, routes_at_choice: fmt_routes.(r_choice),
+            at_choice: last_choice && %{x: Float.round(last_choice.st.x, 1), y: Float.round(last_choice.st.y, 1), jumps: last_choice.st.jumps_left, special_fall: not last_choice.st.up_b},
+            frames: Enum.map(evals, &[&1.frame, (cond do &1.hitstun -> -1; &1.mate -> 0; true -> 1 end), (if &1.actionable, do: 1, else: 0)]),
+            actions_after_choice: (if last_choice, do: Enum.map((last_choice.i)..(i_d - 1), fn j -> (get.(j, port) || %{action: 0}).action end) |> Enum.dedup() |> Enum.map(&name_for.(&1, "fox")) |> Enum.take(10), else: [])}
+        end
+      end
+    end
+
+    t_ponr = System.monotonic_time(:millisecond)
+    deaths = Enum.map(deaths, fn d -> Map.put(d, :ponr, ponr_of.(d)) end)
+    Output.puts("    point of no return: #{length(deaths)} deaths in #{System.monotonic_time(:millisecond) - t_ponr} ms")
+    sds = deaths |> Enum.filter(&(&1.killed_by == nil or (&1.ponr && &1.ponr.kind == "sd"))) |> Enum.map(&%{&1 | type: "sd"})
+    deaths = Enum.reject(deaths, fn d -> d.killed_by == nil or (d.ponr && d.ponr.kind == "sd") end)
 
     moments = (deaths ++ sds ++ combos ++ edgeguards ++ recoveries ++ missed_techs ++ openings) |> Enum.sort_by(& &1.frame)
     last = elem(arr, n - 1)
@@ -235,7 +343,7 @@ games =
       final: final, winner: winner, geometry: geo,
       moments: moments, hits: hits,
       p: %{me: me_f, opp: op_f}, c: %{me: me_c, opp: op_c},
-      p_fields: ["x", "y", "facing", "action", "action_frame", "percent", "stock", "on_ground", "hitstun", "shield", "invulnerable"],
+      p_fields: ["x", "y", "facing", "action", "action_frame", "percent", "stock", "on_ground", "hitstun", "shield", "invulnerable", "jumps_left"],
       c_fields: ["buttons(a,b,x,y,z,l,r,start,dup,ddown,dleft,dright bits)", "main_x", "main_y", "c_x", "c_y", "l", "r"]
     }))
 
