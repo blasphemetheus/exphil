@@ -1174,7 +1174,7 @@ defmodule ExPhil.Training.Pipeline do
     # per-chunk fn over the prepared frames, nil when neither knob is set.
     # (--offstage-weight on the bptt path is applied by TrajectoryCursors.)
     rare_weights_fn =
-      if ropts[:offstage_weight] || ropts[:silent_fall_weight] || ropts[:onset_weight] || ropts[:veto_weight] do
+      if ropts[:offstage_weight] || ropts[:silent_fall_weight] || ropts[:onset_weight] || ropts[:veto_weight] || ropts[:neutral_grounded_weight] do
         fn frames ->
           ExPhil.Training.SilentFallWeighting.frame_weights(frames,
             offstage_weight: ropts[:offstage_weight],
@@ -1183,7 +1183,8 @@ defmodule ExPhil.Training.Pipeline do
             onset_weight: ropts[:onset_weight],
             onset_buttons_only: ropts[:onset_buttons_only] || false,
             onset_edge_window: ropts[:onset_edge_window],
-            veto_weight: ropts[:veto_weight]
+            veto_weight: ropts[:veto_weight],
+            neutral_grounded_weight: ropts[:neutral_grounded_weight]
           )
         end
       end

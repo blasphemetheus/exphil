@@ -75,8 +75,10 @@ defmodule ExPhil.Training.SilentFallWeighting do
     veto_w = Keyword.get(opts, :veto_weight)
     edge_win = Keyword.get(opts, :onset_edge_window)
     k_min = Keyword.get(opts, :silent_fall_min, 13)
+    # scoped anti-passivity (2026-10-25): multiply neutral frames by this when grounded onstage
+    ng_w = Keyword.get(opts, :neutral_grounded_weight)
 
-    if off_w == nil and sf_w == nil and on_w == nil and veto_w == nil do
+    if off_w == nil and sf_w == nil and on_w == nil and veto_w == nil and ng_w == nil do
       nil
     else
       {weights, _silence, _prev_frame, _prev_controller, _prev_actual} =
@@ -116,11 +118,33 @@ defmodule ExPhil.Training.SilentFallWeighting do
               do: max(w, veto_w * 1.0),
               else: w
 
+          # a MULTIPLIER (< 1 is the point): neutral input while standing on the stage counts less,
+          # so the grounded-onstage decision frames dominate there; offstage / airborne untouched
+          w =
+            if ng_w != nil and neutral?(c) and grounded_onstage?(frame),
+              do: w * ng_w,
+              else: w
+
           silence = if neutral?(c), do: silence + 1, else: 0
           {[w | acc], silence, num, c, actual}
         end)
 
       Enum.reverse(weights)
+    end
+  end
+
+  # subject (slot 1 after the training remap) standing on the stage: grounded and inside the edge
+  defp grounded_onstage?(frame) do
+    gs = frame[:game_state] || frame.game_state
+    p = gs && gs.players && gs.players[1]
+
+    case p do
+      %{on_ground: true, x: x} when is_number(x) ->
+        edge = Melee.Stages.edge_ground_position(gs.stage) || 85.57
+        abs(x) <= edge
+
+      _ ->
+        false
     end
   end
 

@@ -165,7 +165,8 @@ defmodule ExPhil.Training.Imitation.Loss do
     # autoregressive_bc_loss before Policy.imitation_loss sees the opts)
     loss_opts =
       LossConfig.to_loss_opts(lc) ++
-        [chunk_weight: config[:chunk_weight] || 1.0, stick_duration_weight: config[:stick_duration_weight] || 1.0]
+        [chunk_weight: config[:chunk_weight] || 1.0, stick_duration_weight: config[:stick_duration_weight] || 1.0,
+         press_window_weight: config[:press_window_weight]]
 
     # KL-distillation anchor (F3 Route A): when distill_weight > 0 the
     # loss takes teacher logits + a distill mask as 5th/6th ARGUMENTS
@@ -444,6 +445,7 @@ defmodule ExPhil.Training.Imitation.Loss do
     inputs = policy_forward_inputs(head, temporal, states, actions)
     {chunk_weight, loss_opts} = Keyword.pop(loss_opts, :chunk_weight, 1.0)
     {duration_weight, loss_opts} = Keyword.pop(loss_opts, :stick_duration_weight, 1.0)
+    {press_window_weight, loss_opts} = Keyword.pop(loss_opts, :press_window_weight, nil)
 
     {prediction, loss_opts, duration_loss} =
       duration_terms(head, predict_fn.(Utils.ensure_model_state(p), inputs), inputs, actions, frame_weights, loss_opts, duration_weight)
@@ -475,13 +477,55 @@ defmodule ExPhil.Training.Imitation.Loss do
               Nx.add(acc, Policy.imitation_loss(head_logits(elem(futures, j)), targets, loss_opts ++ [frame_weights: w]))
           end
 
-        Nx.add(main_loss, Nx.multiply(chunk_weight, Nx.divide(future_loss, k)))
+        set_loss =
+          if press_window_weight do
+            Nx.multiply(press_window_weight, press_window_loss(main, futures, actions, frame_weights))
+          else
+            Nx.tensor(0.0)
+          end
+
+        main_loss
+        |> Nx.add(Nx.multiply(chunk_weight, Nx.divide(future_loss, k)))
+        |> Nx.add(set_loss)
 
       main ->
         Policy.imitation_loss(head_logits(main), actions, loss_opts ++ [frame_weights: frame_weights])
     end
 
     Nx.add(bc_loss, duration_loss)
+  end
+
+  # Press-window objective (2026-10-25). Per button b and sample: the window is
+  # frame t (main head) plus the K future heads t+1..t+K that exist (future_mask).
+  #   y_b   = 1 if the button is down on ANY frame of the window
+  #   P_any = 1 - prod_j (1 - sigmoid(l_bj))   (log(1 - P_any) = sum_j log_sigmoid(-l_bj))
+  # loss = mean over buttons of BCE(P_any, y_b), frame-weighted. Hold windows (all 1)
+  # are satisfied trivially; the pressure lands on PRESS ONSETS, where every per-frame
+  # p is small and the per-frame BCE is content with 0.1 everywhere: here P_any must
+  # reach 1, which the model can only do by committing on some frame of its choice.
+  @doc false
+  def press_window_loss(main, futures, actions, frame_weights) do
+    k = tuple_size(futures)
+    main_b = elem(main, 0)
+    y0 = Nx.as_type(actions.buttons, :f32)
+    log_not0 = Axon.Activations.log_sigmoid(Nx.negate(main_b))
+
+    {log_not, y} =
+      for j <- 0..(k - 1), reduce: {log_not0, y0} do
+        {ln, y} ->
+          at = fn t -> t |> Nx.slice_along_axis(j, 1, axis: 1) |> Nx.squeeze(axes: [1]) end
+          m = at.(actions.future_mask) |> Nx.as_type(:f32) |> Nx.new_axis(1)
+          lj = elem(elem(futures, j), 0)
+          yj = at.(actions.future_buttons) |> Nx.as_type(:f32)
+          {Nx.add(ln, Nx.multiply(m, Axon.Activations.log_sigmoid(Nx.negate(lj)))), Nx.max(y, Nx.multiply(m, yj))}
+      end
+
+    # log P_any = log(1 - exp(log_not)), clamped; log(1 - P_any) = log_not
+    log_any = Nx.log(Nx.max(Nx.subtract(1.0, Nx.exp(log_not)), 1.0e-6))
+    bce = Nx.negate(Nx.add(Nx.multiply(y, log_any), Nx.multiply(Nx.subtract(1.0, y), log_not)))
+    per_sample = Nx.mean(bce, axes: [1])
+    w = frame_weights
+    Nx.divide(Nx.sum(Nx.multiply(per_sample, w)), Nx.max(Nx.sum(w), 1.0e-3))
   end
 
   defp head_logits({buttons, main_x, main_y, c_x, c_y, shoulder}),
