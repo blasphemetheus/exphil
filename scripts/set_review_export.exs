@@ -39,7 +39,7 @@ deep = fn
 end
 
 buttons_mask = fn c ->
-  [c.button_a, c.button_b, c.button_x, c.button_y, c.button_z, c.button_l, c.button_r, c.button_d_up]
+  [c.button_a, c.button_b, c.button_x, c.button_y, c.button_z, c.button_l, c.button_r, c.button_start, c.button_d_up, c.button_d_down, c.button_d_left, c.button_d_right]
   |> Enum.with_index()
   |> Enum.reduce(0, fn {b, i}, acc -> if b, do: Bitwise.bor(acc, Bitwise.bsl(1, i)), else: acc end)
 end
@@ -67,8 +67,11 @@ games =
 
     id = Path.basename(path, ".slp")
     chars = [Trace.char_id(me.character_name), Trace.char_id(opp.character_name)]
-    Trace.from_game_states(states, label: "#{id} — #{me_name} (#{me.character_name}, red) vs #{opp.netplay_name} (#{opp.character_name})", chars: chars)
-    |> Trace.write!(Path.join(out, "#{id}.msltrace.json"))
+    stage = states |> List.first() |> Map.get(:stage)
+    label = "#{id} — #{me_name} (#{me.character_name}, red) vs #{opp.netplay_name} (#{opp.character_name})"
+    Trace.from_game_states(states, label: label, chars: chars, stage: stage) |> Trace.write!(Path.join(out, "#{id}.msltrace.json"))
+    # ghosts: players 3/4 = 1/2 fifteen frames ago, drawn by the viewer in the port-3/4 colours
+    Trace.from_game_states(states, label: label <> " + ghosts (15 f ago)", chars: chars, stage: stage, ghosts: 15) |> Trace.write!(Path.join(out, "#{id}.ghost.msltrace.json"))
 
     # per-frame arrays, both players (raw ports)
     pf = fn f, port ->
@@ -95,14 +98,21 @@ games =
     hits =
       for i <- 1..(n - 1), {_, port} <- ports, p0 = get.(i - 1, port), p1 = get.(i, port), p0 && p1, (p1.percent || 0) > (p0.percent || 0) + 0.01 do
         other = if port == me.port, do: opp.port, else: me.port
+        # the move: the dealer's action on the hit frame, or its last ATTACK action within 12 frames
+        # (a hit can land while the dealer is already dashing/jumping again; 44..74 = ground/aerial attacks + landings, >= 341 = specials)
+        attack? = fn a -> a != nil and (a in 44..74 or a >= 341) end
         d = get.(i, other)
-        %{frame: elem(arr, i).frame_number, victim: who.(port), damage: Float.round((p1.percent - p0.percent) * 1.0, 1), to: r1.(p1.percent), move: d && d.action, move_name: ActionNames.name((d && d.action) || 0)}
+        recent_attack = fn -> Enum.find_value(1..12, fn k -> dk = if(i - k >= 0, do: get.(i - k, other)); if(dk && attack?.(dk.action), do: dk.action) end) end
+        mv = if attack?.(d && d.action), do: d.action, else: recent_attack.() || (d && d.action)
+        %{frame: elem(arr, i).frame_number, victim: who.(port), damage: Float.round((p1.percent - p0.percent) * 1.0, 1), to: r1.(p1.percent), move: mv, move_name: ActionNames.name(mv || 0)}
       end
 
     deaths =
       for i <- 1..(n - 1), {_, port} <- ports, p0 = get.(i - 1, port), p1 = get.(i, port), p0 && p1, (p1.stock || 0) < (p0.stock || 0) do
         f = elem(arr, i).frame_number
-        last_hit = hits |> Enum.filter(&(&1.victim == who.(port) and &1.frame <= f and &1.frame >= f - 240)) |> List.last()
+        # the killing blow: the last hit of ≥ 5 % in the 4 s before the death (a 1 % tap after the real hit is not it), else the last hit
+        recent = hits |> Enum.filter(&(&1.victim == who.(port) and &1.frame <= f and &1.frame >= f - 240))
+        last_hit = Enum.filter(recent, &(&1.damage >= 5)) |> List.last() || List.last(recent)
         %{type: "stock_loss", frame: f, who: who.(port), percent: r1.(p0.percent), stocks_left: p1.stock,
           killed_by: last_hit && last_hit.move_name, last_hit_frame: last_hit && last_hit.frame,
           clip: [max(first, f - 600), min(first + n - 1, f + 45)]}
@@ -140,11 +150,82 @@ games =
       Map.merge(d, %{combo_hits: (c && length(c)) || 0, combo_damage: (c && Float.round(Enum.sum(Enum.map(c, & &1.damage)) * 1.0, 1)) || 0, combo_moves: (c && c |> Enum.map(& &1.move_name) |> Enum.dedup()) || []})
     end)
 
-    moments = (deaths ++ combos) |> Enum.sort_by(& &1.frame)
+    # ---- situation episodes (ExPhil.Situations, ego = me) --------------------------------
+    {sits, _} = Enum.map_reduce(states, ExPhil.Situations.new_context(), fn gs, ctx -> {c2, set} = ExPhil.Situations.fold(ctx, gs, 1); {set, c2} end)
+    sit_arr = List.to_tuple(sits)
+    # the training frames drop the trailing frame(s) without a successor input: fewer than n
+    ns = tuple_size(sit_arr)
+    frame_of = fn i -> first + i end
+    episodes = fn label, max_gap ->
+      Enum.reduce(0..(ns - 1), {[], nil}, fn i, {acc, open} ->
+        has = MapSet.member?(elem(sit_arr, i), label)
+        case {has, open} do
+          {true, nil} -> {acc, {i, i}}
+          {true, {a, _}} -> {acc, {a, i}}
+          {false, {a, b}} when i - b > max_gap -> {[{a, b} | acc], nil}
+          _ -> {acc, open}
+        end
+      end)
+      |> then(fn {acc, open} -> if open, do: [open | acc], else: acc end)
+      |> Enum.reverse()
+    end
+    death_frames = fn who -> deaths |> Enum.filter(&(&1.who == who)) |> Enum.map(& &1.frame) end
+    died_within = fn who, f_end, k -> Enum.any?(death_frames.(who), &(&1 >= f_end - 5 and &1 <= f_end + k)) end
+    pct_at = fn i, port -> (get.(i, port) && get.(i, port).percent) || 0 end
+
+    # edgeguards: :edgeguard = we edgeguard them, :being_edgeguarded = they edgeguard us
+    edgeguards =
+      for {label, victim} <- [{:edgeguard, "opp"}, {:being_edgeguarded, "me"}], {a, b} <- episodes.(label, 45), b - a >= 20 do
+        vport = if victim == "me", do: me.port, else: opp.port
+        died = died_within.(victim, frame_of.(b), 90)
+        %{type: "edgeguard", who: (if victim == "me", do: "opp", else: "me"), victim: victim, frame: frame_of.(a), end_frame: frame_of.(b), frames: b - a,
+          outcome: (if died, do: "stock", else: "returned"), damage: Float.round((pct_at.(b, vport) - pct_at.(a, vport)) * 1.0, 1),
+          clip: [max(first, frame_of.(a) - 60), min(first + n - 1, frame_of.(b) + 60)]}
+      end
+
+    # my recoveries (offstage low): made it back or not
+    recoveries =
+      for {a, b} <- episodes.(:recovery_low, 30), b - a >= 15 do
+        died = died_within.("me", frame_of.(b), 60)
+        %{type: "recovery", who: "me", victim: "me", frame: frame_of.(a), end_frame: frame_of.(b), frames: b - a, outcome: (if died, do: "stock", else: "returned"),
+          clip: [max(first, frame_of.(a) - 90), min(first + n - 1, frame_of.(b) + 45)]}
+      end
+      # drop the recoveries already covered by an edgeguard episode on us
+      |> Enum.reject(fn r -> Enum.any?(edgeguards, &(&1.victim == "me" and &1.frame <= r.end_frame and &1.end_frame >= r.frame)) end)
+
+    # missed techs (knockdown bounce) by either player
+    missed_techs =
+      for {_, port} <- ports, {a, b} <- (Enum.reduce(0..(n - 1), {[], nil}, fn i, {acc, open} ->
+            p = get.(i, port); bounce = p && trunc(p.action || 0) in [183, 191, 185, 193]
+            case {bounce, open} do {true, nil} -> {acc, {i, i}}; {true, {x, _}} -> {acc, {x, i}}; {false, {x, y}} -> {[{x, y} | acc], nil}; _ -> {acc, open} end
+          end) |> then(fn {acc, open} -> if open, do: [open | acc], else: acc end) |> Enum.reverse()) do
+        %{type: "missed_tech", who: who.(port), victim: who.(port), frame: frame_of.(a), end_frame: frame_of.(b), percent: r1.(pct_at.(a, port)),
+          clip: [max(first, frame_of.(a) - 90), min(first + n - 1, frame_of.(b) + 90)]}
+      end
+
+    # openings: the first hit after ≥ 90 frames with no hit either way (a neutral win)
+    openings =
+      hits
+      |> Enum.sort_by(& &1.frame)
+      |> Enum.chunk_every(2, 1, [nil])
+      |> Enum.reduce({[], nil}, fn [h, _], {acc, last_f} ->
+        if last_f == nil or h.frame - last_f >= 90, do: {[h | acc], h.frame}, else: {acc, h.frame}
+      end)
+      |> elem(0) |> Enum.reverse()
+      |> Enum.map(fn h ->
+        dealer = if h.victim == "me", do: "opp", else: "me"
+        follow = hits |> Enum.filter(&(&1.victim == h.victim and &1.frame >= h.frame and &1.frame <= h.frame + 240)) |> Enum.map(& &1.damage) |> Enum.sum() |> Float.round(1)
+        %{type: "opening", who: dealer, victim: h.victim, frame: h.frame, move: h.move_name, damage: h.damage, follow_up_damage: follow,
+          clip: [max(first, h.frame - 180), min(first + n - 1, h.frame + 120)]}
+      end)
+
+    sds = deaths |> Enum.filter(&(&1.killed_by == nil)) |> Enum.map(&%{&1 | type: "sd"})
+    deaths = Enum.reject(deaths, &(&1.killed_by == nil))
+
+    moments = (deaths ++ sds ++ combos ++ edgeguards ++ recoveries ++ missed_techs ++ openings) |> Enum.sort_by(& &1.frame)
     last = elem(arr, n - 1)
     final = %{me: get.(n - 1, me.port) && get.(n - 1, me.port).stock, opp: get.(n - 1, opp.port) && get.(n - 1, opp.port).stock}
     winner = cond do (final.me || 0) > (final.opp || 0) -> "me"; (final.me || 0) < (final.opp || 0) -> "opp"; true -> "?" end
-    stage = states |> List.first() |> Map.get(:stage)
     geo = deep.(deep, ExPhil.Situations.geometry(stage))
 
     File.write!(Path.join(out, "#{id}.game.json"), Jason.encode!(%{
@@ -155,11 +236,12 @@ games =
       moments: moments, hits: hits,
       p: %{me: me_f, opp: op_f}, c: %{me: me_c, opp: op_c},
       p_fields: ["x", "y", "facing", "action", "action_frame", "percent", "stock", "on_ground", "hitstun", "shield", "invulnerable"],
-      c_fields: ["buttons(a,b,x,y,z,l,r,dup bits)", "main_x", "main_y", "c_x", "c_y", "l", "r"]
+      c_fields: ["buttons(a,b,x,y,z,l,r,start,dup,ddown,dleft,dright bits)", "main_x", "main_y", "c_x", "c_y", "l", "r"]
     }))
 
-    Output.puts("  #{gi + 1}/#{length(paths)} #{id}: #{n} f, #{me.character_name} vs #{opp.character_name} (#{opp.netplay_name}) on stage #{stage}, final #{final.me}-#{final.opp} (#{winner}), #{length(deaths)} stock losses, #{length(combos)} combos ≥35 %, last frame #{last.frame_number}")
-    %{id: id, frames: n, stage: stage, opp: opp.netplay_name, opp_character: opp.character_name, me_character: me.character_name, final: final, winner: winner, moments: length(moments), trace: "#{id}.msltrace.json", game: "#{id}.game.json", started_at: meta.started_at && to_string(meta.started_at)}
+    counts = moments |> Enum.frequencies_by(& &1.type) |> Enum.map_join(", ", fn {k, v} -> "#{v} #{k}" end)
+    Output.puts("  #{gi + 1}/#{length(paths)} #{id}: #{n} f, #{me.character_name} vs #{opp.character_name} (#{opp.netplay_name}) on stage #{stage}, final #{final.me}-#{final.opp} (#{winner}); moments: #{counts}; last frame #{last.frame_number}")
+    %{id: id, frames: n, stage: stage, opp: opp.netplay_name, opp_character: opp.character_name, me_character: me.character_name, final: final, winner: winner, moments: length(moments), trace: "#{id}.msltrace.json", ghost_trace: "#{id}.ghost.msltrace.json", game: "#{id}.game.json", started_at: meta.started_at && to_string(meta.started_at)}
   end)
 
 wins = Enum.count(games, &(&1.winner == "me"))

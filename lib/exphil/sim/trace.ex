@@ -39,16 +39,40 @@ defmodule ExPhil.Sim.Trace do
   """
   def from_game_states(states, opts \\ []) do
     opts = Keyword.put_new(opts, :real_ports, states |> List.first() |> then(&(&1 && Map.get(&1, :real_ports))))
+    chars = Keyword.get(opts, :chars, [1, 1])
+    # :ghosts N (2026-10-24, the set-review page): players 3 and 4 are copies of
+    # 1 and 2 lagged N frames — "what you were reacting to N frames ago" drawn
+    # IN the viewer in the port-3/4 colours; dead until N frames exist.
+    lag = Keyword.get(opts, :ghosts)
+    arr = List.to_tuple(states)
 
     rows =
       states
       |> Enum.with_index()
       |> Enum.map(fn {gs, i} ->
-        [0, i, nil, Enum.map([1, 2], fn port -> player_row(gs.players[port], Keyword.get(opts, :chars, [1, 1]) |> Enum.at(port - 1)) end)]
+        live = Enum.map([1, 2], fn port -> player_row(gs.players[port], Enum.at(chars, port - 1)) end)
+
+        ghosts =
+          if lag do
+            Enum.map([1, 2], fn port ->
+              if i >= lag,
+                do: player_row(elem(arr, i - lag).players[port], Enum.at(chars, port - 1)) |> ghost_row(),
+                else: player_row(gs.players[port], Enum.at(chars, port - 1)) |> dead_row()
+            end)
+          else
+            []
+          end
+
+        [0, i, nil, live ++ ghosts]
       end)
 
-    envelope(rows, states |> Enum.map(& &1.frame) |> List.first(), opts)
+    envelope(rows, states |> Enum.map(& &1.frame) |> List.first(), Keyword.put(opts, :num_players, if(lag, do: 4, else: 2)))
   end
+
+  # a ghost keeps pose and position; no shield bubble, no hitstun flags
+  defp ghost_row(row), do: row |> List.replace_at(8, 0.0) |> List.replace_at(16, 0) |> List.replace_at(17, 0)
+  # dead = the viewer does not draw it (field 19)
+  defp dead_row(row), do: List.replace_at(row, 19, 1)
 
   defp player_row(p, char) do
     [
@@ -113,13 +137,15 @@ defmodule ExPhil.Sim.Trace do
       createdAt: DateTime.utc_now() |> DateTime.to_iso8601(),
       match: %{
         stageId: Keyword.get(opts, :stage, 32),
-        numPlayers: 2,
+        numPlayers: Keyword.get(opts, :num_players, 2),
         isTeams: false,
-        players: [%{port: 1, charId: Enum.at(chars, 0), teamId: 0}, %{port: 2, charId: Enum.at(chars, 1), teamId: 1}],
+        players:
+          [%{port: 1, charId: Enum.at(chars, 0), teamId: 0}, %{port: 2, charId: Enum.at(chars, 1), teamId: 1}] ++
+            if(Keyword.get(opts, :num_players, 2) == 4, do: [%{port: 3, charId: Enum.at(chars, 0), teamId: 0}, %{port: 4, charId: Enum.at(chars, 1), teamId: 1}], else: []),
         startFrame: 0,
         start: %{mode: "exphil-rollout", traceFrame: 0, simFrameId: start_frame || 0, randomSeed: Keyword.get(opts, :seed, 0)}
       },
-      inputs: %{encoding: "sparse-delta-v1", keyframeInterval: 60, fields: @input_fields, players: [[[0, 0, [0, 0, 0, 0, 0, 0, 0]]], [[0, 0, [0, 0, 0, 0, 0, 0, 0]]]]},
+      inputs: %{encoding: "sparse-delta-v1", keyframeInterval: 60, fields: @input_fields, players: List.duplicate([[0, 0, [0, 0, 0, 0, 0, 0, 0]]], Keyword.get(opts, :num_players, 2))},
       frames: %{encoding: "sparse-delta-v1", keyframeInterval: 60, fields: ["frame", "randomSeed", "players"], playerFields: @player_fields, rows: rows},
       items: %{encoding: "sparse-delta-v1", keyframeInterval: 60, fields: @item_fields, rows: []},
       metadata: %{provenance: %{source: Keyword.get(opts, :label, "exphil rollout")}, realPorts: Keyword.get(opts, :real_ports) |> then(fn {a, b} -> [a, b]; _ -> nil end)}
