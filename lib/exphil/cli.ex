@@ -195,7 +195,7 @@ defmodule ExPhil.CLI do
     %{name: :action_repeat, flag: "--action-repeat", type: :integer, short: nil, default: 1,
       desc: "Only compute new action every N frames", group: [:dolphin]},
     %{name: :stateful_step, flag: "--stateful-step", type: :boolean, short: nil, default: false,
-      desc: "O(1) recurrent inference: advance the GRU/LSTM trunk one frame at a time via the Edifice.Stateful step API instead of re-running the full window (temporal :gru/:lstm policies only; enables rollback snapshots)", group: [:dolphin]},
+      desc: "O(1) recurrent inference: advance GRU/LSTM/Mamba/MinGRU one frame at a time via Edifice.Stateful instead of re-running the full window (temporal policies; enables rollback snapshots)", group: [:dolphin]},
     %{name: :stateful_resync, flag: "--stateful-resync", type: :integer, short: nil, default: nil,
       desc: "Hybrid deploy for --stateful-step: every N frames rebuild the hidden state from the buffered window (as-if sliding-window) to bound carried-state drift; costs window_size-1 extra steps per N (try 30-60)", group: [:dolphin]},
     %{name: :on_game_end, flag: "--on-game-end", type: :string, short: nil, default: "restart",

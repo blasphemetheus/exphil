@@ -215,7 +215,7 @@ defmodule ExPhil.Agents.Agent do
       see `ExPhil.Networks.Policy.Sampling.sample/4`.
     - `:embed_config` - Embedding configuration (auto-detected from policy)
     - `:stateful_step` - O(1) recurrent inference via the Edifice.Stateful
-      step API (temporal GRU/LSTM policies only; default: false). Enables
+      step API (temporal GRU/LSTM/Mamba/MinGRU policies; default: false). Enables
       `snapshot_state/1` / `restore_state/2` for netplay rollback.
   """
   @spec start_link([start_option()]) :: GenServer.on_start()
@@ -451,7 +451,7 @@ defmodule ExPhil.Agents.Agent do
   The blob captures the Edifice.Stateful trunk state plus the agent's own
   per-frame bookkeeping (jump cooldown, last action/controller for the
   prev-action channel and hysteresis). Only available in stateful-step
-  mode (`stateful_step: true` with a temporal GRU/LSTM policy).
+  mode (`stateful_step: true` with a temporal GRU/LSTM/Mamba/MinGRU policy).
 
   Returns `{:ok, binary}` or `{:error, :not_stateful}`.
   """
@@ -761,7 +761,8 @@ defmodule ExPhil.Agents.Agent do
         end
       end)
 
-    {:reply, :ok, %{state | batch: %{b | trunk_state: trunk}}}
+    cold_rows = MapSet.union(Map.get(b, :cold_rows, MapSet.new()), MapSet.new(rows))
+    {:reply, :ok, %{state | batch: Map.put(%{b | trunk_state: trunk}, :cold_rows, cold_rows)}}
   end
 
   def handle_call({:batch_reset_rows, _rows}, _from, state), do: {:reply, {:error, :batch_not_initialized}, state}
@@ -1986,6 +1987,7 @@ defmodule ExPhil.Agents.Agent do
   # regime unless :stateful_resync bounds it or the policy was trained with
   # carried state.
   defp stateful_module(:mamba), do: Edifice.SSM.Mamba
+  defp stateful_module(:min_gru), do: Edifice.Recurrent.MinGRU
   defp stateful_module(_recurrent), do: Edifice.Recurrent
 
   # Persistent XLA executable cache (JIT_WARMUP.md step 1) — see
@@ -2000,13 +2002,17 @@ defmodule ExPhil.Agents.Agent do
   defp trunk_step_params(params, cell_type) do
     # Mamba: "input_projection" + every "mamba_block_*" layer (norm, in_proj,
     # depthwise conv, ssm projections, out_proj).
-    {prefix, extra} =
-      if cell_type == :mamba, do: {"mamba_block_", "input_projection"}, else: {"#{cell_type}_", "input_ln"}
+    {prefix, extras} =
+      case cell_type do
+        :mamba -> {"mamba_block_", ["input_projection"]}
+        :min_gru -> {"min_gru_", ["input_projection", "final_norm"]}
+        _ -> {"#{cell_type}_", ["input_ln"]}
+      end
 
     params
     |> raw_policy_params()
     |> Map.filter(fn {k, _v} ->
-      is_binary(k) and (k == extra or String.starts_with?(k, prefix))
+      is_binary(k) and (k in extras or String.starts_with?(k, prefix))
     end)
   end
 
@@ -2093,6 +2099,19 @@ defmodule ExPhil.Agents.Agent do
 
   defp init_trunk_state(trunk_params, embed_config, cell_type, batch_size \\ 1)
 
+  defp init_trunk_state(trunk_params, _embed_config, :min_gru, batch_size) do
+    # Infer shape from exported weights so defaults cannot silently allocate a
+    # state of the wrong width/layer count for an older checkpoint.
+    hidden = Nx.axis_size(trunk_params["min_gru_1_gate"]["kernel"], 1)
+    layers = Enum.count(Map.keys(trunk_params), &Regex.match?(~r/^min_gru_\d+_gate$/, &1))
+
+    Edifice.Recurrent.MinGRU.init_state(trunk_params,
+      batch_size: batch_size,
+      hidden_size: hidden,
+      num_layers: layers
+    )
+  end
+
   defp init_trunk_state(trunk_params, embed_config, :mamba, batch_size) do
     Edifice.SSM.Mamba.init_state(trunk_params,
       batch_size: batch_size,
@@ -2113,10 +2132,11 @@ defmodule ExPhil.Agents.Agent do
     )
   end
 
-  # A fresh trunk state for n rows. The Mamba initial state is all zeros with
+  # A fresh trunk state for n rows. Mamba and MinGRU initial states are zeros with
   # shapes fixed by the checkpoint, so it is derived from the live state
   # (the SSM dims are not in state.embed_config).
-  defp fresh_trunk_state(%{backbone: :mamba, trunk_state: %{} = live}, n) do
+  defp fresh_trunk_state(%{backbone: backbone, trunk_state: %{} = live}, n)
+       when backbone in [:mamba, :min_gru] do
     Map.new(live, fn {k, v} ->
       shape = v |> Nx.shape() |> put_elem(0, n)
       {k, Nx.broadcast(Nx.tensor(0.0, type: Nx.type(v)), shape)}
@@ -2292,18 +2312,32 @@ defmodule ExPhil.Agents.Agent do
     # 2026-09-21 03:01), not the network.
     frames = batch_embed(state, game_states, opts)
 
+    cold_rows = if b.cold, do: MapSet.new(0..(n - 1)), else: Map.get(b, :cold_rows, MapSet.new())
+
     trunk =
-      if b.cold and not (state.bptt == true) do
+      if MapSet.size(cold_rows) > 0 and not (state.bptt == true) do
+        mask = Nx.tensor(Enum.map(0..(n - 1), &if(MapSet.member?(cold_rows, &1), do: 1, else: 0)), type: :u8)
+
         Enum.reduce(1..max(state.window_size - 1, 0)//1, b.trunk_state, fn _, st ->
-          {_out, st} = trunk_step_fn(state.backbone).(state.trunk_step_params, st, frames)
-          st
+          {_out, advanced} = trunk_step_fn(state.backbone).(state.trunk_step_params, st, frames)
+          # Only reset rows receive first-frame padding. Other games must
+          # retain their carry until the single real frame below.
+          if MapSet.size(cold_rows) == n do
+            advanced
+          else
+            Map.new(st, fn {k, v} ->
+              m = Nx.reshape(mask, List.to_tuple([n | List.duplicate(1, Nx.rank(v) - 1)]))
+              {k, Nx.select(Nx.broadcast(m, Nx.shape(v)), advanced[k], v)}
+            end)
+          end
         end)
       else
         b.trunk_state
       end
 
     {features, new_trunk} = trunk_step_fn(state.backbone).(state.trunk_step_params, trunk, frames)
-    {features, %{state | batch: Map.put(%{b | trunk_state: new_trunk, cold: false}, :last_frames, frames)}}
+    batch = b |> Map.merge(%{trunk_state: new_trunk, cold: false, cold_rows: MapSet.new(), last_frames: frames})
+    {features, %{state | batch: batch}}
   end
 
   # Incremental GatedSSM inference with state caching (O(1) per frame)
@@ -3120,7 +3154,7 @@ defmodule ExPhil.Agents.Agent do
     end
 
     # Edifice.Stateful step path (opt-in via stateful_step / --stateful-step):
-    # O(1) recurrent inference for GRU/LSTM temporal policies. Builds a
+    # O(1) recurrent inference for GRU/LSTM/Mamba/MinGRU temporal policies. Builds a
     # heads-only predict fn (same layer names as the full policy, so the
     # exported params slot in unchanged) plus the initial trunk state.
     {trunk_params, trunk_state, heads_predict_fn, params} =
@@ -3128,10 +3162,10 @@ defmodule ExPhil.Agents.Agent do
         not state.stateful_step ->
           {nil, nil, nil, params}
 
-        not (temporal and backbone in [:gru, :lstm, :mamba]) ->
+        not (temporal and backbone in [:gru, :lstm, :mamba, :min_gru]) ->
           Logger.warning(
             "[Agent] stateful_step requested but backbone #{inspect(backbone)} " <>
-              "doesn't support the Edifice.Stateful step path (GRU/LSTM/Mamba only) — " <>
+              "doesn't support the Edifice.Stateful step path (GRU/LSTM/Mamba/MinGRU only) — " <>
               "falling back to windowed inference"
           )
 

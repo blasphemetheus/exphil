@@ -70,7 +70,7 @@ defmodule ExPhil.Networks.StatefulStepEquivalenceTest do
   defp raw(%Axon.ModelState{data: data}), do: data
 
   defp init_state(params, cell_type) do
-    Edifice.Recurrent.init_state(raw(params),
+    Edifice.init_state(cell_type, raw(params),
       batch_size: 1,
       hidden_size: @hidden_size,
       num_layers: @num_layers,
@@ -82,7 +82,13 @@ defmodule ExPhil.Networks.StatefulStepEquivalenceTest do
     0..(Nx.axis_size(frames, 1) - 1)
     |> Enum.reduce({nil, state}, fn t, {_out, st} ->
       frame = frames |> Nx.slice_along_axis(t, 1, axis: 1) |> Nx.squeeze(axes: [1])
-      Edifice.Recurrent.step(raw(params), st, frame)
+
+      module =
+        if Map.has_key?(raw(params), "min_gru_1_gate"),
+          do: Edifice.Recurrent.MinGRU,
+          else: Edifice.Recurrent
+
+      module.step(raw(params), st, frame)
     end)
   end
 
@@ -104,7 +110,7 @@ defmodule ExPhil.Networks.StatefulStepEquivalenceTest do
     deltas
   end
 
-  for cell_type <- [:gru, :lstm] do
+  for cell_type <- [:gru, :lstm, :min_gru] do
     @cell_type cell_type
 
     describe "#{cell_type} step path" do
@@ -167,7 +173,7 @@ defmodule ExPhil.Networks.StatefulStepEquivalenceTest do
   end
 
   test "reports max logit deltas (informational)" do
-    for cell_type <- [:gru, :lstm] do
+    for cell_type <- [:gru, :lstm, :min_gru] do
       {params, full_predict} = build_full_policy(cell_type)
       heads_predict = build_heads_predict()
       frames = random_frames(99)
