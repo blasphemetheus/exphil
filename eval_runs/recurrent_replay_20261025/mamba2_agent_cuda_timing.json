@@ -1,0 +1,40 @@
+{
+  "precision": "highest",
+  "client": "cuda",
+  "frames": 96,
+  "stateful_resync": 30,
+  "policy": "checkpoints/mewtwo_combo_newera_mamba2_screen_best_policy.bin",
+  "replay": "replays/greg/mewtwo/Game_20240222T222930.slp",
+  "warmup_ms": 2232,
+  "fused_custom_call_env": "0",
+  "cold_action_matches_window": true,
+  "warmup_preserves_state": true,
+  "rollback_exact": true,
+  "full_agent_timings": {
+    "windowed": {
+      "windowed": {
+        "samples": 288,
+        "median_us": 3365,
+        "p95_us": 4777
+      }
+    },
+    "carried_resync_30": {
+      "cold": {
+        "samples": 3,
+        "median_us": 4139,
+        "p95_us": 4553
+      },
+      "resync": {
+        "samples": 3,
+        "median_us": 6463,
+        "p95_us": 7064
+      },
+      "carried": {
+        "samples": 282,
+        "median_us": 1690,
+        "p95_us": 2654
+      }
+    }
+  },
+  "measurement_conditions": "Another Edifice CUDA test process ran concurrently. Indicative contended latency, not isolated GPU performance."
+}

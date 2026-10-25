@@ -724,7 +724,8 @@ defmodule ExPhil.Agents.Agent do
 
         {:reply, :ok,
          %{state | batch: %{n: n, mode: :stateful, trunk_state: trunk, cold: true, last_controllers: List.duplicate(nil, n),
-           stick_runs: List.duplicate({0, 0}, n)}}}
+           stick_runs: List.duplicate({0, 0}, n), replay_frames: [],
+           replay_lengths: List.duplicate(0, n), resync_steps: List.duplicate(0, n)}}}
 
       {:ok, :window} ->
         # Windowed policies (Mamba, MinGRU, ...): a rolling {n, window, dim}
@@ -762,6 +763,8 @@ defmodule ExPhil.Agents.Agent do
       end)
 
     cold_rows = MapSet.union(Map.get(b, :cold_rows, MapSet.new()), MapSet.new(rows))
+    b = %{b | replay_lengths: reset_row_counts(b.replay_lengths, rows),
+              resync_steps: reset_row_counts(b.resync_steps, rows)}
     {:reply, :ok, %{state | batch: Map.put(%{b | trunk_state: trunk}, :cold_rows, cold_rows)}}
   end
 
@@ -769,7 +772,7 @@ defmodule ExPhil.Agents.Agent do
 
   def handle_call({:batch_observe, game_states, opts}, _from, %{batch: %{}} = state) do
     try do
-      {_features, state} = batch_trunk_step(state, game_states, opts)
+      {_features, state} = batch_trunk_step(state, game_states, opts, false)
 
       # `controllers:` (one per row) stands in for what the policy would have
       # emitted — warms the prev-action channel with RECORDED history, like
@@ -1073,71 +1076,76 @@ defmodule ExPhil.Agents.Agent do
   def handle_call({:reconfigure, opts}, _from, state) do
     unknown = Keyword.keys(opts) -- @tunable_opts
 
-    if unknown != [] do
-      {:reply, {:error, {:not_tunable, unknown}}, state}
-    else
-      new_state =
-        Enum.reduce(opts, state, fn {k, v}, acc -> Map.put(acc, k, v) end)
+    cond do
+      state.bptt == true and Keyword.get(opts, :stateful_resync) != nil ->
+        {:reply, {:error, :bptt_cannot_resync}, state}
 
-      # style_tag / style_id go through the SAME resolver init uses.
-      # Before 2026-09-09 `reconfigure(style_tag: "X")` returned :ok and
-      # did nothing (style_tag was never a struct field), so a style A/B
-      # through the policy server ran two identical arms.
-      new_state =
-        if Keyword.has_key?(opts, :style_tag) or Keyword.has_key?(opts, :style_id) do
-          %{
+      unknown != [] ->
+        {:reply, {:error, {:not_tunable, unknown}}, state}
+
+      true ->
+        new_state =
+          Enum.reduce(opts, state, fn {k, v}, acc -> Map.put(acc, k, v) end)
+
+        # style_tag / style_id go through the SAME resolver init uses.
+        # Before 2026-09-09 `reconfigure(style_tag: "X")` returned :ok and
+        # did nothing (style_tag was never a struct field), so a style A/B
+        # through the policy server ran two identical arms.
+        new_state =
+          if Keyword.has_key?(opts, :style_tag) or Keyword.has_key?(opts, :style_id) do
+            %{
+              new_state
+              | style_id: ExPhil.Agents.Decode.resolve_style_id(opts, state.player_registry)
+            }
+            |> Map.delete(:style_tag)
+          else
             new_state
-            | style_id: ExPhil.Agents.Decode.resolve_style_id(opts, state.player_registry)
-          }
-          |> Map.delete(:style_tag)
-        else
-          new_state
-        end
+          end
 
-      # A new frame_delay without an explicit delay_id re-derives the id
-      # from the checkpoint's label convention (same rule as load time).
-      new_state =
-        if (Keyword.has_key?(opts, :reaction_delay) or Keyword.has_key?(opts, :frame_delay) or
-              Keyword.has_key?(opts, :harness_knob)) and
-             not Keyword.has_key?(opts, :delay_id) and new_state.label_convention != nil do
-          cfg = %{
-            label_convention: new_state.label_convention,
-            train_delays: new_state.train_delays,
-            delay_id_reaction_offset: new_state.delay_id_reaction_offset,
-            with_delay_id: Map.get(new_state.embed_config || %{}, :with_delay_id, false)
-          }
+        # A new frame_delay without an explicit delay_id re-derives the id
+        # from the checkpoint's label convention (same rule as load time).
+        new_state =
+          if (Keyword.has_key?(opts, :reaction_delay) or Keyword.has_key?(opts, :frame_delay) or
+                Keyword.has_key?(opts, :harness_knob)) and
+               not Keyword.has_key?(opts, :delay_id) and new_state.label_convention != nil do
+            cfg = %{
+              label_convention: new_state.label_convention,
+              train_delays: new_state.train_delays,
+              delay_id_reaction_offset: new_state.delay_id_reaction_offset,
+              with_delay_id: Map.get(new_state.embed_config || %{}, :with_delay_id, false)
+            }
 
-          harness = new_state.harness || :async_runner
-          knob = Keyword.get(opts, :harness_knob, new_state.frame_delay || 0)
+            harness = new_state.harness || :async_runner
+            knob = Keyword.get(opts, :harness_knob, new_state.frame_delay || 0)
 
-          played =
-            Keyword.get(opts, :reaction_delay) ||
-              ExPhil.Eval.HarnessRung.reaction_delay(harness, knob)
+            played =
+              Keyword.get(opts, :reaction_delay) ||
+                ExPhil.Eval.HarnessRung.reaction_delay(harness, knob)
 
-          %{
+            %{
+              new_state
+              | harness_knob: knob,
+                reaction_delay: played,
+                delay_id: ExPhil.Eval.HarnessRung.delay_id_for_reaction(played, cfg)
+            }
+          else
             new_state
-            | harness_knob: knob,
-              reaction_delay: played,
-              delay_id: ExPhil.Eval.HarnessRung.delay_id_for_reaction(played, cfg)
-          }
-        else
-          new_state
-        end
+          end
 
-      # Delay-id guard applies to the NEW settings (pool reuse must not
-      # sneak an untrained id past the boot-time check).
-      if untrained_delay_id?(
-           new_state.delay_id || 0,
-           new_state.train_delays,
-           Map.get(new_state.embed_config || %{}, :with_delay_id, false),
-           new_state.allow_untrained_delay_id || false
-         ) do
-        {:reply, {:error, {:untrained_delay_id, new_state.delay_id}}, state}
-      else
-        # Rebuild the typed decode struct from the new fields (item 7 phase
-        # B): reconfigure is the only other constructor call site.
-        {:reply, :ok, %{new_state | decode: ExPhil.Agents.Decode.from_state(new_state)}}
-      end
+        # Delay-id guard applies to the NEW settings (pool reuse must not
+        # sneak an untrained id past the boot-time check).
+        if untrained_delay_id?(
+             new_state.delay_id || 0,
+             new_state.train_delays,
+             Map.get(new_state.embed_config || %{}, :with_delay_id, false),
+             new_state.allow_untrained_delay_id || false
+           ) do
+          {:reply, {:error, {:untrained_delay_id, new_state.delay_id}}, state}
+        else
+          # Rebuild the typed decode struct from the new fields (item 7 phase
+          # B): reconfigure is the only other constructor call site.
+          {:reply, :ok, %{new_state | decode: ExPhil.Agents.Decode.from_state(new_state)}}
+        end
     end
   end
 
@@ -2187,8 +2195,13 @@ defmodule ExPhil.Agents.Agent do
     end)
   end
 
-  defp fresh_trunk_state(state, n),
-    do: init_trunk_state(state.trunk_step_params, state.embed_config, state.backbone, n)
+  defp fresh_trunk_state(state, n) do
+    # Axon window-trained GRU/LSTM checkpoints store an initializer RNG key.
+    # Sampling at batch n changes both the values and Glorot scale; each bot
+    # must instead start with the same state as an independent batch-1 agent.
+    init_trunk_state(state.trunk_step_params, state.embed_config, state.backbone, 1)
+    |> Map.new(fn {key, value} -> {key, Nx.broadcast(value, put_elem(Nx.shape(value), 0, n))} end)
+  end
 
   # Danger-context heads: the newest embedded frames ({rows, embed}) sliced at
   # the checkpoint's danger columns -> :danger ({rows, k} f32) for the sampler.
@@ -2317,7 +2330,9 @@ defmodule ExPhil.Agents.Agent do
   # Windowed batch step: push each row's frame into its rolling window (cold
   # rows restart with the frame repeated across the window, matching
   # pad_sequence/2) and run the trunk once on {n, window, dim}.
-  defp batch_trunk_step(%{batch: %{n: n, mode: :window} = b} = state, game_states, opts) do
+  defp batch_trunk_step(state, game_states, opts, resync? \\ true)
+
+  defp batch_trunk_step(%{batch: %{n: n, mode: :window} = b} = state, game_states, opts, _resync?) do
     if length(game_states) != n, do: raise(ArgumentError, "batch expects #{n} game states, got #{length(game_states)}")
 
     frames = batch_embed(state, game_states, opts)
@@ -2347,7 +2362,7 @@ defmodule ExPhil.Agents.Agent do
   # trunk step on the batched carry. Cold rows (fresh init) get the same
   # window_size-1 replay of their first frame the single path uses, so
   # step/window equivalence holds from the first decision.
-  defp batch_trunk_step(%{batch: %{n: n} = b} = state, game_states, opts) do
+  defp batch_trunk_step(%{batch: %{n: n} = b} = state, game_states, opts, resync?) do
     if length(game_states) != n, do: raise(ArgumentError, "batch expects #{n} game states, got #{length(game_states)}")
 
     # One batched embedding call (embed_states_fast: ~20 Nx ops for the whole
@@ -2377,9 +2392,51 @@ defmodule ExPhil.Agents.Agent do
         b.trunk_state
       end
 
+    {trunk, replay_updates} = batch_resync(state, b, trunk, frames, cold_rows, resync?)
     {features, new_trunk} = trunk_step_fn(state.backbone).(state.trunk_step_params, trunk, frames)
-    batch = b |> Map.merge(%{trunk_state: new_trunk, cold: false, cold_rows: MapSet.new(), last_frames: frames})
+    batch = b |> Map.merge(replay_updates) |> Map.merge(%{trunk_state: new_trunk, cold: false, cold_rows: MapSet.new(), last_frames: frames})
     {features, %{state | batch: batch}}
+  end
+
+  defp reset_row_counts(counts, rows) do
+    counts |> Enum.with_index() |> Enum.map(fn {count, i} -> if i in rows, do: 0, else: count end)
+  end
+
+  # Replay all compatible rows in one executable, then select only due rows.
+  # A reset row must accumulate its own complete history before becoming due;
+  # old frames in the shared tensor buffer cannot leak across game boundaries.
+  defp batch_resync(state, b, trunk, frames, cold, resync?) do
+    history_size = max(state.window_size - 1, 0)
+    due =
+      Enum.zip(b.resync_steps, b.replay_lengths)
+      |> Enum.with_index()
+      |> Enum.map(fn {{steps, length}, row} ->
+        resync? and state.stateful_resync != nil and not MapSet.member?(cold, row) and
+          steps >= state.stateful_resync and length >= history_size
+      end)
+
+    trunk =
+      if Enum.any?(due) do
+        replayed = replay_trunk(state, fresh_trunk_state(state, b.n), Enum.reverse(b.replay_frames))
+        if Enum.all?(due) do
+          replayed
+        else
+          mask = Nx.tensor(Enum.map(due, &if(&1, do: 1, else: 0)), type: :u8)
+          Map.new(trunk, fn {key, value} ->
+            shape = List.to_tuple([b.n | List.duplicate(1, Nx.rank(value) - 1)])
+            {key, Nx.select(Nx.broadcast(Nx.reshape(mask, shape), Nx.shape(value)), replayed[key], value)}
+          end)
+        end
+      else
+        trunk
+      end
+
+    updates = %{
+      replay_frames: Enum.take([frames | b.replay_frames], history_size),
+      replay_lengths: Enum.map(b.replay_lengths, &min(&1 + 1, history_size)),
+      resync_steps: Enum.zip_with(b.resync_steps, due, fn steps, due? -> if due?, do: 0, else: steps + 1 end)
+    }
+    {trunk, updates}
   end
 
   # Incremental GatedSSM inference with state caching (O(1) per frame)

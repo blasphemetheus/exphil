@@ -52,7 +52,7 @@ defmodule ExPhil.Agents.Decode do
     |> validate!()
   end
 
-  @doc "Sampler options for one decision: struct + per-call overrides + hysteresis memory."
+  @doc "Sampler options for one decision: struct, per-call overrides (including an optional RNG `:key`), and hysteresis memory."
   @spec opts(t(), map(), keyword()) :: keyword()
   def opts(%__MODULE__{} = d, state, per_call \\ []) do
     [
@@ -66,6 +66,12 @@ defmodule ExPhil.Agents.Decode do
       release_threshold: d.release_threshold,
       prev_buttons: state.last_action && state.last_action[:buttons]
     ]
+    |> then(fn opts ->
+      case Keyword.fetch(per_call, :key) do
+        {:ok, key} -> Keyword.put(opts, :key, key)
+        :error -> opts
+      end
+    end)
   end
 
   @doc """

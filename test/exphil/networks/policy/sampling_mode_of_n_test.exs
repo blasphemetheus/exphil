@@ -46,6 +46,14 @@ defmodule ExPhil.Networks.Policy.SamplingModeOfNTest do
     assert Sampling.mode_index(b2, one, one, one, one, one) == 1
   end
 
+  test "an explicit random key reproduces independent-head samples and mode-of-N" do
+    for extra <- [[], [mode_of_n: 8]] do
+      opts = Keyword.put(extra, :key, Nx.Random.key(77))
+      sample = fn -> Sampling.sample(%{}, predict_fn(1.0), Nx.tensor([[0.0]]), opts) |> key() end
+      assert sample.() == sample.()
+    end
+  end
+
   test "returns single-sample shapes and a row that is one of the draws" do
     action = Sampling.sample(%{}, predict_fn(1.0), Nx.tensor([[0.0]]), mode_of_n: 8, temperature: 1.0)
 

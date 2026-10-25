@@ -1,0 +1,41 @@
+{
+  "deterministic": false,
+  "label": "mamba2_resync60_s1001",
+  "character": "mewtwo",
+  "seed": 1001,
+  "stage": "final_destination",
+  "stateful_step": true,
+  "stateful_resync": 60,
+  "policy": "checkpoints/mewtwo_combo_newera_mamba2_screen_best_policy.bin",
+  "opponent": "idle",
+  "envs": 4,
+  "opponent_character": "fox",
+  "deaths_by_verdict": {
+    "kill": 0,
+    "checkmate": 0,
+    "forced": 0,
+    "mixup": 2
+  },
+  "sampling_seeded": true,
+  "inference_driver": "single",
+  "frames_per_env": 1800,
+  "env_minutes": 2.0,
+  "sd_per_min": 1.0,
+  "deaths_per_min": 1.0,
+  "kills_per_min": 0.0,
+  "deaths_by_verdict_per_min": {
+    "kill": 0.0,
+    "checkmate": 0.0,
+    "forced": 0.0,
+    "mixup": 1.0
+  },
+  "damage_dealt_per_min": 0.0,
+  "damage_taken_per_min": 0.0,
+  "offstage_episodes_per_min": 2.5,
+  "recovery_rate": 0.6,
+  "neutral_share": 0.252,
+  "repeat_prev": 0.408,
+  "max_frozen_run": 56,
+  "games_finished": 0,
+  "wall_s": 16.8
+}

@@ -6,7 +6,13 @@ alias ExPhil.Data.Peppi
 
 {opts, [], []} =
   OptionParser.parse(System.argv(),
-    strict: [policy: :string, replay: :string, character: :string, out: :string]
+    strict: [
+      policy: :string,
+      replay: :string,
+      character: :string,
+      out: :string,
+      benchmark: :boolean
+    ]
   )
 
 policy = Keyword.fetch!(opts, :policy)
@@ -66,6 +72,64 @@ first = play.(agent, suffix)
 :ok = Agent.restore_state(agent, saved)
 true = play.(agent, suffix) == first
 {:ok, ^final} = Agent.snapshot_state(agent)
+
+# Time complete Agent calls, including embedding, heads and output transfer.
+# Reset between passes; omit the first pass to exclude shape compilation.
+timings =
+  if opts[:benchmark] do
+    for {mode, target} <- [{:carried_resync_30, agent}, {:windowed, windowed}], into: %{} do
+      samples =
+        for pass <- 0..3, reduce: [] do
+          acc ->
+            :ok = Agent.reset_buffer(target)
+
+            measured =
+              Enum.map(frames, fn f ->
+                before = :sys.get_state(target)
+
+                kind =
+                  cond do
+                    mode == :windowed ->
+                      :windowed
+
+                    before.trunk_cold ->
+                      :cold
+
+                    before.steps_since_resync >= 30 and
+                        length(before.step_frame_buffer) >= before.window_size - 1 ->
+                      :resync
+
+                    true ->
+                      :carried
+                  end
+
+                {us, _} = :timer.tc(fn -> play.(target, [f]) end)
+                {kind, us}
+              end)
+
+            if pass == 0, do: acc, else: acc ++ measured
+        end
+
+      summary =
+        samples
+        |> Enum.group_by(&elem(&1, 0), &elem(&1, 1))
+        |> Map.new(fn {kind, values} ->
+          sorted = Enum.sort(values)
+
+          {kind,
+           %{
+             samples: length(sorted),
+             median_us: Enum.at(sorted, div(length(sorted), 2)),
+             p95_us: Enum.at(sorted, min(length(sorted) - 1, floor(length(sorted) * 0.95)))
+           }}
+        end)
+
+      {mode, summary}
+    end
+  else
+    nil
+  end
+
 GenServer.stop(agent)
 GenServer.stop(windowed)
 
@@ -74,12 +138,15 @@ result = %{
   replay: replay_path,
   frames: length(frames),
   client: EXLA.Client.default_name(),
+  fused_custom_call_env: System.get_env("EDIFICE_FUSED_CUSTOM_CALL"),
+  cuda_handler_library_loaded: :persistent_term.get(Edifice.CUDA.Library, nil) == :loaded,
   precision: Nx.Defn.default_options()[:precision],
   cold_action_matches_window: true,
   warmup_preserves_state: true,
   rollback_exact: true,
   warmup_ms: warmup_ms,
-  stateful_resync: 30
+  stateful_resync: 30,
+  full_agent_timings: timings
 }
 
 out = Keyword.fetch!(opts, :out)

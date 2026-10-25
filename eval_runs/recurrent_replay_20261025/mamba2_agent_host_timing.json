@@ -1,0 +1,40 @@
+{
+  "precision": "highest",
+  "client": "host",
+  "frames": 96,
+  "stateful_resync": 30,
+  "policy": "checkpoints/mewtwo_combo_newera_mamba2_screen_best_policy.bin",
+  "replay": "replays/greg/mewtwo/Game_20240222T222930.slp",
+  "warmup_ms": 302,
+  "cold_action_matches_window": true,
+  "warmup_preserves_state": true,
+  "rollback_exact": true,
+  "full_agent_timings": {
+    "windowed": {
+      "windowed": {
+        "samples": 288,
+        "median_us": 7632,
+        "p95_us": 8509
+      }
+    },
+    "carried_resync_30": {
+      "cold": {
+        "samples": 3,
+        "median_us": 3078,
+        "p95_us": 3247
+      },
+      "resync": {
+        "samples": 3,
+        "median_us": 3586,
+        "p95_us": 3920
+      },
+      "carried": {
+        "samples": 282,
+        "median_us": 581,
+        "p95_us": 812
+      }
+    }
+  },
+  "fused_custom_call_env": "0",
+  "measurement_conditions": "Concurrent CPU work; indicative shared-host latency."
+}

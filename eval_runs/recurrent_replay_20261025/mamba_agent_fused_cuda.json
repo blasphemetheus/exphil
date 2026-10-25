@@ -1,0 +1,15 @@
+{
+  "client": "cuda",
+  "cold_action_matches_window": true,
+  "cuda_handler_library_loaded": true,
+  "frames": 116,
+  "full_agent_timings": null,
+  "fused_custom_call_env": "1",
+  "policy": "checkpoints/coh_fullscale_mamba_v1/model_best_policy.bin",
+  "precision": "highest",
+  "replay": "/home/blewf/Slippi/2026-10-Mainline/Game_20261022T170737.slp",
+  "rollback_exact": true,
+  "stateful_resync": 30,
+  "warmup_ms": 1833,
+  "warmup_preserves_state": true
+}

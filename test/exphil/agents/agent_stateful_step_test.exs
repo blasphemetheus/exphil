@@ -114,7 +114,8 @@ defmodule ExPhil.Agents.AgentStatefulStepTest do
 
   defp play(agent, xs) do
     for x <- xs do
-      {:ok, action} = Agent.get_action(agent, game_state(x))
+      frame = (:sys.get_state(agent).last_debounce_frame || -1) + 1
+      {:ok, action} = Agent.get_action(agent, %{game_state(x) | frame: frame})
       action_sig(action)
     end
   end
@@ -154,6 +155,8 @@ defmodule ExPhil.Agents.AgentStatefulStepTest do
     config = Map.merge(config, ExPhil.Networks.Policy.ExecutionContract.training(config))
     long = start_agent(%{params: params, config: config}, stateful_step: true)
     one = start_agent(%{params: params, config: %{config | window_size: 1}}, stateful_step: true)
+    assert {:error, :bptt_cannot_resync} = Agent.reconfigure(long, stateful_resync: 30)
+    assert :sys.get_state(long).stateful_resync == nil
 
     for xs <- [[10.0, -2.0], [4.0, 8.0]] do
       assert play(long, xs) == play(one, xs)

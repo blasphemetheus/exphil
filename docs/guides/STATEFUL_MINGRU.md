@@ -142,12 +142,78 @@ resets, warmup and resync rollback. Validation used separate Elixir VMs with
 the existing compiled dependencies and the changed source modules loaded;
 the live overnight queue's native libraries were not rebuilt.
 
-Remaining improvements:
+### Batched resync and full Agent timing
 
-- Implement per-row resync for batched inference. `stateful_resync` currently
-  applies to the single-agent decision path, not `batch_get_controllers`.
-- Measure GPU replay and the complete policy with real checkpoint dimensions.
-  These exports use raw
-  input widths 264/288, unlike the 516-wide controlled microbenchmark.
-- Validate window-trained carry in closed-loop play before changing defaults;
-  train with explicit carried state if indefinite memory is desired.
+`batch_get_controllers` now honors `stateful_resync` independently per row.
+Each bot has a history-length counter and resync counter; the shared frame
+buffer stores the last window of embeddings. A compiled replay rebuilds all
+rows together and only due rows receive the rebuilt carry. A partially reset
+batch cannot replay history from a row's previous game: that row must first
+accumulate a complete new window. Observe-only calls collect history and
+advance the counter, leaving resync to the next decision, just like the single
+path. Disabling/re-enabling resync preserves recent history. Counters follow
+the single-agent convention: a resync decision resets the counter to zero.
+
+The implementation retains one batch shape; with staggered resets, it may
+recompute rows that are not due and discard their replayed states. This avoids
+compiling many subset shapes but is a remaining performance tradeoff.
+
+Validation also found that Axon's stored GRU/LSTM initializer RNG key produces
+different hidden values and Glorot scale at batch size N. Stateful batch init
+and row reset now broadcast the batch-1 initial state, matching independent
+bots rather than changing initialization with the number of environments.
+
+`validate_recurrent_agent.exs --benchmark` measures full Agent calls, including
+embedding, heads, GenServer dispatch and output transfer. Three measured passes
+follow one untimed pass to remove shape compilation. For the real Mamba-2
+checkpoint on CPU: windowed median **7.632 ms** (288 samples), ordinary carried
+median **0.581 ms** (282 samples), cold **3.078 ms** and resync **3.586 ms**
+(only three samples each). Full CPU comparison:
+
+| Checkpoint backbone | Windowed | Ordinary carry | Cold | Resync |
+|---|---:|---:|---:|---:|
+| MinGRU | 2.457 ms | 0.661 ms | 1.617 ms | 2.562 ms |
+| Mamba | 30.569 ms | 1.278 ms | 14.830 ms | 17.653 ms |
+| Mamba-2 | 7.632 ms | 0.581 ms | 3.078 ms | 3.586 ms |
+
+Artifacts: `eval_runs/recurrent_replay_20261025/*_agent_host_timing.json`.
+These are shared-machine measurements with concurrent CPU work; GPU performance
+is not implied. Cold/resync medians have only 3–6 samples, and the benchmark
+excludes first compilation and simulator/IPC work beyond the Agent call.
+These runs use highest EXLA precision and `EDIFICE_FUSED_CUSTOM_CALL=0`;
+they do not validate the separately loaded native CUDA handlers.
+
+Closed-loop comparisons use `scripts/sim_closed_loop.exs --stateful-step
+--stateful-resync 30`. The script now fixes both simulation and sampling seeds;
+the decode and sampling paths accept an explicit `:key` while retaining fresh
+random keys when omitted. `--deterministic` is available for diagnostics, but
+the tested MinGRU stood still under argmax, so stochastic comparisons are more
+informative. Results are in `eval_runs/recurrent_resync_20261025/`.
+
+The targeted CPU suite has 58 passing tests, including Edifice replay,
+MinGRU/GRU/LSTM/Mamba/Mamba-2 single-vs-batch carry at window sizes 1 and 8,
+staggered resets, observe-only frames, runtime resync toggles, stochastic key
+reproducibility, decode and sampling regressions. BPTT reconfiguration now
+rejects window resync just as initial policy loading does.
+
+CUDA real-checkpoint validation now passes for MinGRU, Mamba and Mamba-2:
+cold action matches windowed, warmup leaves state untouched, and rollback across
+resync reproduces actions and final state exactly. Contended CUDA medians
+(window / carry / cold / resync), in ms: MinGRU 9.896 / 6.548 / 9.086 / 16.835;
+Mamba 3.959 / 1.146 / 6.177 / 8.501; Mamba-2 3.365 / 1.690 / 4.139 / 6.463.
+Another CUDA test ran concurrently, so these are not idle-device performance
+figures. Artifacts: `eval_runs/recurrent_replay_20261025/*_agent_cuda_timing.json`.
+A separate fused-on Mamba check also passes, with the handler library confirmed
+loaded. Edifice now loads OTP crypto before the handler library; a fresh Erlang
+VM regression reproduces the old load-order crash and passes with the fix.
+
+The 32 seeded closed-loop screens are summarized in
+`eval_runs/recurrent_resync_20261025/RESULTS.md`. Against an active opponent,
+MinGRU self-destructs/min were 3.125 windowed, 5.0 carried, 4.0 resync30 and
+4.25 resync60. Resync30 helps but does not recover windowed performance.
+Keep deployment defaults unchanged. Mamba/Mamba-2 have idle-opponent screens
+only, which cannot establish competitive performance.
+
+Remaining: live-main integration after the active evaluation queue, isolated GPU
+p95 timing, and larger closed-loop trials against active opponents before changing
+resync defaults. Train with explicit carried state if indefinite memory is desired.

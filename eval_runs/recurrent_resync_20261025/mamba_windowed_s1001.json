@@ -1,0 +1,38 @@
+{
+  "deterministic": false,
+  "label": "mamba_windowed_s1001",
+  "seed": 1001,
+  "stage": "final_destination",
+  "stateful_step": false,
+  "stateful_resync": null,
+  "policy": "checkpoints/coh_fullscale_mamba_v1/model_best_policy.bin",
+  "opponent": "idle",
+  "envs": 8,
+  "deaths_by_verdict": {
+    "kill": 0,
+    "checkmate": 0,
+    "forced": 0,
+    "mixup": 3
+  },
+  "sampling_seeded": true,
+  "frames_per_env": 1800,
+  "env_minutes": 4.0,
+  "sd_per_min": 0.75,
+  "deaths_per_min": 0.75,
+  "kills_per_min": 1.0,
+  "deaths_by_verdict_per_min": {
+    "kill": 0.0,
+    "checkmate": 0.0,
+    "forced": 0.0,
+    "mixup": 0.75
+  },
+  "damage_dealt_per_min": 35.53,
+  "damage_taken_per_min": 0.0,
+  "offstage_episodes_per_min": 3.75,
+  "recovery_rate": 0.8,
+  "neutral_share": 0.491,
+  "repeat_prev": 0.567,
+  "max_frozen_run": 707,
+  "games_finished": 0,
+  "wall_s": 323.2
+}

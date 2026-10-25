@@ -20,7 +20,7 @@ defmodule ExPhil.Agents.AgentStatefulMinGRUTest do
     ExPhil.Embeddings.Game.embedding_size(ExPhil.Embeddings.Game.default_config())
   end
 
-  defp build_policy(head \\ :independent, backbone \\ :min_gru) do
+  defp build_policy(head \\ :independent, backbone \\ :min_gru, window \\ @window) do
     # Mirror the model the Agent rebuilds in load_policy_internal (same
     # trunk_opts semantics) so init params load cleanly.
     model =
@@ -30,7 +30,7 @@ defmodule ExPhil.Agents.AgentStatefulMinGRUTest do
         head: head,
         hidden_size: @hidden_size,
         num_layers: @num_layers,
-        window_size: @window,
+        window_size: window,
         dropout: 0.0,
         axis_buckets: 16,
         shoulder_buckets: 4
@@ -38,7 +38,7 @@ defmodule ExPhil.Agents.AgentStatefulMinGRUTest do
 
     {init_fn, _predict_fn} = Utils.build_compiled(model, seed: 42)
 
-    inputs = Nx.template({1, @window, embed_size()}, :f32)
+    inputs = Nx.template({1, window, embed_size()}, :f32)
 
     inputs =
       if head == :autoregressive,
@@ -53,7 +53,7 @@ defmodule ExPhil.Agents.AgentStatefulMinGRUTest do
         temporal: true,
         backbone: backbone,
         head: head,
-        window_size: @window,
+        window_size: window,
         embed_size: embed_size(),
         hidden_size: @hidden_size,
         num_layers: @num_layers,
@@ -129,6 +129,98 @@ defmodule ExPhil.Agents.AgentStatefulMinGRUTest do
 
   setup_all do
     {:ok, policy: build_policy()}
+  end
+
+  test "explicit sampling keys reproduce stochastic batched rollouts after reset" do
+    policy = build_policy(:autoregressive)
+    {:ok, agent} = Agent.start_link(policy: policy, deterministic: false, stateful_step: true)
+    :ok = Agent.batch_init(agent, 2)
+
+    rollout = fn ->
+      for tick <- 1..5 do
+        {:ok, controllers} =
+          Agent.batch_get_controllers(
+            agent,
+            [game_state(tick * 1.0), game_state(tick * -2.0)],
+            key: Nx.Random.key(tick)
+          )
+
+        controllers
+      end
+    end
+
+    expected = rollout.()
+    :ok = Agent.batch_reset_rows(agent, [0, 1])
+    assert rollout.() == expected
+    GenServer.stop(agent)
+  end
+
+  for backbone <- [:min_gru, :gru, :lstm, :mamba, :mamba_2], window <- [1, @window] do
+    test "#{backbone}, window #{window}: batched resync matches independent agents across staggered resets and observations" do
+      policy = build_policy(:autoregressive, unquote(backbone), unquote(window))
+      batch = start_agent(policy, stateful_step: true, stateful_resync: 2)
+      singles = for _ <- 1..2, do: start_agent(policy, stateful_step: true, stateful_resync: 2)
+      :ok = Agent.batch_init(batch, 2)
+
+      for tick <- 0..23 do
+        if tick in [18, 20] do
+          interval = if tick == 18, do: nil, else: 2
+
+          for agent <- [batch | singles],
+              do: :ok = Agent.reconfigure(agent, stateful_resync: interval)
+        end
+
+        if tick in [10, 15] do
+          row = if tick == 10, do: 0, else: 1
+          :ok = Agent.batch_reset_rows(batch, [row])
+          :ok = Agent.reset_buffer(Enum.at(singles, row))
+        end
+
+        frames = for row <- 0..1, do: %{game_state((tick * (row + 1) - 13) * 1.0) | frame: tick}
+
+        if tick in [3, 4, 8, 17] do
+          assert :ok = Agent.batch_observe(batch, frames)
+
+          for {single, frame} <- Enum.zip(singles, frames),
+              do: assert(:ok = Agent.observe(single, frame, nil))
+        else
+          assert {:ok, _} = Agent.batch_get_controllers(batch, frames)
+
+          for {single, frame} <- Enum.zip(singles, frames),
+              do: assert({:ok, _} = Agent.get_action(single, frame))
+        end
+
+        b = :sys.get_state(batch).batch
+
+        for {single, row} <- Enum.with_index(singles) do
+          s = :sys.get_state(single)
+          assert Enum.at(b.resync_steps, row) == s.steps_since_resync
+
+          for {key, value} <- s.trunk_state do
+            assert Nx.to_number(
+                     Nx.reduce_max(
+                       Nx.abs(
+                         Nx.subtract(
+                           Nx.slice_along_axis(b.trunk_state[key], row, 1, axis: 0),
+                           value
+                         )
+                       )
+                     )
+                   ) < 1.0e-4,
+                   "carry diverged at tick #{tick}, row #{row}, key #{key}"
+
+            Nx.Testing.assert_all_close(
+              Nx.slice_along_axis(b.trunk_state[key], row, 1, axis: 0),
+              value,
+              atol: 1.0e-5,
+              rtol: 1.0e-5
+            )
+          end
+        end
+      end
+
+      for agent <- [batch | singles], do: GenServer.stop(agent)
+    end
   end
 
   for backbone <- [:min_gru, :gru, :mamba, :mamba_2, :mamba_ssd] do

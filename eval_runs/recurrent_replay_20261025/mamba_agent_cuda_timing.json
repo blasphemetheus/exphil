@@ -1,0 +1,40 @@
+{
+  "precision": "highest",
+  "client": "cuda",
+  "frames": 116,
+  "stateful_resync": 30,
+  "policy": "checkpoints/coh_fullscale_mamba_v1/model_best_policy.bin",
+  "replay": "/home/blewf/Slippi/2026-10-Mainline/Game_20261022T170737.slp",
+  "warmup_ms": 2190,
+  "fused_custom_call_env": "0",
+  "cold_action_matches_window": true,
+  "warmup_preserves_state": true,
+  "rollback_exact": true,
+  "full_agent_timings": {
+    "windowed": {
+      "windowed": {
+        "samples": 348,
+        "median_us": 3959,
+        "p95_us": 5484
+      }
+    },
+    "carried_resync_30": {
+      "cold": {
+        "samples": 3,
+        "median_us": 6177,
+        "p95_us": 6345
+      },
+      "resync": {
+        "samples": 6,
+        "median_us": 8501,
+        "p95_us": 9392
+      },
+      "carried": {
+        "samples": 339,
+        "median_us": 1146,
+        "p95_us": 1771
+      }
+    }
+  },
+  "measurement_conditions": "Another Edifice CUDA test process ran concurrently. Indicative contended latency, not isolated GPU performance."
+}

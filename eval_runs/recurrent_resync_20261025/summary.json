@@ -1,0 +1,298 @@
+{
+  "client": "host",
+  "precision": "highest",
+  "fused_custom_calls": false,
+  "stage": "final_destination",
+  "sampling": "stochastic with explicit per-frame keys",
+  "note": "Two seeds per arm; screening evidence, not a deployment gate. Active opponent is the same MinGRU checkpoint in windowed mode. Mamba-2 uses independent-head single Agents over batched simulator environments; other backbones use batched inference. Wall times were collected with concurrent host work and are not isolated latency benchmarks.",
+  "summaries": [
+    {
+      "architecture": "min_gru",
+      "opponent": "idle",
+      "mode": "windowed",
+      "seeds": [
+        1001,
+        1002
+      ],
+      "envs_per_seed": 8,
+      "frames_per_env": 1800,
+      "sd_per_min": 1.875,
+      "damage_dealt_per_min": 16.5475,
+      "neutral_share": 0.263,
+      "files": [
+        "min_gru_windowed_s1001.json",
+        "min_gru_windowed_s1002.json"
+      ]
+    },
+    {
+      "architecture": "min_gru",
+      "opponent": "idle",
+      "mode": "carried",
+      "seeds": [
+        1001,
+        1002
+      ],
+      "envs_per_seed": 8,
+      "frames_per_env": 1800,
+      "sd_per_min": 3.125,
+      "damage_dealt_per_min": 9.682500000000001,
+      "neutral_share": 0.3785,
+      "files": [
+        "min_gru_carried_s1001.json",
+        "min_gru_carried_s1002.json"
+      ]
+    },
+    {
+      "architecture": "min_gru",
+      "opponent": "idle",
+      "mode": "resync30",
+      "seeds": [
+        1001,
+        1002
+      ],
+      "envs_per_seed": 8,
+      "frames_per_env": 1800,
+      "sd_per_min": 2.125,
+      "damage_dealt_per_min": 16.081,
+      "neutral_share": 0.28049999999999997,
+      "files": [
+        "min_gru_resync30_s1001.json",
+        "min_gru_resync30_s1002.json"
+      ]
+    },
+    {
+      "architecture": "min_gru",
+      "opponent": "idle",
+      "mode": "resync60",
+      "seeds": [
+        1001,
+        1002
+      ],
+      "envs_per_seed": 8,
+      "frames_per_env": 1800,
+      "sd_per_min": 2.75,
+      "damage_dealt_per_min": 12.2975,
+      "neutral_share": 0.29200000000000004,
+      "files": [
+        "min_gru_resync60_s1001.json",
+        "min_gru_resync60_s1002.json"
+      ]
+    },
+    {
+      "architecture": "mamba",
+      "opponent": "idle",
+      "mode": "windowed",
+      "seeds": [
+        1001,
+        1002
+      ],
+      "envs_per_seed": 8,
+      "frames_per_env": 1800,
+      "sd_per_min": 0.5,
+      "damage_dealt_per_min": 41.495000000000005,
+      "neutral_share": 0.46950000000000003,
+      "files": [
+        "mamba_windowed_s1001.json",
+        "mamba_windowed_s1002.json"
+      ]
+    },
+    {
+      "architecture": "mamba",
+      "opponent": "idle",
+      "mode": "carried",
+      "seeds": [
+        1001,
+        1002
+      ],
+      "envs_per_seed": 8,
+      "frames_per_env": 1800,
+      "sd_per_min": 0.375,
+      "damage_dealt_per_min": 44.8875,
+      "neutral_share": 0.4555,
+      "files": [
+        "mamba_carried_s1001.json",
+        "mamba_carried_s1002.json"
+      ]
+    },
+    {
+      "architecture": "mamba",
+      "opponent": "idle",
+      "mode": "resync30",
+      "seeds": [
+        1001,
+        1002
+      ],
+      "envs_per_seed": 8,
+      "frames_per_env": 1800,
+      "sd_per_min": 0.375,
+      "damage_dealt_per_min": 44.8875,
+      "neutral_share": 0.4555,
+      "files": [
+        "mamba_resync30_s1001.json",
+        "mamba_resync30_s1002.json"
+      ]
+    },
+    {
+      "architecture": "mamba",
+      "opponent": "idle",
+      "mode": "resync60",
+      "seeds": [
+        1001,
+        1002
+      ],
+      "envs_per_seed": 8,
+      "frames_per_env": 1800,
+      "sd_per_min": 0.375,
+      "damage_dealt_per_min": 44.8875,
+      "neutral_share": 0.45599999999999996,
+      "files": [
+        "mamba_resync60_s1001.json",
+        "mamba_resync60_s1002.json"
+      ]
+    },
+    {
+      "architecture": "mamba2",
+      "opponent": "idle",
+      "mode": "windowed",
+      "seeds": [
+        1001,
+        1002
+      ],
+      "envs_per_seed": 4,
+      "frames_per_env": 1800,
+      "sd_per_min": 1,
+      "damage_dealt_per_min": 13.252500000000001,
+      "neutral_share": 0.21300000000000002,
+      "files": [
+        "mamba2_windowed_s1001.json",
+        "mamba2_windowed_s1002.json"
+      ]
+    },
+    {
+      "architecture": "mamba2",
+      "opponent": "idle",
+      "mode": "carried",
+      "seeds": [
+        1001,
+        1002
+      ],
+      "envs_per_seed": 4,
+      "frames_per_env": 1800,
+      "sd_per_min": 1.25,
+      "damage_dealt_per_min": 10.64,
+      "neutral_share": 0.2225,
+      "files": [
+        "mamba2_carried_s1001.json",
+        "mamba2_carried_s1002.json"
+      ]
+    },
+    {
+      "architecture": "mamba2",
+      "opponent": "idle",
+      "mode": "resync30",
+      "seeds": [
+        1001,
+        1002
+      ],
+      "envs_per_seed": 4,
+      "frames_per_env": 1800,
+      "sd_per_min": 1,
+      "damage_dealt_per_min": 13.717500000000001,
+      "neutral_share": 0.2135,
+      "files": [
+        "mamba2_resync30_s1001.json",
+        "mamba2_resync30_s1002.json"
+      ]
+    },
+    {
+      "architecture": "mamba2",
+      "opponent": "idle",
+      "mode": "resync60",
+      "seeds": [
+        1001,
+        1002
+      ],
+      "envs_per_seed": 4,
+      "frames_per_env": 1800,
+      "sd_per_min": 1.25,
+      "damage_dealt_per_min": 2.98,
+      "neutral_share": 0.2385,
+      "files": [
+        "mamba2_resync60_s1001.json",
+        "mamba2_resync60_s1002.json"
+      ]
+    },
+    {
+      "architecture": "min_gru",
+      "opponent": "active",
+      "mode": "windowed",
+      "seeds": [
+        1001,
+        1002
+      ],
+      "envs_per_seed": 8,
+      "frames_per_env": 1800,
+      "sd_per_min": 3.125,
+      "damage_dealt_per_min": 36.269,
+      "neutral_share": 0.298,
+      "files": [
+        "min_gru_windowed_active_s1001.json",
+        "min_gru_windowed_active_s1002.json"
+      ]
+    },
+    {
+      "architecture": "min_gru",
+      "opponent": "active",
+      "mode": "carried",
+      "seeds": [
+        1001,
+        1002
+      ],
+      "envs_per_seed": 8,
+      "frames_per_env": 1800,
+      "sd_per_min": 5,
+      "damage_dealt_per_min": 9.3185,
+      "neutral_share": 0.45899999999999996,
+      "files": [
+        "min_gru_carried_active_s1001.json",
+        "min_gru_carried_active_s1002.json"
+      ]
+    },
+    {
+      "architecture": "min_gru",
+      "opponent": "active",
+      "mode": "resync30",
+      "seeds": [
+        1001,
+        1002
+      ],
+      "envs_per_seed": 8,
+      "frames_per_env": 1800,
+      "sd_per_min": 4,
+      "damage_dealt_per_min": 31.99,
+      "neutral_share": 0.33399999999999996,
+      "files": [
+        "min_gru_resync30_active_s1001.json",
+        "min_gru_resync30_active_s1002.json"
+      ]
+    },
+    {
+      "architecture": "min_gru",
+      "opponent": "active",
+      "mode": "resync60",
+      "seeds": [
+        1001,
+        1002
+      ],
+      "envs_per_seed": 8,
+      "frames_per_env": 1800,
+      "sd_per_min": 4.25,
+      "damage_dealt_per_min": 28.79,
+      "neutral_share": 0.331,
+      "files": [
+        "min_gru_resync60_active_s1001.json",
+        "min_gru_resync60_active_s1002.json"
+      ]
+    }
+  ]
+}

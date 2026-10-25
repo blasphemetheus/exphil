@@ -1,0 +1,40 @@
+{
+  "precision": "highest",
+  "client": "host",
+  "frames": 116,
+  "stateful_resync": 30,
+  "policy": "checkpoints/coh_fullscale_mamba_v1/model_best_policy.bin",
+  "replay": "/home/blewf/Slippi/2026-10-Mainline/Game_20261022T170737.slp",
+  "warmup_ms": 462,
+  "cold_action_matches_window": true,
+  "warmup_preserves_state": true,
+  "rollback_exact": true,
+  "full_agent_timings": {
+    "windowed": {
+      "windowed": {
+        "samples": 348,
+        "median_us": 30569,
+        "p95_us": 45182
+      }
+    },
+    "carried_resync_30": {
+      "cold": {
+        "samples": 3,
+        "median_us": 14830,
+        "p95_us": 16411
+      },
+      "resync": {
+        "samples": 6,
+        "median_us": 17653,
+        "p95_us": 19967
+      },
+      "carried": {
+        "samples": 339,
+        "median_us": 1278,
+        "p95_us": 4092
+      }
+    }
+  },
+  "fused_custom_call_env": "0",
+  "measurement_conditions": "Concurrent CPU work; indicative shared-host latency."
+}

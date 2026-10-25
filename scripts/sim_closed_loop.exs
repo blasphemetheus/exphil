@@ -28,7 +28,8 @@ alias ExPhil.Training.{Checkpoint, Output}
   OptionParser.parse(System.argv(),
     strict: [policy: :string, label: :string, opponent: :string, envs: :integer, frames: :integer,
              seed: :integer, stage: :string, ablate_prev_action: :boolean, out: :string,
-             stateful_step: :boolean, stateful_resync: :integer])
+             stateful_step: :boolean, stateful_resync: :integer, deterministic: :boolean,
+             character: :string, opponent_character: :string])
 if bad != [], do: raise("invalid options: #{inspect(bad)}")
 
 policy = opts[:policy] || raise("--policy required")
@@ -43,20 +44,53 @@ neutral = Drill.neutral()
 start_agent = fn path, extra ->
   {:ok, export} = Checkpoint.load_policy(path)
   contract = ExPhil.Networks.Policy.ExecutionContract.load(export.config)
-  {:ok, agent} =
-    Agent.start_link([policy_path: path, deterministic: false, temperature: 1.0, af_convention: :parsed,
+  agent_opts = [policy: export, deterministic: opts[:deterministic] || false, temperature: 1.0, af_convention: :parsed,
       frame_delay: 0, reaction_delay: 0, harness: :sync_runner,
-      stateful_step: Keyword.get(extra, :stateful_step) || contract.recurrent_state == :carried_zero] ++ Keyword.delete(extra, :stateful_step))
+      stateful_step: Keyword.get(extra, :stateful_step) || contract.recurrent_state == :carried_zero] ++ Keyword.delete(extra, :stateful_step)
+  {:ok, agent} = Agent.start_link(agent_opts)
   {:ok, _} = Agent.warmup(agent)
-  :ok = Agent.batch_init(agent, n)
-  agent
+  case Agent.batch_init(agent, n) do
+    :ok -> {:batch, agent}
+    {:error, :batch_needs_autoregressive_head} ->
+      # Legacy independent-head exports still need closed-loop validation.
+      # Keep the same simulator batch, with one Agent per environment.
+      others = for _ <- List.duplicate(nil, n - 1) do
+        {:ok, other} = Agent.start_link(agent_opts)
+        {:ok, _} = Agent.warmup(other)
+        other
+      end
+      {:single, [agent | others]}
+    error -> raise "cannot initialize evaluation agents: #{inspect(error)}"
+  end
+end
+
+controllers = fn driver, states, port, sampling_key ->
+  case driver do
+    {:batch, agent} ->
+      {:ok, cs} = Agent.batch_get_controllers(agent, Enum.map(states, &%{&1 | own_port: port}),
+        player_port: port, key: sampling_key)
+      cs
+    {:single, agents} ->
+      Enum.zip(agents, states) |> Enum.with_index() |> Enum.map(fn {{agent, gs}, row} ->
+        {:ok, c} = Agent.get_controller(agent, %{gs | own_port: port},
+          player_port: port, key: Nx.Random.fold_in(sampling_key, row))
+        c
+      end)
+  end
+end
+
+reset_rows = fn driver, rows ->
+  case driver do
+    {:batch, agent} -> :ok = Agent.batch_reset_rows(agent, rows)
+    {:single, agents} -> for row <- rows, do: :ok = Agent.reset_buffer(Enum.at(agents, row))
+  end
 end
 
 Output.banner("Closed-loop sim rollout: #{label}")
 Output.config([{"Policy", policy}, {"Opponent", opts[:opponent] || "idle"}, {"Envs", n}, {"Frames/env", frames}, {"Stage", stage}])
 # --stateful-step forces carried-state inference (O(1)/frame) for a policy whose
 # training contract is windowed — e.g. Mamba (2026-10-01); --stateful-resync K
-# rebuilds the state from the last window every K frames (single path only).
+# rebuilds each row's state from its own recent window on the decision path.
 actor = start_agent.(policy, [ablate_prev_action: opts[:ablate_prev_action] || false, stateful_step: opts[:stateful_step] || false] ++
   if(opts[:stateful_resync], do: [stateful_resync: opts[:stateful_resync]], else: []))
 opponent = case opts[:opponent] do
@@ -65,7 +99,8 @@ opponent = case opts[:opponent] do
   path -> start_agent.(path, [])
 end
 
-players = [%{character: "fox", costume: 1}, %{character: "fox", costume: 0}]
+players = [%{character: opts[:character] || "fox", costume: 1},
+           %{character: opts[:opponent_character] || "fox", costume: 0}]
 {:ok, sim} = Env.start(:nif, stage: stage, players: players, batch_size: n, seed: opts[:seed] || 1001)
 {:ok, _, _} = Env.observe(sim)
 {:ok, gs0} = Env.frames(sim)
@@ -102,13 +137,15 @@ end
 t0 = System.monotonic_time(:millisecond)
 {acc, _envs, _states} =
   Enum.reduce(1..frames, {acc0, List.duplicate(env0, n), gs0}, fn t, {acc, envs, states} ->
-    {:ok, c1s} = Agent.batch_get_controllers(actor, Enum.map(states, &%{&1 | own_port: 1}), player_port: 1)
+    # Fix sampling as well as simulator seeds for paired inference comparisons.
+    sampling_key = Nx.Random.key((opts[:seed] || 1001) * 1_000_000 + t * 2)
+    c1s = controllers.(actor, states, 1, sampling_key)
     c2s =
       case opponent do
         :idle -> List.duplicate(neutral, n)
-        agent ->
-          {:ok, cs} = Agent.batch_get_controllers(agent, Enum.map(states, &%{&1 | own_port: 2}), player_port: 2)
-          cs
+        driver ->
+          sampling_key = Nx.Random.key((opts[:seed] || 1001) * 1_000_000 + t * 2 + 1)
+          controllers.(driver, states, 2, sampling_key)
       end
     {:ok, nexts, terms} = Env.step(sim, Enum.zip_with(c1s, c2s, fn a, b -> [a || neutral, b || neutral] end))
 
@@ -163,8 +200,8 @@ t0 = System.monotonic_time(:millisecond)
         {nexts, envs, acc}
       else
         for i <- finished, do: {:ok, _} = Env.restore(sim, i, starts[i])
-        :ok = Agent.batch_reset_rows(actor, finished)
-        if opponent != :idle, do: :ok = Agent.batch_reset_rows(opponent, finished)
+        reset_rows.(actor, finished)
+        if opponent != :idle, do: reset_rows.(opponent, finished)
         {:ok, reset_states} = Env.frames(sim)
         envs = envs |> Enum.with_index() |> Enum.map(fn {e, i} -> if i in finished, do: %{env0 | max_run: e.max_run}, else: e end)
         {reset_states, envs, %{acc | games: acc.games + length(finished)}}
@@ -179,7 +216,18 @@ t0 = System.monotonic_time(:millisecond)
 
 minutes = acc.total / 3600
 r = fn x, d -> if d == 0, do: nil, else: Float.round(x / d, 3) end
+actor_config = case actor do
+  {:batch, agent} -> Agent.get_config(agent)
+  {:single, [agent | _]} -> Agent.get_config(agent)
+end
 result = %{
+  seed: opts[:seed] || 1001, stage: stage,
+  deterministic: opts[:deterministic] || false,
+  sampling_seeded: true,
+  character: opts[:character] || "fox", opponent_character: opts[:opponent_character] || "fox",
+  stateful_step: actor_config.stateful_step_active,
+  inference_driver: elem(actor, 0),
+  stateful_resync: opts[:stateful_resync],
   label: label, policy: policy, opponent: opts[:opponent] || "idle", envs: n, frames_per_env: frames,
   env_minutes: Float.round(minutes, 1),
   sd_per_min: r.(acc.sds, minutes), deaths_per_min: r.(acc.deaths, minutes), kills_per_min: r.(acc.kills, minutes),

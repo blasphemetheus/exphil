@@ -42,6 +42,8 @@ defmodule ExPhil.Networks.Policy.Sampling do
   is sampled conditioned on previously sampled components.
 
   ## Options
+    - `:key` - Explicit Nx random key for reproducible stochastic sampling;
+      omitted keys are generated afresh for each call.
     - `:temperature` - Softmax temperature for exploration (default: 1.0). A
       number applies to every categorical head (buttons stay raw, as before);
       a map applies per head — `%{buttons: t, main_x: t, main_y: t, c_x: t,
@@ -90,7 +92,7 @@ defmodule ExPhil.Networks.Policy.Sampling do
           jitted(:fused_det, &fused_sample_deterministic/1).(logits_tuple)
 
         is_integer(mode_of_n) and mode_of_n > 1 ->
-          key = fresh_key()
+          key = Keyword.get(opts, :key) || fresh_key()
 
           tiled =
             logits_tuple
@@ -110,7 +112,7 @@ defmodule ExPhil.Networks.Policy.Sampling do
           {row.(b), row.(mx), row.(my), row.(cx), row.(cy), row.(sh), conf}
 
         true ->
-          key = fresh_key()
+          key = Keyword.get(opts, :key) || fresh_key()
 
           jitted(:fused_stoch, &fused_sample_stochastic/3).(
             logits_tuple,
@@ -228,7 +230,7 @@ defmodule ExPhil.Networks.Policy.Sampling do
           # eager glue between JIT boundaries, not the math (bench
           # 0902: fused ar_full_stoch at n=1 is ~12 ms trunk-included).
           features_n = Nx.tile(features, [n, 1])
-          key = fresh_key()
+          key = Keyword.get(opts, :key) || fresh_key()
 
           {buttons, rest, b_l} =
             jitted(:ar_tiled_stoch, &ar_tiled_stochastic/4).(head, features_n, key, temps)
@@ -250,7 +252,7 @@ defmodule ExPhil.Networks.Policy.Sampling do
           {b, rest, b_l}
 
         argmax_buttons? ->
-          key = fresh_key()
+          key = Keyword.get(opts, :key) || fresh_key()
 
           jitted(:ar_full_mixed, &ar_full_mixed/7).(
             head,
@@ -263,7 +265,7 @@ defmodule ExPhil.Networks.Policy.Sampling do
           )
 
         true ->
-          key = fresh_key()
+          key = Keyword.get(opts, :key) || fresh_key()
           jitted(:ar_full_stoch, &ar_full_stochastic/4).(head, features, key, temps)
       end
 
