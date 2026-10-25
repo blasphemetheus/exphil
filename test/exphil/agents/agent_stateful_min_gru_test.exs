@@ -119,7 +119,10 @@ defmodule ExPhil.Agents.AgentStatefulMinGRUTest do
 
   defp play(agent, xs) do
     for x <- xs do
-      {:ok, action} = Agent.get_action(agent, game_state(x))
+      # Same-frame polling returns a cached action; advance the game clock so
+      # recurrence, resync and rollback tests actually execute new steps.
+      frame = (:sys.get_state(agent).last_debounce_frame || -1) + 1
+      {:ok, action} = Agent.get_action(agent, %{game_state(x) | frame: frame})
       action_sig(action)
     end
   end
@@ -128,7 +131,7 @@ defmodule ExPhil.Agents.AgentStatefulMinGRUTest do
     {:ok, policy: build_policy()}
   end
 
-  for backbone <- [:min_gru, :gru, :mamba] do
+  for backbone <- [:min_gru, :gru, :mamba, :mamba_2, :mamba_ssd] do
     test "#{backbone}: a reset batch row gets cold padding without advancing other rows" do
       policy = build_policy(:autoregressive, unquote(backbone))
       agents = for _ <- 1..3, do: start_agent(policy, stateful_step: true)
@@ -158,6 +161,72 @@ defmodule ExPhil.Agents.AgentStatefulMinGRUTest do
     end
   end
 
+  for backbone <- [:min_gru, :mamba, :mamba_2, :mamba_ssd] do
+    test "#{backbone}: compiled cold start and resync preserve window state and rollback" do
+      backbone = unquote(backbone)
+      policy = build_policy(:autoregressive, backbone)
+      agent = start_agent(policy, stateful_step: true, stateful_resync: 2)
+      windowed = start_agent(policy, [])
+      assert Agent.get_config(agent).stateful_step_active
+      {:ok, before_warmup} = Agent.snapshot_state(agent)
+      {:ok, _milliseconds} = Agent.warmup(agent)
+      assert Agent.snapshot_state(agent) == {:ok, before_warmup}
+      assert play(agent, [12.0]) == play(windowed, [12.0])
+
+      for x <- [5.0, -7.0, 9.0, 20.0, -1.0, 3.0] do
+        play(agent, [x])
+        play(windowed, [x])
+      end
+
+      before = :sys.get_state(agent)
+      assert before.steps_since_resync >= 2
+      assert play(agent, [18.0]) == play(windowed, [18.0])
+      after_resync = :sys.get_state(agent)
+      assert after_resync.steps_since_resync == 0
+
+      module =
+        case backbone do
+          :min_gru -> Edifice.Recurrent.MinGRU
+          :mamba -> Edifice.SSM.Mamba
+          _ -> Edifice.SSM.MambaSSD
+        end
+
+      initial =
+        module.init_state(after_resync.trunk_step_params,
+          batch_size: 1,
+          hidden_size: @hidden_size,
+          num_layers: @num_layers
+        )
+
+      frames = Enum.reverse(before.step_frame_buffer) ++ [hd(after_resync.step_frame_buffer)]
+      step = Edifice.Stateful.jit_step(module, EXLA)
+
+      expected =
+        Enum.reduce(frames, initial, fn frame, s ->
+          elem(step.(after_resync.trunk_step_params, s, frame), 1)
+        end)
+
+      for {key, tensor} <- expected do
+        Nx.Testing.assert_all_close(after_resync.trunk_state[key], tensor,
+          atol: 1.0e-5,
+          rtol: 1.0e-5
+        )
+      end
+
+      {:ok, snapshot} = Agent.snapshot_state(agent)
+      actions = play(agent, [1.0, 8.0, -4.0, 2.0])
+      {:ok, final_snapshot} = Agent.snapshot_state(agent)
+      :ok = Agent.restore_state(agent, snapshot)
+      assert play(agent, [1.0, 8.0, -4.0, 2.0]) == actions
+      assert Agent.snapshot_state(agent) == {:ok, final_snapshot}
+      :ok = Agent.reset_buffer(agent)
+      :ok = Agent.reset_buffer(windowed)
+      assert play(agent, [6.0]) == play(windowed, [6.0])
+      GenServer.stop(agent)
+      GenServer.stop(windowed)
+    end
+  end
+
   test "autoregressive head, batched state, row reset and rollback use the MinGRU adapter" do
     policy = build_policy(:autoregressive)
     agent = start_agent(policy, stateful_step: true)
@@ -177,6 +246,17 @@ defmodule ExPhil.Agents.AgentStatefulMinGRUTest do
     after_reset = :sys.get_state(agent).batch.trunk_state.h
     assert Nx.to_number(Nx.all(Nx.equal(Nx.take(after_reset, 0), 0))) == 1
     assert Nx.to_binary(Nx.take(after_reset, 1)) == Nx.to_binary(Nx.take(before, 1))
+    GenServer.stop(agent)
+    GenServer.stop(windowed)
+  end
+
+  test "legacy Mamba-2 convolution history follows exported weights" do
+    policy = build_policy(:autoregressive, :mamba_2)
+    policy = %{policy | config: Map.put(policy.config, :conv_size, 1)}
+    agent = start_agent(policy, stateful_step: true)
+    windowed = start_agent(policy, [])
+    assert Nx.axis_size(:sys.get_state(agent).trunk_state.conv, 2) == 3
+    assert play(agent, [12.0]) == play(windowed, [12.0])
     GenServer.stop(agent)
     GenServer.stop(windowed)
   end

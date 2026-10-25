@@ -215,7 +215,7 @@ defmodule ExPhil.Agents.Agent do
       see `ExPhil.Networks.Policy.Sampling.sample/4`.
     - `:embed_config` - Embedding configuration (auto-detected from policy)
     - `:stateful_step` - O(1) recurrent inference via the Edifice.Stateful
-      step API (temporal GRU/LSTM/Mamba/MinGRU policies; default: false). Enables
+      step API (temporal GRU/LSTM/Mamba/Mamba-2/MinGRU policies; default: false). Enables
       `snapshot_state/1` / `restore_state/2` for netplay rollback.
   """
   @spec start_link([start_option()]) :: GenServer.on_start()
@@ -451,7 +451,7 @@ defmodule ExPhil.Agents.Agent do
   The blob captures the Edifice.Stateful trunk state plus the agent's own
   per-frame bookkeeping (jump cooldown, last action/controller for the
   prev-action channel and hysteresis). Only available in stateful-step
-  mode (`stateful_step: true` with a temporal GRU/LSTM/Mamba/MinGRU policy).
+  mode (`stateful_step: true` with a temporal GRU/LSTM/Mamba/Mamba-2/MinGRU policy).
 
   Returns `{:ok, binary}` or `{:error, :not_stateful}`.
   """
@@ -924,6 +924,12 @@ defmodule ExPhil.Agents.Agent do
 
           stage_t = stage.("trunk_step", stage_t)
 
+          # Compile cold-start/resync replay before the first game frame.
+          # Discard its carry just like the throwaway step above. BPTT never
+          # pads or resyncs, so it needs no replay executable.
+          if not (state.bptt == true), do: warm_trunk(state, state.trunk_state, frame)
+          stage_t = stage.("trunk_replay", stage_t)
+
           # The live step path samples via Policy.sample(heads_predict_fn,
           # features) — same fused-sampler compile hazard as the windowed
           # path (see warmup_sample), so warm THAT program, not the bare
@@ -1147,13 +1153,19 @@ defmodule ExPhil.Agents.Agent do
     else
       blob =
         :erlang.term_to_binary(%{
-          version: 1,
+          version: 2,
           trunk_state: Edifice.Stateful.serialize(state.trunk_state),
           trunk_cold: state.trunk_cold,
           jump_cooldown: state.jump_cooldown,
           last_action: state.last_action && Edifice.Stateful.serialize(state.last_action),
           last_controller: state.last_controller,
-          frames_since_inference: state.frames_since_inference
+          frames_since_inference: state.frames_since_inference,
+          last_debounce_frame: state.last_debounce_frame,
+          was_airborne: state.was_airborne,
+          controller_queue: state.controller_queue,
+          stick_run: state.stick_run,
+          steps_since_resync: state.steps_since_resync,
+          step_frame_buffer: Enum.map(state.step_frame_buffer, &Edifice.Stateful.serialize/1)
         })
 
       {:reply, {:ok, blob}, state}
@@ -1166,6 +1178,7 @@ defmodule ExPhil.Agents.Agent do
       {:reply, {:error, :not_stateful}, state}
     else
       snap = :erlang.binary_to_term(blob)
+      unless snap.version in [1, 2], do: raise(ArgumentError, "unsupported snapshot version")
 
       new_state = %{
         state
@@ -1174,7 +1187,16 @@ defmodule ExPhil.Agents.Agent do
           jump_cooldown: snap.jump_cooldown,
           last_action: snap.last_action && Edifice.Stateful.deserialize(snap.last_action),
           last_controller: snap.last_controller,
-          frames_since_inference: snap.frames_since_inference
+          frames_since_inference: snap.frames_since_inference,
+          # Version 1 did not store these fields. Never retain bookkeeping
+          # from the future when loading a legacy snapshot; exact resync and
+          # queue replay require a version 2 snapshot.
+          last_debounce_frame: Map.get(snap, :last_debounce_frame),
+          was_airborne: Map.get(snap, :was_airborne),
+          controller_queue: Map.get(snap, :controller_queue, []),
+          stick_run: Map.get(snap, :stick_run),
+          steps_since_resync: Map.get(snap, :steps_since_resync, 0),
+          step_frame_buffer: Enum.map(Map.get(snap, :step_frame_buffer, []), &Edifice.Stateful.deserialize/1)
       }
 
       {:reply, :ok, new_state}
@@ -1576,10 +1598,7 @@ defmodule ExPhil.Agents.Agent do
 
     trunk_state =
       if state.trunk_cold and not (state.bptt == true) do
-        Enum.reduce(1..max(state.window_size - 1, 0)//1, state.trunk_state, fn _, st ->
-          {_out, st} = trunk_step_fn(state.backbone).(state.trunk_step_params, st, frame)
-          st
-        end)
+        warm_trunk(state, state.trunk_state, frame)
       else
         state.trunk_state
       end
@@ -1880,14 +1899,11 @@ defmodule ExPhil.Agents.Agent do
     # off-distribution and caused an opening-SD pathology in live probes
     # (stock lost at frame ~120 in every cold-start game). Replicate the
     # pad semantics: step the first frame window_size-1 extra times, once
-    # per game (~13 ms total on the 5090 for window 60).
+    # per game, in one compiled replay call.
     # BPTT instead starts from zero carry and consumes each input once.
     trunk_state =
       if state.trunk_cold and not (state.bptt == true) do
-        Enum.reduce(1..max(state.window_size - 1, 0)//1, state.trunk_state, fn _, st ->
-          {_out, st} = trunk_step_fn(state.backbone).(state.trunk_step_params, st, frame)
-          st
-        end)
+        warm_trunk(state, state.trunk_state, frame)
       else
         state.trunk_state
       end
@@ -1895,8 +1911,8 @@ defmodule ExPhil.Agents.Agent do
     # Hybrid re-sync: rebuild the state as-if sliding-window (fresh init,
     # stepped through the buffered previous window_size-1 frames) every
     # :stateful_resync frames. Bounds carried-state drift to K frames;
-    # costs window_size-1 extra steps every K (amortized ~nothing at
-    # K >= 30). Buffer holds PREVIOUS frames newest-first; the current
+    # costs a compiled window replay every K. Buffer holds PREVIOUS
+    # frames newest-first; the current
     # frame is stepped normally below either way.
     buffer = Enum.take([frame | state.step_frame_buffer], max(state.window_size - 1, 1))
 
@@ -1909,12 +1925,10 @@ defmodule ExPhil.Agents.Agent do
       if resync? do
         fresh = fresh_trunk_state(state, 1)
 
-        state.step_frame_buffer
+        frames = state.step_frame_buffer
+        |> Enum.take(max(state.window_size - 1, 0))
         |> Enum.reverse()
-        |> Enum.reduce(fresh, fn f, st ->
-          {_out, st} = trunk_step_fn(state.backbone).(state.trunk_step_params, st, f)
-          st
-        end)
+        replay_trunk(state, fresh, frames)
       else
         trunk_state
       end
@@ -1987,8 +2001,32 @@ defmodule ExPhil.Agents.Agent do
   # regime unless :stateful_resync bounds it or the policy was trained with
   # carried state.
   defp stateful_module(:mamba), do: Edifice.SSM.Mamba
+  defp stateful_module(backbone) when backbone in [:mamba_2, :mamba_ssd], do: Edifice.SSM.MambaSSD
   defp stateful_module(:min_gru), do: Edifice.Recurrent.MinGRU
   defp stateful_module(_recurrent), do: Edifice.Recurrent
+
+  defp warm_trunk(%{window_size: window}, trunk, _frame) when window <= 1, do: trunk
+  defp warm_trunk(state, trunk, frame) do
+    {batch, width} = Nx.shape(frame)
+    frames = frame |> Nx.new_axis(1) |> Nx.broadcast({batch, state.window_size - 1, width})
+    replay_trunk(state, trunk, frames)
+  end
+
+  defp replay_trunk(_state, trunk, []), do: trunk
+  defp replay_trunk(state, trunk, frames) when is_list(frames),
+    do: replay_trunk(state, trunk, Nx.stack(frames, axis: 1))
+  defp replay_trunk(state, trunk, frames) do
+    module = stateful_module(state.backbone)
+    if Code.ensure_loaded?(EXLA) do
+      replay = Edifice.Stateful.jit_replay(module, EXLA, xla_exec_cache("trunk_replay", module))
+      replay.(state.trunk_step_params, trunk, frames)
+    else
+      Enum.reduce(0..(Nx.axis_size(frames, 1) - 1), trunk, fn i, carry ->
+        {_, next} = module.step(state.trunk_step_params, carry, Nx.take(frames, i, axis: 1))
+        next
+      end)
+    end
+  end
 
   # Persistent XLA executable cache (JIT_WARMUP.md step 1) — see
   # ExPhil.Training.Utils.xla_exec_cache/2.
@@ -2005,6 +2043,7 @@ defmodule ExPhil.Agents.Agent do
     {prefix, extras} =
       case cell_type do
         :mamba -> {"mamba_block_", ["input_projection"]}
+        kind when kind in [:mamba_2, :mamba_ssd] -> {"mamba_ssd_block_", ["input_projection"]}
         :min_gru -> {"min_gru_", ["input_projection", "final_norm"]}
         _ -> {"#{cell_type}_", ["input_ln"]}
       end
@@ -2112,14 +2151,19 @@ defmodule ExPhil.Agents.Agent do
     )
   end
 
-  defp init_trunk_state(trunk_params, embed_config, :mamba, batch_size) do
-    Edifice.SSM.Mamba.init_state(trunk_params,
+  defp init_trunk_state(trunk_params, embed_config, backbone, batch_size)
+       when backbone in [:mamba, :mamba_2, :mamba_ssd] do
+    prefix = if backbone == :mamba, do: "mamba_block", else: "mamba_ssd_block"
+    # Legacy :mamba_2 builders fixed the convolution width at four even when
+    # metadata requested another width. Allocate history from the actual weights.
+    conv_size = Nx.axis_size(trunk_params["#{prefix}_1_conv_dw_conv"]["kernel"], 0)
+    stateful_module(backbone).init_state(trunk_params,
       batch_size: batch_size,
       hidden_size: embed_config[:hidden_size] || 256,
       num_layers: embed_config[:num_layers] || 2,
       state_size: embed_config[:state_size] || 16,
       expand_factor: embed_config[:expand_factor] || 2,
-      conv_size: embed_config[:conv_size] || 4
+      conv_size: conv_size
     )
   end
 
@@ -2136,7 +2180,7 @@ defmodule ExPhil.Agents.Agent do
   # shapes fixed by the checkpoint, so it is derived from the live state
   # (the SSM dims are not in state.embed_config).
   defp fresh_trunk_state(%{backbone: backbone, trunk_state: %{} = live}, n)
-       when backbone in [:mamba, :min_gru] do
+       when backbone in [:mamba, :mamba_2, :mamba_ssd, :min_gru] do
     Map.new(live, fn {k, v} ->
       shape = v |> Nx.shape() |> put_elem(0, n)
       {k, Nx.broadcast(Nx.tensor(0.0, type: Nx.type(v)), shape)}
@@ -2318,19 +2362,17 @@ defmodule ExPhil.Agents.Agent do
       if MapSet.size(cold_rows) > 0 and not (state.bptt == true) do
         mask = Nx.tensor(Enum.map(0..(n - 1), &if(MapSet.member?(cold_rows, &1), do: 1, else: 0)), type: :u8)
 
-        Enum.reduce(1..max(state.window_size - 1, 0)//1, b.trunk_state, fn _, st ->
-          {_out, advanced} = trunk_step_fn(state.backbone).(state.trunk_step_params, st, frames)
-          # Only reset rows receive first-frame padding. Other games must
-          # retain their carry until the single real frame below.
-          if MapSet.size(cold_rows) == n do
-            advanced
-          else
-            Map.new(st, fn {k, v} ->
-              m = Nx.reshape(mask, List.to_tuple([n | List.duplicate(1, Nx.rank(v) - 1)]))
-              {k, Nx.select(Nx.broadcast(m, Nx.shape(v)), advanced[k], v)}
-            end)
-          end
-        end)
+        advanced = warm_trunk(state, b.trunk_state, frames)
+        # Only reset rows receive first-frame padding. Other games must
+        # retain their carry until the single real frame below.
+        if MapSet.size(cold_rows) == n do
+          advanced
+        else
+          Map.new(b.trunk_state, fn {k, v} ->
+            m = Nx.reshape(mask, List.to_tuple([n | List.duplicate(1, Nx.rank(v) - 1)]))
+            {k, Nx.select(Nx.broadcast(m, Nx.shape(v)), advanced[k], v)}
+          end)
+        end
       else
         b.trunk_state
       end
@@ -3154,7 +3196,7 @@ defmodule ExPhil.Agents.Agent do
     end
 
     # Edifice.Stateful step path (opt-in via stateful_step / --stateful-step):
-    # O(1) recurrent inference for GRU/LSTM/Mamba/MinGRU temporal policies. Builds a
+    # O(1) recurrent inference for GRU/LSTM/Mamba/Mamba-2/MinGRU temporal policies. Builds a
     # heads-only predict fn (same layer names as the full policy, so the
     # exported params slot in unchanged) plus the initial trunk state.
     {trunk_params, trunk_state, heads_predict_fn, params} =
@@ -3162,10 +3204,10 @@ defmodule ExPhil.Agents.Agent do
         not state.stateful_step ->
           {nil, nil, nil, params}
 
-        not (temporal and backbone in [:gru, :lstm, :mamba, :min_gru]) ->
+        not (temporal and backbone in [:gru, :lstm, :mamba, :mamba_2, :mamba_ssd, :min_gru]) ->
           Logger.warning(
             "[Agent] stateful_step requested but backbone #{inspect(backbone)} " <>
-              "doesn't support the Edifice.Stateful step path (GRU/LSTM/Mamba/MinGRU only) — " <>
+              "doesn't support the Edifice.Stateful step path (GRU/LSTM/Mamba/Mamba-2/MinGRU only) — " <>
               "falling back to windowed inference"
           )
 

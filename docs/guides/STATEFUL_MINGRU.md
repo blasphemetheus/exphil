@@ -66,8 +66,8 @@ The archived Mamba-2 checkpoint
 `mewtwo_combo_newera_mamba2_screen_best_policy.bin` passes prefix parity on a
 320-frame Mewtwo replay excerpt (7.63e-6 max error), with 100% controller
 agreement in both modes. All probes check exact snapshot replay and numerical
-agreement at resync boundaries. Mamba-2 still needs an ExPhil Agent adapter;
-this probe calls Edifice directly. Older SSD matmul-path exports retain the
+agreement at resync boundaries. This initial probe calls Edifice directly;
+the Mamba-2 Agent adapter is covered by the follow-up below. Older SSD matmul-path exports retain the
 compatibility caveat described in Edifice's benchmark notes.
 
 Example (the output path must not already exist):
@@ -94,14 +94,60 @@ carry. Regression tests cover MinGRU, GRU and Mamba; BPTT still consumes each
 frame once. The 32 targeted stateful Agent/network tests pass, as do all 11
 MinGRU integration/reset tests with the EXLA CUDA client explicitly selected.
 
+## Compiled replay and Mamba-2 adapter (2026-10-25)
+
+Cold-start padding and single-agent resync now use Edifice's compiled replay
+loop. Observe-only cold starts and batched cold/reset rows use it too; continuing
+batch rows retain their state until the next real frame. `Agent.warmup/1`
+compiles replay using throwaway carry so menu-time warmup does not advance the
+game's memory. BPTT still consumes each input once and never pads/resyncs.
+
+Both `:mamba_2` and `:mamba_ssd` exports now support `stateful_step: true`, with
+their learned projection and SSD blocks. Convolution history is allocated from
+the kernel width in the weights, including legacy `:mamba_2` exports whose
+builder ignored the metadata's convolution width.
+
+Snapshots are now version 2: they include the resync buffer and counter,
+game-frame debounce, airborne state, controller queue and stick-duration state.
+These fields are necessary for deterministic replay across resync boundaries.
+Version 1 snapshots remain readable with empty/default values for the omitted
+fields; they cannot reproduce history they never stored. Stochastic action
+sampling is not covered by the deterministic rollback guarantee.
+
+The real `mewtwo_combo_newera_mamba2_screen_best_policy.bin` checkpoint passes
+an Agent-level check over 96 recorded Mewtwo frames: first-frame agreement
+with windowed inference, warmup preserving the snapshot, and exact actions
+and final snapshot after rollback/replay through periodic resync. Result:
+`eval_runs/recurrent_replay_20261025/mamba2_agent.json`.
+
+```sh
+EXLA_TARGET=host EXPHIL_EXLA_PRECISION=highest mix run scripts/validate_recurrent_agent.exs \
+  --policy checkpoints/mewtwo_combo_newera_mamba2_screen_best_policy.bin \
+  --replay replays/greg/mewtwo/Game_20240222T222930.slp \
+  --character mewtwo --out /tmp/mamba2-agent.json
+```
+
+CPU replay-core benchmarks show cold padding dropping from 10.9 to 1.0 ms
+for MinGRU, 12.9 to 4.6 ms for GRU, 27.6 to 9.3 ms for Mamba, and 11.1 to
+2.8 ms for Mamba-2. These use synthetic resident backbones and exclude input
+assembly, heads and first compilation; see Edifice's benchmark report. The GPU
+was occupied by the overnight league and has not been timed for this change.
+
+The integration tests now advance game frame numbers. Previously, repeatedly
+submitting frame 0 let action caching mask whether subsequent inference and
+rollback actually ran. They now check complete post-replay snapshots too.
+All 35 targeted CPU tests pass (six Edifice replay tests and 29 Agent tests),
+including both Mamba-2 aliases, legacy convolution metadata, partial batch
+resets, warmup and resync rollback. Validation used separate Elixir VMs with
+the existing compiled dependencies and the changed source modules loaded;
+the live overnight queue's native libraries were not rebuilt.
+
 Remaining improvements:
 
-- Compile cold-start/window replay as a single chunk operation, reducing the
-  many separate launches on startup and resync.
 - Implement per-row resync for batched inference. `stateful_resync` currently
   applies to the single-agent decision path, not `batch_get_controllers`.
-- Integrate the validated Mamba-2 step adapter into ExPhil, then measure the
-  complete policy with real checkpoint dimensions. These exports use raw
+- Measure GPU replay and the complete policy with real checkpoint dimensions.
+  These exports use raw
   input widths 264/288, unlike the 516-wide controlled microbenchmark.
 - Validate window-trained carry in closed-loop play before changing defaults;
   train with explicit carried state if indefinite memory is desired.

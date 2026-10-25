@@ -1,0 +1,12 @@
+{
+  "precision": "highest",
+  "client": "host",
+  "frames": 96,
+  "stateful_resync": 30,
+  "policy": "checkpoints/mewtwo_combo_newera_mamba2_screen_best_policy.bin",
+  "replay": "replays/greg/mewtwo/Game_20240222T222930.slp",
+  "warmup_ms": 336,
+  "cold_action_matches_window": true,
+  "warmup_preserves_state": true,
+  "rollback_exact": true
+}
