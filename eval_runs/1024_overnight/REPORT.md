@@ -393,3 +393,47 @@ Epoch 4 is at or above the candidate on every agreement number (fam +1.1, joint 
 STANDING +0.6 vs its corpus value) with ~half the candidate's training frames; ep3->ep4 is flat on
 families and +1.1 joint, i.e. the curve is bending. Epochs 5-6 run as queued; the league in stage 3
 puts master_last against the candidate in play.
+val_loss=3.0224
+DONE fox_mamba_master_ep5
+RESULT ALL frames: n 39430  joint 73.4%  buttons 93.4%  families 85.9%  main dir 92.9% (bucket 86.3%, ±1 89.6%)  c dir 99.1%  trigger 97.4%  jump 97.3%  attack 99.2%  special 99.0%  surprise 2.784  change recall 73.0%  false change 8.0%
+RESULT CHANGE frames (real input changed): n 11028  joint 25.5%  buttons 77.2%  families 52.4%  main dir 74.8% (bucket 51.4%, ±1 63.2%)  c dir 97.0%  trigger 92.7%  jump 90.8%  attack 97.1%  special 96.6%  surprise 3.306  change recall 73.0%  false change %
+RESULT frames with a real press edge: n 1314  joint 0.9%  buttons 19.7%  families 6.7%  main dir 89.9% (bucket 78.5%, ±1 85.9%)  c dir 99.5%  trigger 76.0%  jump 57.5%  attack 86.7%  special 84.8%  surprise 5.07  change recall 29.7%  false change %
+RESULT DECISION frames (stick head trained here): n 13176  joint 40.5%  buttons 80.9%  families 63.5%  main dir 78.7% (bucket 59.1%, ±1 69.0%)  c dir 99.1%  trigger 95.8%  jump 92.3%  attack 97.5%  special 97.1%  surprise 2.475  change recall 74.1%  false change 7.3%
+RESULT press calibration jump: AUC 0.866  mean P on press frames 0.074 vs no-press 0.021  press frames above the no-press median 96.2%  (n 523 / 35276)
+RESULT press calibration attack: AUC 0.929  mean P on press frames 0.1 vs no-press 0.009  press frames above the no-press median 99.4%  (n 165 / 38183)
+RESULT press calibration special: AUC 0.957  mean P on press frames 0.161 vs no-press 0.008  press frames above the no-press median 98.1%  (n 207 / 37830)
+RESULT press calibration trigger: AUC 0.905  mean P on press frames 0.289 vs no-press 0.024  press frames above the no-press median 95.6%  (n 387 / 32618)
+RESULT STANDING change frames: n 234 change recall 53% families 35.9%
+EPOCH 5 DONE light (00:24)
+
+### master epoch 6 (lr 0.0001) (00:24)
+val_loss=2.977
+DONE fox_mamba_master_ep6
+RESULT ALL frames: n 39430  joint 73.5%  buttons 93.5%  families 86.2%  main dir 93.2% (bucket 86.6%, ±1 90.0%)  c dir 99.1%  trigger 97.4%  jump 97.3%  attack 99.2%  special 99.0%  surprise 3.129  change recall 73.1%  false change 8.2%
+RESULT CHANGE frames (real input changed): n 11028  joint 26.4%  buttons 77.2%  families 53.4%  main dir 76.0% (bucket 52.5%, ±1 64.5%)  c dir 97.0%  trigger 92.8%  jump 90.7%  attack 97.1%  special 96.5%  surprise 3.33  change recall 73.1%  false change %
+RESULT frames with a real press edge: n 1314  joint 1.4%  buttons 20.2%  families 7.7%  main dir 90.4% (bucket 79.1%, ±1 86.4%)  c dir 99.5%  trigger 76.7%  jump 57.7%  attack 86.8%  special 85.2%  surprise 5.121  change recall 30.3%  false change %
+RESULT DECISION frames (stick head trained here): n 13176  joint 41.2%  buttons 80.9%  families 64.3%  main dir 79.7% (bucket 60.0%, ±1 70.0%)  c dir 99.1%  trigger 95.8%  jump 92.2%  attack 97.6%  special 97.1%  surprise 2.472  change recall 74.3%  false change 7.6%
+RESULT press calibration jump: AUC 0.873  mean P on press frames 0.079 vs no-press 0.021  press frames above the no-press median 96.7%  (n 523 / 35276)
+RESULT press calibration attack: AUC 0.936  mean P on press frames 0.109 vs no-press 0.009  press frames above the no-press median 99.4%  (n 165 / 38183)
+RESULT press calibration special: AUC 0.96  mean P on press frames 0.186 vs no-press 0.008  press frames above the no-press median 98.6%  (n 207 / 37830)
+RESULT press calibration trigger: AUC 0.909  mean P on press frames 0.318 vs no-press 0.025  press frames above the no-press median 97.2%  (n 387 / 32618)
+RESULT STANDING change frames: n 234 change recall 54.3% families 40.2%
+EPOCH 6 DONE light (03:14)
+
+STAGE 2 DONE (03:14)
+
+## Stage 3 — dose-matched null arm (epoch 3 from s906 ep2, null mix) (03:14)
+
+## Stage 2 FINAL READ (Claude, 03:20) — master held-out split; candidate = fam 52.1 / joint 26.2 / recall 72.1 / AUC 0.874
+      ep   fam%   joint  recall  AUCjump  STANDING
+      1    52.1   26.2   72.1    0.874    47
+      2    52.3   25.8   70.5    0.865    47.4
+      3    53.4   25.5   72.6    0.866    50
+      4    53.2   26.6   71.4    0.875    49.6
+      5    52.4   25.5   73.0    0.866    53
+      6    53.4   26.4   73.1    0.873    54.3
+Plateau from epoch 3: families 53.2-53.4 (candidate 52.1), joint 25.5-26.6 (26.2), AUC 0.866-0.875 (0.874).
+STANDING change recall climbs every epoch (47 -> 54 %; candidate 49 on its corpus split): the master-only model is
+LESS passive from standing without any loss weighting. Read: training on master games only reaches the candidate’s
+agreement with ~1/2 the frames and beats it by ~1 point on option families and ~5 points on standing-state activity;
+it does not run away from it. The league (stage 3) tests whether that is worth anything in play.
