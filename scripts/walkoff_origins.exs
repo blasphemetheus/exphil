@@ -135,7 +135,7 @@ summary =
       died_share: (if ts == [], do: nil, else: Float.round(Enum.count(ts, &(&1.outcome == :died)) / length(ts), 2)),
       stick_toward: mean.(Enum.map(ts, & &1.stick_toward_share)), stick_full_out: mean.(Enum.map(ts, & &1.stick_full_out_share)),
       jumps_left: mean.(Enum.map(ts, &(&1.jumps_left || 0))),
-      last_ground: ts |> Enum.map(& &1.last_ground_action) |> Enum.reject(&is_nil/1) |> Enum.frequencies() |> Enum.sort_by(&(-elem(&1, 1))) |> Enum.take(3)}
+      last_ground: ts |> Enum.map(& &1.last_ground_action) |> Enum.reject(&is_nil/1) |> Enum.frequencies() |> Enum.sort_by(&(-elem(&1, 1))) |> Enum.take(3) |> Enum.map(fn {k, v} -> [k, v] end)}
   end)
 
 Output.puts("RESULT #{label} walk-off origins: #{length(trips)} trips in #{Float.round(minutes, 1)} env-min (#{Float.round(length(trips) / max(minutes, 1.0e-3), 2)}/min)")

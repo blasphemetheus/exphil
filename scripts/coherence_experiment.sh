@@ -18,7 +18,7 @@ out=eval_runs/1001_queue/$name
 ckpt=checkpoints/coh_$name
 mkdir -p "$out"
 run="mix run --no-compile --no-deps-check"
-export EDIFICE_FUSED_CUSTOM_CALL=1 EXLA_TARGET=cuda EXPHIL_GPU_MEMORY_FRACTION=0.45 EXPHIL_EXLA_PRECISION=highest
+export EDIFICE_FUSED_CUSTOM_CALL=${EDIFICE_FUSED_CUSTOM_CALL:-1} EXLA_TARGET=cuda EXPHIL_GPU_MEMORY_FRACTION=0.45 EXPHIL_EXLA_PRECISION=highest
 trainer=${TRAINER:-scripts/train_fox_mamba.exs}
 
 train_args=(--backbone "${BACKBONE:-min_gru}" --stage-internals --hidden-sizes 256,256
