@@ -225,12 +225,12 @@ A separate fused-on Mamba check also passes, with the handler library confirmed
 loaded. Edifice now loads OTP crypto before the handler library; a fresh Erlang
 VM regression reproduces the old load-order crash and passes with the fix.
 
-The 32 seeded closed-loop screens are summarized in
+The initial 32 seeded CPU closed-loop screens are summarized in
 `eval_runs/recurrent_resync_20261025/RESULTS.md`. Against an active opponent,
 MinGRU self-destructs/min were 3.125 windowed, 5.0 carried, 4.0 resync30 and
 4.25 resync60. Resync30 helps but does not recover windowed performance.
-Keep deployment defaults unchanged. Mamba/Mamba-2 have idle-opponent screens
-only, which cannot establish competitive performance.
+Keep deployment defaults unchanged. That initial screen only used idle opponents
+for Mamba/Mamba-2; the later active-opponent follow-up is linked below.
 
 The integration was fast-forwarded onto main after the walkoff queue finished
 on October 25; the application compiled successfully, including Edifice's crypto
@@ -239,3 +239,23 @@ now stops on merge, compilation or test failures instead of running missing flag
 
 Larger closed-loop trials against active opponents remain necessary before changing
 resync defaults. Train with explicit carried state if indefinite memory is desired.
+
+## Additional full-policy profiles and active opponents (October 25)
+
+`eval_runs/recurrent_policy_20261025/RESULTS.md` profiles trained GRU and Mamba-2
+with 50 samples per case, including partial resets and actual resync events.
+The two-layer 512-wide BPTT GRU takes 0.869 ms median for eight batched controller
+outputs on CUDA; BPTT must retain carry and must not use periodic resync.
+The archived independent-head Mamba-2 takes 1.392 ms for one carried Agent but
+13.282 ms for eight sequential Agents. Its supported fallback, not its recurrence
+alone, limits batched evaluation throughput. Independent-head batching is a useful
+next integration target. The profile also checks public single-Agent rollback,
+internal batched rollback and warmup-state preservation.
+
+The four-seed CUDA active-opponent comparison is documented in
+`eval_runs/recurrent_active_20261025/PROTOCOL.md` and `RESULTS.md`, with raw per-seed
+metrics and paired differences. These are NIF simulator screens on FD with
+synchronous zero-delay inference, not Dolphin/netplay promotion tests. The archived
+Mamba-2 also has legacy leaked training labels; do not generalize its quality to a
+correctly trained Mamba-2. Compare modes within a checkpoint, not architectures
+against each other. Deployment defaults remain unchanged.

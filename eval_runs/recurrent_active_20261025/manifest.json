@@ -1,0 +1,24 @@
+{
+  "exphil_revision": "61250f4fe85e639dc3ca576ccacee73ab4f9fd4e",
+  "edifice_revision": "3592f3d5d2d42fdd4cbff1aa717c4e57c640cdbb",
+  "sha256": {
+    "scripts/sim_closed_loop.exs": "cd8d8277299d4913fc12dd802f8f037fc7bdbb6af00ddffb0d27d22e2fbcad76",
+    "scripts/run_recurrent_validation.exs": "7f1e9d111e488144fa8c4573037b3bbcb60b74a6dbc779e48effe3a1ad497c42",
+    "lib/exphil/agents/agent.ex": "a0ba9cb838bfa31377e7ee02cfb6b9b7d74ee270a1e5956cdd4823ca04d964af",
+    "../edifice/lib/edifice/stateful.ex": "a4f7b197ca0256eab5519e0a1578d7a81aab891416e377f521dbbe1951c80bdc",
+    "../edifice/lib/edifice/stateful/replay.ex": "8a87ac117d50b4b7eb61c80f57e3ed94c99f7c1b6a481898afb9d91d1f0e60ca",
+    "checkpoints/coh_prev_q_ck4/model_best_policy.bin": "c6f6de79098b4d28a0133300163ed12c62de7cb2ae346703d911f7c04c99160d",
+    "checkpoints/coh_fullscale_mamba_v1/model_best_policy.bin": "3eeb7556fe9c5d1f3fc7c3c29f993e50c9e257620615afcd702217af1d268da6",
+    "checkpoints/mewtwo_combo_newera_mamba2_screen_best_policy.bin": "3145eb447d2d214edd2003798835dd93cfbcc93b96d51071e9f3932a78a7c029",
+    "checkpoints/fox_v3_20260917_050901_resume3/model_policy.bin": "7a7cce48ad31583d171ed9d6fb32026e8be38ab1a080d0d266c1f203a0ca6382"
+  },
+  "runtime": "RTX 5090, EXLA CUDA highest precision, portable kernels (EDIFICE_FUSED_CUSTOM_CALL=0), compiled local Nx/EXLA development dependencies",
+  "runner_source": "# Bare-VM runner: reuse compiled dependencies without rebuilding a shared NIF.\n# devenv shell -- elixir -pa '_build/dev/lib/*/ebin' scripts/run_recurrent_validation.exs SCRIPT [ARGS]\nApplication.ensure_all_started(:crypto)\nApplication.ensure_all_started(:exphil)\nclient = if System.get_env(\"RECURRENT_CLIENT\") == \"host\", do: :host, else: :cuda\nApplication.put_env(:exla, :clients, host: [platform: :host], cuda: [platform: :cuda, memory_fraction: 0.18, preallocate: false])\nApplication.put_env(:exla, :default_client, client)\nNx.global_default_backend({EXLA.Backend, client: client})\nNx.Defn.global_default_options(compiler: EXLA, client: client, precision: :highest)\nLogger.configure(level: :warning)\nCode.compile_file(Path.expand(\"../edifice/lib/edifice/stateful/replay.ex\"))\nCode.compile_file(Path.expand(\"../edifice/lib/edifice/stateful.ex\"))\nCode.compile_file(\"lib/exphil/agents/agent.ex\")\n[script | args] = System.argv()\nSystem.argv(args)\nCode.require_file(script)\n",
+  "protocol": "Seeds 1003..1006, FD, 1800 frames, fixed windowed MinGRU opponent; N=8 except independent-head Mamba-2 N=4. No deployment changes.",
+  "simulator_library": {
+    "path": "/home/blewf/git/msl-main/build/melee_core/python/libmelee_core.so",
+    "sha256": "fd543fbfd241e4b713fddf6d805130756de55db4bded855983362d71d68d0f5d",
+    "mtime_unix": 1790038180.0204644,
+    "note": "Loaded path verified through the running VM's maps; build predates this experiment (September 21)."
+  }
+}

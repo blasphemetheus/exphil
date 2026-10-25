@@ -1,0 +1,41 @@
+{
+  "deterministic": false,
+  "label": "min_gru_resync30_s1004",
+  "character": "fox",
+  "seed": 1004,
+  "stage": "final_destination",
+  "stateful_step": true,
+  "stateful_resync": 30,
+  "policy": "checkpoints/coh_prev_q_ck4/model_best_policy.bin",
+  "opponent": "checkpoints/coh_prev_q_ck4/model_best_policy.bin",
+  "envs": 8,
+  "opponent_character": "fox",
+  "deaths_by_verdict": {
+    "kill": 2,
+    "checkmate": 0,
+    "forced": 0,
+    "mixup": 14
+  },
+  "sampling_seeded": true,
+  "inference_driver": "batch",
+  "frames_per_env": 1800,
+  "env_minutes": 4.0,
+  "sd_per_min": 3.5,
+  "deaths_per_min": 4.0,
+  "kills_per_min": 4.5,
+  "deaths_by_verdict_per_min": {
+    "kill": 0.5,
+    "checkmate": 0.0,
+    "forced": 0.0,
+    "mixup": 3.5
+  },
+  "damage_dealt_per_min": 23.687,
+  "damage_taken_per_min": 35.208,
+  "offstage_episodes_per_min": 10.75,
+  "recovery_rate": 0.61,
+  "neutral_share": 0.275,
+  "repeat_prev": 0.744,
+  "max_frozen_run": 151,
+  "games_finished": 1,
+  "wall_s": 22.5
+}

@@ -1,0 +1,76 @@
+{
+  "driver": "batch",
+  "character": "fox",
+  "head": "autoregressive",
+  "rows": 8,
+  "precision": "highest",
+  "client": "cuda",
+  "bptt": false,
+  "backbone": "mamba",
+  "policy": "checkpoints/coh_fullscale_mamba_v1/model_best_policy.bin",
+  "replay": "/home/blewf/Slippi/2026-10-Mainline/Game_20261022T170737.slp",
+  "setup_us": 5591745,
+  "rollback": "internal_batch_fixture_exact",
+  "results": [
+    {
+      "rows": 0,
+      "kind": "ordinary",
+      "samples": 50,
+      "median_us": 989,
+      "p95_us": 1597
+    },
+    {
+      "rows": 1,
+      "kind": "cold_reset",
+      "samples": 50,
+      "median_us": 4688,
+      "p95_us": 4984
+    },
+    {
+      "rows": 3,
+      "kind": "cold_reset",
+      "samples": 50,
+      "median_us": 6503,
+      "p95_us": 6888
+    },
+    {
+      "rows": 8,
+      "kind": "cold_reset",
+      "samples": 50,
+      "median_us": 6764,
+      "p95_us": 7058
+    },
+    {
+      "rows": 1,
+      "kind": "resync",
+      "samples": 50,
+      "median_us": 4802,
+      "p95_us": 5387
+    },
+    {
+      "rows": 3,
+      "kind": "resync",
+      "samples": 50,
+      "median_us": 6566,
+      "p95_us": 7044
+    },
+    {
+      "rows": 8,
+      "kind": "resync",
+      "samples": 50,
+      "median_us": 6753,
+      "p95_us": 7313
+    },
+    {
+      "rows": 8,
+      "kind": "windowed",
+      "samples": 50,
+      "median_us": 2491,
+      "p95_us": 2882
+    }
+  ],
+  "warmup_preserves_state": true,
+  "exphil_revision": "61250f4fe85e639dc3ca576ccacee73ab4f9fd4e",
+  "edifice_revision": "3592f3d5d2d42fdd4cbff1aa717c4e57c640cdbb",
+  "note": "Full Agent controllers including embedding, recurrence, heads and transfer. Restore/reset calls and compilation excluded. Deterministic sampling. BPTT never resynchronized. Independent heads use sequential per-row Agents."
+}
