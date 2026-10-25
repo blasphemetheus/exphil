@@ -426,7 +426,7 @@ STAGE 2 DONE (03:14)
 
 ## Stage 2 FINAL READ (Claude, 03:20) — master held-out split; candidate = fam 52.1 / joint 26.2 / recall 72.1 / AUC 0.874
       ep   fam%   joint  recall  AUCjump  STANDING
-      1    52.1   26.2   72.1    0.874    47
+      1    50.8   23.8   68.2    0.854    47   (the parser had taken the candidate row for epoch 1; corrected)
       2    52.3   25.8   70.5    0.865    47.4
       3    53.4   25.5   72.6    0.866    50
       4    53.2   26.6   71.4    0.875    49.6
