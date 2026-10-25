@@ -1,0 +1,77 @@
+{
+  "precision": "highest",
+  "client": "cuda",
+  "batch": 8,
+  "policy": "checkpoints/coh_fullscale_mamba_v1/model_best_policy.bin",
+  "replay": "/home/blewf/Slippi/2026-10-Mainline/Game_20261022T170737.slp",
+  "iterations": 30,
+  "results": [
+    {
+      "kind": "resync",
+      "due": 0,
+      "median_us": 1056,
+      "p95_us": 1381
+    },
+    {
+      "kind": "resync",
+      "due": 1,
+      "median_us": 5456,
+      "p95_us": 6042
+    },
+    {
+      "kind": "resync",
+      "due": 3,
+      "median_us": 6764,
+      "p95_us": 7072
+    },
+    {
+      "kind": "resync",
+      "due": 8,
+      "median_us": 6806,
+      "p95_us": 7128
+    },
+    {
+      "kind": "cold_reset",
+      "due": 1,
+      "median_us": 5257,
+      "p95_us": 5587
+    },
+    {
+      "kind": "cold_reset",
+      "due": 3,
+      "median_us": 6620,
+      "p95_us": 6827
+    }
+  ],
+  "stage_profile": {
+    "ExPhil.Agents.Agent.action_to_controller/2": {
+      "calls": 240,
+      "total_us": 797,
+      "us_per_frame": 26.566666666666666
+    },
+    "ExPhil.Agents.Agent.batch_embed/3": {
+      "calls": 30,
+      "total_us": 13210,
+      "us_per_frame": 440.3333333333333
+    },
+    "ExPhil.Agents.Agent.batch_resync/6": {
+      "calls": 30,
+      "total_us": 49,
+      "us_per_frame": 1.6333333333333333
+    },
+    "ExPhil.Agents.Agent.batch_trunk_step/4": {
+      "calls": 30,
+      "total_us": 8311,
+      "us_per_frame": 277.03333333333336
+    },
+    "ExPhil.Networks.Policy.Sampling.sample_autoregressive_from_features/3": {
+      "calls": 30,
+      "total_us": 11739,
+      "us_per_frame": 391.3
+    }
+  },
+  "batch_setup_us": 3418641,
+  "reference_validated": true,
+  "stage_profile_note": "Optional Erlang call-time attribution on 30 ordinary frames, separate from timings. Traced callees are accounted separately. Not synchronized GPU kernel time; tracing overhead applies.",
+  "note": "Full Agent call includes embedding, recurrence, sampling and output transfer. Compilation, fixture reset and row-reset API calls excluded. Deterministic heads. Independent-head exports are not supported by this batched API."
+}
