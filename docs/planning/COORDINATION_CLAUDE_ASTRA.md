@@ -993,3 +993,5 @@ RUNNING: exphil-fox-mamba-ep2 (Mamba epoch 2 via --resume, ~8.5 h). No mix.
 
 ## 2026-10-25 — Codex final Mamba GPU validation, then sparse attention
 - User requested finishing the final Mamba GPU measurement, then NSA/MoBA corrections in Edifice. GPU is free at start; running one bounded trained-checkpoint benchmark with the full replay + host-embedding update. No training or native rebuild.
+
+- Final Mamba CUDA validation completed: baseline controllers exact and carry/features atol=rtol=1e-4; batch-8 median ordinary 1.056 ms, one-row resync 5.456 ms, all-row 6.806 ms. Artifact and RESULTS updated. GPU released; continuing NSA/MoBA in Edifice.

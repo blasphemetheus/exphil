@@ -21,9 +21,9 @@ Median milliseconds:
 | MinGRU three rows resync | 14.480 | 9.866 | 2.773 |
 | MinGRU all eight resync | 14.085 | 10.297 | 2.801 |
 | MinGRU one row cold reset | 11.787 | 10.086 | 2.842 |
-| Mamba ordinary frame | 8.579 | 8.619 | Pending GPU availability |
-| Mamba one row resync | 16.652 | 13.177 | Pending GPU availability |
-| Mamba all eight resync | 16.248 | 14.807 | Pending GPU availability |
+| Mamba ordinary frame | 8.579 | 8.619 | 1.056 |
+| Mamba one row resync | 16.652 | 13.177 | 5.456 |
+| Mamba all eight resync | 16.248 | 14.807 | 6.806 |
 
 MinGRU optimized p95: 1.336 ms ordinary, 3.191 ms one-row resync, 3.197 ms
 all-row resync. Measurements were sequential on a shared machine; unrelated CPU
@@ -46,7 +46,7 @@ replay-only run. Startup therefore costs more; steady-state carry is untouched.
 
 ## Correctness and limitations
 
-- Replay-only MinGRU/Mamba and the complete MinGRU optimization match baseline
+- Replay-only and complete MinGRU/Mamba optimizations match baseline
   controller structs exactly, and all features/carry within atol=rtol=1e-4.
 - 75 targeted integration tests pass, plus two additional pointwise-convolution
   replay cases. Coverage includes six Edifice backbones, nested state, tuple
@@ -54,10 +54,11 @@ replay-only run. Startup therefore costs more; steady-state carry is untouched.
   observe-only frames, toggling resync, warmup-state preservation and rollback.
 - Real Mamba and Mamba-2 single-Agent checks pass on CPU after the full update:
   cold action matches windowed, warmup preserves state, rollback is exact.
-- A separate Edifice registry-sweep test acquired ~29 GiB GPU memory after an
-  idle preflight check during the final Mamba run. XLA autotuning failed; that
-  attempt produced no timing artifact and is not included in these results.
-  Final full-update Mamba CUDA timing remains pending a free GPU.
+- Final full-update Mamba CUDA validation completed on a free GPU: p95 1.381 ms
+  ordinary, 6.042 ms one-row resync, 7.128 ms all-row resync. Setup was 3.419 s.
+  This supersedes the earlier failed autotuning attempt (no timing artifact).
+  Source: ExPhil `f8d74e04`, Edifice `6abe7d3`; see
+  `mamba_optimized_batch8.json` for all reset cases and call-time attribution.
 - No closed-loop quality claim is made here. The earlier resync/default behavior
   recommendations remain unchanged.
 
