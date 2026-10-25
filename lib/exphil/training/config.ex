@@ -1698,6 +1698,15 @@ defmodule ExPhil.Training.Config do
       # dropped at export. Windowed AR path only (not bptt).
       chunk_horizon: nil,
       chunk_weight: 1.0,
+      # press-window objective (2026-10-25, testbed stage 1 read: no loss WEIGHT moves exact-frame
+      # press commitment): with chunk futures, add W x BCE(P(pressed on SOME frame of t..t+K), any
+      # press in the window) per button. The per-frame BCE says "match this frame"; this term says
+      # "commit on one of them" and lets the model pick which. nil = off.
+      press_window_weight: nil,
+      # scoped anti-passivity (2026-10-25): multiply the loss weight of NEUTRAL frames by this
+      # when the subject is grounded and onstage (where --neutral-weight 0.5 doubled STANDING
+      # change recall), leaving offstage / airborne neutral frames alone (where it tripled SDs).
+      neutral_grounded_weight: nil,
       # Per-frame OFFSTAGE weight: frames where the subject is airborne
       # beyond the ledge get max(weight, offstage_weight) — rare-state
       # coverage for recovery (V2_PREP 09-08; bptt path via
