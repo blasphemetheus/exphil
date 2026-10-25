@@ -369,29 +369,35 @@ defmodule ExPhil.Agents.Agent do
 
   @doc """
   BATCHED sim path (SIM_INTEGRATION.md, 2026-09-21): drive `n` independent
-  environments through ONE trunk step + ONE autoregressive sample per frame.
+  environments through one batched trunk evaluation and head sample per frame.
   Profile that motivated it: `get_controller` costs ~8 ms at batch 1 and K
   agents in parallel processes do NOT scale (118-145 decisions/s for K=1..8,
   serialized on the EXLA client), so per-env GenServer calls cap a drill at
   ~55 fps. Batching amortizes the XLA launch overhead across envs.
 
-  Contract: stateful-step temporal policies with the autoregressive head
-  only (V3.x); no prev-action channel, queue depth 1, no jump debounce /
+  Contract: windowed or stateful temporal policies with independent or
+  autoregressive heads; per-row prev-action and button hysteresis, queue depth 1, no jump debounce /
   action repeat / steering / critic knobs — the deploy path keeps those.
   `batch_init/2` allocates the batched trunk state (all rows cold);
   `batch_reset_rows/2` re-inits chosen rows; `batch_observe/3` advances
   the rows on `[game_state]` without deciding (history warm-up);
   `batch_get_controllers/3` returns `[ControllerState]`, one per row.
   Every list is row-ordered and must have length `n`.
+  Independent windowed graphs return logits, so `return_features` and
+  `return_sample` require the stateful path. Independent mode-of-N sampling
+  is unsupported in batches. Explicit RNG keys reproduce a batch trajectory;
+  changing batch size changes the stochastic draws.
   """
   @spec batch_init(GenServer.server(), pos_integer()) :: :ok | {:error, term()}
-  def batch_init(agent, n) when is_integer(n) and n > 0, do: GenServer.call(agent, {:batch_init, n}, 120_000)
+  def batch_init(agent, n) when is_integer(n) and n > 0,
+    do: GenServer.call(agent, {:batch_init, n}, 120_000)
 
   @spec batch_reset_rows(GenServer.server(), [non_neg_integer()]) :: :ok | {:error, term()}
   def batch_reset_rows(agent, rows), do: GenServer.call(agent, {:batch_reset_rows, rows}, 30_000)
 
   @spec batch_observe(GenServer.server(), [map()], keyword()) :: :ok | {:error, term()}
-  def batch_observe(agent, game_states, opts \\ []), do: GenServer.call(agent, {:batch_observe, game_states, opts}, 60_000)
+  def batch_observe(agent, game_states, opts \\ []),
+    do: GenServer.call(agent, {:batch_observe, game_states, opts}, 60_000)
 
   @spec batch_get_controllers(GenServer.server(), [map()], keyword()) ::
           {:ok, [ExPhil.Bridge.ControllerState.t()]} | {:error, term()}
@@ -724,17 +730,37 @@ defmodule ExPhil.Agents.Agent do
         warm_batch_replay(state, trunk, n)
 
         {:reply, :ok,
-         %{state | batch: %{n: n, mode: :stateful, trunk_state: trunk, cold: true, last_controllers: List.duplicate(nil, n),
-           stick_runs: List.duplicate({0, 0}, n), replay_frames: [],
-           replay_lengths: List.duplicate(0, n), resync_steps: List.duplicate(0, n)}}}
+         %{
+           state
+           | batch: %{
+               n: n,
+               mode: :stateful,
+               trunk_state: trunk,
+               cold: true,
+               last_controllers: List.duplicate(nil, n),
+               stick_runs: List.duplicate({0, 0}, n),
+               replay_frames: [],
+               replay_lengths: List.duplicate(0, n),
+               resync_steps: List.duplicate(0, n)
+             }
+         }}
 
       {:ok, :window} ->
         # Windowed policies (Mamba, MinGRU, ...): a rolling {n, window, dim}
         # tensor; a cold row's window is its first frame repeated, exactly
         # like the single path's pad_sequence.
         {:reply, :ok,
-         %{state | batch: %{n: n, mode: :window, window: nil, cold_rows: MapSet.new(0..(n - 1)), last_controllers: List.duplicate(nil, n),
-           stick_runs: List.duplicate({0, 0}, n)}}}
+         %{
+           state
+           | batch: %{
+               n: n,
+               mode: :window,
+               window: nil,
+               cold_rows: MapSet.new(0..(n - 1)),
+               last_controllers: List.duplicate(nil, n),
+               stick_runs: List.duplicate({0, 0}, n)
+             }
+         }}
 
       {:error, _} = e ->
         {:reply, e, state}
@@ -742,14 +768,39 @@ defmodule ExPhil.Agents.Agent do
   end
 
   def handle_call({:batch_reset_rows, rows}, _from, %{batch: %{mode: :window} = b} = state) do
-    last = b.last_controllers |> Enum.with_index() |> Enum.map(fn {c, i} -> if i in rows, do: nil, else: c end)
+    b = reset_batch_buttons(b, rows)
+
+    last =
+      b.last_controllers
+      |> Enum.with_index()
+      |> Enum.map(fn {c, i} -> if i in rows, do: nil, else: c end)
+
     runs = reset_stick_runs(b.stick_runs, rows)
-    {:reply, :ok, %{state | batch: %{b | cold_rows: MapSet.union(b.cold_rows, MapSet.new(rows)), last_controllers: last, stick_runs: runs}}}
+
+    {:reply, :ok,
+     %{
+       state
+       | batch: %{
+           b
+           | cold_rows: MapSet.union(b.cold_rows, MapSet.new(rows)),
+             last_controllers: last,
+             stick_runs: runs
+         }
+     }}
   end
 
   def handle_call({:batch_reset_rows, rows}, _from, %{batch: %{n: n} = b} = state) do
-    b = %{b | last_controllers: b.last_controllers |> Enum.with_index() |> Enum.map(fn {c, i} -> if i in rows, do: nil, else: c end),
-          stick_runs: reset_stick_runs(b.stick_runs, rows)}
+    b = reset_batch_buttons(b, rows)
+
+    b = %{
+      b
+      | last_controllers:
+          b.last_controllers
+          |> Enum.with_index()
+          |> Enum.map(fn {c, i} -> if i in rows, do: nil, else: c end),
+        stick_runs: reset_stick_runs(b.stick_runs, rows)
+    }
+
     fresh = fresh_trunk_state(state, n)
     mask = Nx.tensor(Enum.map(0..(n - 1), fn i -> if i in rows, do: 1, else: 0 end), type: :u8)
 
@@ -764,12 +815,18 @@ defmodule ExPhil.Agents.Agent do
       end)
 
     cold_rows = MapSet.union(Map.get(b, :cold_rows, MapSet.new()), MapSet.new(rows))
-    b = %{b | replay_lengths: reset_row_counts(b.replay_lengths, rows),
-              resync_steps: reset_row_counts(b.resync_steps, rows)}
+
+    b = %{
+      b
+      | replay_lengths: reset_row_counts(b.replay_lengths, rows),
+        resync_steps: reset_row_counts(b.resync_steps, rows)
+    }
+
     {:reply, :ok, %{state | batch: Map.put(%{b | trunk_state: trunk}, :cold_rows, cold_rows)}}
   end
 
-  def handle_call({:batch_reset_rows, _rows}, _from, state), do: {:reply, {:error, :batch_not_initialized}, state}
+  def handle_call({:batch_reset_rows, _rows}, _from, state),
+    do: {:reply, {:error, :batch_not_initialized}, state}
 
   def handle_call({:batch_observe, game_states, opts}, _from, %{batch: %{}} = state) do
     try do
@@ -781,10 +838,19 @@ defmodule ExPhil.Agents.Agent do
       state =
         case Keyword.get(opts, :controllers) do
           cs when is_list(cs) and state.use_prev_action ->
-            runs = advance_stick_runs(state.batch.stick_runs, state.batch.last_controllers, cs, nil, state)
+            runs =
+              advance_stick_runs(
+                state.batch.stick_runs,
+                state.batch.last_controllers,
+                cs,
+                nil,
+                state
+              )
+
             %{state | batch: %{state.batch | last_controllers: cs, stick_runs: runs}}
 
-          _ -> state
+          _ ->
+            state
         end
 
       {:reply, :ok, state}
@@ -793,19 +859,61 @@ defmodule ExPhil.Agents.Agent do
     end
   end
 
-  def handle_call({:batch_observe, _, _}, _from, state), do: {:reply, {:error, :batch_not_initialized}, state}
+  def handle_call({:batch_observe, _, _}, _from, state),
+    do: {:reply, {:error, :batch_not_initialized}, state}
 
   def handle_call({:batch_get_controllers, game_states, opts}, _from, %{batch: %{n: n}} = state) do
     try do
+      if state.head == :independent and state.batch.mode == :window and
+           (Keyword.get(opts, :return_features, false) or Keyword.get(opts, :return_sample, false)) do
+        raise ArgumentError, "independent windowed policies do not expose trunk features"
+      end
+
+      if state.head == :independent and (Keyword.get(opts, :mode_of_n, state.mode_of_n) || 1) > 1 do
+        raise ArgumentError, "batched independent sampling does not support mode_of_n"
+      end
+
       {features, state} = batch_trunk_step(state, game_states, opts)
+
       sample_opts =
         ExPhil.Agents.Decode.sample_opts(state, opts)
+        |> Keyword.put(:prev_buttons, state.batch[:last_buttons])
         |> event_prev_opts(state, state.batch.last_controllers, state.batch.stick_runs)
         |> danger_opts(state, state.batch[:last_frames])
-      action = Networks.Policy.sample_autoregressive_from_features(state.policy_params, features, sample_opts)
+
+      action =
+        case {state.head, state.batch.mode} do
+          {:autoregressive, _} ->
+            Networks.Policy.sample_autoregressive_from_features(
+              state.policy_params,
+              features,
+              sample_opts
+            )
+
+          {:independent, :stateful} ->
+            Networks.Policy.sample(
+              state.policy_params,
+              state.heads_predict_fn,
+              features,
+              sample_opts
+            )
+
+          {:independent, :window} ->
+            # The full independent graph returns logits rather than trunk features.
+            Networks.Policy.sample(
+              state.policy_params,
+              fn _params, logits -> logits end,
+              features,
+              sample_opts
+            )
+        end
+
       # one device->host copy per head, then host-side row slicing (to_controller_state
       # does ~7 Nx.to_number calls per row — 128 rows x 7 device reads was the tail)
-      host = Map.new([:buttons, :main_x, :main_y, :c_x, :c_y, :shoulder], fn k -> {k, Nx.backend_transfer(action[k], Nx.BinaryBackend)} end)
+      host =
+        Map.new([:buttons, :main_x, :main_y, :c_x, :c_y, :shoulder], fn k ->
+          {k, Nx.backend_transfer(action[k], Nx.BinaryBackend)}
+        end)
 
       controllers =
         for i <- 0..(n - 1) do
@@ -813,11 +921,22 @@ defmodule ExPhil.Agents.Agent do
           action_to_controller(row, state)
         end
 
+      state = %{state | batch: Map.put(state.batch, :last_buttons, host.buttons)}
+
       # prev-action channel: each row sees its own emitted controller next step
       state =
         if state.use_prev_action do
           commits = if state.stick_duration, do: Nx.to_flat_list(action.stick_commit), else: nil
-          runs = advance_stick_runs(state.batch.stick_runs, state.batch.last_controllers, controllers, commits, state)
+
+          runs =
+            advance_stick_runs(
+              state.batch.stick_runs,
+              state.batch.last_controllers,
+              controllers,
+              commits,
+              state
+            )
+
           %{state | batch: %{state.batch | last_controllers: controllers, stick_runs: runs}}
         else
           state
@@ -846,7 +965,8 @@ defmodule ExPhil.Agents.Agent do
     end
   end
 
-  def handle_call({:batch_get_controllers, _, _}, _from, state), do: {:reply, {:error, :batch_not_initialized}, state}
+  def handle_call({:batch_get_controllers, _, _}, _from, state),
+    do: {:reply, {:error, :batch_not_initialized}, state}
 
   def handle_call({:observe, game_state, controller, opts}, _from, state) do
     case do_observe(state, game_state, controller, opts) do
@@ -933,8 +1053,14 @@ defmodule ExPhil.Agents.Agent do
           # pads or resyncs, so it needs no replay executable.
           if not (state.bptt == true) do
             warm_trunk(state, state.trunk_state, frame)
-            replay_trunk(state, state.trunk_state, List.duplicate(frame, max(state.window_size - 1, 0)))
+
+            replay_trunk(
+              state,
+              state.trunk_state,
+              List.duplicate(frame, max(state.window_size - 1, 0))
+            )
           end
+
           stage_t = stage.("trunk_replay", stage_t)
 
           # The live step path samples via Policy.sample(heads_predict_fn,
@@ -1030,9 +1156,7 @@ defmodule ExPhil.Agents.Agent do
 
     _confidence = Networks.Policy.compute_confidence(first)
 
-    Logger.info(
-      "[Agent] warmup stage confidence: #{System.monotonic_time(:millisecond) - t2}ms"
-    )
+    Logger.info("[Agent] warmup stage confidence: #{System.monotonic_time(:millisecond) - t2}ms")
 
     :ok
   end
@@ -1061,7 +1185,8 @@ defmodule ExPhil.Agents.Agent do
       keys = Map.keys(head)
 
       unless Enum.all?(keys, &(is_binary(&1) and String.starts_with?(&1, "ar_"))) do
-        raise ArgumentError, "put_head_params takes only ar_* layers, got #{inspect(Enum.take(keys, 4))}"
+        raise ArgumentError,
+              "put_head_params takes only ar_* layers, got #{inspect(Enum.take(keys, 4))}"
       end
 
       params =
@@ -1208,7 +1333,8 @@ defmodule ExPhil.Agents.Agent do
           controller_queue: Map.get(snap, :controller_queue, []),
           stick_run: Map.get(snap, :stick_run),
           steps_since_resync: Map.get(snap, :steps_since_resync, 0),
-          step_frame_buffer: Enum.map(Map.get(snap, :step_frame_buffer, []), &Edifice.Stateful.deserialize/1)
+          step_frame_buffer:
+            Enum.map(Map.get(snap, :step_frame_buffer, []), &Edifice.Stateful.deserialize/1)
       }
 
       {:reply, :ok, new_state}
@@ -1409,9 +1535,15 @@ defmodule ExPhil.Agents.Agent do
             if System.get_env("EXPHIL_QUEUE_TRACE") do
               enc = fn c ->
                 btns =
-                  [{c.button_a, "A"}, {c.button_b, "B"}, {c.button_x, "X"},
-                   {c.button_y, "Y"}, {c.button_z, "Z"}, {c.button_l, "L"},
-                   {c.button_r, "R"}]
+                  [
+                    {c.button_a, "A"},
+                    {c.button_b, "B"},
+                    {c.button_x, "X"},
+                    {c.button_y, "Y"},
+                    {c.button_z, "Z"},
+                    {c.button_l, "L"},
+                    {c.button_r, "R"}
+                  ]
                   |> Enum.filter(&elem(&1, 0))
                   |> Enum.map_join(&elem(&1, 1))
 
@@ -1447,8 +1579,19 @@ defmodule ExPhil.Agents.Agent do
 
       stick_run =
         if new_state.use_prev_action do
-          commit = case action do %{stick_commit: %Nx.Tensor{} = c} -> Nx.to_number(Nx.reshape(c, {})); _ -> 0 end
-          advance_stick_run(new_state.stick_run || {0, 0}, new_state.last_controller, last_controller, commit, new_state)
+          commit =
+            case action do
+              %{stick_commit: %Nx.Tensor{} = c} -> Nx.to_number(Nx.reshape(c, {}))
+              _ -> 0
+            end
+
+          advance_stick_run(
+            new_state.stick_run || {0, 0},
+            new_state.last_controller,
+            last_controller,
+            commit,
+            new_state
+          )
         else
           nil
         end
@@ -1583,7 +1726,14 @@ defmodule ExPhil.Agents.Agent do
 
       stick_run =
         if new_state.use_prev_action and controller != nil,
-          do: advance_stick_run(new_state.stick_run || {0, 0}, new_state.last_controller, controller, 0, new_state),
+          do:
+            advance_stick_run(
+              new_state.stick_run || {0, 0},
+              new_state.last_controller,
+              controller,
+              0,
+              new_state
+            ),
           else: new_state.stick_run
 
       {:ok,
@@ -1616,7 +1766,9 @@ defmodule ExPhil.Agents.Agent do
       end
 
     buffer = Enum.take([frame | state.step_frame_buffer], max(state.window_size - 1, 1))
-    {features, new_trunk_state} = trunk_step_fn(state.backbone).(state.trunk_step_params, trunk_state, frame)
+
+    {features, new_trunk_state} =
+      trunk_step_fn(state.backbone).(state.trunk_step_params, trunk_state, frame)
 
     {features,
      %{
@@ -1638,7 +1790,9 @@ defmodule ExPhil.Agents.Agent do
 
     {b, mx, my, cx, cy, sh} = predict_fn.(Utils.ensure_model_state(params), input)
 
-    sm = fn l -> l |> Nx.squeeze() |> Nx.divide(t) |> Axon.Activations.softmax() |> Nx.to_flat_list() end
+    sm = fn l ->
+      l |> Nx.squeeze() |> Nx.divide(t) |> Axon.Activations.softmax() |> Nx.to_flat_list()
+    end
 
     %{
       buttons: b |> Nx.squeeze() |> Nx.divide(t) |> Nx.sigmoid() |> Nx.to_flat_list(),
@@ -1669,7 +1823,10 @@ defmodule ExPhil.Agents.Agent do
     # (release X + press Y same frame, or press Y while X is held) reads
     # as a continuous hold under joint semantics and evaded suppression —
     # r12's debounce arm still produced 2f double jumps (WS3, 2026-07-17).
-    col = fn t, i -> t |> Nx.slice_along_axis(i, 1, axis: 1) |> Nx.reduce_max() |> Nx.to_number() end
+    col = fn t, i ->
+      t |> Nx.slice_along_axis(i, 1, axis: 1) |> Nx.reduce_max() |> Nx.to_number()
+    end
+
     {x_now, y_now} = {col.(buttons, 2), col.(buttons, 3)}
     {x_prev, y_prev} = if prev, do: {col.(prev, 2), col.(prev, 3)}, else: {0, 0}
 
@@ -1692,16 +1849,26 @@ defmodule ExPhil.Agents.Agent do
         airborne? and new_col_press? and (cooldown > 0 or prev_jump?) ->
           buttons =
             if x_now > 0 and x_prev == 0,
-              do: Nx.put_slice(buttons, [0, 2], Nx.broadcast(Nx.tensor(0, type: Nx.type(buttons)), {1, 1})),
+              do:
+                Nx.put_slice(
+                  buttons,
+                  [0, 2],
+                  Nx.broadcast(Nx.tensor(0, type: Nx.type(buttons)), {1, 1})
+                ),
               else: buttons
 
           buttons =
             if y_now > 0 and y_prev == 0,
-              do: Nx.put_slice(buttons, [0, 3], Nx.broadcast(Nx.tensor(0, type: Nx.type(buttons)), {1, 1})),
+              do:
+                Nx.put_slice(
+                  buttons,
+                  [0, 3],
+                  Nx.broadcast(Nx.tensor(0, type: Nx.type(buttons)), {1, 1})
+                ),
               else: buttons
 
           # a same-frame alternation is also a release -> arm the window
-          {buttons, (if any_col_release?, do: n, else: cooldown), :suppress}
+          {buttons, if(any_col_release?, do: n, else: cooldown), :suppress}
 
         # any column release -> arm the cooldown window
         any_col_release? ->
@@ -1937,9 +2104,11 @@ defmodule ExPhil.Agents.Agent do
       if resync? do
         fresh = fresh_trunk_state(state, 1)
 
-        frames = state.step_frame_buffer
-        |> Enum.take(max(state.window_size - 1, 0))
-        |> Enum.reverse()
+        frames =
+          state.step_frame_buffer
+          |> Enum.take(max(state.window_size - 1, 0))
+          |> Enum.reverse()
+
         replay_trunk(state, fresh, frames)
       else
         trunk_state
@@ -2018,6 +2187,7 @@ defmodule ExPhil.Agents.Agent do
   defp stateful_module(_recurrent), do: Edifice.Recurrent
 
   defp warm_trunk(%{window_size: window}, trunk, _frame) when window <= 1, do: trunk
+
   defp warm_trunk(state, trunk, frame) do
     {batch, width} = Nx.shape(frame)
     frames = frame |> Nx.new_axis(1) |> Nx.broadcast({batch, state.window_size - 1, width})
@@ -2025,15 +2195,19 @@ defmodule ExPhil.Agents.Agent do
   end
 
   defp replay_trunk(_state, trunk, []), do: trunk
+
   defp replay_trunk(state, trunk, frames) when is_list(frames),
     do: replay_trunk(state, trunk, List.to_tuple(frames))
+
   defp replay_trunk(state, trunk, frames) do
     module = stateful_module(state.backbone)
+
     if Code.ensure_loaded?(EXLA) do
       replay = Edifice.Stateful.jit_replay(module, EXLA, xla_exec_cache("trunk_replay", module))
       replay.(state.trunk_step_params, trunk, frames)
     else
       frames = if is_tuple(frames), do: Nx.stack(Tuple.to_list(frames), axis: 1), else: frames
+
       Enum.reduce(0..(Nx.axis_size(frames, 1) - 1), trunk, fn i, carry ->
         {_, next} = module.step(state.trunk_step_params, carry, Nx.take(frames, i, axis: 1))
         next
@@ -2049,18 +2223,36 @@ defmodule ExPhil.Agents.Agent do
 
   defp replay_trunk_rows(state, current, initial, frames, rows, n) do
     if Code.ensure_loaded?(EXLA) and frames != [] do
-      padded = Enum.take(rows ++ (Enum.to_list(0..(n - 1)) -- rows), replay_bucket(length(rows), n))
+      padded =
+        Enum.take(rows ++ (Enum.to_list(0..(n - 1)) -- rows), replay_bucket(length(rows), n))
+
       frames = if is_list(frames), do: List.to_tuple(frames), else: frames
       module = stateful_module(state.backbone)
-      replay = Edifice.Stateful.jit_replay_rows(module, EXLA, xla_exec_cache("trunk_replay_rows", module))
-      replay.(state.trunk_step_params, current, initial, frames,
-        Nx.tensor(padded, type: :s32), Nx.tensor(length(rows), type: :s32))
+
+      replay =
+        Edifice.Stateful.jit_replay_rows(
+          module,
+          EXLA,
+          xla_exec_cache("trunk_replay_rows", module)
+        )
+
+      replay.(
+        state.trunk_step_params,
+        current,
+        initial,
+        frames,
+        Nx.tensor(padded, type: :s32),
+        Nx.tensor(length(rows), type: :s32)
+      )
     else
       replayed = replay_trunk(state, initial, frames)
       mask = Nx.tensor(Enum.map(0..(n - 1), &if(&1 in rows, do: 1, else: 0)), type: :u8)
+
       Map.new(current, fn {key, value} ->
         shape = List.to_tuple([n | List.duplicate(1, Nx.rank(value) - 1)])
-        {key, Nx.select(Nx.broadcast(Nx.reshape(mask, shape), Nx.shape(value)), replayed[key], value)}
+
+        {key,
+         Nx.select(Nx.broadcast(Nx.reshape(mask, shape), Nx.shape(value)), replayed[key], value)}
       end)
     end
   end
@@ -2072,11 +2264,16 @@ defmodule ExPhil.Agents.Agent do
       embedded = embed_game_state(create_dummy_game_state(), 1, state)
       frame = Nx.broadcast(Nx.reshape(embedded, {1, Nx.size(embedded)}), {n, Nx.size(embedded)})
       history = List.duplicate(frame, state.window_size - 1)
-      cold = frame |> Nx.new_axis(1) |> Nx.broadcast({n, state.window_size - 1, Nx.size(embedded)})
+
+      cold =
+        frame |> Nx.new_axis(1) |> Nx.broadcast({n, state.window_size - 1, Nx.size(embedded)})
+
       replay_trunk(state, trunk, history)
       replay_trunk(state, trunk, cold)
+
       if n > 1 do
         buckets = 1..(n - 1) |> Enum.map(&replay_bucket(&1, n)) |> Enum.uniq()
+
         for bucket <- buckets do
           rows = Enum.to_list(0..(bucket - 1))
           replay_trunk_rows(state, trunk, trunk, history, rows, n)
@@ -2084,6 +2281,7 @@ defmodule ExPhil.Agents.Agent do
         end
       end
     end
+
     :ok
   end
 
@@ -2216,6 +2414,7 @@ defmodule ExPhil.Agents.Agent do
     # Legacy :mamba_2 builders fixed the convolution width at four even when
     # metadata requested another width. Allocate history from the actual weights.
     conv_size = Nx.axis_size(trunk_params["#{prefix}_1_conv_dw_conv"]["kernel"], 0)
+
     stateful_module(backbone).init_state(trunk_params,
       batch_size: batch_size,
       hidden_size: embed_config[:hidden_size] || 256,
@@ -2257,11 +2456,17 @@ defmodule ExPhil.Agents.Agent do
   # Danger-context heads: the newest embedded frames ({rows, embed}) sliced at
   # the checkpoint's danger columns -> :danger ({rows, k} f32) for the sampler.
   # :zeros (warmup) hands a single all-zero row. No columns = plain head.
-  defp danger_opts(sample_opts, %{danger_columns: cols}, _frames) when not is_list(cols) or cols == [],
-    do: sample_opts
+  defp danger_opts(sample_opts, %{danger_columns: cols}, _frames)
+       when not is_list(cols) or cols == [],
+       do: sample_opts
 
   defp danger_opts(sample_opts, %{danger_columns: cols}, :zeros),
-    do: Keyword.put(sample_opts, :danger, Nx.broadcast(Nx.tensor(0.0, type: :f32), {1, length(cols)}))
+    do:
+      Keyword.put(
+        sample_opts,
+        :danger,
+        Nx.broadcast(Nx.tensor(0.0, type: :f32), {1, length(cols)})
+      )
 
   defp danger_opts(sample_opts, %{danger_columns: cols}, %Nx.Tensor{} = frames) do
     danger = frames |> Nx.take(Nx.tensor(cols, type: :s64), axis: -1) |> Nx.as_type(:f32)
@@ -2269,7 +2474,11 @@ defmodule ExPhil.Agents.Agent do
   end
 
   defp danger_opts(_sample_opts, _state, nil),
-    do: raise(ArgumentError, "danger-context checkpoint: the batch has no embedded frames to slice (batch_trunk_step must run first)")
+    do:
+      raise(
+        ArgumentError,
+        "danger-context checkpoint: the batch has no embedded frames to slice (batch_trunk_step must run first)"
+      )
 
   # Press/release event button head: hand the sampler the previous emitted
   # buttons ({rows, 8}; nil controller = all up), in the embedding's order.
@@ -2304,8 +2513,16 @@ defmodule ExPhil.Agents.Agent do
 
       rows =
         Enum.map(controllers, fn
-          nil -> List.duplicate(bucket.(0.5), 4)
-          c -> [bucket.(c.main_stick.x), bucket.(c.main_stick.y), bucket.(c.c_stick.x), bucket.(c.c_stick.y)]
+          nil ->
+            List.duplicate(bucket.(0.5), 4)
+
+          c ->
+            [
+              bucket.(c.main_stick.x),
+              bucket.(c.main_stick.y),
+              bucket.(c.c_stick.x),
+              bucket.(c.c_stick.y)
+            ]
         end)
 
       Keyword.put(sample_opts, :event_prev_sticks, Nx.tensor(rows, type: :s64))
@@ -2323,6 +2540,7 @@ defmodule ExPhil.Agents.Agent do
   # held (the training-side prev_age), commit = frames still committed to it.
   defp advance_stick_run({age, _old}, prev_c, new_c, commit, state) do
     n = (state.embed_config || %{})[:axis_buckets] || 16
+
     pair = fn
       nil -> nil
       c -> {min(floor(c.main_stick.x * n), n - 1), min(floor(c.main_stick.y * n), n - 1)}
@@ -2345,10 +2563,22 @@ defmodule ExPhil.Agents.Agent do
 
   # ---- batched sim path helpers --------------------------------------------
 
+  defp reset_batch_buttons(b, rows) do
+    case b[:last_buttons] do
+      nil ->
+        b
+
+      buttons ->
+        Nx.with_default_backend(Nx.BinaryBackend, fn ->
+          mask = Nx.tensor(Enum.map(0..(b.n - 1), &if(&1 in rows, do: 0, else: 1)))
+          Map.put(b, :last_buttons, Nx.multiply(buttons, Nx.new_axis(mask, 1)))
+        end)
+    end
+  end
+
   defp batch_preconditions(state) do
     cond do
       not state.temporal -> {:error, :batch_needs_temporal_policy}
-      state.head != :autoregressive -> {:error, :batch_needs_autoregressive_head}
       queue_depth(state) > 1 -> {:error, :batch_queue_depth_unsupported}
       # carried-state (stateful-step) policies: one trunk step per frame
       state.trunk_state != nil -> {:ok, :stateful}
@@ -2373,12 +2603,15 @@ defmodule ExPhil.Agents.Agent do
         else: embed_opts
 
     game_states =
-      if zero_projectiles?(state.embed_config), do: Enum.map(game_states, &%{&1 | projectiles: []}), else: game_states
+      if zero_projectiles?(state.embed_config),
+        do: Enum.map(game_states, &%{&1 | projectiles: []}),
+        else: game_states
 
     # Match the single-agent path: these small normalization/one-hot operations
     # are much cheaper on the host than as many eager accelerator dispatches.
     # Transfer the completed batch once, retaining the policy's chosen backend.
     backend = Nx.default_backend()
+
     Nx.with_default_backend(Nx.BinaryBackend, fn ->
       Embeddings.Game.embed_states_fast(game_states, port, embed_opts)
     end)
@@ -2391,7 +2624,8 @@ defmodule ExPhil.Agents.Agent do
   defp batch_trunk_step(state, game_states, opts, resync? \\ true)
 
   defp batch_trunk_step(%{batch: %{n: n, mode: :window} = b} = state, game_states, opts, _resync?) do
-    if length(game_states) != n, do: raise(ArgumentError, "batch expects #{n} game states, got #{length(game_states)}")
+    if length(game_states) != n,
+      do: raise(ArgumentError, "batch expects #{n} game states, got #{length(game_states)}")
 
     frames = batch_embed(state, game_states, opts)
     w = state.window_size
@@ -2407,13 +2641,24 @@ defmodule ExPhil.Agents.Agent do
           Nx.concatenate([Nx.slice_along_axis(b.window, 1, w - 1, axis: 1), newest], axis: 1)
 
         true ->
-          shifted = Nx.concatenate([Nx.slice_along_axis(b.window, 1, w - 1, axis: 1), newest], axis: 1)
-          mask = Nx.tensor(Enum.map(0..(n - 1), fn i -> if i in b.cold_rows, do: 1, else: 0 end), type: :u8)
+          shifted =
+            Nx.concatenate([Nx.slice_along_axis(b.window, 1, w - 1, axis: 1), newest], axis: 1)
+
+          mask =
+            Nx.tensor(Enum.map(0..(n - 1), fn i -> if i in b.cold_rows, do: 1, else: 0 end),
+              type: :u8
+            )
+
           Nx.select(Nx.broadcast(Nx.reshape(mask, {n, 1, 1}), Nx.shape(shifted)), tiled, shifted)
       end
 
     features = state.predict_fn.(Utils.ensure_model_state(state.policy_params), window)
-    {features, %{state | batch: Map.put(%{b | window: window, cold_rows: MapSet.new()}, :last_frames, frames)}}
+
+    {features,
+     %{
+       state
+       | batch: Map.put(%{b | window: window, cold_rows: MapSet.new()}, :last_frames, frames)
+     }}
   end
 
   # Embed every row with the agent's own config, stack to {n, dim}, run ONE
@@ -2421,7 +2666,8 @@ defmodule ExPhil.Agents.Agent do
   # window_size-1 replay of their first frame the single path uses, so
   # step/window equivalence holds from the first decision.
   defp batch_trunk_step(%{batch: %{n: n} = b} = state, game_states, opts, resync?) do
-    if length(game_states) != n, do: raise(ArgumentError, "batch expects #{n} game states, got #{length(game_states)}")
+    if length(game_states) != n,
+      do: raise(ArgumentError, "batch expects #{n} game states, got #{length(game_states)}")
 
     # One batched embedding call (embed_states_fast: ~20 Nx ops for the whole
     # batch) with the same options the single path derives — the per-row
@@ -2441,7 +2687,11 @@ defmodule ExPhil.Agents.Agent do
           if state.window_size <= 1 do
             b.trunk_state
           else
-            cold = frames |> Nx.new_axis(1) |> Nx.broadcast({n, state.window_size - 1, Nx.axis_size(frames, 1)})
+            cold =
+              frames
+              |> Nx.new_axis(1)
+              |> Nx.broadcast({n, state.window_size - 1, Nx.axis_size(frames, 1)})
+
             replay_trunk_rows(state, b.trunk_state, b.trunk_state, cold, Enum.sort(cold_rows), n)
           end
         end
@@ -2451,7 +2701,17 @@ defmodule ExPhil.Agents.Agent do
 
     {trunk, replay_updates} = batch_resync(state, b, trunk, frames, cold_rows, resync?)
     {features, new_trunk} = trunk_step_fn(state.backbone).(state.trunk_step_params, trunk, frames)
-    batch = b |> Map.merge(replay_updates) |> Map.merge(%{trunk_state: new_trunk, cold: false, cold_rows: MapSet.new(), last_frames: frames})
+
+    batch =
+      b
+      |> Map.merge(replay_updates)
+      |> Map.merge(%{
+        trunk_state: new_trunk,
+        cold: false,
+        cold_rows: MapSet.new(),
+        last_frames: frames
+      })
+
     {features, %{state | batch: batch}}
   end
 
@@ -2464,6 +2724,7 @@ defmodule ExPhil.Agents.Agent do
   # old frames in the shared tensor buffer cannot leak across game boundaries.
   defp batch_resync(state, b, trunk, frames, cold, resync?) do
     history_size = max(state.window_size - 1, 0)
+
     due =
       Enum.zip(b.resync_steps, b.replay_lengths)
       |> Enum.with_index()
@@ -2476,6 +2737,7 @@ defmodule ExPhil.Agents.Agent do
       if Enum.any?(due) do
         initial = fresh_trunk_state(state, b.n)
         history = Enum.reverse(b.replay_frames)
+
         if Enum.all?(due) do
           replay_trunk(state, initial, history)
         else
@@ -2489,8 +2751,10 @@ defmodule ExPhil.Agents.Agent do
     updates = %{
       replay_frames: Enum.take([frames | b.replay_frames], history_size),
       replay_lengths: Enum.map(b.replay_lengths, &min(&1 + 1, history_size)),
-      resync_steps: Enum.zip_with(b.resync_steps, due, fn steps, due? -> if due?, do: 0, else: steps + 1 end)
+      resync_steps:
+        Enum.zip_with(b.resync_steps, due, fn steps, due? -> if due?, do: 0, else: steps + 1 end)
     }
+
     {trunk, updates}
   end
 
@@ -2753,6 +3017,7 @@ defmodule ExPhil.Agents.Agent do
     # gets the previous buttons instead (event_prev_opts/3).
     prev_controller =
       if state.use_prev_action and not event_heads?(state), do: state.last_controller, else: nil
+
     opts = [name_id: state.style_id || 0]
 
     # af_convention: :live normalizes the bridge's action_frame into the
@@ -2969,7 +3234,8 @@ defmodule ExPhil.Agents.Agent do
       ExPhil.Networks.Policy.ExecutionContract.validate_inference!(config, state.stateful_step)
 
     if config[:bptt] == true and (state.stateful_resync != nil or is_binary(state.leace_eraser)),
-      do: raise(ArgumentError, "BPTT stateful inference cannot use window resync or a LEACE eraser")
+      do:
+        raise(ArgumentError, "BPTT stateful inference cannot use window resync or a LEACE eraser")
 
     # Extract config
     embed_config = Map.get(config, :embed_config, %{})
@@ -2982,6 +3248,7 @@ defmodule ExPhil.Agents.Agent do
         canary when is_list(canary) and canary != [] -> length(canary)
         _ -> Map.get(config, :embed_size) || Map.get(embed_config, :embed_size, 1991)
       end
+
     axis_buckets = Map.get(config, :axis_buckets, 16)
     shoulder_buckets = Map.get(config, :shoulder_buckets, 4)
 
@@ -3009,7 +3276,9 @@ defmodule ExPhil.Agents.Agent do
 
       # warning level: the eval protocols run at Logger :warning (quiet) and
       # their knob assertions grep the run log for this banner
-      Logger.warning("[Agent] Autoregressive controller head ACTIVE (sequential per-frame sampling)")
+      Logger.warning(
+        "[Agent] Autoregressive controller head ACTIVE (sequential per-frame sampling)"
+      )
     end
 
     # MLP backbone config
@@ -3059,9 +3328,7 @@ defmodule ExPhil.Agents.Agent do
         )
 
         unless temporal do
-          Logger.warning(
-            "[Agent] --steer-vector only applies to temporal policies — ignored"
-          )
+          Logger.warning("[Agent] --steer-vector only applies to temporal policies — ignored")
         end
 
         %{v: s.v, alpha: alpha}
@@ -3227,7 +3494,13 @@ defmodule ExPhil.Agents.Agent do
       case state.delay_id do
         nil ->
           Logger.info("[Agent] delay_id #{derived} derived: #{describe}")
-          %{state | delay_id: derived, delay_id_reaction_offset: id_offset, reaction_delay: played}
+
+          %{
+            state
+            | delay_id: derived,
+              delay_id_reaction_offset: id_offset,
+              reaction_delay: played
+          }
 
         explicit ->
           if delay_conditioned? and explicit != derived do
@@ -3262,8 +3535,11 @@ defmodule ExPhil.Agents.Agent do
     if not delay_conditioned? and played != reaction do
       aligned =
         case HarnessRung.deploy_knob(harness, config) do
-          {:ok, k} -> "aligned knob #{k}"
-          {:error, {:unreachable, min}} -> "unreachable on #{harness} (floor latency #{min}); knob 0 is the nearest, slower rung"
+          {:ok, k} ->
+            "aligned knob #{k}"
+
+          {:error, {:unreachable, min}} ->
+            "unreachable on #{harness} (floor latency #{min}); knob 0 is the nearest, slower rung"
         end
 
       Logger.warning(
@@ -3304,7 +3580,9 @@ defmodule ExPhil.Agents.Agent do
       end
 
     if use_prev_action do
-      Logger.info("[Agent] Policy trained with prev-action conditioning — feeding own outputs back")
+      Logger.info(
+        "[Agent] Policy trained with prev-action conditioning — feeding own outputs back"
+      )
     end
 
     # Edifice.Stateful step path (opt-in via stateful_step / --stateful-step):

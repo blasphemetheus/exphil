@@ -131,6 +131,69 @@ defmodule ExPhil.Agents.AgentStatefulMinGRUTest do
     {:ok, policy: build_policy()}
   end
 
+  test "unsupported independent batch options fail without consuming a frame", %{policy: policy} do
+    batch = start_agent(policy, [])
+    :ok = Agent.batch_init(batch, 2)
+    before = :sys.get_state(batch)
+    frames = [game_state(1.0), game_state(-1.0)]
+
+    for opts <- [[return_features: true], [return_sample: true], [mode_of_n: 3]] do
+      assert {:error, _} = Agent.batch_get_controllers(batch, frames, opts)
+      assert :sys.get_state(batch) == before
+    end
+
+    GenServer.stop(batch)
+  end
+
+  for stateful <- [false, true] do
+    test "independent heads match single controllers, reset rows and replay a saved batch (stateful #{stateful})" do
+      policy = build_policy(:independent, :mamba_2)
+      opts = [stateful_step: unquote(stateful), press_threshold: 0.6, release_threshold: 0.4]
+      batch = start_agent(policy, opts)
+      singles = for _ <- 1..2, do: start_agent(policy, opts)
+      :ok = Agent.batch_init(batch, 2)
+
+      for tick <- 1..12 do
+        if tick == 6 do
+          :ok = Agent.batch_reset_rows(batch, [0])
+          :ok = Agent.reset_buffer(hd(singles))
+        end
+
+        frames = for row <- 1..2, do: %{game_state((tick * row - 10) * 1.0) | frame: tick}
+        assert {:ok, actual} = Agent.batch_get_controllers(batch, frames)
+
+        expected =
+          for {single, frame} <- Enum.zip(singles, frames) do
+            {:ok, controller} = Agent.get_controller(single, frame)
+            controller
+          end
+
+        assert actual == expected
+      end
+
+      saved = :sys.get_state(batch)
+
+      suffix = fn ->
+        for tick <- 13..20 do
+          frames = for row <- 1..2, do: %{game_state((tick * row - 10) * 1.0) | frame: tick}
+
+          assert {:ok, controllers} =
+                   Agent.batch_get_controllers(batch, frames,
+                     deterministic: false,
+                     key: Nx.Random.key(tick)
+                   )
+
+          controllers
+        end
+      end
+
+      expected = suffix.()
+      :sys.replace_state(batch, fn _ -> saved end)
+      assert suffix.() == expected
+      for agent <- [batch | singles], do: GenServer.stop(agent)
+    end
+  end
+
   test "explicit sampling keys reproduce stochastic batched rollouts after reset" do
     policy = build_policy(:autoregressive)
     {:ok, agent} = Agent.start_link(policy: policy, deterministic: false, stateful_step: true)
@@ -155,9 +218,12 @@ defmodule ExPhil.Agents.AgentStatefulMinGRUTest do
     GenServer.stop(agent)
   end
 
-  for backbone <- [:min_gru, :gru, :lstm, :mamba, :mamba_2], window <- [1, @window], n <- [2, 5] do
-    test "#{backbone}, window #{window}, batch #{n}: batched resync matches independent agents across staggered resets and observations" do
-      policy = build_policy(:autoregressive, unquote(backbone), unquote(window))
+  for head <- [:autoregressive, :independent],
+      backbone <- [:min_gru, :gru, :lstm, :mamba, :mamba_2],
+      window <- [1, @window],
+      n <- [2, 5] do
+    test "#{head}, #{backbone}, window #{window}, batch #{n}: batched resync matches independent agents across staggered resets and observations" do
+      policy = build_policy(unquote(head), unquote(backbone), unquote(window))
       batch = start_agent(policy, stateful_step: true, stateful_resync: 2)
       n = unquote(n)
       singles = for _ <- 1..n, do: start_agent(policy, stateful_step: true, stateful_resync: 2)
@@ -179,7 +245,8 @@ defmodule ExPhil.Agents.AgentStatefulMinGRUTest do
           for row <- rows, do: :ok = Agent.reset_buffer(Enum.at(singles, row))
         end
 
-        frames = for row <- 0..(n - 1), do: %{game_state((tick * (row + 1) - 13) * 1.0) | frame: tick}
+        frames =
+          for row <- 0..(n - 1), do: %{game_state((tick * (row + 1) - 13) * 1.0) | frame: tick}
 
         if tick in [3, 4, 8, 17] do
           assert :ok = Agent.batch_observe(batch, frames)

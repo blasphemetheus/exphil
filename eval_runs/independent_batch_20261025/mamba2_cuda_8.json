@@ -1,0 +1,83 @@
+{
+  "driver": "batch",
+  "head": null,
+  "character": "mewtwo",
+  "rows": 8,
+  "precision": "highest",
+  "client": "cuda",
+  "bptt": false,
+  "backbone": "mamba_2",
+  "policy": "checkpoints/mewtwo_combo_newera_mamba2_screen_best_policy.bin",
+  "replay": "replays/greg/mewtwo/Game_20240222T222930.slp",
+  "setup_us": 5634595,
+  "rollback": "internal_batch_fixture_exact",
+  "results": [
+    {
+      "rows": 0,
+      "kind": "ordinary",
+      "samples": 50,
+      "median_us": 1011,
+      "p95_us": 1183
+    },
+    {
+      "rows": 1,
+      "kind": "cold_reset",
+      "samples": 50,
+      "median_us": 3606,
+      "p95_us": 4018
+    },
+    {
+      "rows": 3,
+      "kind": "cold_reset",
+      "samples": 50,
+      "median_us": 4183,
+      "p95_us": 4563
+    },
+    {
+      "rows": 8,
+      "kind": "cold_reset",
+      "samples": 50,
+      "median_us": 4177,
+      "p95_us": 4686
+    },
+    {
+      "rows": 1,
+      "kind": "resync",
+      "samples": 50,
+      "median_us": 3476,
+      "p95_us": 3937
+    },
+    {
+      "rows": 3,
+      "kind": "resync",
+      "samples": 50,
+      "median_us": 4246,
+      "p95_us": 4639
+    },
+    {
+      "rows": 8,
+      "kind": "resync",
+      "samples": 50,
+      "median_us": 4212,
+      "p95_us": 4730
+    },
+    {
+      "rows": 8,
+      "kind": "windowed",
+      "samples": 50,
+      "median_us": 2080,
+      "p95_us": 2574
+    }
+  ],
+  "warmup_preserves_state": true,
+  "batch_parity": {
+    "frames": 130,
+    "controllers": "exact",
+    "carry_atol": 0.0001,
+    "carry_rtol": 0.0001,
+    "staggered_resets": true
+  },
+  "exphil_revision": "5538877fb8b84cc6146045abaa090c7550e00b50",
+  "edifice_revision": "3592f3d5d2d42fdd4cbff1aa717c4e57c640cdbb",
+  "note": "Full Agent controllers including embedding, recurrence, heads and transfer. Restore/reset calls and compilation excluded. Deterministic sampling. BPTT never resynchronized. Driver records batching versus sequential per-row Agents."
+}

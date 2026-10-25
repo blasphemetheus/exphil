@@ -11,6 +11,7 @@ alias ExPhil.Training.Output
       character: :string,
       batch: :integer,
       iterations: :integer,
+      validate_batch: :boolean,
       out: :string
     ]
   )
@@ -94,6 +95,60 @@ end
 
 for frame <- Enum.take(frames, history), do: call.(frame)
 bases = Enum.map(agents, &:sys.get_state/1)
+
+if opts[:validate_batch] do
+  unless driver == :batch, do: raise("--validate-batch requires a batched driver")
+  batch = hd(agents)
+  :ok = Agent.batch_reset_rows(batch, Enum.to_list(0..(n - 1)))
+
+  singles =
+    for _ <- 1..n do
+      {:ok, single} = Agent.start_link(agent_opts)
+      single
+    end
+
+  for {frame, tick} <- Enum.with_index(Enum.take(frames, history)) do
+    if tick in [history - 20, history - 10] do
+      rows = if tick == history - 20, do: [0], else: Enum.take_every(Enum.to_list(0..(n - 1)), 2)
+      :ok = Agent.batch_reset_rows(batch, rows)
+      for row <- rows, do: :ok = Agent.reset_buffer(Enum.at(singles, row))
+    end
+
+    {:ok, actual} = Agent.batch_get_controllers(batch, List.duplicate(frame.game_state, n))
+
+    expected =
+      for single <- singles do
+        {:ok, controller} = Agent.get_controller(single, frame.game_state)
+        controller
+      end
+
+    unless actual == expected, do: raise("controller mismatch at tick #{tick}")
+    batched = :sys.get_state(batch).batch
+
+    for {single, row} <- Enum.with_index(singles) do
+      state = :sys.get_state(single)
+
+      unless Enum.at(batched.resync_steps, row) == state.steps_since_resync,
+        do: raise("resync schedule mismatch at tick #{tick}, row #{row}")
+
+      for {key, tensor} <- state.trunk_state do
+        value = Nx.slice_along_axis(batched.trunk_state[key], row, 1, axis: 0)
+        error = Nx.abs(Nx.subtract(value, tensor))
+        bound = Nx.add(1.0e-4, Nx.multiply(Nx.abs(tensor), 1.0e-4))
+
+        unless Nx.to_number(Nx.all(Nx.less_equal(error, bound))) == 1,
+          do: raise("carry mismatch at tick #{tick}, row #{row}, #{key}")
+      end
+    end
+  end
+
+  for single <- singles, do: GenServer.stop(single)
+  :sys.replace_state(batch, fn _ -> hd(bases) end)
+
+  Output.success(
+    "Single/batch controllers exact and carry within 1e-4 across #{history} frames, resync and staggered resets"
+  )
+end
 
 Output.puts(
   "Primed state: " <>
@@ -287,13 +342,23 @@ report = %{
   setup_us: setup_us,
   rollback: rollback,
   warmup_preserves_state: true,
+  batch_parity:
+    if(opts[:validate_batch],
+      do: %{
+        frames: history,
+        controllers: :exact,
+        carry_atol: 1.0e-4,
+        carry_rtol: 1.0e-4,
+        staggered_resets: true
+      }
+    ),
   client: EXLA.Client.default_name(),
   precision: Nx.Defn.default_options()[:precision],
   exphil_revision: revision.("."),
   edifice_revision: revision.("../edifice"),
   results: results,
   note:
-    "Full Agent controllers including embedding, recurrence, heads and transfer. Restore/reset calls and compilation excluded. Deterministic sampling. BPTT never resynchronized. Independent heads use sequential per-row Agents."
+    "Full Agent controllers including embedding, recurrence, heads and transfer. Restore/reset calls and compilation excluded. Deterministic sampling. BPTT never resynchronized. Driver records batching versus sequential per-row Agents."
 }
 
 File.mkdir_p!(Path.dirname(Keyword.fetch!(opts, :out)))
