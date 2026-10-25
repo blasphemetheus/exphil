@@ -32,10 +32,18 @@ done
 newer=$(find ../nx/nx/lib ../nx/exla/lib ../nx/exla/c_src -newer ../nx/exla/cache/libexla.so \( -name '*.ex' -o -name '*.exs' -o -name '*.cc' -o -name '*.h' \) 2>/dev/null | head -3)
 [ -z "$newer" ] || { log "NX_EDIT_IN_PROGRESS: $newer"; exit 1; }
 log "== merge feature/press-window-1025 + compile ($(date +%H:%M))"
-git merge --no-edit feature/press-window-1025 2>&1 | tail -2 | tee -a "$R"
-mix compile 2>&1 | grep -E "error|Generated exphil" | tee -a "$R"
-grep -q "error" "$R" && { log "COMPILE_FAILED"; exit 1; }
-mix test test/exphil/training/imitation/press_window_loss_test.exs 2>&1 | grep -E "tests,|failure" | tee -a "$R"
+if ! git -c merge.autoStash=false merge --no-edit feature/press-window-1025 2>&1 | tee -a "$R"; then
+  log "MERGE_FAILED — no training arms launched"
+  exit 1
+fi
+if ! mix compile 2>&1 | tee -a "$R"; then
+  log "COMPILE_FAILED"
+  exit 1
+fi
+if ! mix test test/exphil/training/imitation/press_window_loss_test.exs 2>&1 | tee -a "$R"; then
+  log "TEST_FAILED"
+  exit 1
+fi
 
 base=(--prev-action --prev-action-dropout 0.0 --prev-action-quantize --button-events --stick-events --event-context --chunk-horizon 8 --offstage-weight 3 --stick-duration 8 --onset-weight 5 --action-oversample 1.0)
 agree() {
