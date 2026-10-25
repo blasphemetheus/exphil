@@ -437,3 +437,64 @@ STANDING change recall climbs every epoch (47 -> 54 %; candidate 49 on its corpu
 LESS passive from standing without any loss weighting. Read: training on master games only reaches the candidate’s
 agreement with ~1/2 the frames and beats it by ~1 point on option families and ~5 points on standing-state activity;
 it does not run away from it. The league (stage 3) tests whether that is worth anything in play.
+val_loss=3.0826
+DONE fox_mamba_v3s906_ep3_null9o
+expert (FD reference)                        side-B first-means trips 88 / 1788 eps  (carried 5, later 83)
+evt2ctx_ck8_off3_dur8e_on5u_dag7w_x1_e3      side-B first-means trips 17 / 155 eps  (carried 17, later 0)
+evt2ctx_ck8_off3_dur8e_on5u_dag6w_x1_e3_s906 side-B first-means trips 18 / 298 eps  (carried 18, later 0)
+fox_mamba_v3s906_ep1                         side-B first-means trips 17 / 332 eps  (carried 10, later 7)
+fox_mamba_v3s906_ep2                         side-B first-means trips 6 / 319 eps  (carried 3, later 3)
+expert (FD reference)                        carried side-B: n=5  jump spent inside the 90 f before: 4 (80%)  already gone 90 f out: 0  still in hand at the window start, no drop: 1
+expert (FD reference)                        all near trips starting with no jump: n=120  jump spent inside the 90 f before: 89 (74%)  already gone 90 f out: 24  still in hand at the window start, no drop: 7
+evt2ctx_ck8_off3_dur8e_on5u_dag7w_x1_e3      carried side-B: n=17  jump spent inside the 90 f before: 15 (88%)  already gone 90 f out: 0  still in hand at the window start, no drop: 2
+evt2ctx_ck8_off3_dur8e_on5u_dag7w_x1_e3      all near trips starting with no jump: n=29  jump spent inside the 90 f before: 25 (86%)  already gone 90 f out: 0  still in hand at the window start, no drop: 4
+evt2ctx_ck8_off3_dur8e_on5u_dag6w_x1_e3_s906 carried side-B: n=18  jump spent inside the 90 f before: 14 (78%)  already gone 90 f out: 2  still in hand at the window start, no drop: 2
+evt2ctx_ck8_off3_dur8e_on5u_dag6w_x1_e3_s906 all near trips starting with no jump: n=36  jump spent inside the 90 f before: 31 (86%)  already gone 90 f out: 2  still in hand at the window start, no drop: 3
+fox_mamba_v3s906_ep1                         carried side-B: n=10  jump spent inside the 90 f before: 8 (80%)  already gone 90 f out: 1  still in hand at the window start, no drop: 1
+fox_mamba_v3s906_ep1                         all near trips starting with no jump: n=32  jump spent inside the 90 f before: 26 (81%)  already gone 90 f out: 5  still in hand at the window start, no drop: 1
+fox_mamba_v3s906_ep2                         carried side-B: n=3  jump spent inside the 90 f before: 2 (67%)  already gone 90 f out: 0  still in hand at the window start, no drop: 1
+fox_mamba_v3s906_ep2                         all near trips starting with no jump: n=19  jump spent inside the 90 f before: 15 (79%)  already gone 90 f out: 3  still in hand at the window start, no drop: 1
+expert (FD reference)                        firefox 365 / 1788 eps  angle err q50/q75 19°/34°  >60° 7%
+evt2ctx_ck8_off3_dur8e_on5u_dag7w_x1_e3      firefox 8 / 155 eps  angle err q50/q75 14°/48°  >60° 0%
+evt2ctx_ck8_off3_dur8e_on5u_dag6w_x1_e3_s906 firefox 47 / 298 eps  angle err q50/q75 29°/49°  >60° 11%
+fox_mamba_v3s906_ep1                         firefox 89 / 332 eps  angle err q50/q75 25°/43°  >60° 11%
+fox_mamba_v3s906_ep2                         firefox 87 / 319 eps  angle err q50/q75 20°/30°  >60° 6%
+expert    n=2194  stick-up share 42.5%  up-onset/3f 12.3%  P(B|up) 14.7%  P(B|not up) 2.6%
+evt2ctx_ck8_off3_dur8e_on5u_dag7w_x1_e3 n=485  stick-up share 9.9%  up-onset/3f 2.1%  P(B|up) 8.3%  P(B|not up) 0.5%
+evt2ctx_ck8_off3_dur8e_on5u_dag6w_x1_e3_s906 n=742  stick-up share 35.4%  up-onset/3f 8.0%  P(B|up) 11.4%  P(B|not up) 0.8%
+fox_mamba_v3s906_ep1 n=701  stick-up share 24.0%  up-onset/3f 11.0%  P(B|up) 21.4%  P(B|not up) 3.2%
+fox_mamba_v3s906_ep2 n=542  stick-up share 33.6%  up-onset/3f 15.8%  P(B|up) 25.3%  P(B|not up) 0.6%
+fox_mamba_v3s906_ep3_null9o              (no recovery_means.json)
+EPOCH 3 DONE (13:50)
+curve rows (eval_runs/1011_full/curve.txt tail):
+fox_mamba_v3s906_ep3_dag9o               3.186   263   193      0.689  31       0.742   10       0.327  0.0207 [532] ret✗ sideB✗ cdied✗  
+== lr 0.0001 seed 906 mix 'data/silent_fall/sim_dagger_expert_r9o_2091_split_lean.frames,data/silent_fall/sim_dagger_expert_r9o_2094_split_lean.frames,data/silent_fall/sim_dagger_expert_r9o_2097_split_lean.frames,data/silent_fall/sim_dagger_expert_r9o_2100_split_lean.frames,data/silent_fall/slp_dagg
+fox_mamba_v3s906_ep3_dag9o_r             3.186   238   162      0.636  36       0.667   12       0.361  0.0199 [403] ret✗ sideB✗ cdied✗  
+== re-readout of fox_mamba_v3s906_ep3_dag9o (same policy, second roll)
+fox_mamba_v3s906_ep3_null9o              (no recovery_means.json)
+== lr 0.0001 seed 906 mix 'data/silent_fall/sim_dagger_expert_r9o_2091_null_lean.frames,data/silent_fall/sim_dagger_expert_r9o_2094_null_lean.frames,data/silent_fall/sim_dagger_expert_r9o_2097_null_lean.frames,data/silent_fall/sim_dagger_expert_r9o_2100_null_lean.frames,data/silent_fall/slp_dagger_e
+
+## Mini league (13:50)
+RESULT pair 1/10 s906_ep2 vs s906_dag9o: 23-10-0 (1/33 finished)  201 s  570 game-frames/s
+RESULT pair 2/10 s906_ep2 vs s906_null9o: 18-13-1 (0/32 finished)  208 s  553 game-frames/s
+RESULT pair 3/10 s906_ep2 vs master_last: 14-15-3 (0/32 finished)  209 s  550 game-frames/s
+RESULT pair 4/10 s906_ep2 vs V3.1_ep3: 23-8-1 (0/32 finished)  196 s  585 game-frames/s
+RESULT pair 5/10 s906_dag9o vs s906_null9o: 11-21-0 (0/32 finished)  211 s  545 game-frames/s
+RESULT pair 6/10 s906_dag9o vs master_last: 8-23-1 (0/32 finished)  213 s  541 game-frames/s
+RESULT pair 7/10 s906_dag9o vs V3.1_ep3: 19-11-2 (0/32 finished)  207 s  554 game-frames/s
+RESULT pair 8/10 s906_null9o vs master_last: 11-20-1 (0/32 finished)  212 s  542 game-frames/s
+RESULT pair 9/10 s906_null9o vs V3.1_ep3: 15-16-1 (0/32 finished)  226 s  509 game-frames/s
+RESULT pair 10/10 master_last vs V3.1_ep3: 16-15-1 (0/32 finished)  252 s  457 game-frames/s
+RESULT standings (Elo, Bradley–Terry over 321 games):
+RESULT league -> eval_runs/1024_overnight/league/league.json
+
+ALL STAGES DONE (2026-10-25 14:26)
+
+## Stage 3 READ (Claude, 14:45)
+NULL ARM: val 3.0826 (parent ep2 3.0762; plain ep3 3.1671; dag9o 3.1860). The dose-matched null mix did NOT
+regress the held-out loss while the expert-relabelled mix did — on the loss the harm was the LABELS, not the
+mixing. Its closed-loop readout crashed (fused-handler crypto load, see coordination note); rerun pending.
+MINI LEAGUE (321 games, 60 s, FD): s906_ep2 1571 (win 62 %) > master_ep6 1558 (60 %) > null9o 1489 (48 %) >
+V3.1_ep3 1448 (41 %) > dag9o 1433 (38 %). Head to head: candidate vs master 48/52 — a coin flip; master beats
+null 64/36 and dag9o 73/27; null beats dag9o 66/34. So in play: null arm > dag9o (the labels hurt there too),
+and the master-only model is level with the candidate.
