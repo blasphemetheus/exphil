@@ -1,0 +1,52 @@
+{
+  "baseline_agent_revision": "4ebb8a04",
+  "batch": 8,
+  "batch_setup_us": 3626189,
+  "client": "cuda",
+  "host_embedding": false,
+  "iterations": 30,
+  "measurement_conditions": "Sequential GPU runs; unrelated CPU tests on the shared machine. No competing GPU process observed before completed runs. First compilation excluded.",
+  "note": "Full Agent call includes embedding, recurrence, sampling and output transfer. Compilation, fixture reset and row-reset API calls excluded. Deterministic heads. Independent-head exports are not supported by this batched API.",
+  "policy": "checkpoints/coh_fullscale_mamba_v1/model_best_policy.bin",
+  "precision": "highest",
+  "reference_validated": true,
+  "replay": "/home/blewf/Slippi/2026-10-Mainline/Game_20261022T170737.slp",
+  "results": [
+    {
+      "due": 0,
+      "kind": "resync",
+      "median_us": 8619,
+      "p95_us": 9402
+    },
+    {
+      "due": 1,
+      "kind": "resync",
+      "median_us": 13177,
+      "p95_us": 15417
+    },
+    {
+      "due": 3,
+      "kind": "resync",
+      "median_us": 15828,
+      "p95_us": 18784
+    },
+    {
+      "due": 8,
+      "kind": "resync",
+      "median_us": 14807,
+      "p95_us": 16159
+    },
+    {
+      "due": 1,
+      "kind": "cold_reset",
+      "median_us": 12887,
+      "p95_us": 14631
+    },
+    {
+      "due": 3,
+      "kind": "cold_reset",
+      "median_us": 15443,
+      "p95_us": 18923
+    }
+  ]
+}

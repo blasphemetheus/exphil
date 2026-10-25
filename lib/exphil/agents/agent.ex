@@ -721,6 +721,7 @@ defmodule ExPhil.Agents.Agent do
     case batch_preconditions(state) do
       {:ok, :stateful} ->
         trunk = fresh_trunk_state(state, n)
+        warm_batch_replay(state, trunk, n)
 
         {:reply, :ok,
          %{state | batch: %{n: n, mode: :stateful, trunk_state: trunk, cold: true, last_controllers: List.duplicate(nil, n),
@@ -930,7 +931,10 @@ defmodule ExPhil.Agents.Agent do
           # Compile cold-start/resync replay before the first game frame.
           # Discard its carry just like the throwaway step above. BPTT never
           # pads or resyncs, so it needs no replay executable.
-          if not (state.bptt == true), do: warm_trunk(state, state.trunk_state, frame)
+          if not (state.bptt == true) do
+            warm_trunk(state, state.trunk_state, frame)
+            replay_trunk(state, state.trunk_state, List.duplicate(frame, max(state.window_size - 1, 0)))
+          end
           stage_t = stage.("trunk_replay", stage_t)
 
           # The live step path samples via Policy.sample(heads_predict_fn,
@@ -2022,18 +2026,65 @@ defmodule ExPhil.Agents.Agent do
 
   defp replay_trunk(_state, trunk, []), do: trunk
   defp replay_trunk(state, trunk, frames) when is_list(frames),
-    do: replay_trunk(state, trunk, Nx.stack(frames, axis: 1))
+    do: replay_trunk(state, trunk, List.to_tuple(frames))
   defp replay_trunk(state, trunk, frames) do
     module = stateful_module(state.backbone)
     if Code.ensure_loaded?(EXLA) do
       replay = Edifice.Stateful.jit_replay(module, EXLA, xla_exec_cache("trunk_replay", module))
       replay.(state.trunk_step_params, trunk, frames)
     else
+      frames = if is_tuple(frames), do: Nx.stack(Tuple.to_list(frames), axis: 1), else: frames
       Enum.reduce(0..(Nx.axis_size(frames, 1) - 1), trunk, fn i, carry ->
         {_, next} = module.step(state.trunk_step_params, carry, Nx.take(frames, i, axis: 1))
         next
       end)
     end
+  end
+
+  # Bound compiled selection shapes to powers of two (capped at batch size).
+  # Padding indices are unique continuing rows; the compiled count mask keeps
+  # their carry exactly unchanged. Values/count change without recompilation.
+  defp replay_bucket(count, n),
+    do: min(Stream.iterate(1, &(&1 * 2)) |> Enum.find(&(&1 >= count)), n)
+
+  defp replay_trunk_rows(state, current, initial, frames, rows, n) do
+    if Code.ensure_loaded?(EXLA) and frames != [] do
+      padded = Enum.take(rows ++ (Enum.to_list(0..(n - 1)) -- rows), replay_bucket(length(rows), n))
+      frames = if is_list(frames), do: List.to_tuple(frames), else: frames
+      module = stateful_module(state.backbone)
+      replay = Edifice.Stateful.jit_replay_rows(module, EXLA, xla_exec_cache("trunk_replay_rows", module))
+      replay.(state.trunk_step_params, current, initial, frames,
+        Nx.tensor(padded, type: :s32), Nx.tensor(length(rows), type: :s32))
+    else
+      replayed = replay_trunk(state, initial, frames)
+      mask = Nx.tensor(Enum.map(0..(n - 1), &if(&1 in rows, do: 1, else: 0)), type: :u8)
+      Map.new(current, fn {key, value} ->
+        shape = List.to_tuple([n | List.duplicate(1, Nx.rank(value) - 1)])
+        {key, Nx.select(Nx.broadcast(Nx.reshape(mask, shape), Nx.shape(value)), replayed[key], value)}
+      end)
+    end
+  end
+
+  # Compile on throwaway carry during batch setup, not on the first staggered
+  # reset/resync. Only logarithmically many selection shapes are needed.
+  defp warm_batch_replay(state, trunk, n) do
+    if Code.ensure_loaded?(EXLA) and not (state.bptt == true) and state.window_size > 1 do
+      embedded = embed_game_state(create_dummy_game_state(), 1, state)
+      frame = Nx.broadcast(Nx.reshape(embedded, {1, Nx.size(embedded)}), {n, Nx.size(embedded)})
+      history = List.duplicate(frame, state.window_size - 1)
+      cold = frame |> Nx.new_axis(1) |> Nx.broadcast({n, state.window_size - 1, Nx.size(embedded)})
+      replay_trunk(state, trunk, history)
+      replay_trunk(state, trunk, cold)
+      if n > 1 do
+        buckets = 1..(n - 1) |> Enum.map(&replay_bucket(&1, n)) |> Enum.uniq()
+        for bucket <- buckets do
+          rows = Enum.to_list(0..(bucket - 1))
+          replay_trunk_rows(state, trunk, trunk, history, rows, n)
+          replay_trunk_rows(state, trunk, trunk, cold, rows, n)
+        end
+      end
+    end
+    :ok
   end
 
   # Persistent XLA executable cache (JIT_WARMUP.md step 1) — see
@@ -2324,7 +2375,14 @@ defmodule ExPhil.Agents.Agent do
     game_states =
       if zero_projectiles?(state.embed_config), do: Enum.map(game_states, &%{&1 | projectiles: []}), else: game_states
 
-    Embeddings.Game.embed_states_fast(game_states, port, embed_opts)
+    # Match the single-agent path: these small normalization/one-hot operations
+    # are much cheaper on the host than as many eager accelerator dispatches.
+    # Transfer the completed batch once, retaining the policy's chosen backend.
+    backend = Nx.default_backend()
+    Nx.with_default_backend(Nx.BinaryBackend, fn ->
+      Embeddings.Game.embed_states_fast(game_states, port, embed_opts)
+    end)
+    |> Nx.backend_transfer(backend)
   end
 
   # Windowed batch step: push each row's frame into its rolling window (cold
@@ -2375,18 +2433,17 @@ defmodule ExPhil.Agents.Agent do
 
     trunk =
       if MapSet.size(cold_rows) > 0 and not (state.bptt == true) do
-        mask = Nx.tensor(Enum.map(0..(n - 1), &if(MapSet.member?(cold_rows, &1), do: 1, else: 0)), type: :u8)
-
-        advanced = warm_trunk(state, b.trunk_state, frames)
         # Only reset rows receive first-frame padding. Other games must
         # retain their carry until the single real frame below.
         if MapSet.size(cold_rows) == n do
-          advanced
+          warm_trunk(state, b.trunk_state, frames)
         else
-          Map.new(b.trunk_state, fn {k, v} ->
-            m = Nx.reshape(mask, List.to_tuple([n | List.duplicate(1, Nx.rank(v) - 1)]))
-            {k, Nx.select(Nx.broadcast(m, Nx.shape(v)), advanced[k], v)}
-          end)
+          if state.window_size <= 1 do
+            b.trunk_state
+          else
+            cold = frames |> Nx.new_axis(1) |> Nx.broadcast({n, state.window_size - 1, Nx.axis_size(frames, 1)})
+            replay_trunk_rows(state, b.trunk_state, b.trunk_state, cold, Enum.sort(cold_rows), n)
+          end
         end
       else
         b.trunk_state
@@ -2402,7 +2459,7 @@ defmodule ExPhil.Agents.Agent do
     counts |> Enum.with_index() |> Enum.map(fn {count, i} -> if i in rows, do: 0, else: count end)
   end
 
-  # Replay all compatible rows in one executable, then select only due rows.
+  # Replay due rows in one executable, with bounded padding for compile shapes.
   # A reset row must accumulate its own complete history before becoming due;
   # old frames in the shared tensor buffer cannot leak across game boundaries.
   defp batch_resync(state, b, trunk, frames, cold, resync?) do
@@ -2417,15 +2474,13 @@ defmodule ExPhil.Agents.Agent do
 
     trunk =
       if Enum.any?(due) do
-        replayed = replay_trunk(state, fresh_trunk_state(state, b.n), Enum.reverse(b.replay_frames))
+        initial = fresh_trunk_state(state, b.n)
+        history = Enum.reverse(b.replay_frames)
         if Enum.all?(due) do
-          replayed
+          replay_trunk(state, initial, history)
         else
-          mask = Nx.tensor(Enum.map(due, &if(&1, do: 1, else: 0)), type: :u8)
-          Map.new(trunk, fn {key, value} ->
-            shape = List.to_tuple([b.n | List.duplicate(1, Nx.rank(value) - 1)])
-            {key, Nx.select(Nx.broadcast(Nx.reshape(mask, shape), Nx.shape(value)), replayed[key], value)}
-          end)
+          rows = due |> Enum.with_index() |> Enum.filter(&elem(&1, 0)) |> Enum.map(&elem(&1, 1))
+          replay_trunk_rows(state, trunk, initial, history, rows, b.n)
         end
       else
         trunk

@@ -1,0 +1,77 @@
+{
+  "batch": 8,
+  "batch_setup_us": 2190161,
+  "client": "cuda",
+  "iterations": 10,
+  "note": "Full Agent call includes embedding, recurrence, sampling and output transfer. Compilation, fixture reset and row-reset API calls excluded. Deterministic heads. Independent-head exports are not supported by this batched API.",
+  "policy": "checkpoints/coh_prev_q_ck4/model_best_policy.bin",
+  "precision": "highest",
+  "reference_validated": false,
+  "replay": "/home/blewf/Slippi/2026-10-Mainline/Game_20261022T170737.slp",
+  "results": [
+    {
+      "due": 0,
+      "kind": "resync",
+      "median_us": 7562,
+      "p95_us": 8905
+    },
+    {
+      "due": 1,
+      "kind": "resync",
+      "median_us": 9999,
+      "p95_us": 10644
+    },
+    {
+      "due": 3,
+      "kind": "resync",
+      "median_us": 9762,
+      "p95_us": 11205
+    },
+    {
+      "due": 8,
+      "kind": "resync",
+      "median_us": 9783,
+      "p95_us": 10393
+    },
+    {
+      "due": 1,
+      "kind": "cold_reset",
+      "median_us": 9739,
+      "p95_us": 10363
+    },
+    {
+      "due": 3,
+      "kind": "cold_reset",
+      "median_us": 9628,
+      "p95_us": 12382
+    }
+  ],
+  "stage_profile": {
+    "ExPhil.Agents.Agent.action_to_controller/2": {
+      "calls": 240,
+      "total_us": 733,
+      "us_per_frame": 24.433333333333334
+    },
+    "ExPhil.Agents.Agent.batch_embed/3": {
+      "calls": 30,
+      "total_us": 202644,
+      "us_per_frame": 6754.8
+    },
+    "ExPhil.Agents.Agent.batch_resync/6": {
+      "calls": 30,
+      "total_us": 41,
+      "us_per_frame": 1.3666666666666667
+    },
+    "ExPhil.Agents.Agent.batch_trunk_step/4": {
+      "calls": 30,
+      "total_us": 5301,
+      "us_per_frame": 176.7
+    },
+    "ExPhil.Networks.Policy.Sampling.sample_autoregressive_from_features/3": {
+      "calls": 30,
+      "total_us": 9572,
+      "us_per_frame": 319.06666666666666
+    }
+  },
+  "stage_profile_note": "Erlang call-time attribution on 30 ordinary frames. Traced callees accounted separately; not synchronized GPU kernel durations. Tracing overhead applies."
+}

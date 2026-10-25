@@ -146,17 +146,27 @@ the live overnight queue's native libraries were not rebuilt.
 
 `batch_get_controllers` now honors `stateful_resync` independently per row.
 Each bot has a history-length counter and resync counter; the shared frame
-buffer stores the last window of embeddings. A compiled replay rebuilds all
-rows together and only due rows receive the rebuilt carry. A partially reset
+buffer stores the last window of embeddings. A compiled replay rebuilds the due
+rows and only those rows receive the rebuilt carry. A partially reset
 batch cannot replay history from a row's previous game: that row must first
 accumulate a complete new window. Observe-only calls collect history and
 advance the counter, leaving resync to the next decision, just like the single
 path. Disabling/re-enabling resync preserves recent history. Counters follow
 the single-agent convention: a resync decision resets the counter to zero.
 
-The implementation retains one batch shape; with staggered resets, it may
-recompute rows that are not due and discard their replayed states. This avoids
-compiling many subset shapes but is a remaining performance tradeoff.
+The optimized implementation gathers due rows into a power-of-two bucket capped
+at the batch size. Extra bucket rows are unique continuing rows whose carry is
+preserved by a runtime count mask. Selection shapes are warmed on throwaway carry
+during `batch_init`, so changing due-row counts does not introduce new JIT shapes
+during gameplay. All-due resync uses full replay directly. Cold partial resets
+use the same selected-row path. History stacking is fused into replay by passing
+a chronological tuple of frames instead of eagerly stacking the list.
+
+Batch setup now includes replay compilation (about 2–4 seconds in the measured
+batch-8 policies); it does not advance live carry. Batched observation embedding
+also matches the single path: host assembly followed by one transfer to the
+policy backend. This removes dozens of small eager GPU preprocessing operations.
+Full before/after results: `eval_runs/recurrent_resync_profile_20261025/`.
 
 Validation also found that Axon's stored GRU/LSTM initializer RNG key produces
 different hidden values and Glorot scale at batch size N. Stateful batch init
@@ -190,9 +200,9 @@ random keys when omitted. `--deterministic` is available for diagnostics, but
 the tested MinGRU stood still under argmax, so stochastic comparisons are more
 informative. Results are in `eval_runs/recurrent_resync_20261025/`.
 
-The targeted CPU suite has 58 passing tests, including Edifice replay,
+The updated targeted CPU suite has 77 passing tests, including Edifice replay,
 MinGRU/GRU/LSTM/Mamba/Mamba-2 single-vs-batch carry at window sizes 1 and 8,
-staggered resets, observe-only frames, runtime resync toggles, stochastic key
+batch sizes 2 and 5, padded selections, staggered resets, observe-only frames, runtime resync toggles, stochastic key
 reproducibility, decode and sampling regressions. BPTT reconfiguration now
 rejects window resync just as initial policy loading does.
 

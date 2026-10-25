@@ -155,12 +155,15 @@ defmodule ExPhil.Agents.AgentStatefulMinGRUTest do
     GenServer.stop(agent)
   end
 
-  for backbone <- [:min_gru, :gru, :lstm, :mamba, :mamba_2], window <- [1, @window] do
-    test "#{backbone}, window #{window}: batched resync matches independent agents across staggered resets and observations" do
+  for backbone <- [:min_gru, :gru, :lstm, :mamba, :mamba_2], window <- [1, @window], n <- [2, 5] do
+    test "#{backbone}, window #{window}, batch #{n}: batched resync matches independent agents across staggered resets and observations" do
       policy = build_policy(:autoregressive, unquote(backbone), unquote(window))
       batch = start_agent(policy, stateful_step: true, stateful_resync: 2)
-      singles = for _ <- 1..2, do: start_agent(policy, stateful_step: true, stateful_resync: 2)
-      :ok = Agent.batch_init(batch, 2)
+      n = unquote(n)
+      singles = for _ <- 1..n, do: start_agent(policy, stateful_step: true, stateful_resync: 2)
+      before_init = :sys.get_state(batch).trunk_state
+      :ok = Agent.batch_init(batch, n)
+      assert :sys.get_state(batch).trunk_state == before_init
 
       for tick <- 0..23 do
         if tick in [18, 20] do
@@ -171,12 +174,12 @@ defmodule ExPhil.Agents.AgentStatefulMinGRUTest do
         end
 
         if tick in [10, 15] do
-          row = if tick == 10, do: 0, else: 1
-          :ok = Agent.batch_reset_rows(batch, [row])
-          :ok = Agent.reset_buffer(Enum.at(singles, row))
+          rows = if tick == 10, do: Enum.take_every(Enum.to_list(0..(n - 1)), 2), else: [1]
+          :ok = Agent.batch_reset_rows(batch, rows)
+          for row <- rows, do: :ok = Agent.reset_buffer(Enum.at(singles, row))
         end
 
-        frames = for row <- 0..1, do: %{game_state((tick * (row + 1) - 13) * 1.0) | frame: tick}
+        frames = for row <- 0..(n - 1), do: %{game_state((tick * (row + 1) - 13) * 1.0) | frame: tick}
 
         if tick in [3, 4, 8, 17] do
           assert :ok = Agent.batch_observe(batch, frames)

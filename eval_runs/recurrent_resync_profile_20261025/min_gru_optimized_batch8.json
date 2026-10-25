@@ -1,0 +1,80 @@
+{
+  "baseline_agent_revision": "4ebb8a04",
+  "batch": 8,
+  "batch_setup_us": 2294415,
+  "client": "cuda",
+  "host_embedding": true,
+  "iterations": 30,
+  "measurement_conditions": "Sequential GPU runs; unrelated CPU tests on the shared machine. No competing GPU process observed before completed runs. First compilation excluded.",
+  "note": "Full Agent call includes embedding, recurrence, sampling and output transfer. Compilation, fixture reset and row-reset API calls excluded. Deterministic heads. Independent-head exports are not supported by this batched API.",
+  "policy": "checkpoints/coh_prev_q_ck4/model_best_policy.bin",
+  "precision": "highest",
+  "reference_validated": true,
+  "replay": "/home/blewf/Slippi/2026-10-Mainline/Game_20261022T170737.slp",
+  "results": [
+    {
+      "due": 0,
+      "kind": "resync",
+      "median_us": 917,
+      "p95_us": 1336
+    },
+    {
+      "due": 1,
+      "kind": "resync",
+      "median_us": 2828,
+      "p95_us": 3191
+    },
+    {
+      "due": 3,
+      "kind": "resync",
+      "median_us": 2773,
+      "p95_us": 3035
+    },
+    {
+      "due": 8,
+      "kind": "resync",
+      "median_us": 2801,
+      "p95_us": 3197
+    },
+    {
+      "due": 1,
+      "kind": "cold_reset",
+      "median_us": 2842,
+      "p95_us": 3189
+    },
+    {
+      "due": 3,
+      "kind": "cold_reset",
+      "median_us": 2858,
+      "p95_us": 3268
+    }
+  ],
+  "stage_profile": {
+    "ExPhil.Agents.Agent.action_to_controller/2": {
+      "calls": 240,
+      "total_us": 634,
+      "us_per_frame": 21.133333333333333
+    },
+    "ExPhil.Agents.Agent.batch_embed/3": {
+      "calls": 30,
+      "total_us": 12579,
+      "us_per_frame": 419.3
+    },
+    "ExPhil.Agents.Agent.batch_resync/6": {
+      "calls": 30,
+      "total_us": 51,
+      "us_per_frame": 1.7
+    },
+    "ExPhil.Agents.Agent.batch_trunk_step/4": {
+      "calls": 30,
+      "total_us": 6468,
+      "us_per_frame": 215.6
+    },
+    "ExPhil.Networks.Policy.Sampling.sample_autoregressive_from_features/3": {
+      "calls": 30,
+      "total_us": 10472,
+      "us_per_frame": 349.06666666666666
+    }
+  },
+  "stage_profile_note": "Optional Erlang call-time attribution on 30 ordinary frames, separate from timings. Traced callees are accounted separately. Not synchronized GPU kernel time; tracing overhead applies."
+}

@@ -1,0 +1,15 @@
+{
+  "precision": "highest",
+  "client": "host",
+  "policy": "checkpoints/mewtwo_combo_newera_mamba2_screen_best_policy.bin",
+  "replay": "replays/greg/mewtwo/Game_20240222T222930.slp",
+  "frames": 96,
+  "stateful_resync": 30,
+  "warmup_ms": 466,
+  "fused_custom_call_env": "0",
+  "cuda_handler_library_loaded": false,
+  "cold_action_matches_window": true,
+  "warmup_preserves_state": true,
+  "rollback_exact": true,
+  "full_agent_timings": null
+}
