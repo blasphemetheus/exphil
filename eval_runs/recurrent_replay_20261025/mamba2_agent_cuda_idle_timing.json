@@ -1,0 +1,43 @@
+{
+  "client": "cuda",
+  "cold_action_matches_window": true,
+  "compiled_exphil_revision": "4ebb8a04",
+  "cuda_handler_library_loaded": false,
+  "edifice_revision": "6a000da",
+  "frames": 96,
+  "full_agent_timings": {
+    "carried_resync_30": {
+      "carried": {
+        "median_us": 1070,
+        "p95_us": 1642,
+        "samples": 282
+      },
+      "cold": {
+        "median_us": 3780,
+        "p95_us": 3838,
+        "samples": 3
+      },
+      "resync": {
+        "median_us": 4481,
+        "p95_us": 5022,
+        "samples": 3
+      }
+    },
+    "windowed": {
+      "windowed": {
+        "median_us": 2224,
+        "p95_us": 2753,
+        "samples": 288
+      }
+    }
+  },
+  "fused_custom_call_env": "0",
+  "measurement_conditions": "Queue finished; no competing GPU compute process observed before or after each run. Sequential runs from the compiled main checkout, highest precision, portable kernels, preallocate false.",
+  "policy": "checkpoints/mewtwo_combo_newera_mamba2_screen_best_policy.bin",
+  "precision": "highest",
+  "replay": "replays/greg/mewtwo/Game_20240222T222930.slp",
+  "rollback_exact": true,
+  "stateful_resync": 30,
+  "warmup_ms": 1846,
+  "warmup_preserves_state": true
+}

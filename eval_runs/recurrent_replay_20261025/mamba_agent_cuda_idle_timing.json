@@ -1,0 +1,43 @@
+{
+  "client": "cuda",
+  "cold_action_matches_window": true,
+  "compiled_exphil_revision": "4ebb8a04",
+  "cuda_handler_library_loaded": false,
+  "edifice_revision": "6a000da",
+  "frames": 116,
+  "full_agent_timings": {
+    "carried_resync_30": {
+      "carried": {
+        "median_us": 754,
+        "p95_us": 1115,
+        "samples": 339
+      },
+      "cold": {
+        "median_us": 4644,
+        "p95_us": 4691,
+        "samples": 3
+      },
+      "resync": {
+        "median_us": 6649,
+        "p95_us": 7465,
+        "samples": 6
+      }
+    },
+    "windowed": {
+      "windowed": {
+        "median_us": 2591,
+        "p95_us": 3457,
+        "samples": 348
+      }
+    }
+  },
+  "fused_custom_call_env": "0",
+  "measurement_conditions": "Queue finished; no competing GPU compute process observed before or after each run. Sequential runs from the compiled main checkout, highest precision, portable kernels, preallocate false.",
+  "policy": "checkpoints/coh_fullscale_mamba_v1/model_best_policy.bin",
+  "precision": "highest",
+  "replay": "/home/blewf/Slippi/2026-10-Mainline/Game_20261022T170737.slp",
+  "rollback_exact": true,
+  "stateful_resync": 30,
+  "warmup_ms": 1665,
+  "warmup_preserves_state": true
+}

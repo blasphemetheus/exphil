@@ -47,6 +47,7 @@ files and exact aggregate values. Use a fixed built revision for each comparison
 
 Next: more seeds and active opponents for all three policies, followed by a
 matched delay/stage evaluation before changing deployment settings. Separately,
-repeat full-Agent p95 measurements on an idle GPU. Real-checkpoint cold start,
+collect more cold/resync samples. A final idle-GPU full-Agent pass is recorded in
+`../recurrent_replay_20261025/*_agent_cuda_idle_timing.json`. Real-checkpoint cold start,
 warmup and exact rollback checks passed on both CPU and CUDA; those correctness
 checks do not establish equivalence between carried and sliding-window policies.

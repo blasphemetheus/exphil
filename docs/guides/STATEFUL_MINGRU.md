@@ -203,6 +203,14 @@ resync reproduces actions and final state exactly. Contended CUDA medians
 Mamba 3.959 / 1.146 / 6.177 / 8.501; Mamba-2 3.365 / 1.690 / 4.139 / 6.463.
 Another CUDA test ran concurrently, so these are not idle-device performance
 figures. Artifacts: `eval_runs/recurrent_replay_20261025/*_agent_cuda_timing.json`.
+A final pass after the queue/tests finished supersedes those contended timings.
+No competing GPU process was observed before or after each run. Complete Agent
+medians (window / carry / cold / resync), in ms: MinGRU 2.838 / 1.039 / 2.753 /
+4.474; Mamba 2.591 / 0.754 / 4.644 / 6.649; Mamba-2 2.224 / 1.070 / 3.780 /
+4.481. Ordinary carry p95 is 1.548 / 1.115 / 1.642 ms respectively. Resync p95
+is 4.840 / 7.465 / 5.022 ms, but has only 3–6 samples. These use portable
+kernels and the compiled main checkout; first JIT and emulator IPC are excluded.
+Artifacts: `eval_runs/recurrent_replay_20261025/*_agent_cuda_idle_timing.json`.
 A separate fused-on Mamba check also passes, with the handler library confirmed
 loaded. Edifice now loads OTP crypto before the handler library; a fresh Erlang
 VM regression reproduces the old load-order crash and passes with the fix.
@@ -214,6 +222,10 @@ MinGRU self-destructs/min were 3.125 windowed, 5.0 carried, 4.0 resync30 and
 Keep deployment defaults unchanged. Mamba/Mamba-2 have idle-opponent screens
 only, which cannot establish competitive performance.
 
-Remaining: live-main integration after the active evaluation queue, isolated GPU
-p95 timing, and larger closed-loop trials against active opponents before changing
+The integration was fast-forwarded onto main after the walkoff queue finished
+on October 25; the application compiled successfully, including Edifice's crypto
+loader fix and the press-window/grounded-neutral feature branch. The queue launcher
+now stops on merge, compilation or test failures instead of running missing flags.
+
+Larger closed-loop trials against active opponents remain necessary before changing
 resync defaults. Train with explicit carried state if indefinite memory is desired.
