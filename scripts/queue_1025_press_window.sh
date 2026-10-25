@@ -8,8 +8,8 @@
 # neutral 1.0; MAX_FILES 1500 to halve the re-embedding cost; agreement on 3 games):
 #   base, base906 (seed floor)
 #   pw2 / pw5          --press-window-weight 2 / 5     (press commitment)
-#   ng05 / ng025       --neutral-grounded-weight 0.5 / 0.25   (scoped anti-passivity)
-#   pw2_ng05           both
+#   (the scoped neutral-weight arms were dropped 10-25 10:20 — Bradley: the walk-offs are the
+#    problem to look at, not a scoped patch; see scripts/overnight walk-off readout)
 # PASS (vs base, beyond the 905/906 spread): press-edge same-family agreement
 # (jump/attack/special) > 5 % (base 0-2 %) with calibration AUC not down and
 # false press <= 1 %; STANDING change recall up from ~32 % with closed-loop
@@ -55,7 +55,5 @@ arm base      --neutral-weight 1.0
 SEED=906 arm base906 --neutral-weight 1.0
 arm pw2       --neutral-weight 1.0 --press-window-weight 2
 arm pw5       --neutral-weight 1.0 --press-window-weight 5
-arm ng05      --neutral-weight 1.0 --neutral-grounded-weight 0.5
-arm ng025     --neutral-weight 1.0 --neutral-grounded-weight 0.25
-arm pw2_ng05  --neutral-weight 1.0 --press-window-weight 2 --neutral-grounded-weight 0.5
-log ""; log "QUEUE 2 DONE ($(date +%H:%M)) — table: node scripts/pq_digest.js pw_base pw_base906 pw_pw2 pw_pw5 pw_ng05 pw_ng025 pw_pw2_ng05"
+arm pw10      --neutral-weight 1.0 --press-window-weight 10
+log ""; log "QUEUE 2 DONE ($(date +%H:%M)) — table: node scripts/pq_digest.js pw_base pw_base906 pw_pw2 pw_pw5 pw_pw10"
