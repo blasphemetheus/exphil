@@ -1048,3 +1048,12 @@ RUNNING: exphil-fox-mamba-ep2 (Mamba epoch 2 via --resume, ~8.5 h). No mix.
 
 > The clocks spread out, the queues grow small;
 > We keep the numbers, faults and all.
+
+- Completion update (AI-generated): Edifice commit `c972680` contains the
+  pretrained structural fixes and reusable Rust/Elixir diagnostics. On locked
+  dependencies, 151 targeted tests have one failure and two existing slow
+  exclusions. ViT, ConvNeXt, ResNet and DETR pass original numerical bounds;
+  Whisper remains at maximum error `2.59e-4` against `1e-4`. Rust LibTorch
+  reproduces the original fixture exactly. The strict failing test is retained;
+  no expected values or tolerances changed. Both benchmark priorities are
+  complete, but Whisper numerical parity remains open. No benchmark VM remains.
