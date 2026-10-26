@@ -12,6 +12,8 @@ alias ExPhil.Training.Output
       batch: :integer,
       iterations: :integer,
       validate_batch: :boolean,
+      stochastic: :boolean,
+      seed: :integer,
       out: :string
     ]
   )
@@ -19,6 +21,12 @@ alias ExPhil.Training.Output
 {:ok, export} = ExPhil.Training.load_policy(Keyword.fetch!(opts, :policy))
 n = opts[:batch] || 8
 iterations = opts[:iterations] || 50
+stochastic = opts[:stochastic] || false
+seed = opts[:seed] || 20_261_026
+
+if stochastic and opts[:validate_batch],
+  do: raise("cross-batch exact sampling parity requires deterministic mode")
+
 if n < 1 or iterations < 1, do: raise("batch and iterations must be positive")
 bptt = export.config[:bptt] == true
 {:ok, metadata} = Peppi.metadata(Keyword.fetch!(opts, :replay))
@@ -40,10 +48,19 @@ frames =
 
 true = length(frames) == history + 3
 
+# Explicit keys make snapshot replay reproducible at a fixed batch shape.
+# Key construction is setup work; each timed request still performs sampling.
+keys =
+  Map.new(frames, fn frame ->
+    {frame.game_state.frame, Nx.Random.key(seed + frame.game_state.frame)}
+  end)
+
+sample_opts = fn frame -> [key: Map.fetch!(keys, frame.game_state.frame)] end
+
 agent_opts =
   [
     policy: export,
-    deterministic: true,
+    deterministic: not stochastic,
     stateful_step: true,
     harness: :sync_runner,
     frame_delay: 0,
@@ -52,7 +69,13 @@ agent_opts =
   ] ++ if(bptt, do: [], else: [stateful_resync: 30])
 
 Output.banner("Trained recurrent full-policy profile")
-Output.config([{"Policy", opts[:policy]}, {"Rows", n}, {"BPTT", bptt}])
+
+Output.config([
+  {"Policy", opts[:policy]},
+  {"Rows", n},
+  {"BPTT", bptt},
+  {"Stochastic", stochastic}
+])
 
 {setup_us, {driver, agents}} =
   :timer.tc(fn ->
@@ -79,19 +102,30 @@ Output.config([{"Policy", opts[:policy]}, {"Rows", n}, {"BPTT", bptt}])
     end
   end)
 
-call = fn frame ->
+invoke = fn frame, sampling_opts ->
   case driver do
     :batch ->
-      {:ok, cs} = Agent.batch_get_controllers(hd(agents), List.duplicate(frame.game_state, n))
+      {:ok, cs} =
+        Agent.batch_get_controllers(
+          hd(agents),
+          List.duplicate(frame.game_state, n),
+          sampling_opts
+        )
+
       cs
 
     :single ->
       Enum.map(agents, fn a ->
-        {:ok, c} = Agent.get_controller(a, frame.game_state)
+        {:ok, c} = Agent.get_controller(a, frame.game_state, sampling_opts)
         c
       end)
   end
 end
+
+call = fn frame -> invoke.(frame, sample_opts.(frame)) end
+# Time the deployed default fresh-key path, including cryptographic RNG/key
+# construction. Explicit keys are only for reproducible priming and rollback.
+timed_call = fn frame -> invoke.(frame, []) end
 
 for frame <- Enum.take(frames, history), do: call.(frame)
 bases = Enum.map(agents, &:sys.get_state/1)
@@ -245,24 +279,28 @@ results =
       true = Enum.take(actual, count) == List.duplicate(0, count)
     end
 
-    times =
+    measurements =
       for i <- 1..(iterations + 5), reduce: [] do
         acc ->
           reset.()
-          {us, _} = :timer.tc(fn -> call.(next) end)
-          if i > 5, do: [us | acc], else: acc
+          measured = :timer.tc(fn -> timed_call.(next) end)
+          if i > 5, do: [measured | acc], else: acc
       end
-      |> Enum.sort()
+
+    times = measurements |> Enum.map(&elem(&1, 0)) |> Enum.sort()
 
     result = %{
       kind: kind,
       rows: count,
       samples: iterations,
+      times_us: times,
+      distinct_controller_groups:
+        measurements |> Enum.map(&elem(&1, 1)) |> Enum.uniq() |> length(),
       median_us: Enum.at(times, div(iterations, 2)),
       p95_us: Enum.at(times, ceil(iterations * 0.95) - 1)
     }
 
-    Output.puts(inspect(result))
+    Output.puts(inspect(Map.delete(result, :times_us)))
     result
   end
 
@@ -283,33 +321,40 @@ results =
         a
       end
 
-    window_call = fn frame ->
+    window_invoke = fn frame, sampling_opts ->
       if driver == :batch do
         {:ok, cs} =
-          Agent.batch_get_controllers(hd(window_agents), List.duplicate(frame.game_state, n))
+          Agent.batch_get_controllers(
+            hd(window_agents),
+            List.duplicate(frame.game_state, n),
+            sampling_opts
+          )
 
         cs
       else
         Enum.map(window_agents, fn a ->
-          {:ok, c} = Agent.get_controller(a, frame.game_state)
+          {:ok, c} = Agent.get_controller(a, frame.game_state, sampling_opts)
           c
         end)
       end
     end
 
+    window_call = fn frame -> window_invoke.(frame, sample_opts.(frame)) end
+
     for frame <- Enum.take(frames, history), do: window_call.(frame)
     saved = Enum.map(window_agents, &:sys.get_state/1)
 
-    times =
+    measurements =
       for i <- 1..(iterations + 5), reduce: [] do
         acc ->
           Enum.zip(window_agents, saved)
           |> Enum.each(fn {a, state} -> :sys.replace_state(a, fn _ -> state end) end)
 
-          {us, _} = :timer.tc(fn -> window_call.(next) end)
-          if i > 5, do: [us | acc], else: acc
+          measured = :timer.tc(fn -> window_invoke.(next, []) end)
+          if i > 5, do: [measured | acc], else: acc
       end
-      |> Enum.sort()
+
+    times = measurements |> Enum.map(&elem(&1, 0)) |> Enum.sort()
 
     for a <- window_agents, do: GenServer.stop(a)
 
@@ -317,11 +362,14 @@ results =
       kind: :windowed,
       rows: n,
       samples: iterations,
+      times_us: times,
+      distinct_controller_groups:
+        measurements |> Enum.map(&elem(&1, 1)) |> Enum.uniq() |> length(),
       median_us: Enum.at(times, div(iterations, 2)),
       p95_us: Enum.at(times, ceil(iterations * 0.95) - 1)
     }
 
-    Output.puts(inspect(result))
+    Output.puts(inspect(Map.delete(result, :times_us)))
     results ++ [result]
   end
 
@@ -337,6 +385,15 @@ report = %{
   backbone: export.config.backbone,
   head: export.config[:head],
   bptt: bptt,
+  stochastic: stochastic,
+  seed: seed,
+  sampling: %{
+    temperature: 1.0,
+    deterministic_buttons: false,
+    mode_of_n: nil,
+    timed_keys: :fresh,
+    validation_keys: :explicit
+  },
   rows: n,
   driver: driver,
   setup_us: setup_us,
@@ -358,7 +415,7 @@ report = %{
   edifice_revision: revision.("../edifice"),
   results: results,
   note:
-    "Full Agent controllers including embedding, recurrence, heads and transfer. Restore/reset calls and compilation excluded. Deterministic sampling. BPTT never resynchronized. Driver records batching versus sequential per-row Agents."
+    "Full Agent controllers including embedding, recurrence, fresh RNG keys, heads and transfer. Restore/reset calls and compilation excluded. Fixed explicit keys only for priming/rollback. Sampling mode recorded in stochastic. BPTT never resynchronized. Driver records batching versus sequential per-row Agents."
 }
 
 File.mkdir_p!(Path.dirname(Keyword.fetch!(opts, :out)))
