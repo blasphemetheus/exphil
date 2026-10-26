@@ -1,0 +1,567 @@
+# ExPhil - Neural Network Architecture Lab for Melee AI
+
+## Language and writing preferences
+
+- Prefer Elixir for reusable tooling as well as application code: benchmarks,
+  orchestration, data processing, validation, and report generation. Use Nx/Axon
+  for numerical and model work. Use Rust when native or systems code is appropriate.
+- Do not fall back to Python for convenience, including temporary scripts and
+  inline analysis helpers, unless the user explicitly requests Python. Existing
+  Python in the repository does not justify adding more.
+- Deliver tools the user can inspect, rerun, and maintain. Prefer small shared
+  Elixir modules with `.exs` entry points or Mix tasks. Simple shell commands are
+  fine for invoking tools and inspecting files.
+- Explain things so a beginner can understand. State the main point first, be
+  direct, and use simple sentences and familiar words. Define necessary technical
+  terms and use concrete examples when helpful.
+- Keep important details and limitations. Do not talk down to the reader. Apply
+  this style to chat, docs, comments, reports, and commit/PR descriptions.
+
+ExPhil is an Elixir-based platform for experimenting with neural network architectures for Super Smash Bros. Melee AI agents. It supports 30+ backbone architectures (via the [Edifice](https://github.com/blasphemetheus/edifice) companion library), all implemented in Elixir using Nx/Axon. The long-term goal is competitive bots for lower-tier characters (Mewtwo, Ganondorf, Link, Zelda, Ice Climbers, G&W), but high-tier replay data drives current architecture iteration.
+
+## Environment
+- Development platform: NixOS (native, hostname `nixos_slanka`)
+- GPU: NVIDIA RTX 5090 with proprietary drivers
+- Dev environment: devenv (replaces old shell.nix / nix-shell workflow)
+- Target: Elixir ~> 1.18, Erlang/OTP 27
+- Project location: `/home/blewf/git/exphil`
+
+## Running Commands
+- Enter dev shell: `cd ~/git/exphil && devenv shell`
+- Inside devenv shell, run `mix`, `elixir`, `erl`, `cargo`, `python3` etc. directly — no wrappers needed.
+- CUDA, Rust (for NIFs), Python (for libmelee), Elixir, and Erlang are all provided by devenv.
+- Sibling deps: `../edifice` (auto-detected), `../nx/nx` + `../nx/exla` (set `EDIFICE_LOCAL_NX=1`)
+- Example: `mix test`, `mix compile`, `iex -S mix`
+
+## Quick Reference
+
+**Embedding dimensions:**
+- **Default (learned)**: 288 dims (287 raw + 1 padding for tensor core alignment)
+- Player: 488 dims (base 440 + speeds 5 + frame_info 2 + stock 1 + ledge_dist 1 + compact Nana 39)
+- Player (learned actions): 91 dims (base 41 + speeds 5 + frame_info 2 + stock 1 + ledge_dist 1 + compact Nana 39 + action IDs in network)
+- Player (learned actions + chars): 58 dims (excludes 33-dim character one-hot)
+- Game (one_hot, legacy): 1208 dims (1204 raw + 4 padding for alignment)
+- Game (learned actions): 408 dims + 2 action IDs
+- Game (learned actions + chars): 344 dims + 4 IDs (saves 64 dims net: 2×33 one-hot → 2 char IDs)
+- **Note:** All embedding sizes are auto-aligned to multiples of 8 for GPU tensor core efficiency
+- **512-dim target**: 254 continuous + 4 action IDs × 64 embedding (use `action_mode: :learned, nana_mode: :enhanced`)
+- Nana modes:
+  - `:compact` (default): 39 dims (preserves IC tech: handoffs, regrabs, desyncs)
+  - `:enhanced`: 14 dims + Nana action ID (most efficient for learned embeddings, precise IC tech)
+  - `:full`: 449 dims (complete action state, use `nana_mode: :full`)
+- Jumps: Normalized (1 dim) by default; use `jumps_normalized: false` for 7-dim one-hot
+- Controller: 13 dims (8 buttons + 4 sticks + 1 shoulder)
+- Stick discretization: 17 uniform buckets (default) or 21 K-means clusters (`--kmeans-centers`)
+- Action modes: `:one_hot` (399 dims) or `:learned` (64-dim trainable embedding, **default**, saves ~670 dims)
+- Character modes: `:one_hot` (33 dims) or `:learned` (64-dim trainable embedding, **default**, saves 64 dims)
+- Stage modes:
+  - `:one_hot_full`: 64 dims (full stage one-hot)
+  - `:one_hot_compact` (**default**): 7 dims (6 competitive stages + "other", saves 57 dims)
+  - `:learned`: 1 ID + trainable embedding (saves 63 dims)
+- Competitive stages for compact mode: FoD (2), PS (3), YS (8), DL (28), BF (31), FD (32)
+- Action IDs: 2 (players only) or 4 (players + Nana with `nana_mode: :enhanced`)
+- Character IDs: 2 when `character_mode: :learned` (own + opponent)
+- Stage IDs: 1 when `stage_mode: :learned`
+
+**Policy network:** 6-head autoregressive (buttons, main_x/y, c_x/y, shoulder)
+
+**Inference benchmarks:**
+| Architecture | Inference | 60 FPS Ready |
+|--------------|-----------|--------------|
+| LSTM (Axon) | 220.95 ms | No |
+| Mamba (Axon) | 8.93 ms | **Yes** |
+| ONNX INT8 | 0.55 ms | **Yes** |
+
+## Current Status
+
+**READ THE NEWEST `docs/planning/HANDOFF_*.md` FIRST** (`ls -t
+docs/planning/HANDOFF_*` picks it) — it is the live resume point;
+everything below is background inventory.
+
+**Production policy (2026-08-24): `checkpoints/ms_g19_ep4.bin`** —
+crowned via the blind stage-pinned netplay decider vs ms_g15
+(eval_runs/0824_crown_decider, FD-pinned, record knobs): canonical
+chains {32,12} vs g15's {3,3,13}, blind human impressions aligned.
+Prior record card: **all-time netplay chain 62** (0822, FD), stand d3
+437.4/min c438, human-session chains 96/163. **Deploy netplay =
+`--frame-delay 4 --delay-id-override 3`** (id4 is UNTRAINED — bare
+d4 collapses chaining; see docs/guides/DEPLOY_KNOBS.md) **/ d3
+local.** Decider caveats (recorded, not crown-gating): n=5, FD-only,
+single opponent/day. Fallback: `ms_g15_oppmask_full.bin` (the 08-09
+champion; its card: chain 46 record at the time, {3,1,46,6} decider
+vs g10b).
+
+> **Standing rule (the g6 lesson, 08-04):** rank by chain strength at
+> the DEPLOY rung and never crown on stand-dummy numbers alone — the
+> dummy ranking can INVERT against humans (`ms_g6_sp1`: dummy record,
+> human zero; mechanism: overfit to the dummy's frozen state, see
+> INTERP_ROADMAP_V2 log). YS claims need n>=8 run-level buckets.
+>
+> The 08-04 "no checkpoint multishines against a human" caveat is
+> RESOLVED (08-05): g10b chains 22 locally / 4 over netplay vs a
+> human. The remaining gap is the DELAY REGIME (22 -> 4 within-policy,
+> same day/opponent) — task #20 is the bottleneck, not fight-state.
+
+Never deploy at an untrained delay-id. Fast eval recipe: sync headless
+`--emulation-speed 0 --blocking-input` (record-equivalent, half wall
+time), but note 3-run determinism is a property of FD/BF only.
+
+**Test coverage:** ~2700 tests passing
+
+**Completed:**
+- 30+ backbone architectures: MLP, LSTM, GRU, Mamba, Griffin, xLSTM, RetNet, RWKV, KAN, Liquid, Jamba, Attention, Zamba, Mamba-2, GatedSSM, S4, S4D, S5, H3, Performer, DeltaNet, FNet, Perceiver, TTT, Hopfield, NTM, Reservoir, SNN, Bayesian, GLA, HGRN, Decision Transformer, MinGRU, MinLSTM, TCN, Mamba-3, Hyena, Titans, GatedDeltaNet
+- 4 policy types: Standard (autoregressive heads), Diffusion (DDPM), ACT (CVAE chunking), Flow Matching (ODE-based)
+- Learned embeddings: action/character/stage (288 dims default, 6x more efficient than one-hot)
+- Imitation learning (single-frame + temporal)
+- Test-time compute scaling: Best-of-N, beam search, ensemble inference, temperature sweep, adaptive scaling
+- PPO trainer with clipped objective
+- Dolphin integration (sync + async runners)
+- Training features: early stopping, LR scheduling, gradient accumulation, validation split, checkpointing
+- Model EMA, cosine annealing with warm restarts, gradient clipping
+- Learning rate finder (`scripts/find_lr.exs`)
+- Data augmentation (mirror states, noise injection)
+- Label smoothing for better generalization
+- Model registry with JSON tracking and lineage
+- Checkpoint pruning (keep best N)
+- Frame delay augmentation for online play (`--online-robust`)
+- Training presets (quick, standard, production, character-specific)
+- K-means stick discretization (`scripts/train_kmeans.exs`, `--kmeans-centers`)
+- Model evaluation script (`scripts/eval_model.exs`)
+- Interactive setup wizard (`mix exphil.setup`)
+- Environment variable support (`EXPHIL_REPLAYS_DIR`, `EXPHIL_WANDB_PROJECT`)
+- Verbosity control (`--verbose` / `--quiet`)
+- Reproducibility seed logging (`--seed N`)
+- Checkpoint collision warnings and auto-backup (`--overwrite`, `--backup`)
+
+## Immediate Priorities
+
+See [GOALS.md](docs/planning/GOALS.md) and the newest `HANDOFF_*.md`.
+The live program (2026-08): **drill-based skill acquisition under
+delay + interpretability-driven iteration** — NOT architecture
+bake-offs (explicitly deprioritized; architecture is not the
+bottleneck).
+
+Current threads:
+1. **Delay campaign (mature)** — multi-delay {2,3} + SS-on-queue is
+   the champion recipe; ladder stops at d4; 18-frame netplay rejected
+   for d<=8. Open: rung-composition theory, real-friend ping
+   measurement (`docs/planning/LATENCY_ARCHITECTURE.md`).
+2. **Interp program** — P0-P6 milestones essentially closed
+   (`docs/planning/INTERP_ROADMAP.md`): CycleSim offline simulator
+   (gate passed), early-reject probes default-on, P4 verdict (no
+   policy reads techs), P5 curation loop validated, cross-arch SAE.
+3. **Fight-state gap** — the bot vs humans/pressure; needs the human
+   replay corpus (always `--replay-dir`, GOTCHA #84) and richer
+   pressure labels.
+4. Parked: large-scale self-play/PPO, architecture benchmarking,
+   low-tier transfer at scale (Mewtwo arm exists: mc_g1_mdq_ss).
+
+## Documentation
+
+Documentation is organized into categories in `docs/`:
+
+```
+docs/
+├── guides/       # How-to (training, inference, scripts)
+├── reference/    # Technical specs (architecture, embeddings)
+├── operations/   # DevOps (docker, runpod, cloud)
+├── research/     # Research notes, case studies
+├── planning/     # Project tracking (goals, fixes, roadmaps)
+└── internals/    # Deep implementation (GPU, kernels)
+```
+
+**Key docs by category:**
+
+| Category | Doc | Contents |
+|----------|-----|----------|
+| **planning** | [GOALS.md](docs/planning/GOALS.md) | Big picture goals, priorities |
+| **planning** | [FIXES.md](docs/planning/FIXES.md) | Technical debt tracking |
+| **guides** | [TRAINING.md](docs/guides/TRAINING.md) | Training commands, CLI options |
+| **guides** | [SCRIPTS.md](docs/guides/SCRIPTS.md) | All scripts reference |
+| **guides** | [INFERENCE.md](docs/guides/INFERENCE.md) | ONNX export, quantization |
+| **guides** | [DOLPHIN.md](docs/guides/DOLPHIN.md) | Dolphin setup, running agents |
+| **guides** | [DEPLOY_KNOBS.md](docs/guides/DEPLOY_KNOBS.md) | Launch flags per context (netplay/local/headless) — copy, never reconstruct |
+| **guides** | [TESTING.md](docs/guides/TESTING.md) | Test harness, coverage |
+| **reference** | [ARCHITECTURE.md](docs/reference/ARCHITECTURE.md) | System design, network structure |
+| **reference** | [architectures/](docs/reference/architectures/ARCHITECTURES.md) | Backbone docs (MLP, LSTM, Mamba) |
+| **reference** | [EMBEDDING_DIMENSIONS.md](docs/reference/EMBEDDING_DIMENSIONS.md) | Tensor shape calculations |
+| **reference** | [GOTCHAS.md](docs/reference/GOTCHAS.md) | Technical pitfalls and fixes |
+| **operations** | [docker-workflow.md](docs/operations/docker-workflow.md) | Docker, cloud GPU deployment |
+| **operations** | [REPLAY_STORAGE.md](docs/operations/REPLAY_STORAGE.md) | Cloud storage (B2/R2) |
+| **research** | [RESEARCH.md](docs/research/RESEARCH.md) | Prior art, papers, lessons |
+| **internals** | [GPU_OPTIMIZATIONS.md](docs/internals/GPU_OPTIMIZATIONS.md) | GPU training optimizations |
+| **internals** | [MAMBA_OPTIMIZATIONS.md](docs/internals/MAMBA_OPTIMIZATIONS.md) | Mamba-specific optimizations |
+
+**Generated API docs:** Run `mix docs` to generate ExDoc HTML in `doc/` (gitignored).
+
+## Quick Start
+
+Training uses learned embeddings by default (~288 dims vs 1204 one-hot). This allows 6x larger networks at the same speed. Use `--action-mode one_hot --character-mode one_hot --stage-mode full` for legacy behavior.
+
+```bash
+mix deps.get
+
+# Interactive setup wizard
+mix exphil.setup
+
+# New training script (callback-based architecture, 190 lines)
+mix run scripts/train.exs --backbone mamba --replays ./replays/huggingface
+mix run scripts/train.exs --backbone mamba --max-files 200 --epochs 30
+mix run scripts/train.exs --help  # see all options
+
+# Backbone defaults auto-applied (temporal, precision, lr_schedule, etc.)
+# No need to pass --temporal --precision etc. — backbone handles it
+
+# Legacy script (deprecated, kept for reference)
+# mix run scripts/train_from_replays.exs --preset quick --replays ./replays
+
+# Evaluate a trained model
+mix run scripts/eval_model.exs --checkpoint checkpoints/model.axon
+
+# Play against Dolphin
+mix run scripts/play_dolphin_async.exs --policy checkpoints/model_policy.bin
+```
+
+**Environment variables** (optional):
+```bash
+export EXPHIL_REPLAYS_DIR=/path/to/replays
+export EXPHIL_WANDB_PROJECT=my-project
+```
+
+**Useful flags:**
+- `--verbose` / `--quiet` - Control output verbosity
+- `--seed N` - Set random seed for reproducibility
+- `--overwrite` - Allow checkpoint overwrite (creates .bak backup)
+
+## RunPod Quick Reference
+
+**On pod startup:**
+```bash
+cd /app
+git pull origin main                    # Get latest code
+source /app/scripts/runpod_entrypoint.sh  # Load helper commands
+sync-checkpoints-down                   # Optional: pull previous checkpoints
+sync-cache-down                         # Optional: pull embedding cache
+```
+
+**Start training (in tmux):**
+```bash
+tmux new -s train
+mix run scripts/train_from_replays.exs \
+  --backbone mlp \
+  --hidden-sizes 512,512,256 \
+  --epochs 10 \
+  --batch-size 512 \
+  --train-character mewtwo \
+  --save-best \
+  --replays /workspace/replays/mewtwo \
+  --name mlp_mewtwo \
+  2>&1 | tee /workspace/logs/training.log
+# Ctrl+B, D to detach
+```
+
+**Before pod shutdown:**
+```bash
+sync-all-up           # Upload checkpoints + logs + cache to B2
+```
+
+**Checkpoint sync commands** (see [REPLAY_STORAGE.md](docs/operations/REPLAY_STORAGE.md)):
+- `sync-all-up` - Upload checkpoints + logs + cache (flat structure)
+- `sync-checkpoints-down` - Download checkpoints
+- `sync-snapshot` - Create dated backup
+- `list-checkpoints` - List checkpoints on B2
+
+## Project Structure
+
+```
+exphil/
+├── lib/exphil/
+│   ├── networks/       # Policy, Value, Mamba, Attention, Recurrent
+│   ├── embeddings/     # Player, Game, Controller, Character
+│   ├── training/       # Imitation, PPO, Data
+│   ├── agents/         # Agent GenServer, Supervisor
+│   ├── bridge/         # MeleePort, AsyncRunner
+│   └── rewards/        # Standard, Shaped
+├── priv/python/        # libmelee bridge, ONNX tools
+├── scripts/            # Training/evaluation scripts
+├── docs/               # Detailed documentation
+└── notebooks/          # Livebook analysis
+```
+
+## Key Technical Notes
+
+See [GOTCHAS.md](docs/reference/GOTCHAS.md) for detailed fixes. Most common issues:
+
+1. **EXLA tensor serialization** - Convert to BinaryBackend before saving checkpoints
+2. **Dynamic shapes cause infinite JIT** - Use concrete seq_len for attention
+3. **Closure tensor mismatch** - `Nx.backend_copy` captured tensors in `value_and_grad`
+4. **Mix stale builds** - Run `mix compile --force` before training
+
+## Development Practices
+
+**Build the time-savers first — never re-run the boring part twice.**
+When an investigation requires expensive runs (training to a failure point,
+long probes), invest in capture/replay infrastructure BEFORE iterating on
+hypotheses:
+- **Capture the crime scene**: when a detector trips, serialize everything
+  needed to replay the event offline (batch + params + optimizer state).
+  One saved fatal step turns hour-long reproductions into second-long
+  replays with unlimited re-examination (f32 vs bf16, op bisection, ...).
+- **Checkpoint the cliff**: on a doomed run, save full trainer state just
+  before the failure zone so later experiments resume from the cliff
+  instead of from scratch (~10x). Failure regimes here are state-driven
+  (weight scale, loss band), not exact-step-driven — approximate resume
+  re-enters the regime fine.
+- Case study: the 2026-07 NaN hunt re-paid a 40-90 min approach five times
+  before building these; each hypothesis after the fatal-batch capture
+  would have cost seconds.
+
+**File operations:**
+- Use the Write tool for creating new files, not Bash with cat/heredoc
+- Use the Edit tool for modifying existing files
+- Use Read before Write to ensure you have current content
+
+**Running `mix`: safe by default, dangerous only next to a live training run.**
+- The hazard is narrow: `mix compile`, `mix test`, or any `mix run` recompiles changed `.ex`
+  files, which replaces EXLA's NIF shared library and kills any **currently running** training
+  process with SIGSEGV/SIGBUS (affects all repos sharing EXLA: nx, exphil, edifice).
+- **On the dev machine (`nixos_slanka`) with training active:** do NOT run `mix`. Edit files
+  freely; just don't invoke `mix` until the run finishes.
+- **EXCEPTION — multi-stage loops:** a drill/probe LOOP invokes a fresh `mix run`
+  per stage, and each invocation recompiles changed `.ex` files. Editing lib
+  files while a loop is active injects your (possibly broken) code into its
+  next stage — a mid-loop compile error killed round-4 probes + round-5
+  training on 2026-07-15. While any loop script is running: edit only `.exs`
+  scripts it doesn't call, docs, or other repos.
+- **In cloud / CI / any session with no training running:** run `mix` freely — there's no live
+  process to kill, and running the tests is exactly what you want. This rule does not apply here.
+- Rule of thumb: if a GPU training job is in flight, hold off on `mix`; otherwise go ahead.
+
+**Testing — CRITICAL:**
+- **NEVER run the full test suite after editing 1-2 files.** It takes ~100s. Use targeted runs:
+
+| Changed File(s) | Run |
+|-----------------|-----|
+| `lib/exphil/networks/<arch>.ex` | `mix test test/exphil/networks/<arch>_test.exs` |
+| `lib/exphil/embeddings/<module>.ex` | `mix test test/exphil/embeddings/<module>_test.exs` |
+| `lib/exphil/training/config.ex` | `mix test test/exphil/training/config_test.exs` |
+| Multiple files / unsure | `mix test --stale` (alias: `mix test.changed`) |
+| Pre-commit / full validation | `mix test` |
+
+- `mix test --stale` tracks module dependencies transitively — only reruns tests whose deps changed
+- `mix test --failed` reruns only tests that failed last time
+- For targeted debugging: `mix test path/to/test.exs:LINE_NUMBER`
+- CRITICAL: Never pipe `mix test` output (`| head`, `| tail`, etc.) — this kills streaming output and forces a full rerun to see failures
+- See `docs/guides/TESTING.md` for full test documentation
+
+**When something unexpected happens:**
+- Document the finding in GOTCHAS.md or relevant docs
+- If it's a pattern that could recur, add it to this file
+- Update test coverage to prevent regression
+
+**Code organization:**
+- Struct field names: check `lib/exphil_bridge/types.ex` for canonical names
+- JSON serialization: atoms become strings after round-trip
+- File.stat mtime returns tuple `{{y,m,d},{h,m,s}}`, not NaiveDateTime
+
+**Adding new CLI flags:**
+When adding a new training flag, update these locations in order:
+1. `lib/exphil/training/config.ex` - Add to `@valid_flags` list
+2. `lib/exphil/training/config.ex` - Add default in `defaults/0`
+3. `lib/exphil/training/config.ex` - Add parsing logic (e.g., `parse_int_arg`)
+4. `docs/TRAINING.md` - Add to appropriate table: `| --flag-name | default | Description |`
+
+The table format `| Option | Default | Description |` in TRAINING.md ensures:
+- Discoverability: users can scan defaults without reading code
+- Consistency: every flag follows the same documentation pattern
+- Verification: easy to cross-reference against `@valid_flags` to catch drift
+
+## Script Logging & UX Standards
+
+**Interim progress must be observable — never bury a long run behind a
+buffering pipe.** Piping a script through `tail`/`head`/`grep` without
+`tee` holds ALL output until exit: a 20-minute hang becomes unreadable
+(observed 2026-07-14 — an XLA-compile hang was invisible because the runner
+piped through `tail -14`). Every script that can run >1 min tees to a log
+file; launchers read the log, not the pipe.
+
+**Nx.LinAlg `eigh`/`svd` on EXLA can hang the session in XLA COMPILATION**
+(pure-defn implementations unroll iteration loops into enormous graphs;
+f64 makes it worse — 20+ min single-core compile for a 256×256 eigh).
+For small matrices, run decompositions on `Nx.BinaryBackend` — and scope
+`Nx.default_backend/1` around that stage so ops' internally-created
+tensors (iotas, indices) land on the same backend (mixed backends crash
+inconsistently: some ops tolerate, some don't — don't rely on it).
+
+All scripts use `ExPhil.Training.Output` for consistent, informative output. Key conventions:
+
+**Always use the Output module** - `alias ExPhil.Training.Output`
+```elixir
+# Timestamped messages (preferred for all output)
+Output.puts("Processing files...")           # [12:34:56] Processing files...
+Output.success("Training complete")          # [12:34:56] ✓ Training complete (green)
+Output.warning("Memory usage high")          # [12:34:56] ⚠️ Memory usage high (yellow)
+Output.error("Failed to load checkpoint")    # [12:34:56] ❌ Failed to load checkpoint (red)
+
+# Step indicators for multi-phase scripts
+Output.step(1, 5, "Loading replays")         # [12:34:56] Step 1/5: Loading replays (cyan)
+Output.step(2, 5, "Parsing frames")
+
+# Script startup banner
+Output.banner("ExPhil Architecture Benchmark")
+
+# Configuration display
+Output.config([
+  {"Replay dir", replay_dir},
+  {"Epochs", epochs},
+  {"Batch size", batch_size}
+])
+```
+
+**Progress bars for long operations:**
+```elixir
+# Live updating progress bar (overwrites line)
+for {item, idx} <- Enum.with_index(items) do
+  Output.progress_bar(idx + 1, length(items), label: "Processing")
+  process(item)
+end
+Output.progress_done()  # Print newline after
+
+# Timed blocks (shows "..." while running, then duration)
+require Output
+Output.timed "Loading dataset" do
+  load_data()
+end
+# Output: [12:34:56] Loading dataset... done! (2.3s)
+```
+
+**JIT compilation indicator** - Always warn users before first batch:
+```elixir
+Output.puts("⏳ JIT compiling model (first batch)... this may take 2-5 minutes")
+Output.puts("   (subsequent batches will be fast)")
+```
+
+**Training epoch progress:**
+```elixir
+# Inline progress: Epoch 1: ████████░░ 40% | 642/1606 | loss: 0.1234 | 0.5s/it | ETA: 8m 12s
+# ALWAYS use \e[K to clear line (prevents artifacts in narrow terminals)
+IO.write(:stderr, "\r#{progress_line}\e[K")
+```
+
+**Terminal width awareness** - For long progress lines that may wrap:
+```elixir
+# Truncate to terminal width to prevent line wrapping in narrow terminals (e.g., split-screen)
+terminal_width = case :io.columns() do
+  {:ok, cols} -> cols
+  _ -> 120  # Fallback for non-TTY
+end
+truncated_line = if String.length(progress_line) > terminal_width - 1 do
+  String.slice(progress_line, 0, terminal_width - 4) <> "..."
+else
+  progress_line
+end
+IO.write(:stderr, "\r#{truncated_line}\e[K")
+```
+
+**Progress interval standards** - Avoid log spam with intervals:
+```elixir
+# BAD: Updates every iteration (spams logs, no clear line escape)
+Enum.each(items, fn {item, idx} ->
+  IO.write(:stderr, "\r  Progress: #{idx}/#{total}")
+  process(item)
+end)
+
+# GOOD: Updates at intervals with clear line escape
+progress_interval = Keyword.get(opts, :progress_interval, 10)
+Enum.each(items, fn {item, idx} ->
+  if rem(idx, progress_interval) == 0 do
+    IO.write(:stderr, "\r  Progress: #{idx}/#{total}\e[K")
+  end
+  process(item)
+end)
+```
+
+Standard intervals by operation type:
+| Operation | Default Interval | Rationale |
+|-----------|-----------------|-----------|
+| Training batches | 100 | ~500 updates/epoch is plenty |
+| Embedding batches | 10 | ~20-30 updates total |
+| Sequence building | 50,000 | Large counts, few updates |
+| File hashing | 100 | Moderate update frequency |
+
+All functions accepting `:show_progress` should also accept `:progress_interval`.
+
+**GPU memory status** - Show at startup and each epoch:
+```elixir
+Output.puts(GPUUtils.memory_status_string())  # "GPU: 4.2/8.0 GB (52%)"
+```
+
+**Summary at end:**
+```elixir
+Output.training_summary(%{
+  total_time_ms: total_time * 1000,
+  epochs_completed: epochs,
+  final_loss: loss,
+  checkpoint_path: path
+})
+```
+
+## Verbosity & Quiet Mode Standards
+
+Scripts should support three verbosity levels via `--quiet` and `--verbose` flags:
+
+| Flag | Level | Behavior |
+|------|-------|----------|
+| `--quiet` | 0 | Errors only, suppress warnings, XLA logs, progress bars |
+| (default) | 1 | Normal output with progress bars at intervals |
+| `--verbose` | 2 | Debug output: timing, memory, gradients |
+
+**Implementing quiet mode:**
+```elixir
+# At script start (BEFORE any EXLA operations)
+if "--quiet" in System.argv() do
+  Logger.configure(level: :warning)  # Suppresses XLA [info] logs
+end
+
+# After parsing opts
+Output.set_verbosity(opts[:verbosity])
+
+# Progress bars respect verbosity
+if opts[:verbosity] > 0 do
+  IO.write(:stderr, "\r#{progress_line}")
+end
+```
+
+**Key flags for log cleanliness:**
+- `--quiet` - Suppresses warnings, XLA/ptxas logs, most output
+- `--log-interval N` - Training progress updates every N batches (default: 100)
+- `:progress_interval` option - Embedding/processing updates (default: 10)
+
+**When adding new CLI flags:**
+1. Add to `@valid_flags` in `lib/exphil/training/config.ex`
+2. Add default in `defaults/0`
+3. Add parsing logic
+4. Document in `docs/TRAINING.md` table: `| --flag-name | default | Description |`
+
+## References
+
+**Melee AI Projects:**
+- [slippi-ai](https://github.com/vladfi1/slippi-ai) - Primary reference (BC + RL)
+- [Phillip](https://github.com/vladfi1/phillip) - Original pure RL approach
+- [libmelee](https://github.com/altf4/libmelee) - Python game state API
+- [SmashBot](https://github.com/altf4/SmashBot) - Rule-based baseline
+
+**Datasets:**
+- [slippi-public-dataset-v3.7](https://huggingface.co/datasets/erickfm/slippi-public-dataset-v3.7) - altf4's raw .slp replays (~95k, CC0) — feeds directly into Peppi pipeline
+- [mimic-melee](https://huggingface.co/datasets/erickfm/mimic-melee) - Pre-processed PyTorch .pt shards (1.81B frames, 2.59TB) — baked for MIMIC, not directly ExPhil-compatible
+- [mimic-melee-subset](https://huggingface.co/datasets/erickfm/mimic-melee-subset) - Subset (18.7M frames, 26.7GB)
+- [slippi-frame-extractor](https://github.com/erickfm/slippi-frame-extractor) - Tool to convert .slp → raw parquet (best for ExPhil second ingestion path)
+- See [HUGGINGFACE_DATASET_MAPPING.md](docs/reference/HUGGINGFACE_DATASET_MAPPING.md) for column mapping and TODO.md for integration plan
+
+**Key Papers:**
+- [Beating the World's Best at SSBM](https://arxiv.org/abs/1702.06230) - Phillip paper
+- [Mamba: Linear-Time Sequence Modeling](https://arxiv.org/abs/2312.00752) - Primary backbone
+
+**ML Framework:**
+- [Nx](https://github.com/elixir-nx/nx) / [Axon](https://github.com/elixir-nx/axon) - Elixir ML
+- [Edifice](https://github.com/blasphemetheus/edifice) - 232 architecture implementations (companion library)
