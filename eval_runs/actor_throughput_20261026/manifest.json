@@ -727,6 +727,7 @@
       "label": "min_gru_cuda"
     }
   ],
+  "finished_at": 1793047306,
   "hardware": "NVIDIA GeForce RTX 5090, 595.104.02",
   "hashes": {
     "../edifice/lib/edifice/stateful.ex": "a4f7b197ca0256eab5519e0a1578d7a81aab891416e377f521dbbe1951c80bdc",
@@ -745,6 +746,7 @@
     "scripts/run_recurrent_validation.exs": "b71033d0166b1c29e928127d972c2a397525982dde5669e09bedce7ddf66cf91",
     "scripts/sweep_actor_throughput.exs": "dffea8290590ea4b3018dc4c43032233bb7863ed36a3798aa27406b51c4a2444"
   },
+  "hashes_verified_after": true,
   "orchestration_formatting_only": [
     "scripts/lib/benchmark_sweep.exs",
     "scripts/sweep_actor_throughput.exs"
@@ -866,9 +868,121 @@
       ],
       "competing_gpu_pids": [],
       "label": "mamba2_host"
+    },
+    {
+      "command": [
+        "elixir",
+        "-pa",
+        "_build/dev/lib/*/ebin",
+        "scripts/run_recurrent_validation.exs",
+        "scripts/profile_actor_throughput.exs",
+        "--policy",
+        "checkpoints/coh_prev_q_ck4/model_best_policy.bin",
+        "--replay",
+        "/home/blewf/Slippi/2026-10-Mainline/Game_20261022T170737.slp",
+        "--character",
+        "fox",
+        "--rows",
+        "8",
+        "--seconds",
+        "3",
+        "--out",
+        "eval_runs/actor_throughput_20261026/min_gru_cuda.json"
+      ],
+      "competing_gpu_pids": [],
+      "env": {
+        "EDIFICE_FUSED_CUSTOM_CALL": "0",
+        "RECURRENT_CLIENT": "cuda",
+        "SAMPLING_REFERENCE": "0"
+      },
+      "label": "min_gru_cuda"
+    },
+    {
+      "command": [
+        "elixir",
+        "-pa",
+        "_build/dev/lib/*/ebin",
+        "scripts/run_recurrent_validation.exs",
+        "scripts/profile_actor_throughput.exs",
+        "--policy",
+        "checkpoints/fox_v3_20260917_050901_resume3/model_policy.bin",
+        "--replay",
+        "/home/blewf/Slippi/2026-10-Mainline/Game_20261022T170737.slp",
+        "--character",
+        "fox",
+        "--rows",
+        "8",
+        "--seconds",
+        "3",
+        "--out",
+        "eval_runs/actor_throughput_20261026/gru_cuda.json"
+      ],
+      "competing_gpu_pids": [],
+      "env": {
+        "EDIFICE_FUSED_CUSTOM_CALL": "0",
+        "RECURRENT_CLIENT": "cuda",
+        "SAMPLING_REFERENCE": "0"
+      },
+      "label": "gru_cuda"
+    },
+    {
+      "command": [
+        "elixir",
+        "-pa",
+        "_build/dev/lib/*/ebin",
+        "scripts/run_recurrent_validation.exs",
+        "scripts/profile_actor_throughput.exs",
+        "--policy",
+        "checkpoints/coh_fullscale_mamba_v1/model_best_policy.bin",
+        "--replay",
+        "/home/blewf/Slippi/2026-10-Mainline/Game_20261022T170737.slp",
+        "--character",
+        "fox",
+        "--rows",
+        "8",
+        "--seconds",
+        "3",
+        "--out",
+        "eval_runs/actor_throughput_20261026/mamba_cuda.json"
+      ],
+      "competing_gpu_pids": [],
+      "env": {
+        "EDIFICE_FUSED_CUSTOM_CALL": "0",
+        "RECURRENT_CLIENT": "cuda",
+        "SAMPLING_REFERENCE": "0"
+      },
+      "label": "mamba_cuda"
+    },
+    {
+      "command": [
+        "elixir",
+        "-pa",
+        "_build/dev/lib/*/ebin",
+        "scripts/run_recurrent_validation.exs",
+        "scripts/profile_actor_throughput.exs",
+        "--policy",
+        "checkpoints/mewtwo_combo_newera_mamba2_screen_best_policy.bin",
+        "--replay",
+        "replays/greg/mewtwo/Game_20240222T222930.slp",
+        "--character",
+        "mewtwo",
+        "--rows",
+        "8",
+        "--seconds",
+        "3",
+        "--out",
+        "eval_runs/actor_throughput_20261026/mamba2_cuda.json"
+      ],
+      "competing_gpu_pids": [],
+      "env": {
+        "EDIFICE_FUSED_CUSTOM_CALL": "0",
+        "RECURRENT_CLIENT": "cuda",
+        "SAMPLING_REFERENCE": "0"
+      },
+      "label": "mamba2_cuda"
     }
   ],
   "seconds": 3,
   "started_at": 1793041361.6061077,
-  "status": "partial: CUDA profiles awaiting an uncontended GPU window"
+  "status": "complete"
 }

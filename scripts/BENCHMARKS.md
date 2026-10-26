@@ -31,11 +31,10 @@ process is archived under `contended/` and excluded from completed runs. The
 actor runner waits up to ten minutes for a sixty-second quiet interval before
 each new profile. It does not stop another process.
 
-The recorded actor sweep at `eval_runs/actor_throughput_20261026` currently has
-four validated CPU profiles. CUDA profiles remain incomplete because another
-agent's GPU diagnostics repeatedly overlapped attempted runs. Nothing is still
-running in the background. Resume with the default actor-sweep command when a
-quiet GPU window is available; omit `--out /tmp/actors` to use the recorded folder.
+The recorded actor sweep at `eval_runs/actor_throughput_20261026` has all eight
+validated CPU/CUDA profiles (96 phases). Earlier contaminated attempts are
+excluded. All four eight-row CUDA batches met every deadline in this short
+screen. See its `RESULTS.md` and `TABLES.md` for the measurements and limits.
 
 The controlled matrix workload shares a process/client with the actors. These
 measurements do not establish performance alongside actual training or Dolphin.

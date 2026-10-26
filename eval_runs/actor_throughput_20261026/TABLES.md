@@ -1,4 +1,4 @@
-# Continuous actor throughput screen (partial)
+# Continuous actor throughput screen
 
 Throughput counts individual controller actions, including every row of a batch.
 Paced response latency includes delay beyond the scheduled frame time; service latency does not.
@@ -31,3 +31,27 @@ Short stress screens, not deployment guarantees. See RESULTS.md for methods and 
 | host | mamba2 | actors | matmul | 1955 | 9.36 | 12.22 / 26.48 | 48 / 1440 |
 | host | mamba2 | batch | idle | 5623 | 1.89 | 3.83 / 14.84 | 0 / 180 |
 | host | mamba2 | batch | matmul | 5249 | 1.93 | 3.61 / 15.39 | 1 / 180 |
+| cuda | min_gru | single | idle | 736 | 1.92 | 3.52 / 4.80 | 0 / 180 |
+| cuda | min_gru | single | matmul | 156 | 7.21 | 8.60 / 10.21 | 0 / 180 |
+| cuda | min_gru | actors | idle | 822 | 12.89 | 16.43 / 24.77 | 68 / 1440 |
+| cuda | min_gru | actors | matmul | 508 | 18.63 | 30.58 / 31.71 | 814 / 1440 |
+| cuda | min_gru | batch | idle | 7573 | 1.39 | 3.41 / 4.59 | 0 / 180 |
+| cuda | min_gru | batch | matmul | 3755 | 2.51 | 4.14 / 6.16 | 0 / 180 |
+| cuda | gru | single | idle | 909 | 1.57 | 3.47 / 3.89 | 0 / 180 |
+| cuda | gru | single | matmul | 234 | 4.88 | 6.43 / 6.93 | 0 / 180 |
+| cuda | gru | actors | idle | 1265 | 7.73 | 9.15 / 9.67 | 0 / 1440 |
+| cuda | gru | actors | matmul | 818 | 11.31 | 12.35 / 13.22 | 0 / 1440 |
+| cuda | gru | batch | idle | 7812 | 1.33 | 3.62 / 4.08 | 0 / 180 |
+| cuda | gru | batch | matmul | 3773 | 2.42 | 4.13 / 4.33 | 0 / 180 |
+| cuda | mamba | single | idle | 892 | 1.54 | 3.40 / 6.83 | 0 / 180 |
+| cuda | mamba | single | matmul | 231 | 5.39 | 6.55 / 10.73 | 0 / 180 |
+| cuda | mamba | actors | idle | 1061 | 8.33 | 25.51 / 36.43 | 102 / 1440 |
+| cuda | mamba | actors | matmul | 771 | 11.01 | 34.08 / 41.52 | 192 / 1440 |
+| cuda | mamba | batch | idle | 6442 | 1.41 | 3.55 / 9.03 | 0 / 180 |
+| cuda | mamba | batch | matmul | 3403 | 2.54 | 4.25 / 9.75 | 0 / 180 |
+| cuda | mamba2 | single | idle | 647 | 2.27 | 4.13 / 5.91 | 0 / 180 |
+| cuda | mamba2 | single | matmul | 158 | 7.01 | 8.75 / 11.15 | 0 / 180 |
+| cuda | mamba2 | actors | idle | 836 | 11.10 | 21.88 / 30.33 | 96 / 1440 |
+| cuda | mamba2 | actors | matmul | 547 | 16.21 | 33.67 / 36.33 | 421 / 1440 |
+| cuda | mamba2 | batch | idle | 6375 | 1.50 | 3.45 / 5.78 | 0 / 180 |
+| cuda | mamba2 | batch | matmul | 3544 | 2.53 | 4.14 / 7.90 | 0 / 180 |

@@ -1,10 +1,23 @@
 # Continuous actor throughput and deadlines — 2026-10-26
 
-**AI-generated report. Status: CPU complete; CUDA incomplete.**
+**AI-generated report. Status: CPU and CUDA complete.**
 
-Four CPU profiles (48 phases) pass raw-sample verification. Repeated unrelated
-GPU diagnostics prevented a clean CUDA sweep. Attempted contaminated runs are
-excluded. The waiting runner was stopped; no benchmark job remains active.
+All eight profiles (96 phases) pass raw-sample verification. The four CUDA
+profiles completed in a clean GPU window. Earlier contaminated attempts remain
+excluded. All four eight-row CUDA batches missed zero deadlines, both idle and
+under controlled load, in these three-second phases.
+
+| GPU policy | Eight independent Agents, idle actions/s | Eight-row batch, idle actions/s | Batch with load, actions/s |
+|---|---:|---:|---:|
+| MinGRU | 822 | 7,573 | 3,755 |
+| GRU | 1,265 | 7,812 | 3,773 |
+| Mamba | 1,061 | 6,442 | 3,403 |
+| Mamba-2 | 836 | 6,375 | 3,544 |
+
+Independent CUDA Agents miss deadlines despite sufficient average throughput:
+MinGRU misses 68/1,440 idle calls and 814 under load; Mamba misses 102 and 192;
+Mamba-2 misses 96 and 421. GRU misses none in either condition. Batching avoids
+these misses in this screen, but these short runs are not a long-run guarantee.
 
 The CPU result is clear enough to guide the next experiment. Eight-row batches
 deliver 2.6–4.4 times the throughput of eight independent actors on these fixtures.
@@ -67,8 +80,8 @@ they exercise the same GPU competitor. A once-per-second process monitor records
 unexpected extra GPU compute processes; contaminated profiles fail validation.
 This cannot detect every subsecond workload or all CPU interference.
 The first Mamba-2 host profile and two MinGRU CUDA attempts overlapped unrelated
-GPU processes and were excluded. The Mamba-2 CPU rerun completed cleanly; CUDA
-still needs a clean run. Original artifacts and monitor evidence are retained
+GPU processes and were excluded. The Mamba-2 CPU rerun and all four final CUDA
+profiles completed cleanly. Original artifacts and monitor evidence are retained
 under `contended/`; it contributes no numbers to the primary tables.
 
 The manifest records source/checkpoint/replay hashes, exact commands, GPU model
