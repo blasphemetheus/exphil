@@ -1,0 +1,74 @@
+{
+  "hashes": {
+    "../edifice/lib/edifice/stateful.ex": "a4f7b197ca0256eab5519e0a1578d7a81aab891416e377f521dbbe1951c80bdc",
+    "../edifice/lib/edifice/stateful/replay.ex": "8a87ac117d50b4b7eb61c80f57e3ed94c99f7c1b6a481898afb9d91d1f0e60ca",
+    "../edifice/lib/edifice/utils/sampling_random.ex": "429bd9734746dd1a13ddd9465829d0bf481f6ae23b1219407f7a5859098ad00a",
+    "/home/blewf/Slippi/2026-10-Mainline/Game_20261022T170737.slp": "98a1d4a3fe94f7f2147c60c4d99c289d1de79368ee9868aa2e9c5cbda54cd28e",
+    "checkpoints/coh_fullscale_mamba_v1/model_best_policy.bin": "3eeb7556fe9c5d1f3fc7c3c29f993e50c9e257620615afcd702217af1d268da6",
+    "lib/exphil/agents/agent.ex": "a3b4ad22a94b7a951c34935c9c2bad3fb8ac73260c15da7c74712229fb05768c",
+    "lib/exphil/networks/policy/sampling.ex": "9153a58d3e5902db8328b8fda7cfca5355616671e401322dd3d640ebfe299a60",
+    "scripts/lib/benchmark_sweep.exs": "a4be4b5d4a342e0909afc60dd0b476e060c29f32b627663b36ad77b3d6ca96dd",
+    "scripts/lib/resync_spread.exs": "9cdee5daa85c6fd81f448de4b3f863926e1f5b11f326ae69441520daf68da5f0",
+    "scripts/profile_actor_throughput.exs": "53536fc99634019cd543667f9adb12de77f6cd7e2fed57cfb777da816b4226d2",
+    "scripts/run_recurrent_validation.exs": "b71033d0166b1c29e928127d972c2a397525982dde5669e09bedce7ddf66cf91",
+    "scripts/sweep_resync_spread.exs": "0e1d008e7ec5a425064883105ab06d1e0ce63f9576b889c37d5a72dcc73d47f4"
+  },
+  "runs": [
+    {
+      "client": "host",
+      "command": [
+        "-pa",
+        "_build/dev/lib/*/ebin",
+        "scripts/run_recurrent_validation.exs",
+        "scripts/profile_actor_throughput.exs",
+        "--policy",
+        "checkpoints/coh_fullscale_mamba_v1/model_best_policy.bin",
+        "--replay",
+        "/home/blewf/Slippi/2026-10-Mainline/Game_20261022T170737.slp",
+        "--character",
+        "fox",
+        "--rows",
+        "8",
+        "--seconds",
+        "10",
+        "--resync-spread",
+        "--out",
+        "eval_runs/resync_spread_20261026/mamba_host.json"
+      ],
+      "competing_gpu_pids": [],
+      "env": {
+        "EDIFICE_FUSED_CUSTOM_CALL": "0",
+        "RECURRENT_CLIENT": "host"
+      }
+    },
+    {
+      "client": "cuda",
+      "command": [
+        "-pa",
+        "_build/dev/lib/*/ebin",
+        "scripts/run_recurrent_validation.exs",
+        "scripts/profile_actor_throughput.exs",
+        "--policy",
+        "checkpoints/coh_fullscale_mamba_v1/model_best_policy.bin",
+        "--replay",
+        "/home/blewf/Slippi/2026-10-Mainline/Game_20261022T170737.slp",
+        "--character",
+        "fox",
+        "--rows",
+        "8",
+        "--seconds",
+        "10",
+        "--resync-spread",
+        "--out",
+        "eval_runs/resync_spread_20261026/mamba_cuda.json"
+      ],
+      "competing_gpu_pids": [],
+      "env": {
+        "EDIFICE_FUSED_CUSTOM_CALL": "0",
+        "RECURRENT_CLIENT": "cuda"
+      }
+    }
+  ],
+  "seconds": 10,
+  "status": "complete"
+}

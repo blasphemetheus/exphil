@@ -16,6 +16,7 @@ sources =
   [
     __ENV__.file |> Path.relative_to_cwd(),
     "scripts/lib/benchmark_sweep.exs",
+    "scripts/lib/resync_spread.exs",
     "scripts/profile_actor_throughput.exs"
   ] ++ Sweep.inference_sources() ++ Sweep.inputs()
 

@@ -1,4 +1,6 @@
 # Run through scripts/run_recurrent_validation.exs; never rebuild NIFs during load.
+Code.require_file("lib/resync_spread.exs", __DIR__)
+
 defmodule ActorThroughputProfile do
   alias ExPhil.Agents.Agent, as: PolicyAgent
   alias ExPhil.Data.Peppi
@@ -89,6 +91,8 @@ defmodule ActorThroughputProfile do
     end
 
     bptt = export.config[:bptt] == true
+    spread = opts[:resync_spread] || false
+    if spread and bptt, do: raise("BPTT carry must not be periodically reset")
 
     agent_opts =
       [
@@ -116,7 +120,7 @@ defmodule ActorThroughputProfile do
 
     {setup_us, groups} =
       :timer.tc(fn ->
-        for mode <- [:single, :actors, :batch] do
+        for mode <- if(spread, do: [:actors, :batch], else: [:single, :actors, :batch]) do
           n = if mode == :single, do: 1, else: rows
           count = if mode == :batch, do: 1, else: n
 
@@ -156,10 +160,34 @@ defmodule ActorThroughputProfile do
         end
       end)
 
+    groups =
+      if spread, do: Enum.map(groups, &ExPhil.ResyncSpread.prepare(&1, history)), else: groups
+
+    history = if spread, do: history + 1, else: history
+    validation = if spread, do: ExPhil.ResyncSpread.validate(groups, history), else: nil
+
+    phases =
+      if spread do
+        for round <- [1, 2],
+            schedule <- if(round == 1, do: [:aligned, :spread], else: [:spread, :aligned]),
+            group <- groups,
+            contention <- [false, true],
+            do: {group, :paced, contention, schedule, round}
+      else
+        for group <- groups,
+            rate <- [:saturated, :paced],
+            contention <- [false, true],
+            do: {group, rate, contention, nil, nil}
+      end
+
     results =
-      for group <- groups, rate <- [:saturated, :paced], contention <- [false, true] do
-        for {a, base} <- Enum.zip(group.agents, group.bases),
-            do: :sys.replace_state(a, fn _ -> base end)
+      for {group, rate, contention, schedule, round} <- phases do
+        if spread do
+          ExPhil.ResyncSpread.restore(group, schedule)
+        else
+          for {a, base} <- Enum.zip(group.agents, group.bases),
+              do: :sys.replace_state(a, fn _ -> base end)
+        end
 
         competitor = if contention, do: Task.async(fn -> load_loop(load, x, now(), 0) end)
         start = now() + 100_000
@@ -207,6 +235,9 @@ defmodule ActorThroughputProfile do
           streams: streams
         }
 
+        result =
+          if spread, do: Map.merge(result, %{schedule: schedule, round: round}), else: result
+
         IO.inspect(Map.drop(result, [:streams, :competitor]), label: "PROFILE", limit: :infinity)
         result
       end
@@ -228,6 +259,7 @@ defmodule ActorThroughputProfile do
       results: Enum.map(results, &Map.delete(&1, :streams))
     }
 
+    report = if spread, do: Map.put(report, :resync_validation, validation), else: report
     File.write!(out, Jason.encode!(report, pretty: true) <> "\n")
   end
 end
@@ -240,6 +272,7 @@ end
       character: :string,
       rows: :integer,
       seconds: :integer,
+      resync_spread: :boolean,
       out: :string
     ]
   )

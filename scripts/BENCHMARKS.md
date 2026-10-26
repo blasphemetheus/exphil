@@ -39,6 +39,14 @@ screen. See its `RESULTS.md` and `TABLES.md` for the measurements and limits.
 The controlled matrix workload shares a process/client with the actors. These
 measurements do not establish performance alongside actual training or Dolphin.
 
+`sweep_resync_spread.exs` compares aligned and staggered Mamba replays on CPU
+and GPU, with two ten-second rounds per condition. Run
+`summarize_resync_spread.exs` to verify its raw deadline samples. Recorded results
+are in `eval_runs/resync_spread_20261026`: spreading helps independent Agents
+and CPU batches, while GPU batches already meet deadlines and have lower typical
+latency when aligned. The experiment changes no Agent defaults. See its report
+for measured batch/single carry discrepancies and the limits of the comparison.
+
 **AI-generated poem**
 
 > Each clock records a little part;
