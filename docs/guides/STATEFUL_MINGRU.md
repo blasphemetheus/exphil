@@ -247,9 +247,11 @@ with 50 samples per case, including partial resets and actual resync events.
 The two-layer 512-wide BPTT GRU takes 0.869 ms median for eight batched controller
 outputs on CUDA; BPTT must retain carry and must not use periodic resync.
 The archived independent-head Mamba-2 takes 1.392 ms for one carried Agent but
-13.282 ms for eight sequential Agents. Its supported fallback, not its recurrence
-alone, limits batched evaluation throughput. Independent-head batching is a useful
-next integration target. The profile also checks public single-Agent rollback,
+13.282 ms for eight sequential Agents. Independent-head batching is now implemented:
+eight rows take 1.011 ms ordinary and 4.212 ms for all-row resync, with trained
+controller/carry parity and CPU/CUDA regressions. See
+`eval_runs/independent_batch_20261025/RESULTS.md` for the complete comparison and
+API limits. The profile also checks public single-Agent rollback,
 internal batched rollback and warmup-state preservation.
 
 The four-seed CUDA active-opponent comparison is documented in
@@ -259,3 +261,13 @@ synchronous zero-delay inference, not Dolphin/netplay promotion tests. The archi
 Mamba-2 also has legacy leaked training labels; do not generalize its quality to a
 correctly trained Mamba-2. Compare modes within a checkpoint, not architectures
 against each other. Deployment defaults remain unchanged.
+
+The follow-up `eval_runs/recurrent_delays_20261025/RESULTS.md` completes 96
+paired-seed trials at fixed action delays 3/4, on FD/Battlefield, against
+windowed MinGRU and carried GRU opponents. Resync-30 improves MinGRU's mean
+deaths and damage over indefinite carry in all four contexts, but neither
+actor consistently improves on windowed inference. These checkpoints were
+trained only at delay 0, so this is a latency stress screen, not an aligned
+deployment result. Defaults remain unchanged. `sim_closed_loop.exs` now
+supports `--frame-delay` and `--opponent-frame-delay` through an explicit
+per-row action FIFO, with timing/reset tests and a zero-delay regression.

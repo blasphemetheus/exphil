@@ -21,15 +21,31 @@
 #   max_frozen_run    longest run of identical emitted controllers (frames)
 #   damage dealt/taken per minute (is it playing at all?)
 alias ExPhil.Agents.Agent
-alias ExPhil.Sim.{Env, Drill, GA}
+alias ExPhil.Sim.{Env, Drill, GA, ActionDelay}
 alias ExPhil.Training.{Checkpoint, Output}
 
 {opts, _, bad} =
   OptionParser.parse(System.argv(),
-    strict: [policy: :string, label: :string, opponent: :string, envs: :integer, frames: :integer,
-             seed: :integer, stage: :string, ablate_prev_action: :boolean, out: :string,
-             stateful_step: :boolean, stateful_resync: :integer, deterministic: :boolean,
-             character: :string, opponent_character: :string])
+    strict: [
+      policy: :string,
+      label: :string,
+      opponent: :string,
+      envs: :integer,
+      frames: :integer,
+      seed: :integer,
+      stage: :string,
+      ablate_prev_action: :boolean,
+      out: :string,
+      stateful_step: :boolean,
+      stateful_resync: :integer,
+      deterministic: :boolean,
+      character: :string,
+      opponent_character: :string,
+      frame_delay: :integer,
+      opponent_frame_delay: :integer
+    ]
+  )
+
 if bad != [], do: raise("invalid options: #{inspect(bad)}")
 
 policy = opts[:policy] || raise("--policy required")
@@ -37,43 +53,85 @@ label = opts[:label] || Path.basename(Path.dirname(policy))
 n = opts[:envs] || 32
 frames = opts[:frames] || 3600
 stage = opts[:stage] || "final_destination"
-stage_id = %{"final_destination" => 32, "battlefield" => 31, "yoshis_story" => 8, "dreamland" => 28, "pokemon_stadium" => 3, "fountain_of_dreams" => 2}[stage] || 32
+
+stage_id =
+  %{
+    "final_destination" => 32,
+    "battlefield" => 31,
+    "yoshis_story" => 8,
+    "dreamland" => 28,
+    "pokemon_stadium" => 3,
+    "fountain_of_dreams" => 2
+  }[stage] || 32
+
 edge = GA.stage_edge(stage_id)
 neutral = Drill.neutral()
+delay = Keyword.get(opts, :frame_delay, 0)
+opponent_delay = Keyword.get(opts, :opponent_frame_delay, delay)
+if delay < 0 or opponent_delay < 0, do: raise("frame delays must be non-negative")
 
 start_agent = fn path, extra ->
   {:ok, export} = Checkpoint.load_policy(path)
   contract = ExPhil.Networks.Policy.ExecutionContract.load(export.config)
-  agent_opts = [policy: export, deterministic: opts[:deterministic] || false, temperature: 1.0, af_convention: :parsed,
-      frame_delay: 0, reaction_delay: 0, harness: :sync_runner,
-      stateful_step: Keyword.get(extra, :stateful_step) || contract.recurrent_state == :carried_zero] ++ Keyword.delete(extra, :stateful_step)
+
+  agent_opts =
+    [
+      policy: export,
+      deterministic: opts[:deterministic] || false,
+      temperature: 1.0,
+      af_convention: :parsed,
+      frame_delay: Keyword.fetch!(extra, :frame_delay),
+      reaction_delay: Keyword.fetch!(extra, :frame_delay),
+      harness: :sync_runner,
+      stateful_step:
+        Keyword.get(extra, :stateful_step) || contract.recurrent_state == :carried_zero
+    ] ++ Keyword.delete(extra, :stateful_step)
+
   {:ok, agent} = Agent.start_link(agent_opts)
   {:ok, _} = Agent.warmup(agent)
+
   case Agent.batch_init(agent, n) do
-    :ok -> {:batch, agent}
+    :ok ->
+      {:batch, agent}
+
     {:error, :batch_needs_autoregressive_head} ->
       # Legacy independent-head exports still need closed-loop validation.
       # Keep the same simulator batch, with one Agent per environment.
-      others = for _ <- List.duplicate(nil, n - 1) do
-        {:ok, other} = Agent.start_link(agent_opts)
-        {:ok, _} = Agent.warmup(other)
-        other
-      end
+      others =
+        for _ <- List.duplicate(nil, n - 1) do
+          {:ok, other} = Agent.start_link(agent_opts)
+          {:ok, _} = Agent.warmup(other)
+          other
+        end
+
       {:single, [agent | others]}
-    error -> raise "cannot initialize evaluation agents: #{inspect(error)}"
+
+    error ->
+      raise "cannot initialize evaluation agents: #{inspect(error)}"
   end
 end
 
 controllers = fn driver, states, port, sampling_key ->
   case driver do
     {:batch, agent} ->
-      {:ok, cs} = Agent.batch_get_controllers(agent, Enum.map(states, &%{&1 | own_port: port}),
-        player_port: port, key: sampling_key)
+      {:ok, cs} =
+        Agent.batch_get_controllers(agent, Enum.map(states, &%{&1 | own_port: port}),
+          player_port: port,
+          key: sampling_key
+        )
+
       cs
+
     {:single, agents} ->
-      Enum.zip(agents, states) |> Enum.with_index() |> Enum.map(fn {{agent, gs}, row} ->
-        {:ok, c} = Agent.get_controller(agent, %{gs | own_port: port},
-          player_port: port, key: Nx.Random.fold_in(sampling_key, row))
+      Enum.zip(agents, states)
+      |> Enum.with_index()
+      |> Enum.map(fn {{agent, gs}, row} ->
+        {:ok, c} =
+          Agent.get_controller(agent, %{gs | own_port: port},
+            player_port: port,
+            key: Nx.Random.fold_in(sampling_key, row)
+          )
+
         c
       end)
   end
@@ -87,35 +145,65 @@ reset_rows = fn driver, rows ->
 end
 
 Output.banner("Closed-loop sim rollout: #{label}")
-Output.config([{"Policy", policy}, {"Opponent", opts[:opponent] || "idle"}, {"Envs", n}, {"Frames/env", frames}, {"Stage", stage}])
+
+Output.config([
+  {"Policy", policy},
+  {"Opponent", opts[:opponent] || "idle"},
+  {"Envs", n},
+  {"Frames/env", frames},
+  {"Stage", stage}
+])
+
 # --stateful-step forces carried-state inference (O(1)/frame) for a policy whose
 # training contract is windowed — e.g. Mamba (2026-10-01); --stateful-resync K
 # rebuilds each row's state from its own recent window on the decision path.
-actor = start_agent.(policy, [ablate_prev_action: opts[:ablate_prev_action] || false, stateful_step: opts[:stateful_step] || false] ++
-  if(opts[:stateful_resync], do: [stateful_resync: opts[:stateful_resync]], else: []))
-opponent = case opts[:opponent] do
-  nil -> :idle
-  "idle" -> :idle
-  path -> start_agent.(path, [])
-end
+actor =
+  start_agent.(
+    policy,
+    [
+      frame_delay: delay,
+      ablate_prev_action: opts[:ablate_prev_action] || false,
+      stateful_step: opts[:stateful_step] || false
+    ] ++
+      if(opts[:stateful_resync], do: [stateful_resync: opts[:stateful_resync]], else: [])
+  )
 
-players = [%{character: opts[:character] || "fox", costume: 1},
-           %{character: opts[:opponent_character] || "fox", costume: 0}]
-{:ok, sim} = Env.start(:nif, stage: stage, players: players, batch_size: n, seed: opts[:seed] || 1001)
+opponent =
+  case opts[:opponent] do
+    nil -> :idle
+    "idle" -> :idle
+    path -> start_agent.(path, frame_delay: opponent_delay)
+  end
+
+players = [
+  %{character: opts[:character] || "fox", costume: 1},
+  %{character: opts[:opponent_character] || "fox", costume: 0}
+]
+
+{:ok, sim} =
+  Env.start(:nif, stage: stage, players: players, batch_size: n, seed: opts[:seed] || 1001)
+
 {:ok, _, _} = Env.observe(sim)
 {:ok, gs0} = Env.frames(sim)
-starts = for i <- 0..(n - 1), into: %{} do
-  {:ok, blob} = Env.save(sim, i)
-  {i, blob}
-end
+
+starts =
+  for i <- 0..(n - 1), into: %{} do
+    {:ok, blob} = Env.save(sim, i)
+    {i, blob}
+  end
 
 neutral? = fn c ->
-  not (c.button_a or c.button_b or c.button_x or c.button_y or c.button_z or c.button_l or c.button_r) and
+  not (c.button_a or c.button_b or c.button_x or c.button_y or c.button_z or c.button_l or
+         c.button_r) and
     abs(c.main_stick.x - 0.5) < 0.1 and abs(c.main_stick.y - 0.5) < 0.1
 end
-key = fn c -> {c.button_a, c.button_b, c.button_x, c.button_y, c.button_z, c.button_l, c.button_r,
-               Float.round(c.main_stick.x * 1.0, 2), Float.round(c.main_stick.y * 1.0, 2),
-               Float.round(c.c_stick.x * 1.0, 2), Float.round(c.c_stick.y * 1.0, 2)} end
+
+key = fn c ->
+  {c.button_a, c.button_b, c.button_x, c.button_y, c.button_z, c.button_l, c.button_r,
+   Float.round(c.main_stick.x * 1.0, 2), Float.round(c.main_stick.y * 1.0, 2),
+   Float.round(c.c_stick.x * 1.0, 2), Float.round(c.c_stick.y * 1.0, 2)}
+end
+
 offstage? = fn p -> not p.on_ground and (abs(p.x) > edge or p.y < -5.0) end
 
 # per-env running state. `actionable` = the state at the latest frame the
@@ -126,118 +214,204 @@ offstage? = fn p -> not p.on_ground and (abs(p.x) > edge or p.y < -5.0) end
 # the position was lost before any decision), :forced (1 route the opponent
 # could cover) or :mixup (2+ routes open — the fighter threw the stock).
 env0 = %{last_hit: -10_000, prev_key: nil, run: 0, max_run: 0, off: false, actionable: nil}
-acc0 = %{deaths: 0, sds: 0, neutral: 0, repeat: 0, total: 0, off_eps: 0, off_recovered: 0, off_died: 0,
-         dmg_dealt: 0.0, dmg_taken: 0.0, kills: 0, games: 0, max_run: 0,
-         deaths_by_verdict: %{kill: 0, checkmate: 0, forced: 0, mixup: 0}}
+
+acc0 = %{
+  deaths: 0,
+  sds: 0,
+  neutral: 0,
+  repeat: 0,
+  total: 0,
+  off_eps: 0,
+  off_recovered: 0,
+  off_died: 0,
+  dmg_dealt: 0.0,
+  dmg_taken: 0.0,
+  kills: 0,
+  games: 0,
+  max_run: 0,
+  deaths_by_verdict: %{kill: 0, checkmate: 0, forced: 0, mixup: 0}
+}
+
 death_verdict = fn
   nil -> :kill
   p -> ExPhil.Melee.Checkmate.routes(GA.checkmate_state(p, stage_id)).verdict
 end
 
 t0 = System.monotonic_time(:millisecond)
-{acc, _envs, _states} =
-  Enum.reduce(1..frames, {acc0, List.duplicate(env0, n), gs0}, fn t, {acc, envs, states} ->
-    # Fix sampling as well as simulator seeds for paired inference comparisons.
-    sampling_key = Nx.Random.key((opts[:seed] || 1001) * 1_000_000 + t * 2)
-    c1s = controllers.(actor, states, 1, sampling_key)
-    c2s =
-      case opponent do
-        :idle -> List.duplicate(neutral, n)
-        driver ->
-          sampling_key = Nx.Random.key((opts[:seed] || 1001) * 1_000_000 + t * 2 + 1)
-          controllers.(driver, states, 2, sampling_key)
+
+{acc, _envs, _states, _actor_queue, _opponent_queue} =
+  Enum.reduce(
+    1..frames,
+    {acc0, List.duplicate(env0, n), gs0, ActionDelay.new(delay, n, neutral),
+     ActionDelay.new(opponent_delay, n, neutral)},
+    fn t, {acc, envs, states, actor_queue, opponent_queue} ->
+      # Fix sampling as well as simulator seeds for paired inference comparisons.
+      sampling_key = Nx.Random.key((opts[:seed] || 1001) * 1_000_000 + t * 2)
+      c1s = controllers.(actor, states, 1, sampling_key)
+
+      c2s =
+        case opponent do
+          :idle ->
+            List.duplicate(neutral, n)
+
+          driver ->
+            sampling_key = Nx.Random.key((opts[:seed] || 1001) * 1_000_000 + t * 2 + 1)
+            controllers.(driver, states, 2, sampling_key)
+        end
+
+      {c1s, actor_queue} = ActionDelay.push(actor_queue, c1s)
+      {c2s, opponent_queue} = ActionDelay.push(opponent_queue, c2s)
+
+      {:ok, nexts, terms} =
+        Env.step(sim, Enum.zip_with(c1s, c2s, fn a, b -> [a || neutral, b || neutral] end))
+
+      {acc, envs} =
+        [states, nexts, c1s, envs]
+        |> Enum.zip()
+        |> Enum.reduce({acc, []}, fn {s, nx, c, e}, {acc, out} ->
+          p0 = s.players[1]
+          p1 = nx.players[1]
+          o0 = s.players[2]
+          o1 = nx.players[2]
+          c = c || neutral
+          k = key.(c)
+          hit? = p1.percent > p0.percent or (p1.hitstun_frames_left || 0) > 0
+          last_hit = if hit?, do: t, else: e.last_hit
+          died? = (p1.stock || 0) < (p0.stock || 0)
+          sd? = died? and t - e.last_hit > 90
+          run = if k == e.prev_key, do: e.run + 1, else: 1
+          was_off = e.off
+          now_off = offstage?.(p1) and not died?
+          stun0 = (p0.hitstun_frames_left || 0) > 0
+          stun1 = (p1.hitstun_frames_left || 0) > 0
+
+          actionable =
+            cond do
+              hit? -> nil
+              now_off and not stun1 and (stun0 or not was_off) -> p1
+              true -> e.actionable
+            end
+
+          verdict = if died?, do: death_verdict.(e.actionable)
+
+          acc = %{
+            acc
+            | deaths_by_verdict:
+                if(died?,
+                  do: Map.update!(acc.deaths_by_verdict, verdict, &(&1 + 1)),
+                  else: acc.deaths_by_verdict
+                ),
+              total: acc.total + 1,
+              neutral: acc.neutral + if(neutral?.(c), do: 1, else: 0),
+              repeat: acc.repeat + if(k == e.prev_key, do: 1, else: 0),
+              deaths: acc.deaths + if(died?, do: 1, else: 0),
+              sds: acc.sds + if(sd?, do: 1, else: 0),
+              kills: acc.kills + if((o1.stock || 0) < (o0.stock || 0), do: 1, else: 0),
+              dmg_dealt: acc.dmg_dealt + max(0.0, (o1.percent - o0.percent) * 1.0),
+              dmg_taken: acc.dmg_taken + max(0.0, (p1.percent - p0.percent) * 1.0),
+              off_eps: acc.off_eps + if(now_off and not was_off, do: 1, else: 0),
+              off_recovered:
+                acc.off_recovered + if(was_off and not now_off and not died?, do: 1, else: 0),
+              off_died: acc.off_died + if(was_off and died?, do: 1, else: 0),
+              max_run: max(acc.max_run, run)
+          }
+
+          {acc,
+           [
+             %{
+               e
+               | last_hit: last_hit,
+                 prev_key: k,
+                 run: run,
+                 max_run: max(e.max_run, run),
+                 off: now_off,
+                 actionable: actionable
+             }
+             | out
+           ]}
+        end)
+
+      envs = Enum.reverse(envs)
+
+      finished =
+        terms
+        |> Enum.with_index()
+        |> Enum.filter(fn {term, _} -> (term["done"] || 0) == 1 end)
+        |> Enum.map(&elem(&1, 1))
+
+      {nexts, envs, acc} =
+        if finished == [] do
+          {nexts, envs, acc}
+        else
+          for i <- finished, do: {:ok, _} = Env.restore(sim, i, starts[i])
+          reset_rows.(actor, finished)
+          if opponent != :idle, do: reset_rows.(opponent, finished)
+          {:ok, reset_states} = Env.frames(sim)
+
+          envs =
+            envs
+            |> Enum.with_index()
+            |> Enum.map(fn {e, i} ->
+              if i in finished, do: %{env0 | max_run: e.max_run}, else: e
+            end)
+
+          {reset_states, envs, %{acc | games: acc.games + length(finished)}}
+        end
+
+      if rem(t, 600) == 0 do
+        Output.puts(
+          "  frame #{t}/#{frames}  deaths #{acc.deaths}  SDs #{acc.sds}  kills #{acc.kills}  (#{round((System.monotonic_time(:millisecond) - t0) / t)} ms/step)"
+        )
       end
-    {:ok, nexts, terms} = Env.step(sim, Enum.zip_with(c1s, c2s, fn a, b -> [a || neutral, b || neutral] end))
 
-    {acc, envs} =
-      [states, nexts, c1s, envs]
-      |> Enum.zip()
-      |> Enum.reduce({acc, []}, fn {s, nx, c, e}, {acc, out} ->
-        p0 = s.players[1]
-        p1 = nx.players[1]
-        o0 = s.players[2]
-        o1 = nx.players[2]
-        c = c || neutral
-        k = key.(c)
-        hit? = p1.percent > p0.percent or (p1.hitstun_frames_left || 0) > 0
-        last_hit = if hit?, do: t, else: e.last_hit
-        died? = (p1.stock || 0) < (p0.stock || 0)
-        sd? = died? and t - e.last_hit > 90
-        run = if k == e.prev_key, do: e.run + 1, else: 1
-        was_off = e.off
-        now_off = offstage?.(p1) and not died?
-        stun0 = (p0.hitstun_frames_left || 0) > 0
-        stun1 = (p1.hitstun_frames_left || 0) > 0
-        actionable =
-          cond do
-            hit? -> nil
-            now_off and not stun1 and (stun0 or not was_off) -> p1
-            true -> e.actionable
-          end
-        verdict = if died?, do: death_verdict.(e.actionable)
-        acc = %{acc |
-          deaths_by_verdict: if(died?, do: Map.update!(acc.deaths_by_verdict, verdict, &(&1 + 1)), else: acc.deaths_by_verdict),
-          total: acc.total + 1,
-          neutral: acc.neutral + if(neutral?.(c), do: 1, else: 0),
-          repeat: acc.repeat + if(k == e.prev_key, do: 1, else: 0),
-          deaths: acc.deaths + if(died?, do: 1, else: 0),
-          sds: acc.sds + if(sd?, do: 1, else: 0),
-          kills: acc.kills + if((o1.stock || 0) < (o0.stock || 0), do: 1, else: 0),
-          dmg_dealt: acc.dmg_dealt + max(0.0, (o1.percent - o0.percent) * 1.0),
-          dmg_taken: acc.dmg_taken + max(0.0, (p1.percent - p0.percent) * 1.0),
-          off_eps: acc.off_eps + if(now_off and not was_off, do: 1, else: 0),
-          off_recovered: acc.off_recovered + if(was_off and not now_off and not died?, do: 1, else: 0),
-          off_died: acc.off_died + if(was_off and died?, do: 1, else: 0),
-          max_run: max(acc.max_run, run)}
-        {acc, [%{e | last_hit: last_hit, prev_key: k, run: run, max_run: max(e.max_run, run), off: now_off, actionable: actionable} | out]}
-      end)
-
-    envs = Enum.reverse(envs)
-    finished = terms |> Enum.with_index() |> Enum.filter(fn {term, _} -> (term["done"] || 0) == 1 end) |> Enum.map(&elem(&1, 1))
-
-    {nexts, envs, acc} =
-      if finished == [] do
-        {nexts, envs, acc}
-      else
-        for i <- finished, do: {:ok, _} = Env.restore(sim, i, starts[i])
-        reset_rows.(actor, finished)
-        if opponent != :idle, do: reset_rows.(opponent, finished)
-        {:ok, reset_states} = Env.frames(sim)
-        envs = envs |> Enum.with_index() |> Enum.map(fn {e, i} -> if i in finished, do: %{env0 | max_run: e.max_run}, else: e end)
-        {reset_states, envs, %{acc | games: acc.games + length(finished)}}
-      end
-
-    if rem(t, 600) == 0 do
-      Output.puts("  frame #{t}/#{frames}  deaths #{acc.deaths}  SDs #{acc.sds}  kills #{acc.kills}  (#{round((System.monotonic_time(:millisecond) - t0) / t)} ms/step)")
+      actor_queue = ActionDelay.reset_rows(actor_queue, finished)
+      opponent_queue = ActionDelay.reset_rows(opponent_queue, finished)
+      {acc, envs, nexts, actor_queue, opponent_queue}
     end
-
-    {acc, envs, nexts}
-  end)
+  )
 
 minutes = acc.total / 3600
 r = fn x, d -> if d == 0, do: nil, else: Float.round(x / d, 3) end
-actor_config = case actor do
-  {:batch, agent} -> Agent.get_config(agent)
-  {:single, [agent | _]} -> Agent.get_config(agent)
-end
+
+actor_config =
+  case actor do
+    {:batch, agent} -> Agent.get_config(agent)
+    {:single, [agent | _]} -> Agent.get_config(agent)
+  end
+
 result = %{
-  seed: opts[:seed] || 1001, stage: stage,
+  frame_delay: delay,
+  opponent_frame_delay: opponent_delay,
+  decision_to_application_frames: delay + 1,
+  delay_model: :fixed_actuation_fifo,
+  seed: opts[:seed] || 1001,
+  stage: stage,
   deterministic: opts[:deterministic] || false,
   sampling_seeded: true,
-  character: opts[:character] || "fox", opponent_character: opts[:opponent_character] || "fox",
+  character: opts[:character] || "fox",
+  opponent_character: opts[:opponent_character] || "fox",
   stateful_step: actor_config.stateful_step_active,
   inference_driver: elem(actor, 0),
   stateful_resync: opts[:stateful_resync],
-  label: label, policy: policy, opponent: opts[:opponent] || "idle", envs: n, frames_per_env: frames,
+  label: label,
+  policy: policy,
+  opponent: opts[:opponent] || "idle",
+  envs: n,
+  frames_per_env: frames,
   env_minutes: Float.round(minutes, 1),
-  sd_per_min: r.(acc.sds, minutes), deaths_per_min: r.(acc.deaths, minutes), kills_per_min: r.(acc.kills, minutes),
+  sd_per_min: r.(acc.sds, minutes),
+  deaths_per_min: r.(acc.deaths, minutes),
+  kills_per_min: r.(acc.kills, minutes),
   deaths_by_verdict: acc.deaths_by_verdict,
   deaths_by_verdict_per_min: Map.new(acc.deaths_by_verdict, fn {v, c} -> {v, r.(c, minutes)} end),
-  damage_dealt_per_min: r.(acc.dmg_dealt, minutes), damage_taken_per_min: r.(acc.dmg_taken, minutes),
+  damage_dealt_per_min: r.(acc.dmg_dealt, minutes),
+  damage_taken_per_min: r.(acc.dmg_taken, minutes),
   offstage_episodes_per_min: r.(acc.off_eps, minutes),
   recovery_rate: r.(acc.off_recovered, acc.off_recovered + acc.off_died),
-  neutral_share: r.(acc.neutral, acc.total), repeat_prev: r.(acc.repeat, acc.total),
-  max_frozen_run: acc.max_run, games_finished: acc.games,
+  neutral_share: r.(acc.neutral, acc.total),
+  repeat_prev: r.(acc.repeat, acc.total),
+  max_frozen_run: acc.max_run,
+  games_finished: acc.games,
   wall_s: Float.round((System.monotonic_time(:millisecond) - t0) / 1000, 1)
 }
 
@@ -246,9 +420,29 @@ if out = opts[:out] do
   File.write!(out, Jason.encode!(result, pretty: true))
 end
 
-Output.puts("RESULT #{label} vs #{result.opponent}: #{result.env_minutes} env-min  SD/min #{result.sd_per_min}  deaths/min #{result.deaths_per_min}  " <>
-  "kills/min #{result.kills_per_min}  dmg dealt/taken per min #{result.damage_dealt_per_min}/#{result.damage_taken_per_min}")
-Output.puts("RESULT #{label} deaths by verdict at the decision frame: " <>
-  Enum.map_join([:kill, :checkmate, :forced, :mixup], "  ", fn v -> "#{v} #{acc.deaths_by_verdict[v]} (#{result.deaths_by_verdict_per_min[v]}/min)" end))
-Output.puts("RESULT #{label} offstage eps/min #{result.offstage_episodes_per_min}  recovery rate #{inspect(result.recovery_rate)}  " <>
-  "neutral #{result.neutral_share}  repeat_prev #{result.repeat_prev}  max frozen run #{result.max_frozen_run} f  (#{result.wall_s}s wall)")
+Output.puts(
+  "RESULT #{label} vs #{result.opponent}: #{result.env_minutes} env-min  SD/min #{result.sd_per_min}  deaths/min #{result.deaths_per_min}  " <>
+    "kills/min #{result.kills_per_min}  dmg dealt/taken per min #{result.damage_dealt_per_min}/#{result.damage_taken_per_min}"
+)
+
+Output.puts(
+  "RESULT #{label} deaths by verdict at the decision frame: " <>
+    Enum.map_join([:kill, :checkmate, :forced, :mixup], "  ", fn v ->
+      "#{v} #{acc.deaths_by_verdict[v]} (#{result.deaths_by_verdict_per_min[v]}/min)"
+    end)
+)
+
+Output.puts(
+  "RESULT #{label} offstage eps/min #{result.offstage_episodes_per_min}  recovery rate #{inspect(result.recovery_rate)}  " <>
+    "neutral #{result.neutral_share}  repeat_prev #{result.repeat_prev}  max frozen run #{result.max_frozen_run} f  (#{result.wall_s}s wall)"
+)
+
+Env.stop(sim)
+
+for driver <- [actor, opponent] do
+  case driver do
+    :idle -> :ok
+    {:batch, agent} -> GenServer.stop(agent)
+    {:single, agents} -> Enum.each(agents, &GenServer.stop/1)
+  end
+end
