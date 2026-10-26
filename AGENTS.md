@@ -16,6 +16,12 @@
   terms and use concrete examples when helpful.
 - Keep important details and limitations. Do not talk down to the reader. Apply
   this style to chat, docs, comments, reports, and commit/PR descriptions.
+- Explain complex interactions in small, connected steps: what we observed, how
+  the parts interact, why the problem happens, and what a proposed change would
+  do. Each step should make the next easier to understand.
+- Explain what possible directions enable, their tradeoffs, and what evidence
+  would help choose. Distinguish observations from hypotheses. Avoid "AI dialect"
+  full of jargon, vague abstractions, compressed labels, and polished filler.
 
 ExPhil is an Elixir-based platform for experimenting with neural network architectures for Super Smash Bros. Melee AI agents. It supports 30+ backbone architectures (via the [Edifice](https://github.com/blasphemetheus/edifice) companion library), all implemented in Elixir using Nx/Axon. The long-term goal is competitive bots for lower-tier characters (Mewtwo, Ganondorf, Link, Zelda, Ice Climbers, G&W), but high-tier replay data drives current architecture iteration.
 
