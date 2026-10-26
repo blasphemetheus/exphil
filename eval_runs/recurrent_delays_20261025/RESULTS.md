@@ -99,4 +99,3 @@ Next quality gate: retain windowed defaults, use resync-30 as an explicit
 MinGRU speed/quality candidate, and test correctly delay-trained checkpoints
 in the actual deployment harness. Do not infer architecture superiority by
 comparing these different checkpoints.
-

@@ -131,6 +131,37 @@ defmodule ExPhil.Agents.AgentStatefulMinGRUTest do
     {:ok, policy: build_policy()}
   end
 
+  @tag :batch_observe_hysteresis
+  test "observe clears independent button hysteresis like a single Agent", %{policy: policy} do
+    # Fixed p(button)=0.5: held under the release threshold, unpressed under
+    # the press threshold. This makes the history difference observable.
+    policy =
+      update_in(policy, [:params, Access.key!(:data), "buttons_logits"], fn layer ->
+        Map.new(layer, fn {key, tensor} -> {key, Nx.broadcast(0.0, Nx.shape(tensor))} end)
+      end)
+
+    batch = start_agent(policy, stateful_step: true, press_threshold: 0.4, release_threshold: 0.4)
+
+    single =
+      start_agent(policy, stateful_step: true, press_threshold: 0.4, release_threshold: 0.4)
+
+    :ok = Agent.batch_init(batch, 1)
+    frame = %{game_state(1.0) | frame: 1}
+    assert {:ok, [first]} = Agent.batch_get_controllers(batch, [frame])
+    assert {:ok, ^first} = Agent.get_controller(single, frame)
+    assert first.button_a
+    for agent <- [batch, single], do: :ok = Agent.reconfigure(agent, press_threshold: 0.6)
+    frame = %{frame | frame: 2}
+    :ok = Agent.batch_observe(batch, [frame])
+    :ok = Agent.observe(single, frame, nil)
+    frame = %{frame | frame: 3}
+    assert {:ok, [actual]} = Agent.batch_get_controllers(batch, [frame])
+    assert {:ok, expected} = Agent.get_controller(single, frame)
+    refute expected.button_a
+    assert actual == expected
+    for agent <- [batch, single], do: GenServer.stop(agent)
+  end
+
   test "unsupported independent batch options fail without consuming a frame", %{policy: policy} do
     batch = start_agent(policy, [])
     :ok = Agent.batch_init(batch, 2)

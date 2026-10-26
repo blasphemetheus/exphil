@@ -3,8 +3,8 @@ defmodule ExPhil.Agents.AgentStatefulMambaTest do
   Carried-state Mamba inference (2026-10-01): `stateful_step: true` routes a
   temporal Mamba policy through `Edifice.SSM.Mamba.step/3` (SSM state + conv
   ring buffer per layer) instead of re-running the whole window each frame.
-  Synthetic GameStates, no Dolphin. The batched path (autoregressive head only)
-  is covered end to end by scripts/sim_closed_loop.exs --stateful-step.
+  Synthetic GameStates, no Dolphin. Both independent and autoregressive batch
+  heads are covered by AgentStatefulMinGRUTest and scripts/sim_closed_loop.exs.
   """
   use ExUnit.Case, async: true
 

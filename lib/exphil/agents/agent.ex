@@ -831,6 +831,9 @@ defmodule ExPhil.Agents.Agent do
   def handle_call({:batch_observe, game_states, opts}, _from, %{batch: %{}} = state) do
     try do
       {_features, state} = batch_trunk_step(state, game_states, opts, false)
+      # The single observe path invalidates last_action. Match its hysteresis
+      # behavior rather than retaining buttons from an earlier decision.
+      state = %{state | batch: Map.put(state.batch, :last_buttons, nil)}
 
       # `controllers:` (one per row) stands in for what the policy would have
       # emitted — warms the prev-action channel with RECORDED history, like
