@@ -1,0 +1,92 @@
+# Paired stochastic sampling timings
+
+Times are microseconds per full controller call (per batch for eight rows).
+100 fresh-key calls per scenario; compilation and explicit restore/reset calls excluded.
+Rolled and unrolled variants use identical checkpoints and sampler logic.
+
+| Client | Policy | Batch | Scenario | Replay rows | Rolled median / p95 | Unrolled median / p95 | Median speedup |
+|---|---|---:|---|---:|---:|---:|---:|
+| host | min_gru | 1 | ordinary | 0 | 573 / 784 | 517 / 703 | 1.11x |
+| host | min_gru | 1 | cold_reset | 1 | 1395 / 1512 | 1384 / 1607 | 1.01x |
+| host | min_gru | 1 | resync | 1 | 1433 / 1549 | 1430 / 1565 | 1.00x |
+| host | min_gru | 1 | windowed | 1 | 1482 / 1770 | 1403 / 2027 | 1.06x |
+| host | min_gru | 8 | ordinary | 0 | 650 / 750 | 757 / 888 | 0.86x |
+| host | min_gru | 8 | cold_reset | 1 | 1644 / 1874 | 1658 / 1987 | 0.99x |
+| host | min_gru | 8 | cold_reset | 3 | 1809 / 2226 | 1641 / 1880 | 1.10x |
+| host | min_gru | 8 | cold_reset | 8 | 2280 / 2576 | 2277 / 2977 | 1.00x |
+| host | min_gru | 8 | resync | 1 | 1715 / 1912 | 1769 / 2225 | 0.97x |
+| host | min_gru | 8 | resync | 3 | 1724 / 2243 | 1727 / 2316 | 1.00x |
+| host | min_gru | 8 | resync | 8 | 2399 / 2907 | 2452 / 3490 | 0.98x |
+| host | min_gru | 8 | windowed | 8 | 2960 / 3478 | 2843 / 3459 | 1.04x |
+| host | gru | 1 | ordinary | 0 | 513 / 670 | 467 / 600 | 1.10x |
+| host | gru | 1 | cold_reset | 1 | 481 / 568 | 458 / 566 | 1.05x |
+| host | gru | 8 | ordinary | 0 | 843 / 1111 | 778 / 964 | 1.08x |
+| host | gru | 8 | cold_reset | 1 | 776 / 961 | 757 / 921 | 1.03x |
+| host | gru | 8 | cold_reset | 3 | 850 / 1099 | 855 / 1129 | 0.99x |
+| host | gru | 8 | cold_reset | 8 | 798 / 1007 | 805 / 1132 | 0.99x |
+| host | mamba | 1 | ordinary | 0 | 574 / 805 | 613 / 794 | 0.94x |
+| host | mamba | 1 | cold_reset | 1 | 9533 / 10140 | 9572 / 9872 | 1.00x |
+| host | mamba | 1 | resync | 1 | 9658 / 10225 | 9743 / 10147 | 0.99x |
+| host | mamba | 1 | windowed | 1 | 18373 / 19790 | 18873 / 20326 | 0.97x |
+| host | mamba | 8 | ordinary | 0 | 1266 / 1641 | 1328 / 1786 | 0.95x |
+| host | mamba | 8 | cold_reset | 1 | 10798 / 11048 | 10825 / 11239 | 1.00x |
+| host | mamba | 8 | cold_reset | 3 | 19848 / 21075 | 20289 / 21431 | 0.98x |
+| host | mamba | 8 | cold_reset | 8 | 28081 / 31675 | 24454 / 31268 | 1.15x |
+| host | mamba | 8 | resync | 1 | 11399 / 12130 | 11165 / 11756 | 1.02x |
+| host | mamba | 8 | resync | 3 | 16129 / 19941 | 15498 / 20728 | 1.04x |
+| host | mamba | 8 | resync | 8 | 23228 / 25360 | 25399 / 31740 | 0.91x |
+| host | mamba | 8 | windowed | 8 | 148127 / 153340 | 148625 / 157624 | 1.00x |
+| host | mamba2 | 1 | ordinary | 0 | 659 / 868 | 647 / 843 | 1.02x |
+| host | mamba2 | 1 | cold_reset | 1 | 3372 / 3668 | 3588 / 3882 | 0.94x |
+| host | mamba2 | 1 | resync | 1 | 3553 / 3992 | 3371 / 3764 | 1.05x |
+| host | mamba2 | 1 | windowed | 1 | 7902 / 9412 | 8353 / 9356 | 0.95x |
+| host | mamba2 | 8 | ordinary | 0 | 1175 / 1852 | 1138 / 1392 | 1.03x |
+| host | mamba2 | 8 | cold_reset | 1 | 4171 / 4642 | 4081 / 4443 | 1.02x |
+| host | mamba2 | 8 | cold_reset | 3 | 7243 / 8943 | 6634 / 7628 | 1.09x |
+| host | mamba2 | 8 | cold_reset | 8 | 10038 / 14465 | 9459 / 10722 | 1.06x |
+| host | mamba2 | 8 | resync | 1 | 4495 / 5072 | 4282 / 4719 | 1.05x |
+| host | mamba2 | 8 | resync | 3 | 6701 / 8540 | 6793 / 9312 | 0.99x |
+| host | mamba2 | 8 | resync | 8 | 9703 / 13982 | 9524 / 11318 | 1.02x |
+| host | mamba2 | 8 | windowed | 8 | 41680 / 44436 | 41397 / 45473 | 1.01x |
+| cuda | min_gru | 1 | ordinary | 0 | 3526 / 4470 | 1396 / 1780 | 2.53x |
+| cuda | min_gru | 1 | cold_reset | 1 | 5324 / 7225 | 3213 / 4004 | 1.66x |
+| cuda | min_gru | 1 | resync | 1 | 5658 / 7846 | 3328 / 3783 | 1.70x |
+| cuda | min_gru | 1 | windowed | 1 | 6199 / 7353 | 3178 / 4648 | 1.95x |
+| cuda | min_gru | 8 | ordinary | 0 | 3770 / 4172 | 1330 / 3038 | 2.83x |
+| cuda | min_gru | 8 | cold_reset | 1 | 5308 / 5812 | 2992 / 3415 | 1.77x |
+| cuda | min_gru | 8 | cold_reset | 3 | 5466 / 6023 | 3056 / 3522 | 1.79x |
+| cuda | min_gru | 8 | cold_reset | 8 | 5451 / 5885 | 2935 / 3328 | 1.86x |
+| cuda | min_gru | 8 | resync | 1 | 5380 / 5940 | 2989 / 3285 | 1.80x |
+| cuda | min_gru | 8 | resync | 3 | 5569 / 6069 | 3202 / 6247 | 1.74x |
+| cuda | min_gru | 8 | resync | 8 | 5703 / 6221 | 3071 / 3720 | 1.86x |
+| cuda | min_gru | 8 | windowed | 8 | 4851 / 5516 | 1953 / 2588 | 2.48x |
+| cuda | gru | 1 | ordinary | 0 | 3957 / 4974 | 1121 / 1524 | 3.53x |
+| cuda | gru | 1 | cold_reset | 1 | 4075 / 5572 | 1056 / 1372 | 3.86x |
+| cuda | gru | 8 | ordinary | 0 | 3698 / 4161 | 1221 / 1590 | 3.03x |
+| cuda | gru | 8 | cold_reset | 1 | 3564 / 3892 | 1028 / 1288 | 3.47x |
+| cuda | gru | 8 | cold_reset | 3 | 3570 / 3899 | 996 / 1247 | 3.58x |
+| cuda | gru | 8 | cold_reset | 8 | 3574 / 3994 | 1020 / 1249 | 3.50x |
+| cuda | mamba | 1 | ordinary | 0 | 3999 / 4495 | 1064 / 1505 | 3.76x |
+| cuda | mamba | 1 | cold_reset | 1 | 7743 / 8328 | 5414 / 6171 | 1.43x |
+| cuda | mamba | 1 | resync | 1 | 7898 / 8581 | 5294 / 5622 | 1.49x |
+| cuda | mamba | 1 | windowed | 1 | 5688 / 6971 | 3381 / 4291 | 1.68x |
+| cuda | mamba | 8 | ordinary | 0 | 3860 / 4214 | 1119 / 1420 | 3.45x |
+| cuda | mamba | 8 | cold_reset | 1 | 7822 / 8221 | 5187 / 5471 | 1.51x |
+| cuda | mamba | 8 | cold_reset | 3 | 9085 / 9566 | 6482 / 6766 | 1.40x |
+| cuda | mamba | 8 | cold_reset | 8 | 9200 / 9774 | 6627 / 7009 | 1.39x |
+| cuda | mamba | 8 | resync | 1 | 7792 / 8276 | 5540 / 6633 | 1.41x |
+| cuda | mamba | 8 | resync | 3 | 9417 / 10103 | 6968 / 7982 | 1.35x |
+| cuda | mamba | 8 | resync | 8 | 9388 / 9894 | 6931 / 7229 | 1.35x |
+| cuda | mamba | 8 | windowed | 8 | 5290 / 5989 | 2595 / 3127 | 2.04x |
+| cuda | mamba2 | 1 | ordinary | 0 | 3405 / 3938 | 1567 / 1944 | 2.17x |
+| cuda | mamba2 | 1 | cold_reset | 1 | 5876 / 6265 | 3955 / 4499 | 1.49x |
+| cuda | mamba2 | 1 | resync | 1 | 5883 / 6537 | 4013 / 4419 | 1.47x |
+| cuda | mamba2 | 1 | windowed | 1 | 4691 / 5402 | 2955 / 4720 | 1.59x |
+| cuda | mamba2 | 8 | ordinary | 0 | 2930 / 3299 | 1082 / 1315 | 2.71x |
+| cuda | mamba2 | 8 | cold_reset | 1 | 5285 / 5828 | 3534 / 3951 | 1.50x |
+| cuda | mamba2 | 8 | cold_reset | 3 | 5949 / 6439 | 3952 / 4284 | 1.51x |
+| cuda | mamba2 | 8 | cold_reset | 8 | 6018 / 6578 | 4163 / 4514 | 1.45x |
+| cuda | mamba2 | 8 | resync | 1 | 5683 / 6123 | 3694 / 4029 | 1.54x |
+| cuda | mamba2 | 8 | resync | 3 | 6170 / 6705 | 4159 / 4545 | 1.48x |
+| cuda | mamba2 | 8 | resync | 8 | 6098 / 6728 | 4166 / 4676 | 1.46x |
+| cuda | mamba2 | 8 | windowed | 8 | 3628 / 4282 | 1787 / 2203 | 2.03x |

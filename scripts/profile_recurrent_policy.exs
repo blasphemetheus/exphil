@@ -127,7 +127,11 @@ call = fn frame -> invoke.(frame, sample_opts.(frame)) end
 # construction. Explicit keys are only for reproducible priming and rollback.
 timed_call = fn frame -> invoke.(frame, []) end
 
-for frame <- Enum.take(frames, history), do: call.(frame)
+priming_actions = for frame <- Enum.take(frames, history), do: call.(frame)
+
+priming_digest =
+  :crypto.hash(:sha256, :erlang.term_to_binary(priming_actions)) |> Base.encode16(case: :lower)
+
 bases = Enum.map(agents, &:sys.get_state/1)
 
 if opts[:validate_batch] do
@@ -387,6 +391,8 @@ report = %{
   bptt: bptt,
   stochastic: stochastic,
   seed: seed,
+  priming_controller_sha256: priming_digest,
+  sampling_kernel: if(System.get_env("SAMPLING_REFERENCE") == "1", do: :rolled, else: :unrolled),
   sampling: %{
     temperature: 1.0,
     deterministic_buttons: false,

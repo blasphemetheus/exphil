@@ -13,6 +13,18 @@ Application.put_env(:exla, :default_client, client)
 Nx.global_default_backend({EXLA.Backend, client: client})
 Nx.Defn.global_default_options(compiler: EXLA, client: client, precision: :highest)
 Logger.configure(level: :warning)
+Code.compile_file(Path.expand("../edifice/lib/edifice/utils/sampling_random.ex"))
+
+if System.get_env("SAMPLING_REFERENCE") == "1" do
+  # Validation-only baseline: identical sampler with rolled Nx uniform draws.
+  File.read!("lib/exphil/networks/policy/sampling.ex")
+  |> String.replace("SamplingRandom.uniform(", "Nx.Random.uniform(")
+  |> String.replace(":unrolled_threefry_v1", ":rolled_reference")
+  |> Code.compile_string("sampling_rolled_reference.ex")
+else
+  Code.compile_file("lib/exphil/networks/policy/sampling.ex")
+end
+
 Code.compile_file(Path.expand("../edifice/lib/edifice/stateful/replay.ex"))
 Code.compile_file(Path.expand("../edifice/lib/edifice/stateful.ex"))
 Code.compile_file("lib/exphil/agents/agent.ex")

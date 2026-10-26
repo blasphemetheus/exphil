@@ -31,7 +31,12 @@ defmodule ExPhil.Networks.Policy.Sampling do
   - `ExPhil.Networks.Policy.Loss` - Loss computation
   """
 
+  alias Edifice.Utils.SamplingRandom
   alias ExPhil.Training.Utils
+
+  # Invalidate VM-local and optional disk executable caches when the RNG graph
+  # changes, even though the public sampler names and random streams are stable.
+  @sampling_kernel_version :unrolled_threefry_v1
 
   import Nx.Defn
 
@@ -199,9 +204,14 @@ defmodule ExPhil.Networks.Policy.Sampling do
 
     n =
       cond do
-        is_integer(mode_of_n) and mode_of_n > 1 and not deterministic -> mode_of_n
-        is_function(select_fn) and is_integer(select_n) and select_n > 1 and not deterministic -> select_n
-        true -> 1
+        is_integer(mode_of_n) and mode_of_n > 1 and not deterministic ->
+          mode_of_n
+
+        is_function(select_fn) and is_integer(select_n) and select_n > 1 and not deterministic ->
+          select_n
+
+        true ->
+          1
       end
 
     temps = temperature_tuple(temperature)
@@ -343,7 +353,7 @@ defmodule ExPhil.Networks.Policy.Sampling do
     {r0, b_l} = jitted(:ar_stage1, &ar_stage1/2).(head, features)
     {r0n, b_ln} = {Nx.tile(r0, [n, 1]), Nx.tile(b_l, [n, 1])}
     {t_b, _, _, _, _, _} = temps
-    {u, key2} = Nx.Random.uniform(key, shape: Nx.shape(b_ln))
+    {u, key2} = SamplingRandom.uniform(key, shape: Nx.shape(b_ln))
     buttons = Nx.less(u, Nx.sigmoid(Nx.divide(b_ln, t_b)))
 
     {mx, my, cx, cy, sh, _mx_l, _my_l, _cx_l, _cy_l, _sh_l, _conf, _commit} =
@@ -405,7 +415,7 @@ defmodule ExPhil.Networks.Policy.Sampling do
     {r0, b_l} = jitted(:ar_stage1, &ar_stage1/2).(head, features)
     {r0k, b_lk} = {Nx.tile(r0, [k, 1]), Nx.tile(b_l, [k, 1])}
     {t_b, _, _, _, _, _} = temps
-    {u, key2} = Nx.Random.uniform(key, shape: Nx.shape(b_lk))
+    {u, key2} = SamplingRandom.uniform(key, shape: Nx.shape(b_lk))
     buttons = Nx.less(u, Nx.sigmoid(Nx.divide(b_lk, t_b)))
 
     {mx, my, cx, cy, sh, _mx_l, _my_l, _cx_l, _cy_l, _sh_l, _conf, _commit} =
@@ -420,8 +430,8 @@ defmodule ExPhil.Networks.Policy.Sampling do
 
     reshape = fn t -> Nx.reshape(t, {k, n}) end
 
-    {Nx.reshape(buttons, {k, n, :auto}), reshape.(mx), reshape.(my), reshape.(cx),
-     reshape.(cy), reshape.(sh)}
+    {Nx.reshape(buttons, {k, n, :auto}), reshape.(mx), reshape.(my), reshape.(cx), reshape.(cy),
+     reshape.(sh)}
   end
 
   # Extract the AR head parameter subtree ("ar_*" layers) from a params
@@ -432,14 +442,20 @@ defmodule ExPhil.Networks.Policy.Sampling do
   defp put_event_prev(head, opts) do
     head =
       case Keyword.get(opts, :event_prev_buttons) do
-        %Nx.Tensor{} = prev -> Map.put(head, "ar_event_prev", %{"value" => Nx.as_type(prev, :f32)})
-        _ -> head
+        %Nx.Tensor{} = prev ->
+          Map.put(head, "ar_event_prev", %{"value" => Nx.as_type(prev, :f32)})
+
+        _ ->
+          head
       end
 
     head =
       case Keyword.get(opts, :event_prev_sticks) do
-        %Nx.Tensor{} = prev -> Map.put(head, "ar_event_prev_sticks", %{"value" => Nx.as_type(prev, :s64)})
-        _ -> head
+        %Nx.Tensor{} = prev ->
+          Map.put(head, "ar_event_prev_sticks", %{"value" => Nx.as_type(prev, :s64)})
+
+        _ ->
+          head
       end
 
     # Semi-Markov main stick (stick_duration, 2026-10-06): the age of the
@@ -447,8 +463,11 @@ defmodule ExPhil.Networks.Policy.Sampling do
     # to it ({rows}); both come back updated in the result (:stick_commit).
     head =
       case Keyword.get(opts, :event_prev_age) do
-        %Nx.Tensor{} = age -> Map.put(head, "ar_event_prev_age", %{"value" => Nx.as_type(age, :s64)})
-        _ -> head
+        %Nx.Tensor{} = age ->
+          Map.put(head, "ar_event_prev_age", %{"value" => Nx.as_type(age, :s64)})
+
+        _ ->
+          head
       end
 
     head =
@@ -471,12 +490,17 @@ defmodule ExPhil.Networks.Policy.Sampling do
   # features like the event context does.
   deftransformp ar_danger_context(r0, head) do
     case head do
-      %{"ar_danger_hidden" => hidden, "ar_danger_embed" => %{"kernel" => k}, "ar_danger" => %{"value" => d}} ->
+      %{
+        "ar_danger_hidden" => hidden,
+        "ar_danger_embed" => %{"kernel" => k},
+        "ar_danger" => %{"value" => d}
+      } ->
         h = d |> Nx.dot(hidden["kernel"]) |> Nx.add(hidden["bias"]) |> Nx.max(0)
         Nx.add(r0, Nx.dot(h, k))
 
       %{"ar_danger_embed" => _} ->
-        raise ArgumentError, "this checkpoint has a danger-context head — pass :danger ({rows, k}) to the sampler"
+        raise ArgumentError,
+              "this checkpoint has a danger-context head — pass :danger ({rows, k}) to the sampler"
 
       _ ->
         r0
@@ -484,7 +508,7 @@ defmodule ExPhil.Networks.Policy.Sampling do
   end
 
   # The duration head is present iff the checkpoint trained with stick_duration.
-  deftransformp duration_head?(head), do: Map.has_key?(head, "ar_duration_logits")
+  deftransformp(duration_head?(head), do: Map.has_key?(head, "ar_duration_logits"))
 
   # Age embedding (Heads: stick_duration): zero-initialised feature of r0.
   deftransformp ar_age_context(r0, head) do
@@ -493,7 +517,8 @@ defmodule ExPhil.Networks.Policy.Sampling do
         Nx.add(r0, Nx.take(k, ExPhil.Networks.Policy.Heads.age_bucket(age)))
 
       %{"ar_prev_age_embed" => _} ->
-        raise ArgumentError, "this checkpoint has a stick_duration head — pass :event_prev_age and :stick_commit to the sampler"
+        raise ArgumentError,
+              "this checkpoint has a stick_duration head — pass :event_prev_age and :stick_commit to the sampler"
 
       _ ->
         r0
@@ -508,7 +533,10 @@ defmodule ExPhil.Networks.Policy.Sampling do
   deftransformp ar_button_edge(head, buttons_f32) do
     case head do
       %{"ar_event_prev" => %{"value" => prev}} ->
-        Nx.not_equal(Nx.greater(buttons_f32, 0.5), Nx.greater(Nx.broadcast(prev, Nx.shape(buttons_f32)), 0.5))
+        Nx.not_equal(
+          Nx.greater(buttons_f32, 0.5),
+          Nx.greater(Nx.broadcast(prev, Nx.shape(buttons_f32)), 0.5)
+        )
         |> Nx.any(axes: [-1])
 
       _ ->
@@ -521,9 +549,16 @@ defmodule ExPhil.Networks.Policy.Sampling do
       %{"ar_stick_commit" => %{"value" => commit}, "ar_event_prev_sticks" => %{"value" => prev}} ->
         col = prev |> Nx.slice_along_axis(j, 1, axis: 1) |> Nx.squeeze(axes: [1])
         k = Nx.axis_size(logits, -1)
-        spike = Nx.select(Nx.equal(Nx.iota({1, k}), Nx.new_axis(col, -1)), 0.0, -1.0e9) |> Nx.broadcast(Nx.shape(logits))
+
+        spike =
+          Nx.select(Nx.equal(Nx.iota({1, k}), Nx.new_axis(col, -1)), 0.0, -1.0e9)
+          |> Nx.broadcast(Nx.shape(logits))
+
         rows = Nx.axis_size(logits, 0)
-        committed = Nx.logical_and(Nx.greater(Nx.broadcast(commit, {rows}), 0), Nx.logical_not(edge))
+
+        committed =
+          Nx.logical_and(Nx.greater(Nx.broadcast(commit, {rows}), 0), Nx.logical_not(edge))
+
         committed = committed |> Nx.new_axis(-1) |> Nx.broadcast(Nx.shape(logits))
         Nx.select(committed, spike, logits)
 
@@ -542,12 +577,18 @@ defmodule ExPhil.Networks.Policy.Sampling do
       d_l = ar_component(r3, head["ar_duration_hidden"], head["ar_duration_logits"])
 
       {d, key} =
-        if deterministic?, do: {Nx.argmax(d_l, axis: -1), key}, else: gumbel_argmax(d_l, key, temp)
+        if deterministic?,
+          do: {Nx.argmax(d_l, axis: -1), key},
+          else: gumbel_argmax(d_l, key, temp)
 
       commit =
         case head do
-          %{"ar_stick_commit" => %{"value" => c}} -> Nx.broadcast(c, Nx.shape(d))
-          _ -> raise ArgumentError, "stick_duration checkpoint: pass :stick_commit ({rows} s64) to the sampler"
+          %{"ar_stick_commit" => %{"value" => c}} ->
+            Nx.broadcast(c, Nx.shape(d))
+
+          _ ->
+            raise ArgumentError,
+                  "stick_duration checkpoint: pass :stick_commit ({rows} s64) to the sampler"
         end
 
       committed = Nx.logical_and(Nx.greater(commit, 0), Nx.logical_not(edge))
@@ -645,7 +686,8 @@ defmodule ExPhil.Networks.Policy.Sampling do
           Nx.add(r0, Nx.dot(prev, k))
 
         %{"ar_prev_buttons_embed" => _} ->
-          raise ArgumentError, "this checkpoint has event context — pass :event_prev_buttons to the sampler"
+          raise ArgumentError,
+                "this checkpoint has event context — pass :event_prev_buttons to the sampler"
 
         _ ->
           r0
@@ -659,7 +701,8 @@ defmodule ExPhil.Networks.Policy.Sampling do
         end)
 
       %{"ar_prev_stick_0_embed" => _} ->
-        raise ArgumentError, "this checkpoint has event context — pass :event_prev_sticks to the sampler"
+        raise ArgumentError,
+              "this checkpoint has event context — pass :event_prev_sticks to the sampler"
 
       _ ->
         r0
@@ -667,7 +710,12 @@ defmodule ExPhil.Networks.Policy.Sampling do
   end
 
   defnp ar_stage1(head, features) do
-    r0 = ar_dense(features, head["ar_residual_proj"]) |> ar_prev_context(head) |> ar_age_context(head) |> ar_danger_context(head)
+    r0 =
+      ar_dense(features, head["ar_residual_proj"])
+      |> ar_prev_context(head)
+      |> ar_age_context(head)
+      |> ar_danger_context(head)
+
     b_l =
       ar_component(r0, head["ar_buttons_hidden"], head["ar_buttons_logits"])
       |> ar_button_logits(head)
@@ -679,38 +727,63 @@ defmodule ExPhil.Networks.Policy.Sampling do
   # XLA program (features pre-tiled to {n, hidden} by the caller — the only
   # eager op left in the n>1 path).
   defnp ar_tiled_stochastic(head, features_n, key, temps) do
-    r0 = ar_dense(features_n, head["ar_residual_proj"]) |> ar_prev_context(head) |> ar_age_context(head) |> ar_danger_context(head)
+    r0 =
+      ar_dense(features_n, head["ar_residual_proj"])
+      |> ar_prev_context(head)
+      |> ar_age_context(head)
+      |> ar_danger_context(head)
+
     b_l =
       ar_component(r0, head["ar_buttons_hidden"], head["ar_buttons_logits"])
       |> ar_button_logits(head)
 
     {t_b, _, _, _, _, _} = temps
-    {u, key2} = Nx.Random.uniform(key, shape: Nx.shape(b_l))
+    {u, key2} = SamplingRandom.uniform(key, shape: Nx.shape(b_l))
     buttons = Nx.less(u, Nx.sigmoid(Nx.divide(b_l, t_b)))
 
     rest = ar_stage2_stochastic(head, r0, Nx.as_type(buttons, :f32), b_l, key2, temps)
     {buttons, rest, b_l}
   end
 
-  defnp ar_stage2_stochastic(head, r0, buttons_f32, b_l, key, {_t_b, t_mx, t_my, t_cx, t_cy, t_sh}) do
+  defnp ar_stage2_stochastic(
+          head,
+          r0,
+          buttons_f32,
+          b_l,
+          key,
+          {_t_b, t_mx, t_my, t_cx, t_cy, t_sh}
+        ) do
     r1 = r0 + Nx.dot(buttons_f32, head["ar_buttons_embed"]["kernel"])
 
     edge = ar_button_edge(head, buttons_f32)
-    mx_l = ar_component(r1, head["ar_main_x_hidden"], ar_stick_params(head, 0)) |> ar_stick_logits(head, 0)
+
+    mx_l =
+      ar_component(r1, head["ar_main_x_hidden"], ar_stick_params(head, 0))
+      |> ar_stick_logits(head, 0)
+
     {mx, key} = gumbel_argmax(ar_commit_force(mx_l, head, 0, edge), key, t_mx)
     r2 = r1 + Nx.take(head["ar_main_x_embed"]["kernel"], mx)
 
-    my_l = ar_component(r2, head["ar_main_y_hidden"], ar_stick_params(head, 1)) |> ar_stick_logits(head, 1)
+    my_l =
+      ar_component(r2, head["ar_main_y_hidden"], ar_stick_params(head, 1))
+      |> ar_stick_logits(head, 1)
+
     {my, key} = gumbel_argmax(ar_commit_force(my_l, head, 1, edge), key, t_my)
     r3 = r2 + Nx.take(head["ar_main_y_embed"]["kernel"], my)
 
     {commit, key} = ar_next_commit(head, r3, key, t_mx, false, edge)
 
-    cx_l = ar_component(r3, head["ar_c_x_hidden"], ar_stick_params(head, 2)) |> ar_stick_logits(head, 2)
+    cx_l =
+      ar_component(r3, head["ar_c_x_hidden"], ar_stick_params(head, 2))
+      |> ar_stick_logits(head, 2)
+
     {cx, key} = gumbel_argmax(cx_l, key, t_cx)
     r4 = r3 + Nx.take(head["ar_c_x_embed"]["kernel"], cx)
 
-    cy_l = ar_component(r4, head["ar_c_y_hidden"], ar_stick_params(head, 3)) |> ar_stick_logits(head, 3)
+    cy_l =
+      ar_component(r4, head["ar_c_y_hidden"], ar_stick_params(head, 3))
+      |> ar_stick_logits(head, 3)
+
     {cy, key} = gumbel_argmax(cy_l, key, t_cy)
     r5 = r4 + Nx.take(head["ar_c_y_embed"]["kernel"], cy)
 
@@ -725,21 +798,34 @@ defmodule ExPhil.Networks.Policy.Sampling do
     r1 = r0 + Nx.dot(buttons_f32, head["ar_buttons_embed"]["kernel"])
 
     edge = ar_button_edge(head, buttons_f32)
-    mx_l = ar_component(r1, head["ar_main_x_hidden"], ar_stick_params(head, 0)) |> ar_stick_logits(head, 0)
+
+    mx_l =
+      ar_component(r1, head["ar_main_x_hidden"], ar_stick_params(head, 0))
+      |> ar_stick_logits(head, 0)
+
     mx = Nx.argmax(ar_commit_force(mx_l, head, 0, edge), axis: -1)
     r2 = r1 + Nx.take(head["ar_main_x_embed"]["kernel"], mx)
 
-    my_l = ar_component(r2, head["ar_main_y_hidden"], ar_stick_params(head, 1)) |> ar_stick_logits(head, 1)
+    my_l =
+      ar_component(r2, head["ar_main_y_hidden"], ar_stick_params(head, 1))
+      |> ar_stick_logits(head, 1)
+
     my = Nx.argmax(ar_commit_force(my_l, head, 1, edge), axis: -1)
     r3 = r2 + Nx.take(head["ar_main_y_embed"]["kernel"], my)
 
     {commit, _key} = ar_next_commit(head, r3, Nx.Random.key(0), 1.0, true, edge)
 
-    cx_l = ar_component(r3, head["ar_c_x_hidden"], ar_stick_params(head, 2)) |> ar_stick_logits(head, 2)
+    cx_l =
+      ar_component(r3, head["ar_c_x_hidden"], ar_stick_params(head, 2))
+      |> ar_stick_logits(head, 2)
+
     cx = Nx.argmax(cx_l, axis: -1)
     r4 = r3 + Nx.take(head["ar_c_x_embed"]["kernel"], cx)
 
-    cy_l = ar_component(r4, head["ar_c_y_hidden"], ar_stick_params(head, 3)) |> ar_stick_logits(head, 3)
+    cy_l =
+      ar_component(r4, head["ar_c_y_hidden"], ar_stick_params(head, 3))
+      |> ar_stick_logits(head, 3)
+
     cy = Nx.argmax(cy_l, axis: -1)
     r5 = r4 + Nx.take(head["ar_c_y_embed"]["kernel"], cy)
 
@@ -780,7 +866,7 @@ defmodule ExPhil.Networks.Policy.Sampling do
     {r0, b_l} = ar_stage1(head, features)
     {t_b, _, _, _, _, _} = temps
     probs = Nx.sigmoid(b_l / t_b)
-    {u, key} = Nx.Random.uniform(key, shape: Nx.shape(probs))
+    {u, key} = SamplingRandom.uniform(key, shape: Nx.shape(probs))
     buttons = Nx.less(u, probs)
     rest = ar_stage2_stochastic(head, r0, Nx.as_type(buttons, :f32), b_l, key, temps)
     {buttons, rest, b_l}
@@ -862,8 +948,14 @@ defmodule ExPhil.Networks.Policy.Sampling do
   # head shares the scalar — bit-identical to the pre-per-head fused path.
   @doc false
   def resolve_temperatures(temperature) when is_number(temperature) do
-    %{buttons: 1.0, main_x: temperature, main_y: temperature, c_x: temperature,
-      c_y: temperature, shoulder: temperature}
+    %{
+      buttons: 1.0,
+      main_x: temperature,
+      main_y: temperature,
+      c_x: temperature,
+      c_y: temperature,
+      shoulder: temperature
+    }
   end
 
   # Map: group shorthands :main (x+y) and :c (x+y) expand first; explicit
@@ -902,7 +994,7 @@ defmodule ExPhil.Networks.Policy.Sampling do
   end
 
   defp jitted(name, fun) do
-    pt_key = {__MODULE__, name}
+    pt_key = {__MODULE__, name, @sampling_kernel_version}
 
     case :persistent_term.get(pt_key, nil) do
       nil ->
@@ -914,7 +1006,10 @@ defmodule ExPhil.Networks.Policy.Sampling do
             Nx.Defn.jit(
               fun,
               [compiler: EXLA] ++
-                ExPhil.Training.Utils.xla_exec_cache("sampling_#{name}", {__MODULE__, name})
+                ExPhil.Training.Utils.xla_exec_cache(
+                  "sampling_#{name}",
+                  {__MODULE__, name, @sampling_kernel_version}
+                )
             )
           else
             Nx.Defn.jit(fun)
@@ -936,12 +1031,12 @@ defmodule ExPhil.Networks.Policy.Sampling do
   # button tail (INTERP_GEN_V1 G1); at t_buttons=1.0 this is bit-identical to
   # the pre-per-head raw-Bernoulli path.
   defnp fused_sample_stochastic(
-         {b_l, mx_l, my_l, cx_l, cy_l, sh_l},
-         key,
-         {t_b, t_mx, t_my, t_cx, t_cy, t_sh}
-       ) do
+          {b_l, mx_l, my_l, cx_l, cy_l, sh_l},
+          key,
+          {t_b, t_mx, t_my, t_cx, t_cy, t_sh}
+        ) do
     probs = Nx.sigmoid(b_l / t_b)
-    {u, key} = Nx.Random.uniform(key, shape: Nx.shape(probs))
+    {u, key} = SamplingRandom.uniform(key, shape: Nx.shape(probs))
     buttons = Nx.less(u, probs)
 
     {mx, key} = gumbel_argmax(mx_l, key, t_mx)
@@ -966,7 +1061,7 @@ defmodule ExPhil.Networks.Policy.Sampling do
 
   defnp gumbel_argmax(logits, key, temperature) do
     scaled = logits / temperature
-    {u, key} = Nx.Random.uniform(key, shape: Nx.shape(scaled))
+    {u, key} = SamplingRandom.uniform(key, shape: Nx.shape(scaled))
     gumbel = -Nx.log(-Nx.log(u + 1.0e-10))
     {Nx.argmax(scaled + gumbel, axis: -1), key}
   end
@@ -998,7 +1093,7 @@ defmodule ExPhil.Networks.Policy.Sampling do
     else
       # Sample from Bernoulli using Nx.Random
       key = Nx.Random.key(System.system_time())
-      {random, _new_key} = Nx.Random.uniform(key, shape: Nx.shape(probs))
+      {random, _new_key} = SamplingRandom.uniform(key, shape: Nx.shape(probs))
       Nx.less(random, probs)
     end
   end
@@ -1016,7 +1111,7 @@ defmodule ExPhil.Networks.Policy.Sampling do
 
       # Gumbel-max trick for sampling
       key = Nx.Random.key(System.system_time())
-      {gumbel_noise, _new_key} = Nx.Random.uniform(key, shape: Nx.shape(scaled_logits))
+      {gumbel_noise, _new_key} = SamplingRandom.uniform(key, shape: Nx.shape(scaled_logits))
       gumbel = Nx.negate(Nx.log(Nx.negate(Nx.log(Nx.add(gumbel_noise, 1.0e-10)))))
 
       Nx.argmax(Nx.add(scaled_logits, gumbel), axis: -1)
