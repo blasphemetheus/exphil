@@ -25,6 +25,17 @@
 
 ExPhil is an Elixir-based platform for experimenting with neural network architectures for Super Smash Bros. Melee AI agents. It supports 30+ backbone architectures (via the [Edifice](https://github.com/blasphemetheus/edifice) companion library), all implemented in Elixir using Nx/Axon. The long-term goal is competitive bots for lower-tier characters (Mewtwo, Ganondorf, Link, Zelda, Ice Climbers, G&W), but high-tier replay data drives current architecture iteration.
 
+## Authorship and attribution
+
+- Never impersonate the user or present generated writing as their own words.
+- Label drafted PR descriptions and user-facing code/content **AI-generated**,
+  and include a short poem labeled **AI-generated poem** as an authorship marker.
+- Keep the user's own comments distinct. Preserve their wording and attribution;
+  do not blend the two voices or label their writing as AI-generated.
+- For code, use an accompanying description or clearly marked note for the
+  attribution and poem. Do not change executable behavior to carry the marker.
+  Preparing a draft does not authorize posting or sending it.
+
 ## Environment
 - Development platform: NixOS (native, hostname `nixos_slanka`)
 - GPU: NVIDIA RTX 5090 with proprietary drivers
