@@ -1024,3 +1024,27 @@ RUNNING: exphil-fox-mamba-ep2 (Mamba epoch 2 via --resume, ~8.5 h). No mix.
 - User asked to continue. Added a script-only harness comparing one Agent, eight concurrent Agents, and one eight-row batch, with continuously carried state/resync30 (BPTT GRU never resynced). Measures saturated throughput and scheduled 60 Hz response deadlines, idle versus a controlled saturated CUDA matmul competitor. This is a replay-fed stress screen, not an emulator/training measurement. CPU smoke passes; starting sequential host/CUDA profiles with source/input hashes and competing-GPU-process monitoring. No Agent/CLI/lib edits or training/default changes.
 - CPU complete: four clean profiles / 48 phases; independent raw-sample validation passes. Mamba CPU independent actors miss 280/1440 idle and 296/1440 loaded deadlines; batch misses 9/180 calls in both conditions. Periodic slow calls suggest synchronized resync as the next scheduling target. CUDA remains incomplete: repeated diagnostics in `edifice-kernels` overlap runs, so contaminated attempts were archived. The waiting runner has stopped; no Codex benchmark VM remains. Resume instructions: `scripts/BENCHMARKS.md`.
 - User requires reusable Elixir tooling, prefers Rust for native work, and rejects Python fallback. Actor and sampling sweep/report helpers now use Elixir with a shared benchmark module. Existing valid CPU measurements retain their original manifest and an explicit orchestration-migration record. Language, plain explanations, and visible AI attribution preferences are recorded in both repos' AGENTS.md and the personal instructions file. No other agent's jobs were stopped.
+
+## 2026-10-26 — Codex GPU completion and resync scheduling (AI-generated)
+
+- GPU throughput screen complete, commit `6d438974`: all eight CPU/CUDA profiles
+  and 96 phases pass raw-sample verification. Four CUDA batch-eight policies miss
+  no deadlines in three-second phases; independent Agents show contention and
+  aligned-resync stalls. See `eval_runs/actor_throughput_20261026/RESULTS.md`.
+- Mamba scheduling experiment complete, commit `6175a642`: two ten-second rounds
+  per condition, CPU/CUDA, independent/batched, idle/matmul load. Spreading replay
+  frames removes idle-GPU independent-Agent deadline misses and nearly all CPU
+  batch misses. Loaded GPU independent Agents still miss deadlines. GPU batches
+  already meet deadlines when aligned and have better typical latency that way.
+  See `eval_runs/resync_spread_20261026/RESULTS.md` for counts and carry-comparison
+  discrepancies. No Agent/CLI/lib/default changes. Benchmark VMs have exited.
+- Edifice pretrained work is in progress. ViT, ConvNeXt, ResNet and DETR pass the
+  existing reference bounds on the older installed dependencies. Whisper's
+  structural fixes work, but a small numerical mismatch remains. Checking the
+  locked Nx 1.0 / Axon 0.9 stack in isolated `/tmp/edifice-pretrained-*` dependency
+  and build directories; no shared dependency checkout is replaced.
+
+**AI-generated poem**
+
+> The clocks spread out, the queues grow small;
+> We keep the numbers, faults and all.

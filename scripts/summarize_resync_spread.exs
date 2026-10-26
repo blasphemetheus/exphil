@@ -37,7 +37,7 @@ lines =
 header = [
   "# Mamba resync schedules — AI-generated measurements",
   "",
-  "Each row is a separate ten-second phase at 60 Hz. One late batch affects eight bots.",
+  "Each row is a separate #{manifest["seconds"]}-second phase at 60 Hz. One late batch affects eight bots.",
   "Round two reverses schedule order. Setup and carry validation are outside the timed phases.",
   "",
   "| Client | Mode | Schedule | Round | Load | Response p95 / p99 ms | Missed / offered calls |",
