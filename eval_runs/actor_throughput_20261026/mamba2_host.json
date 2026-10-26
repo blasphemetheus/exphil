@@ -1,0 +1,407 @@
+{
+  "seconds": 3,
+  "client": "host",
+  "bptt": false,
+  "policy": "checkpoints/mewtwo_combo_newera_mamba2_screen_best_policy.bin",
+  "replay": "replays/greg/mewtwo/Game_20240222T222930.slp",
+  "setup_us": 3459877,
+  "results": [
+    {
+      "mode": "single",
+      "service": {
+        "samples": 4124,
+        "median_us": 612,
+        "p95_us": 889,
+        "p99_us": 3498,
+        "max_us": 4427
+      },
+      "rows": 1,
+      "response": {
+        "samples": 4124,
+        "median_us": 613,
+        "p95_us": 889,
+        "p99_us": 3498,
+        "max_us": 4427
+      },
+      "rate": "saturated",
+      "elapsed_us": 3000291,
+      "calls": 4124,
+      "contention": false,
+      "competitor": null,
+      "actions": 4124,
+      "actions_per_second": 1374.5333369329842,
+      "deadline_misses": null,
+      "worker_calls": [
+        4124
+      ]
+    },
+    {
+      "mode": "single",
+      "service": {
+        "samples": 3566,
+        "median_us": 717,
+        "p95_us": 1146,
+        "p99_us": 3392,
+        "max_us": 4341
+      },
+      "rows": 1,
+      "response": {
+        "samples": 3566,
+        "median_us": 717,
+        "p95_us": 1146,
+        "p99_us": 3392,
+        "max_us": 4341
+      },
+      "rate": "saturated",
+      "elapsed_us": 3000736,
+      "calls": 3566,
+      "contention": true,
+      "competitor": {
+        "iterations": 8709,
+        "elapsed_us": 3099796
+      },
+      "actions": 3566,
+      "actions_per_second": 1188.375118637561,
+      "deadline_misses": null,
+      "worker_calls": [
+        3566
+      ]
+    },
+    {
+      "mode": "single",
+      "service": {
+        "samples": 180,
+        "median_us": 1050,
+        "p95_us": 1785,
+        "p99_us": 4158,
+        "max_us": 4608
+      },
+      "rows": 1,
+      "response": {
+        "samples": 180,
+        "median_us": 2219,
+        "p95_us": 3141,
+        "p99_us": 5673,
+        "max_us": 5882
+      },
+      "rate": "paced",
+      "elapsed_us": 3000727,
+      "calls": 180,
+      "contention": false,
+      "competitor": null,
+      "actions": 180,
+      "actions_per_second": 59.98546352267301,
+      "deadline_misses": 0,
+      "worker_calls": [
+        180
+      ]
+    },
+    {
+      "mode": "single",
+      "service": {
+        "samples": 180,
+        "median_us": 868,
+        "p95_us": 1668,
+        "p99_us": 3546,
+        "max_us": 3571
+      },
+      "rows": 1,
+      "response": {
+        "samples": 180,
+        "median_us": 1668,
+        "p95_us": 2876,
+        "p99_us": 4182,
+        "max_us": 4318
+      },
+      "rate": "paced",
+      "elapsed_us": 3000283,
+      "calls": 180,
+      "contention": true,
+      "competitor": {
+        "iterations": 9432,
+        "elapsed_us": 3099518
+      },
+      "actions": 180,
+      "actions_per_second": 59.994340533876304,
+      "deadline_misses": 0,
+      "worker_calls": [
+        180
+      ]
+    },
+    {
+      "mode": "actors",
+      "service": {
+        "samples": 6447,
+        "median_us": 2947,
+        "p95_us": 8732,
+        "p99_us": 15266,
+        "max_us": 22927
+      },
+      "rows": 8,
+      "response": {
+        "samples": 6447,
+        "median_us": 2947,
+        "p95_us": 8732,
+        "p99_us": 15266,
+        "max_us": 22927
+      },
+      "rate": "saturated",
+      "elapsed_us": 3003346,
+      "calls": 6447,
+      "contention": false,
+      "competitor": null,
+      "actions": 6447,
+      "actions_per_second": 2146.605818976568,
+      "deadline_misses": null,
+      "worker_calls": [
+        805,
+        806,
+        804,
+        806,
+        806,
+        807,
+        806,
+        807
+      ]
+    },
+    {
+      "mode": "actors",
+      "service": {
+        "samples": 5874,
+        "median_us": 3363,
+        "p95_us": 9363,
+        "p99_us": 14577,
+        "max_us": 19777
+      },
+      "rows": 8,
+      "response": {
+        "samples": 5874,
+        "median_us": 3363,
+        "p95_us": 9363,
+        "p99_us": 14577,
+        "max_us": 19777
+      },
+      "rate": "saturated",
+      "elapsed_us": 3004819,
+      "calls": 5874,
+      "contention": true,
+      "competitor": {
+        "iterations": 8466,
+        "elapsed_us": 3105041
+      },
+      "actions": 5874,
+      "actions_per_second": 1954.859843471437,
+      "deadline_misses": null,
+      "worker_calls": [
+        736,
+        733,
+        735,
+        733,
+        734,
+        733,
+        735,
+        735
+      ]
+    },
+    {
+      "mode": "actors",
+      "service": {
+        "samples": 1440,
+        "median_us": 2989,
+        "p95_us": 3840,
+        "p99_us": 24651,
+        "max_us": 26397
+      },
+      "rows": 8,
+      "response": {
+        "samples": 1440,
+        "median_us": 4055,
+        "p95_us": 10833,
+        "p99_us": 25819,
+        "max_us": 27409
+      },
+      "rate": "paced",
+      "elapsed_us": 3001339,
+      "calls": 1440,
+      "contention": false,
+      "competitor": null,
+      "actions": 1440,
+      "actions_per_second": 479.7858555797929,
+      "deadline_misses": 48,
+      "worker_calls": [
+        180,
+        180,
+        180,
+        180,
+        180,
+        180,
+        180,
+        180
+      ]
+    },
+    {
+      "mode": "actors",
+      "service": {
+        "samples": 1440,
+        "median_us": 3156,
+        "p95_us": 4397,
+        "p99_us": 25508,
+        "max_us": 28458
+      },
+      "rows": 8,
+      "response": {
+        "samples": 1440,
+        "median_us": 4214,
+        "p95_us": 12225,
+        "p99_us": 26475,
+        "max_us": 30113
+      },
+      "rate": "paced",
+      "elapsed_us": 3000595,
+      "calls": 1440,
+      "contention": true,
+      "competitor": {
+        "iterations": 8950,
+        "elapsed_us": 3099634
+      },
+      "actions": 1440,
+      "actions_per_second": 479.90481887758926,
+      "deadline_misses": 48,
+      "worker_calls": [
+        180,
+        180,
+        180,
+        180,
+        180,
+        180,
+        180,
+        180
+      ]
+    },
+    {
+      "mode": "batch",
+      "service": {
+        "samples": 2109,
+        "median_us": 1083,
+        "p95_us": 1889,
+        "p99_us": 10098,
+        "max_us": 13732
+      },
+      "rows": 8,
+      "response": {
+        "samples": 2109,
+        "median_us": 1083,
+        "p95_us": 1889,
+        "p99_us": 10098,
+        "max_us": 13732
+      },
+      "rate": "saturated",
+      "elapsed_us": 3000797,
+      "calls": 2109,
+      "contention": false,
+      "competitor": null,
+      "actions": 16872,
+      "actions_per_second": 5622.506287496289,
+      "deadline_misses": null,
+      "worker_calls": [
+        2109
+      ]
+    },
+    {
+      "mode": "batch",
+      "service": {
+        "samples": 1969,
+        "median_us": 1166,
+        "p95_us": 1932,
+        "p99_us": 10721,
+        "max_us": 15416
+      },
+      "rows": 8,
+      "response": {
+        "samples": 1969,
+        "median_us": 1166,
+        "p95_us": 1932,
+        "p99_us": 10721,
+        "max_us": 15416
+      },
+      "rate": "saturated",
+      "elapsed_us": 3000718,
+      "calls": 1969,
+      "contention": true,
+      "competitor": {
+        "iterations": 8243,
+        "elapsed_us": 3099855
+      },
+      "actions": 15752,
+      "actions_per_second": 5249.410307799667,
+      "deadline_misses": null,
+      "worker_calls": [
+        1969
+      ]
+    },
+    {
+      "mode": "batch",
+      "service": {
+        "samples": 180,
+        "median_us": 1594,
+        "p95_us": 2590,
+        "p99_us": 14121,
+        "max_us": 15049
+      },
+      "rows": 8,
+      "response": {
+        "samples": 180,
+        "median_us": 2638,
+        "p95_us": 3829,
+        "p99_us": 14844,
+        "max_us": 15439
+      },
+      "rate": "paced",
+      "elapsed_us": 3000722,
+      "calls": 180,
+      "contention": false,
+      "competitor": null,
+      "actions": 1440,
+      "actions_per_second": 479.88450779512397,
+      "deadline_misses": 0,
+      "worker_calls": [
+        180
+      ]
+    },
+    {
+      "mode": "batch",
+      "service": {
+        "samples": 180,
+        "median_us": 1513,
+        "p95_us": 2377,
+        "p99_us": 14814,
+        "max_us": 16301
+      },
+      "rows": 8,
+      "response": {
+        "samples": 180,
+        "median_us": 2593,
+        "p95_us": 3612,
+        "p99_us": 15386,
+        "max_us": 17331
+      },
+      "rate": "paced",
+      "elapsed_us": 3000579,
+      "calls": 180,
+      "contention": true,
+      "competitor": {
+        "iterations": 9029,
+        "elapsed_us": 3099736
+      },
+      "actions": 1440,
+      "actions_per_second": 479.9073778760699,
+      "deadline_misses": 1,
+      "worker_calls": [
+        180
+      ]
+    }
+  ],
+  "competitor": "saturated 2048x2048 f32 CUDA matmul + sum, synchronized each iteration",
+  "resync": 30,
+  "samples_file": "mamba2_host.json.samples.json.gz"
+}

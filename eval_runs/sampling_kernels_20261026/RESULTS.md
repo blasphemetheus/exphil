@@ -1,5 +1,7 @@
 # Stochastic sampling kernels — 2026-10-26
 
+**AI-generated benchmark report.**
+
 Edifice's `SamplingRandom.uniform/2` statically unrolls the twenty Threefry
 rounds, allowing EXLA to fuse small uniform draws. ExPhil uses it throughout
 stochastic controller sampling. Distribution, random stream, returned keys,
@@ -75,9 +77,9 @@ From ExPhil, with no training or other GPU job running:
 ```sh
 RECURRENT_CLIENT=host EDIFICE_FUSED_CUSTOM_CALL=0 devenv shell -- elixir -pa '_build/dev/lib/*/ebin' scripts/run_recurrent_validation.exs scripts/test_sampling_kernels.exs
 RECURRENT_CLIENT=cuda EDIFICE_FUSED_CUSTOM_CALL=0 devenv shell -- elixir -pa '_build/dev/lib/*/ebin' scripts/run_recurrent_validation.exs scripts/test_sampling_kernels.exs
-python3 scripts/profile_sampling_kernels.py --client cuda --out /tmp/sampling-pairs
-python3 scripts/profile_sampling_kernels.py --client host --out /tmp/sampling-pairs
-python3 scripts/summarize_sampling_kernels.py /tmp/sampling-pairs
+devenv shell -- elixir -pa '_build/dev/lib/*/ebin' scripts/sweep_sampling_kernels.exs --client cuda --out /tmp/sampling-pairs
+devenv shell -- elixir -pa '_build/dev/lib/*/ebin' scripts/sweep_sampling_kernels.exs --client host --out /tmp/sampling-pairs
+devenv shell -- elixir -pa '_build/dev/lib/*/ebin' scripts/summarize_sampling_kernels.exs /tmp/sampling-pairs
 ```
 
 Manifests list exact local checkpoint/replay paths and commands. Inputs must be
@@ -85,6 +87,9 @@ available locally. `SAMPLING_REFERENCE=1` applies only in the validation runner;
 production uses the optimized sampler. Use the implementation commits that
 accompany this report; raw JSON revisions identify their pre-change parents,
 while manifest hashes identify the measured source precisely.
+The original orchestration helpers were later replaced with reusable Elixir
+scripts. Historical manifests retain their original paths/hashes; the numerical
+harness and sampling implementation are unchanged by that tooling migration.
 
 ## Next work
 
@@ -94,3 +99,8 @@ changing defaults. Use that profile to decide whether combining recurrence and
 sampling into one compiled call is worthwhile. Activation checkpointing still
 depends on the upstream Nx work; it is a training-memory improvement rather
 than the next inference-latency task.
+
+**AI-generated poem**
+
+> The same drawn numbers leave the gate;
+> A shorter path can cut their wait.
