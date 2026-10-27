@@ -27,10 +27,11 @@ alias ExPhil.Training.Output
 # Parse command line arguments using CLI module
 flag_groups = [:verbosity, :checkpoint, :replay, :dolphin, :common]
 
-opts = CLI.parse_args(System.argv(),
-  flags: flag_groups,
-  defaults: [character: "mewtwo"]
-)
+opts =
+  CLI.parse_args(System.argv(),
+    flags: flag_groups,
+    defaults: [character: "mewtwo"]
+  )
 
 # Setup verbosity early
 CLI.setup_verbosity(opts)
@@ -41,15 +42,17 @@ CLI.setup_verbosity(opts)
 Process.put(:cli_console_timeout, opts[:console_timeout])
 
 # Convert character and stage to atoms if strings
-opts = Keyword.update(opts, :character, :mewtwo, fn
-  c when is_binary(c) -> String.to_atom(c)
-  c -> c
-end)
+opts =
+  Keyword.update(opts, :character, :mewtwo, fn
+    c when is_binary(c) -> String.to_atom(c)
+    c -> c
+  end)
 
-opts = Keyword.update(opts, :stage, :final_destination, fn
-  s when is_binary(s) -> String.to_atom(s)
-  s -> s
-end)
+opts =
+  Keyword.update(opts, :stage, :final_destination, fn
+    s when is_binary(s) -> String.to_atom(s)
+    s -> s
+  end)
 
 # Handle help
 CLI.maybe_show_help(opts, "play_dolphin.exs", flag_groups, fn ->
@@ -85,7 +88,10 @@ rung =
   end
 
 if rung.source == :frame_delay_alias,
-  do: Output.warning("--frame-delay is deprecated; this run == --reaction-delay #{rung.reaction_delay}")
+  do:
+    Output.warning(
+      "--frame-delay is deprecated; this run == --reaction-delay #{rung.reaction_delay}"
+    )
 
 opts = Keyword.put(opts, :frame_delay, rung.knob)
 
@@ -152,12 +158,17 @@ Output.success("Agent loaded")
 # warning + id 0, which would make a "styled" gate run indistinguishable
 # from an anonymous one.
 if tag = opts[:style_tag] do
-  style_id = ExPhil.Agents.Decode.resolve_style_id(Keyword.take(opts, [:style_tag, :player_registry]))
-  if style_id == 0, do: raise("--style-tag #{tag} did not resolve in #{inspect(opts[:player_registry])}")
+  style_id =
+    ExPhil.Agents.Decode.resolve_style_id(Keyword.take(opts, [:style_tag, :player_registry]))
+
+  if style_id == 0,
+    do: raise("--style-tag #{tag} did not resolve in #{inspect(opts[:player_registry])}")
+
   Output.puts("    Style:    #{tag} -> id #{style_id}")
 else
   Output.puts("    Style:    anonymous (id #{opts[:style_id] || 0})")
 end
+
 Output.puts("    Temporal: #{config.temporal}")
 
 if config.temporal do
@@ -324,6 +335,7 @@ defmodule GameLoop do
 
         IO.puts("   Total agent frames: #{stats.frames}, Errors: #{stats.errors}")
         new_stats = %{stats | in_game: false, game_ended: true}
+
         if opts[:cli_opts][:seconds] do
           Process.sleep(3_000)
           {:ok, new_stats}
@@ -363,6 +375,7 @@ defmodule GameLoop do
     stats =
       if not stats.in_game do
         Agent.reset_buffer(agent)
+
         IO.puts(
           "\n[#{timestamp()}] 🎮 IN GAME! Starting agent control at frame #{game_state.frame}"
         )
@@ -389,8 +402,11 @@ defmodule GameLoop do
     # --seconds N: play N in-game seconds, then SD until the game ends so
     # Slippi finalizes the .slp (same contract as play_dolphin_async.exs).
     seconds = opts[:cli_opts][:seconds]
-    stats = if game_state.frame >= 0 and stats[:play_started_at] == nil,
-      do: Map.put(stats, :play_started_at, System.monotonic_time(:millisecond)), else: stats
+
+    stats =
+      if game_state.frame >= 0 and stats[:play_started_at] == nil,
+        do: Map.put(stats, :play_started_at, System.monotonic_time(:millisecond)),
+        else: stats
 
     if seconds && game_state.frame >= seconds * 60 do
       span = game_state.frame - (stats[:start_frame] || game_state.frame)
@@ -407,8 +423,14 @@ defmodule GameLoop do
       {:ok, :game_ended} = sd_until_game_end(bridge)
       Process.sleep(3_000)
       IO.puts("[#{timestamp()}]   Game end: replay finalized")
-      {:ok, Map.merge(stats, %{last_frame: game_state.frame - 1, game_ended: true,
-        scored_wall_ms: elapsed_ms, scored_fps: seconds * 60_000 / max(elapsed_ms, 1)})}
+
+      {:ok,
+       Map.merge(stats, %{
+         last_frame: game_state.frame - 1,
+         game_ended: true,
+         scored_wall_ms: elapsed_ms,
+         scored_fps: seconds * 60_000 / max(elapsed_ms, 1)
+       })}
     else
       handle_in_game_play(agent, bridge, player_port, game_state, stats, opts)
     end
@@ -425,7 +447,16 @@ defmodule GameLoop do
       main_stick: %{x: 0.0, y: 0.5},
       c_stick: %{x: 0.5, y: 0.5},
       shoulder: 0.0,
-      buttons: %{a: false, b: false, x: false, y: false, z: false, l: false, r: false, d_up: false}
+      buttons: %{
+        a: false,
+        b: false,
+        x: false,
+        y: false,
+        z: false,
+        l: false,
+        r: false,
+        d_up: false
+      }
     }
 
     # LRAS enabled (polling-mode console landed 2026-07-29 — see AsyncRunner
@@ -445,7 +476,17 @@ defmodule GameLoop do
       main_stick: %{x: 0.5, y: 0.5},
       c_stick: %{x: 0.5, y: 0.5},
       shoulder: 0.0,
-      buttons: %{a: true, b: false, x: false, y: false, z: false, l: true, r: true, d_up: false, start: start_down}
+      buttons: %{
+        a: true,
+        b: false,
+        x: false,
+        y: false,
+        z: false,
+        l: true,
+        r: true,
+        d_up: false,
+        start: start_down
+      }
     }
 
     # Paused past the LRAS window: hold-left can't act on a paused game —
@@ -454,7 +495,17 @@ defmodule GameLoop do
       main_stick: %{x: 0.5, y: 0.5},
       c_stick: %{x: 0.5, y: 0.5},
       shoulder: 0.0,
-      buttons: %{a: false, b: false, x: false, y: false, z: false, l: false, r: false, d_up: false, start: start_down}
+      buttons: %{
+        a: false,
+        b: false,
+        x: false,
+        y: false,
+        z: false,
+        l: false,
+        r: false,
+        d_up: false,
+        start: start_down
+      }
     }
 
     input = if frames_used < lras_frames, do: lras, else: hold_left
@@ -490,7 +541,6 @@ defmodule GameLoop do
   end
 
   defp handle_in_game_play(agent, bridge, player_port, game_state, stats, opts) do
-
     # Check for stock changes and game end
     {stats, game_over} = check_stocks(game_state, stats, player_port)
 
@@ -538,7 +588,9 @@ defmodule GameLoop do
         IO.puts("[#{timestamp()}] ⏱️  #{LatencyProbe.describe(probe)}")
 
       {:done, {:mismatch, _}} ->
-        IO.puts("[#{timestamp()}] ❌ #{LatencyProbe.describe(probe)} (INVARIANTS item 12, GOTCHA #115)")
+        IO.puts(
+          "[#{timestamp()}] ❌ #{LatencyProbe.describe(probe)} (INVARIANTS item 12, GOTCHA #115)"
+        )
 
         unless Keyword.get(opts, :allow_latency_mismatch, false) do
           raise "latency mismatch: #{LatencyProbe.describe(probe)} — pass --allow-latency-mismatch to play anyway"
@@ -555,45 +607,46 @@ defmodule GameLoop do
   end
 
   defp handle_agent_frame(agent, bridge, player_port, game_state, stats, opts) do
-      # Run agent inference and send input
-      case Agent.get_controller(agent, game_state, player_port: player_port) do
-        {:ok, controller} ->
-          input = controller_to_input(controller)
+    # Run agent inference and send input
+    case Agent.get_controller(agent, game_state, player_port: player_port) do
+      {:ok, controller} ->
+        input = controller_to_input(controller)
 
-          # Log inputs periodically (every 30 agent frames)
-          if rem(stats.frames, 30) == 0 do
-            log_input(controller, game_state, stats.frames, stats.start_time)
-          end
+        # Log inputs periodically (every 30 agent frames)
+        if rem(stats.frames, 30) == 0 do
+          log_input(controller, game_state, stats.frames, stats.start_time)
+        end
 
-          case MeleePort.send_controller(bridge, input) do
-            :ok ->
-              stats =
-                if stats.frames == 0 do
-                  IO.puts(
-                    "[#{timestamp()}] 🕹️  First input sent at game frame #{game_state.frame}"
-                  )
+        case MeleePort.send_controller(bridge, input) do
+          :ok ->
+            stats =
+              if stats.frames == 0 do
+                IO.puts("[#{timestamp()}] 🕹️  First input sent at game frame #{game_state.frame}")
 
-                  stats
-                else
-                  stats
-                end
+                stats
+              else
+                stats
+              end
 
-              stats = stats |> Map.put(:frames, stats.frames + 1)
-                |> Map.put(:last_frame, game_state.frame)
-              run(agent, bridge, player_port, Keyword.put(opts, :stats, stats))
+            stats =
+              stats
+              |> Map.put(:frames, stats.frames + 1)
+              |> Map.put(:last_frame, game_state.frame)
 
-            {:game_ended, reason} ->
-              elapsed = elapsed_time(stats.start_time)
-              IO.puts("\n[#{timestamp()}] 🏁 Game ended (controller send): #{reason} (#{elapsed})")
-              IO.puts("   Total agent frames: #{stats.frames}")
-              {:ok, stats}
-          end
+            run(agent, bridge, player_port, Keyword.put(opts, :stats, stats))
 
-        {:error, reason} ->
-          Logger.warning("Agent error: #{inspect(reason)}")
-          stats = %{stats | frames: stats.frames + 1, errors: stats.errors + 1}
-          run(agent, bridge, player_port, Keyword.put(opts, :stats, stats))
-      end
+          {:game_ended, reason} ->
+            elapsed = elapsed_time(stats.start_time)
+            IO.puts("\n[#{timestamp()}] 🏁 Game ended (controller send): #{reason} (#{elapsed})")
+            IO.puts("   Total agent frames: #{stats.frames}")
+            {:ok, stats}
+        end
+
+      {:error, reason} ->
+        Logger.warning("Agent error: #{inspect(reason)}")
+        stats = %{stats | frames: stats.frames + 1, errors: stats.errors + 1}
+        run(agent, bridge, player_port, Keyword.put(opts, :stats, stats))
+    end
   end
 
   defp check_stocks(game_state, stats, player_port) do
@@ -680,32 +733,51 @@ defmodule GameLoop do
 end
 
 # Run the game loop
-result = try do
-  GameLoop.run(agent, bridge, opts[:port],
-    no_auto_menu: opts[:no_auto_menu],
-    cli_opts: opts,
-    expected_latency: rung.expected_latency,
-    allow_latency_mismatch: opts[:allow_latency_mismatch] || false
-  )
-rescue
-  e in RuntimeError ->
-    IO.puts("\nError: #{Exception.message(e)}")
-    {:error, Exception.message(e)}
-catch
-  :exit, reason ->
-    IO.puts("\nExiting...")
-    {:error, inspect(reason)}
-end
+result =
+  try do
+    GameLoop.run(agent, bridge, opts[:port],
+      no_auto_menu: opts[:no_auto_menu],
+      cli_opts: opts,
+      expected_latency: rung.expected_latency,
+      allow_latency_mismatch: opts[:allow_latency_mismatch] || false
+    )
+  rescue
+    e in RuntimeError ->
+      IO.puts("\nError: #{Exception.message(e)}")
+      {:error, Exception.message(e)}
+  catch
+    :exit, reason ->
+      IO.puts("\nExiting...")
+      {:error, inspect(reason)}
+  end
 
 if path = opts[:session_report] do
-  report = case result do
-    {:ok, stats} ->
-      Map.take(stats, [:frames, :errors, :start_frame, :last_frame, :game_ended, :scored_wall_ms, :scored_fps])
-      |> Map.merge(%{status: "ok", measured_latency: ExPhil.Bridge.LatencyProbe.latency(stats[:latency_probe]),
-        expected_latency: rung.expected_latency, policy: opts[:policy], stage: opts[:stage],
-        reaction_delay: rung.reaction_delay, player_port: opts[:port]})
-    other -> %{status: "error", reason: inspect(other), policy: opts[:policy]}
-  end
+  report =
+    case result do
+      {:ok, stats} ->
+        Map.take(stats, [
+          :frames,
+          :errors,
+          :start_frame,
+          :last_frame,
+          :game_ended,
+          :scored_wall_ms,
+          :scored_fps
+        ])
+        |> Map.merge(%{
+          status: "ok",
+          measured_latency: ExPhil.Bridge.LatencyProbe.latency(stats[:latency_probe]),
+          expected_latency: rung.expected_latency,
+          policy: opts[:policy],
+          stage: opts[:stage],
+          reaction_delay: rung.reaction_delay,
+          player_port: opts[:port]
+        })
+
+      other ->
+        %{status: "error", reason: inspect(other), policy: opts[:policy]}
+    end
+
   File.mkdir_p!(Path.dirname(path))
   File.write!(path, Jason.encode!(report, pretty: true), [:exclusive])
 end

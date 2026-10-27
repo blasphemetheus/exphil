@@ -54,214 +54,915 @@ defmodule ExPhil.CLI do
   # - :group - Flag group(s) this belongs to
   @flag_definitions [
     # Verbosity flags
-    %{name: :quiet, flag: "--quiet", type: :boolean, short: "q", default: false,
-      desc: "Suppress non-essential output", group: [:verbosity]},
-    %{name: :verbose, flag: "--verbose", type: :boolean, short: "v", default: false,
-      desc: "Show debug output including XLA logs", group: [:verbosity]},
+    %{
+      name: :quiet,
+      flag: "--quiet",
+      type: :boolean,
+      short: "q",
+      default: false,
+      desc: "Suppress non-essential output",
+      group: [:verbosity]
+    },
+    %{
+      name: :verbose,
+      flag: "--verbose",
+      type: :boolean,
+      short: "v",
+      default: false,
+      desc: "Show debug output including XLA logs",
+      group: [:verbosity]
+    },
 
     # Replay flags
-    %{name: :replays, flag: "--replays", type: :string, short: "r", default: "./replays",
-      desc: "Path to replay files or directory", group: [:replay]},
-    %{name: :max_files, flag: "--max-files", type: :integer, short: "m", default: nil,
-      desc: "Maximum replay files to process", group: [:replay]},
-    %{name: :character, flag: "--character", type: :atom, short: nil, default: nil,
-      desc: "Filter replays by character", group: [:replay]},
-    %{name: :player_port, flag: "--player", type: :integer, short: nil, default: 1,
-      desc: "Player port (1-4)", group: [:replay, :evaluation]},
+    %{
+      name: :replays,
+      flag: "--replays",
+      type: :string,
+      short: "r",
+      default: "./replays",
+      desc: "Path to replay files or directory",
+      group: [:replay]
+    },
+    %{
+      name: :max_files,
+      flag: "--max-files",
+      type: :integer,
+      short: "m",
+      default: nil,
+      desc: "Maximum replay files to process",
+      group: [:replay]
+    },
+    %{
+      name: :character,
+      flag: "--character",
+      type: :atom,
+      short: nil,
+      default: nil,
+      desc: "Filter replays by character",
+      group: [:replay]
+    },
+    %{
+      name: :player_port,
+      flag: "--player",
+      type: :integer,
+      short: nil,
+      default: 1,
+      desc: "Player port (1-4)",
+      group: [:replay, :evaluation]
+    },
 
     # Checkpoint flags
-    %{name: :checkpoint, flag: "--checkpoint", type: :string, short: "c", default: nil,
-      desc: "Path to checkpoint (.axon) file", group: [:checkpoint]},
-    %{name: :policy, flag: "--policy", type: :string, short: "p", default: nil,
-      desc: "Path to exported policy (.bin) file", group: [:checkpoint]},
+    %{
+      name: :checkpoint,
+      flag: "--checkpoint",
+      type: :string,
+      short: "c",
+      default: nil,
+      desc: "Path to checkpoint (.axon) file",
+      group: [:checkpoint]
+    },
+    %{
+      name: :policy,
+      flag: "--policy",
+      type: :string,
+      short: "p",
+      default: nil,
+      desc: "Path to exported policy (.bin) file",
+      group: [:checkpoint]
+    },
 
     # Training flags
-    %{name: :batch_size, flag: "--batch-size", type: :integer, short: "b", default: 64,
-      desc: "Batch size", group: [:training, :evaluation]},
-    %{name: :epochs, flag: "--epochs", type: :integer, short: "e", default: 10,
-      desc: "Number of training epochs", group: [:training]},
-    %{name: :learning_rate, flag: "--lr", type: :float, short: nil, default: 1.0e-4,
-      desc: "Learning rate", group: [:training]},
+    %{
+      name: :batch_size,
+      flag: "--batch-size",
+      type: :integer,
+      short: "b",
+      default: 64,
+      desc: "Batch size",
+      group: [:training, :evaluation]
+    },
+    %{
+      name: :epochs,
+      flag: "--epochs",
+      type: :integer,
+      short: "e",
+      default: 10,
+      desc: "Number of training epochs",
+      group: [:training]
+    },
+    %{
+      name: :learning_rate,
+      flag: "--lr",
+      type: :float,
+      short: nil,
+      default: 1.0e-4,
+      desc: "Learning rate",
+      group: [:training]
+    },
 
     # Evaluation flags
-    %{name: :detailed, flag: "--detailed", type: :boolean, short: nil, default: false,
-      desc: "Show detailed per-component metrics", group: [:evaluation]},
-    %{name: :output, flag: "--output", type: :string, short: "o", default: nil,
-      desc: "Save results to JSON file", group: [:evaluation]},
+    %{
+      name: :detailed,
+      flag: "--detailed",
+      type: :boolean,
+      short: nil,
+      default: false,
+      desc: "Show detailed per-component metrics",
+      group: [:evaluation]
+    },
+    %{
+      name: :output,
+      flag: "--output",
+      type: :string,
+      short: "o",
+      default: nil,
+      desc: "Save results to JSON file",
+      group: [:evaluation]
+    },
 
     # Common flags
-    %{name: :help, flag: "--help", type: :boolean, short: "h", default: false,
-      desc: "Show help message", group: [:common]},
+    %{
+      name: :help,
+      flag: "--help",
+      type: :boolean,
+      short: "h",
+      default: false,
+      desc: "Show help message",
+      group: [:common]
+    },
 
     # Analysis flags (for analyze_replays.exs)
-    %{name: :top_actions, flag: "--top-actions", type: :integer, short: "n", default: 15,
-      desc: "Show top N actions in report", group: [:analysis]},
-    %{name: :show_stages, flag: "--show-stages", type: :boolean, short: nil, default: true,
-      desc: "Show stage breakdown", group: [:analysis]},
-    %{name: :show_positions, flag: "--show-positions", type: :boolean, short: nil, default: true,
-      desc: "Show position analysis", group: [:analysis]},
-    %{name: :show_buttons, flag: "--show-buttons", type: :boolean, short: nil, default: true,
-      desc: "Show button press analysis", group: [:analysis]},
+    %{
+      name: :top_actions,
+      flag: "--top-actions",
+      type: :integer,
+      short: "n",
+      default: 15,
+      desc: "Show top N actions in report",
+      group: [:analysis]
+    },
+    %{
+      name: :show_stages,
+      flag: "--show-stages",
+      type: :boolean,
+      short: nil,
+      default: true,
+      desc: "Show stage breakdown",
+      group: [:analysis]
+    },
+    %{
+      name: :show_positions,
+      flag: "--show-positions",
+      type: :boolean,
+      short: nil,
+      default: true,
+      desc: "Show position analysis",
+      group: [:analysis]
+    },
+    %{
+      name: :show_buttons,
+      flag: "--show-buttons",
+      type: :boolean,
+      short: nil,
+      default: true,
+      desc: "Show button press analysis",
+      group: [:analysis]
+    },
 
     # Benchmark flags (for benchmark_architectures.exs)
-    %{name: :only, flag: "--only", type: :string, short: nil, default: nil,
-      desc: "Only run specified architectures (comma-separated)", group: [:benchmark]},
-    %{name: :skip, flag: "--skip", type: :string, short: nil, default: nil,
-      desc: "Skip specified architectures (comma-separated)", group: [:benchmark]},
-    %{name: :continue_on_error, flag: "--continue-on-error", type: :boolean, short: nil, default: false,
-      desc: "Continue if an architecture fails", group: [:benchmark]},
-    %{name: :cache_embeddings, flag: "--cache-embeddings", type: :boolean, short: nil, default: false,
-      desc: "Enable embedding disk cache", group: [:benchmark, :training]},
-    %{name: :no_cache, flag: "--no-cache", type: :boolean, short: nil, default: false,
-      desc: "Force recompute even if cache exists", group: [:benchmark, :training]},
-    %{name: :cache_dir, flag: "--cache-dir", type: :string, short: nil, default: "cache/embeddings",
-      desc: "Cache directory for embeddings", group: [:benchmark, :training]},
-    %{name: :lazy_sequences, flag: "--lazy-sequences", type: :boolean, short: nil, default: false,
-      desc: "Slice sequences on-the-fly (150 MB RAM vs 13 GB)", group: [:benchmark]},
-    %{name: :eager_sequences, flag: "--eager-sequences", type: :boolean, short: nil, default: false,
-      desc: "Pre-build all sequences (faster but 13+ GB RAM)", group: [:benchmark]},
-    %{name: :gpu_prealloc, flag: "--gpu-prealloc", type: :string, short: nil, default: nil,
-      desc: "Pre-allocate GPU memory (fraction, e.g., 0.7)", group: [:benchmark]},
-    %{name: :gpu_on_demand, flag: "--gpu-on-demand", type: :boolean, short: nil, default: false,
-      desc: "Allocate GPU memory on-demand", group: [:benchmark]},
-    %{name: :grad_norms, flag: "--grad-norms", type: :boolean, short: nil, default: false,
-      desc: "Log per-layer gradient norms (diagnose NaN/exploding gradients)", group: [:benchmark]},
+    %{
+      name: :only,
+      flag: "--only",
+      type: :string,
+      short: nil,
+      default: nil,
+      desc: "Only run specified architectures (comma-separated)",
+      group: [:benchmark]
+    },
+    %{
+      name: :skip,
+      flag: "--skip",
+      type: :string,
+      short: nil,
+      default: nil,
+      desc: "Skip specified architectures (comma-separated)",
+      group: [:benchmark]
+    },
+    %{
+      name: :continue_on_error,
+      flag: "--continue-on-error",
+      type: :boolean,
+      short: nil,
+      default: false,
+      desc: "Continue if an architecture fails",
+      group: [:benchmark]
+    },
+    %{
+      name: :cache_embeddings,
+      flag: "--cache-embeddings",
+      type: :boolean,
+      short: nil,
+      default: false,
+      desc: "Enable embedding disk cache",
+      group: [:benchmark, :training]
+    },
+    %{
+      name: :no_cache,
+      flag: "--no-cache",
+      type: :boolean,
+      short: nil,
+      default: false,
+      desc: "Force recompute even if cache exists",
+      group: [:benchmark, :training]
+    },
+    %{
+      name: :cache_dir,
+      flag: "--cache-dir",
+      type: :string,
+      short: nil,
+      default: "cache/embeddings",
+      desc: "Cache directory for embeddings",
+      group: [:benchmark, :training]
+    },
+    %{
+      name: :lazy_sequences,
+      flag: "--lazy-sequences",
+      type: :boolean,
+      short: nil,
+      default: false,
+      desc: "Slice sequences on-the-fly (150 MB RAM vs 13 GB)",
+      group: [:benchmark]
+    },
+    %{
+      name: :eager_sequences,
+      flag: "--eager-sequences",
+      type: :boolean,
+      short: nil,
+      default: false,
+      desc: "Pre-build all sequences (faster but 13+ GB RAM)",
+      group: [:benchmark]
+    },
+    %{
+      name: :gpu_prealloc,
+      flag: "--gpu-prealloc",
+      type: :string,
+      short: nil,
+      default: nil,
+      desc: "Pre-allocate GPU memory (fraction, e.g., 0.7)",
+      group: [:benchmark]
+    },
+    %{
+      name: :gpu_on_demand,
+      flag: "--gpu-on-demand",
+      type: :boolean,
+      short: nil,
+      default: false,
+      desc: "Allocate GPU memory on-demand",
+      group: [:benchmark]
+    },
+    %{
+      name: :grad_norms,
+      flag: "--grad-norms",
+      type: :boolean,
+      short: nil,
+      default: false,
+      desc: "Log per-layer gradient norms (diagnose NaN/exploding gradients)",
+      group: [:benchmark]
+    },
 
     # Dolphin/play flags (for play_dolphin.exs)
-    %{name: :dolphin, flag: "--dolphin", type: :string, short: nil, default: nil,
-      desc: "Path to Slippi/Dolphin folder", group: [:dolphin]},
-    %{name: :iso, flag: "--iso", type: :string, short: nil, default: nil,
-      desc: "Path to Melee 1.02 ISO", group: [:dolphin]},
-    %{name: :port, flag: "--port", type: :integer, short: nil, default: 1,
-      desc: "Agent controller port (1-4)", group: [:dolphin]},
-    %{name: :opponent_port, flag: "--opponent-port", type: :integer, short: nil, default: 2,
-      desc: "Your controller port (1-4)", group: [:dolphin]},
-    %{name: :human_port, flag: "--human-port", type: :integer, short: nil, default: nil,
-      desc: "Declare this port as the GC adapter (Mayflash) in Dolphin's config so no manual controller setup is needed. Windowed local sessions only; equivalent to EXPHIL_HUMAN_PORT. Usually the same as --opponent-port.", group: [:dolphin]},
-    %{name: :stage, flag: "--stage", type: :string, short: nil, default: "final_destination",
-      desc: "Stage name", group: [:dolphin]},
-    %{name: :reaction_delay, flag: "--reaction-delay", type: :integer, short: nil, default: nil,
-      desc: "THE delay knob (INVARIANTS item 12): physical reaction delay k the policy plays at (state[t] -> input on frame t+1+k, the same number training counts). Default: the checkpoint's smallest trained reaction delay. The runner sets Dolphin's frame delay to hit k exactly and MEASURES it at game start.", group: [:dolphin]},
-    %{name: :frame_delay, flag: "--frame-delay", type: :integer, short: nil, default: nil,
-      desc: "DEPRECATED alias: Slippi's own delay setting; on this rig it plays reaction delay N+1. Prefer --reaction-delay.", group: [:dolphin]},
-    %{name: :allow_latency_mismatch, flag: "--allow-latency-mismatch", type: :boolean, short: nil, default: false,
-      desc: "Keep playing when the game-start latency probe measures a latency other than reaction delay + 1 (default: the sync runner stops, the async runner logs an error)", group: [:dolphin]},
-    %{name: :deterministic, flag: "--deterministic", type: :boolean, short: nil, default: false,
-      desc: "Use deterministic action selection (no sampling)", group: [:dolphin]},
-    %{name: :temperature, flag: "--temperature", type: :float, short: nil, default: 1.0,
-      desc: "Sampling temperature (0=argmax-like, 1=raw distribution; try 0.3-0.5)", group: [:dolphin]},
-    %{name: :buttons_temperature, flag: "--buttons-temperature", type: :float, short: nil, default: nil,
-      desc: "Per-head temperature for buttons only (overrides --temperature; colder = sharper, e.g. 0.3)", group: [:dolphin]},
-    %{name: :mode_of_n, flag: "--mode-of-n", type: :integer, short: nil, default: nil,
-      desc: "Mode-of-N decode: draw N joint samples per frame (one forward), play the most frequent (try 16)", group: [:dolphin]},
-    %{name: :critic, flag: "--critic", type: :string, short: nil, default: nil,
-      desc: "Critic-selector decode: path to a d2_critic_v1 artifact (critic.nx); scores K coherent AR samples per decision, plays the argmax (AR-head checkpoints only)", group: [:dolphin]},
-    %{name: :critic_k, flag: "--critic-k", type: :integer, short: nil, default: 16,
-      desc: "Samples per decision for --critic (default 16)", group: [:dolphin]},
-    %{name: :main_temperature, flag: "--main-temperature", type: :float, short: nil, default: nil,
-      desc: "Per-head temperature for the main stick x+y (overrides --temperature)", group: [:dolphin]},
-    %{name: :c_temperature, flag: "--c-temperature", type: :float, short: nil, default: nil,
-      desc: "Per-head temperature for the c-stick x+y (overrides --temperature)", group: [:dolphin]},
-    %{name: :shoulder_temperature, flag: "--shoulder-temperature", type: :float, short: nil, default: nil,
-      desc: "Per-head temperature for the shoulder trigger (overrides --temperature)", group: [:dolphin]},
-    %{name: :ablate_prev_action, flag: "--ablate-prev-action", type: :boolean, short: nil, default: false,
-      desc: "Interp P3 ablation: feed zeros to the prev-action channel at inference", group: [:dolphin]},
-    %{name: :delay_id_override, flag: "--delay-id-override", type: :integer, short: nil, default: nil,
-      desc: "Interp intervention: force the delay-id one-hot channel to this value regardless of --frame-delay (delay-id patching; policies trained --with-delay-id only)", group: [:dolphin]},
-    %{name: :leace_eraser, flag: "--leace-eraser", type: :string, short: nil, default: nil,
-      desc: "Path to a fitted LEACE eraser applied between trunk and heads (interp-surgical)", group: [:dolphin]},
-    %{name: :steer_vector, flag: "--steer-vector", type: :string, short: nil, default: nil,
-      desc: "Path to a steering vector (%{v: unit tensor}); alpha of the trunk features' component along it is projected out before the heads (windowed AND stateful paths)", group: [:dolphin]},
-    %{name: :steer_alpha, flag: "--steer-alpha", type: :float, short: nil, default: 1.0,
-      desc: "Steering strength for --steer-vector: 0 = identity, 1 = full projection removal", group: [:dolphin]},
-    %{name: :style_id, flag: "--style-id", type: :integer, short: nil, default: nil,
-      desc: "Style-conditional inference: name-embedding id to play as (policies trained with --player-registry; 0 = unknown-player default)", group: [:dolphin]},
-    %{name: :style_tag, flag: "--style-tag", type: :string, short: nil, default: nil,
-      desc: "Style-conditional inference by tag (e.g. \"Plup\") — resolved via --player-registry JSON; unknown tag falls back to 0", group: [:dolphin]},
-    %{name: :player_registry, flag: "--player-registry", type: :string, short: nil, default: nil,
-      desc: "Path to the tag->id registry JSON (PlayerRegistry.to_json) used to resolve --style-tag", group: [:dolphin]},
-    %{name: :uncertainty_log, flag: "--uncertainty-log", type: :string, short: nil, default: nil,
-      desc: "JSONL path for per-frame head confidences (flywheel A4): low-confidence frames = training-data gaps; consume with scripts/uncertainty_gaps.exs", group: [:dolphin]},
-        %{name: :deterministic_buttons, flag: "--deterministic-buttons", type: :boolean, short: nil, default: false,
-      desc: "Argmax the buttons while sticks sample (kills stray taunts, keeps movement variety)", group: [:dolphin]},
-    %{name: :press_threshold, flag: "--press-threshold", type: :float, short: nil, default: nil,
-      desc: "Button hysteresis: prob needed to PRESS an up button (try 0.6; needs --release-threshold; argmax button modes only)", group: [:dolphin]},
-    %{name: :release_threshold, flag: "--release-threshold", type: :float, short: nil, default: nil,
-      desc: "Button hysteresis: prob below which a held button RELEASES (try 0.4) — presses become edges, not holds", group: [:dolphin]},
-    %{name: :jump_debounce, flag: "--jump-debounce", type: :integer, short: nil, default: nil,
-      desc: "Suppress NEW X/Y press edges for N frames after both jump buttons release (pathology #4 instant-DJ band-aid; holds unaffected)", group: [:dolphin]},
-    %{name: :no_auto_menu, flag: "--no-auto-menu", type: :boolean, short: nil, default: false,
-      desc: "Don't auto-navigate menus", group: [:dolphin]},
-    %{name: :action_repeat, flag: "--action-repeat", type: :integer, short: nil, default: 1,
-      desc: "Only compute new action every N frames", group: [:dolphin]},
-    %{name: :stateful_step, flag: "--stateful-step", type: :boolean, short: nil, default: false,
-      desc: "O(1) recurrent inference: advance GRU/LSTM/Mamba/Mamba-2/MinGRU one frame at a time via Edifice.Stateful instead of re-running the full window (temporal policies; enables rollback snapshots)", group: [:dolphin]},
-    %{name: :stateful_resync, flag: "--stateful-resync", type: :integer, short: nil, default: nil,
-      desc: "For --stateful-step: periodically rebuild hidden state with a compiled window replay to bound carried-state drift (try 30-60; supports independent batched rows)", group: [:dolphin]},
-    %{name: :on_game_end, flag: "--on-game-end", type: :string, short: nil, default: "restart",
-      desc: "Action on game end: restart or stop", group: [:dolphin]},
-    %{name: :dummy, flag: "--dummy", type: :string, short: nil, default: "none",
-      desc: "Port-2 dummy for drills: none|stand|shield|jump|walk|cpu|tech_random (reactive, Elixir-driven)|external", group: [:dolphin]},
-    %{name: :p2_policy, flag: "--p2-policy", type: :string, short: nil, default: nil,
-      desc: "Checkpoint ladder (task #19): drive port 2 with a SECOND policy .bin (PolicyOpponent via the external-dummy hook; overrides --dummy; inference inline in the frame loop, so pair with --headless pacing)", group: [:dolphin]},
-    %{name: :dummy_character, flag: "--dummy-character", type: :string, short: nil, default: "fox",
-      desc: "Dummy's character (requires --dummy)", group: [:dolphin]},
-    %{name: :dummy_cpu_level, flag: "--dummy-cpu-level", type: :integer, short: nil, default: 0,
-      desc: "CPU level for --dummy cpu (1-9)", group: [:dolphin]},
-    %{name: :seconds, flag: "--seconds", type: :integer, short: nil, default: nil,
-      desc: "Play for N seconds, then SD until the game ends so Slippi finalizes the .slp. Without this a timeout-kill leaves a TRUNCATED replay peppi cannot parse", group: [:dolphin]},
-    %{name: :session_report, flag: "--session-report", type: :string, short: nil, default: nil,
-      desc: "Write the synchronous runner's measured latency, scored frame interval, and completion status to JSON", group: [:dolphin]},
-    %{name: :live_af, flag: "--live-af", type: :boolean, short: nil, default: false,
-      desc: "Normalize the bridge's action_frame into the PARSED convention every checkpoint was trained on (task #8 / GOTCHAS #81). Off = current behaviour (exact no-op). Only the 77 measured action states are converted; see ExPhil.Data.ActionFrameConvention", group: [:dolphin]},
-    %{name: :no_audio, flag: "--no-audio", type: :boolean, short: nil, default: false,
-      desc: "Silence Dolphin (farm/unattended sessions)", group: [:dolphin]},
-    %{name: :connect_code, flag: "--connect-code", type: :string, short: nil, default: nil,
-      desc: "Slippi Direct netplay: connect to this code (e.g. ABCD#123). Requires a logged-in Slippi account in the local Dolphin User dir; disables dummies. Pair with a delay-robust model.", group: [:dolphin]},
-    %{name: :headless, flag: "--headless", type: :boolean, short: nil, default: false,
-      desc: "Null gfx backend + no audio + blocking input: no window, no GC adapter, game paced by the policy loop (runs faster than realtime; safe to run several in parallel)", group: [:dolphin]},
-    %{name: :blocking_input, flag: "--blocking-input", type: :boolean, short: nil, default: false,
-      desc: "Dolphin waits for the bot's controller write each frame — the game CANNOT outrun inference (slippi-ai harness parity step 1; already implied by --headless). Validation: skip stat stays 0 and offset calibration collapses to one peak", group: [:dolphin]},
-    %{name: :console_timeout, flag: "--console-timeout", type: :float, short: nil, default: nil,
-      desc: "Console polling timeout in seconds (default 0.1): step returns no-frame instead of blocking forever, which is what lets LRAS complete through the pause. 0 = legacy blocking dispatch (disables LRAS)", group: [:dolphin]},
-    %{name: :replay_dir, flag: "--replay-dir", type: :string, short: nil, default: nil,
-      desc: "Write .slp replays to this directory (flat, no monthly folders). Give each parallel probe its own dir for unambiguous attribution.", group: [:dolphin]},
-    %{name: :slippi_port, flag: "--slippi-port", type: :integer, short: nil, default: nil,
-      desc: "Slippi spectator port (default 51441). Parallel instances need distinct ports.", group: [:dolphin]},
-    %{name: :postgame_delay, flag: "--postgame-delay", type: :integer, short: nil, default: nil,
-      desc: "Seconds to hold autostart after a game ends, so a human can change character at the CSS without racing the bot's START press. Default nil = immediate restart (eval behavior). Human sessions: 15 is comfortable.", group: [:dolphin]},
-    %{name: :require_stage, flag: "--require-stage", type: :string, short: nil, default: nil,
-      desc: "Stage filter for netplay evals: if a game opens on any other stage, LRAS out immediately and requeue (Slippi Direct game 1 is a random legal stage; loser picks thereafter). Accepts fd/bf/ys/dl/fod/ps or full names. Expect ~6 draws per specific stage.", group: [:dolphin]},
-    %{name: :policy_server, flag: "--policy-server", type: :boolean, short: nil, default: false,
-      desc: "Check the Agent out of a running resident policy server (scripts/policy_server.exs) instead of loading+JIT-compiling locally — session boot collapses to menu time. The session runs EXLA CPU-only (second-client law). See docs/planning/POLICY_SERVER_DESIGN.md.", group: [:dolphin]},
-    %{name: :frozen_stadium, flag: "--frozen-stadium", type: :boolean, short: nil, default: true,
-      desc: "Toggle Frozen Stadium at local stage select (default true = frozen, no transformations — the libmelee MenuHelper default). Pass --no-frozen-stadium for live transformations (needed for any PS stage-internal work; discovered 2026-08-24 when a transform hunt played 4 silent minutes on a frozen stadium).", group: [:dolphin]},
-    %{name: :nametag, flag: "--nametag", type: :string, short: nil, default: nil,
-      desc: "In-game Melee nametag (max 4 chars, e.g. EXPH) the menu helper creates and equips at the CSS. Local play only (netplay shows the connect-code tag instead); needs memory-card save data for the tag list.", group: [:dolphin]},
-    %{name: :pace_hz, flag: "--pace-hz", type: :integer, short: nil, default: nil,
-      desc: "Frame-loop pacing for headless games (default 60 when --headless; 0 = unpaced). Unthrottled policy-driven games mistime inputs.", group: [:dolphin]},
-    %{name: :local_delay, flag: "--local-delay", type: :integer, short: nil, default: nil,
-      desc: "Explicit bridge-side action delay: each policy action applies exactly N frames after the state it answered (frame-keyed queue in melee_bridge; LATENCY_ARCHITECTURE direction #3). Independent of --frame-delay (Slippi's native online delay); composes with it. SD/dummy inputs are never delayed", group: [:dolphin]},
-    %{name: :emulation_speed, flag: "--emulation-speed", type: :float, short: nil, default: nil,
-      desc: "Headless emulation speed (default 1.0 = realtime throttle). 0 = unthrottled: menus fly at max fps and gameplay paces to the frame loop via blocking input — pair with --pace-hz 60. Single-clock pacing; see LATENCY_ARCHITECTURE headless trust notes", group: [:dolphin]},
+    %{
+      name: :dolphin,
+      flag: "--dolphin",
+      type: :string,
+      short: nil,
+      default: nil,
+      desc: "Path to Slippi/Dolphin folder",
+      group: [:dolphin]
+    },
+    %{
+      name: :iso,
+      flag: "--iso",
+      type: :string,
+      short: nil,
+      default: nil,
+      desc: "Path to Melee 1.02 ISO",
+      group: [:dolphin]
+    },
+    %{
+      name: :port,
+      flag: "--port",
+      type: :integer,
+      short: nil,
+      default: 1,
+      desc: "Agent controller port (1-4)",
+      group: [:dolphin]
+    },
+    %{
+      name: :opponent_port,
+      flag: "--opponent-port",
+      type: :integer,
+      short: nil,
+      default: 2,
+      desc: "Your controller port (1-4)",
+      group: [:dolphin]
+    },
+    %{
+      name: :human_port,
+      flag: "--human-port",
+      type: :integer,
+      short: nil,
+      default: nil,
+      desc:
+        "Declare this port as the GC adapter (Mayflash) in Dolphin's config so no manual controller setup is needed. Windowed local sessions only; equivalent to EXPHIL_HUMAN_PORT. Usually the same as --opponent-port.",
+      group: [:dolphin]
+    },
+    %{
+      name: :stage,
+      flag: "--stage",
+      type: :string,
+      short: nil,
+      default: "final_destination",
+      desc: "Stage name",
+      group: [:dolphin]
+    },
+    %{
+      name: :reaction_delay,
+      flag: "--reaction-delay",
+      type: :integer,
+      short: nil,
+      default: nil,
+      desc:
+        "THE delay knob (INVARIANTS item 12): physical reaction delay k the policy plays at (state[t] -> input on frame t+1+k, the same number training counts). Default: the checkpoint's smallest trained reaction delay. The runner sets Dolphin's frame delay to hit k exactly and MEASURES it at game start.",
+      group: [:dolphin]
+    },
+    %{
+      name: :frame_delay,
+      flag: "--frame-delay",
+      type: :integer,
+      short: nil,
+      default: nil,
+      desc:
+        "DEPRECATED alias: Slippi's own delay setting; on this rig it plays reaction delay N+1. Prefer --reaction-delay.",
+      group: [:dolphin]
+    },
+    %{
+      name: :allow_latency_mismatch,
+      flag: "--allow-latency-mismatch",
+      type: :boolean,
+      short: nil,
+      default: false,
+      desc:
+        "Keep playing when the game-start latency probe measures a latency other than reaction delay + 1 (default: the sync runner stops, the async runner logs an error)",
+      group: [:dolphin]
+    },
+    %{
+      name: :deterministic,
+      flag: "--deterministic",
+      type: :boolean,
+      short: nil,
+      default: false,
+      desc: "Use deterministic action selection (no sampling)",
+      group: [:dolphin]
+    },
+    %{
+      name: :temperature,
+      flag: "--temperature",
+      type: :float,
+      short: nil,
+      default: 1.0,
+      desc: "Sampling temperature (0=argmax-like, 1=raw distribution; try 0.3-0.5)",
+      group: [:dolphin]
+    },
+    %{
+      name: :buttons_temperature,
+      flag: "--buttons-temperature",
+      type: :float,
+      short: nil,
+      default: nil,
+      desc:
+        "Per-head temperature for buttons only (overrides --temperature; colder = sharper, e.g. 0.3)",
+      group: [:dolphin]
+    },
+    %{
+      name: :mode_of_n,
+      flag: "--mode-of-n",
+      type: :integer,
+      short: nil,
+      default: nil,
+      desc:
+        "Mode-of-N decode: draw N joint samples per frame (one forward), play the most frequent (try 16)",
+      group: [:dolphin]
+    },
+    %{
+      name: :critic,
+      flag: "--critic",
+      type: :string,
+      short: nil,
+      default: nil,
+      desc:
+        "Critic-selector decode: path to a d2_critic_v1 artifact (critic.nx); scores K coherent AR samples per decision, plays the argmax (AR-head checkpoints only)",
+      group: [:dolphin]
+    },
+    %{
+      name: :critic_k,
+      flag: "--critic-k",
+      type: :integer,
+      short: nil,
+      default: 16,
+      desc: "Samples per decision for --critic (default 16)",
+      group: [:dolphin]
+    },
+    %{
+      name: :main_temperature,
+      flag: "--main-temperature",
+      type: :float,
+      short: nil,
+      default: nil,
+      desc: "Per-head temperature for the main stick x+y (overrides --temperature)",
+      group: [:dolphin]
+    },
+    %{
+      name: :c_temperature,
+      flag: "--c-temperature",
+      type: :float,
+      short: nil,
+      default: nil,
+      desc: "Per-head temperature for the c-stick x+y (overrides --temperature)",
+      group: [:dolphin]
+    },
+    %{
+      name: :shoulder_temperature,
+      flag: "--shoulder-temperature",
+      type: :float,
+      short: nil,
+      default: nil,
+      desc: "Per-head temperature for the shoulder trigger (overrides --temperature)",
+      group: [:dolphin]
+    },
+    %{
+      name: :ablate_prev_action,
+      flag: "--ablate-prev-action",
+      type: :boolean,
+      short: nil,
+      default: false,
+      desc: "Interp P3 ablation: feed zeros to the prev-action channel at inference",
+      group: [:dolphin]
+    },
+    %{
+      name: :delay_id_override,
+      flag: "--delay-id-override",
+      type: :integer,
+      short: nil,
+      default: nil,
+      desc:
+        "Interp intervention: force the delay-id one-hot channel to this value regardless of --frame-delay (delay-id patching; policies trained --with-delay-id only)",
+      group: [:dolphin]
+    },
+    %{
+      name: :leace_eraser,
+      flag: "--leace-eraser",
+      type: :string,
+      short: nil,
+      default: nil,
+      desc: "Path to a fitted LEACE eraser applied between trunk and heads (interp-surgical)",
+      group: [:dolphin]
+    },
+    %{
+      name: :steer_vector,
+      flag: "--steer-vector",
+      type: :string,
+      short: nil,
+      default: nil,
+      desc:
+        "Path to a steering vector (%{v: unit tensor}); alpha of the trunk features' component along it is projected out before the heads (windowed AND stateful paths)",
+      group: [:dolphin]
+    },
+    %{
+      name: :steer_alpha,
+      flag: "--steer-alpha",
+      type: :float,
+      short: nil,
+      default: 1.0,
+      desc: "Steering strength for --steer-vector: 0 = identity, 1 = full projection removal",
+      group: [:dolphin]
+    },
+    %{
+      name: :style_id,
+      flag: "--style-id",
+      type: :integer,
+      short: nil,
+      default: nil,
+      desc:
+        "Style-conditional inference: name-embedding id to play as (policies trained with --player-registry; 0 = unknown-player default)",
+      group: [:dolphin]
+    },
+    %{
+      name: :style_tag,
+      flag: "--style-tag",
+      type: :string,
+      short: nil,
+      default: nil,
+      desc:
+        "Style-conditional inference by tag (e.g. \"Plup\") — resolved via --player-registry JSON; unknown tag falls back to 0",
+      group: [:dolphin]
+    },
+    %{
+      name: :player_registry,
+      flag: "--player-registry",
+      type: :string,
+      short: nil,
+      default: nil,
+      desc:
+        "Path to the tag->id registry JSON (PlayerRegistry.to_json) used to resolve --style-tag",
+      group: [:dolphin]
+    },
+    %{
+      name: :uncertainty_log,
+      flag: "--uncertainty-log",
+      type: :string,
+      short: nil,
+      default: nil,
+      desc:
+        "JSONL path for per-frame head confidences (flywheel A4): low-confidence frames = training-data gaps; consume with scripts/uncertainty_gaps.exs",
+      group: [:dolphin]
+    },
+    %{
+      name: :deterministic_buttons,
+      flag: "--deterministic-buttons",
+      type: :boolean,
+      short: nil,
+      default: false,
+      desc: "Argmax the buttons while sticks sample (kills stray taunts, keeps movement variety)",
+      group: [:dolphin]
+    },
+    %{
+      name: :press_threshold,
+      flag: "--press-threshold",
+      type: :float,
+      short: nil,
+      default: nil,
+      desc:
+        "Button hysteresis: prob needed to PRESS an up button (try 0.6; needs --release-threshold; argmax button modes only)",
+      group: [:dolphin]
+    },
+    %{
+      name: :release_threshold,
+      flag: "--release-threshold",
+      type: :float,
+      short: nil,
+      default: nil,
+      desc:
+        "Button hysteresis: prob below which a held button RELEASES (try 0.4) — presses become edges, not holds",
+      group: [:dolphin]
+    },
+    %{
+      name: :jump_debounce,
+      flag: "--jump-debounce",
+      type: :integer,
+      short: nil,
+      default: nil,
+      desc:
+        "Suppress NEW X/Y press edges for N frames after both jump buttons release (pathology #4 instant-DJ band-aid; holds unaffected)",
+      group: [:dolphin]
+    },
+    %{
+      name: :no_auto_menu,
+      flag: "--no-auto-menu",
+      type: :boolean,
+      short: nil,
+      default: false,
+      desc: "Don't auto-navigate menus",
+      group: [:dolphin]
+    },
+    %{
+      name: :action_repeat,
+      flag: "--action-repeat",
+      type: :integer,
+      short: nil,
+      default: 1,
+      desc: "Only compute new action every N frames",
+      group: [:dolphin]
+    },
+    %{
+      name: :stateful_step,
+      flag: "--stateful-step",
+      type: :boolean,
+      short: nil,
+      default: false,
+      desc:
+        "O(1) recurrent inference: advance GRU/LSTM/Mamba/Mamba-2/MinGRU one frame at a time via Edifice.Stateful instead of re-running the full window (temporal policies; enables rollback snapshots)",
+      group: [:dolphin]
+    },
+    %{
+      name: :stateful_resync,
+      flag: "--stateful-resync",
+      type: :integer,
+      short: nil,
+      default: nil,
+      desc:
+        "For --stateful-step: periodically rebuild hidden state with a compiled window replay to bound carried-state drift (try 30-60; supports independent batched rows)",
+      group: [:dolphin]
+    },
+    %{
+      name: :on_game_end,
+      flag: "--on-game-end",
+      type: :string,
+      short: nil,
+      default: "restart",
+      desc: "Action on game end: restart or stop",
+      group: [:dolphin]
+    },
+    %{
+      name: :dummy,
+      flag: "--dummy",
+      type: :string,
+      short: nil,
+      default: "none",
+      desc:
+        "Port-2 dummy for drills: none|stand|shield|jump|walk|cpu|tech_random (reactive, Elixir-driven)|external",
+      group: [:dolphin]
+    },
+    %{
+      name: :p2_policy,
+      flag: "--p2-policy",
+      type: :string,
+      short: nil,
+      default: nil,
+      desc:
+        "Checkpoint ladder (task #19): drive port 2 with a SECOND policy .bin (PolicyOpponent via the external-dummy hook; overrides --dummy; inference inline in the frame loop, so pair with --headless pacing)",
+      group: [:dolphin]
+    },
+    %{
+      name: :dummy_character,
+      flag: "--dummy-character",
+      type: :string,
+      short: nil,
+      default: "fox",
+      desc: "Dummy's character (requires --dummy)",
+      group: [:dolphin]
+    },
+    %{
+      name: :dummy_cpu_level,
+      flag: "--dummy-cpu-level",
+      type: :integer,
+      short: nil,
+      default: 0,
+      desc: "CPU level for --dummy cpu (1-9)",
+      group: [:dolphin]
+    },
+    %{
+      name: :seconds,
+      flag: "--seconds",
+      type: :integer,
+      short: nil,
+      default: nil,
+      desc:
+        "Play for N seconds, then SD until the game ends so Slippi finalizes the .slp. Without this a timeout-kill leaves a TRUNCATED replay peppi cannot parse",
+      group: [:dolphin]
+    },
+    %{
+      name: :session_report,
+      flag: "--session-report",
+      type: :string,
+      short: nil,
+      default: nil,
+      desc:
+        "Write the synchronous runner's measured latency, scored frame interval, and completion status to JSON",
+      group: [:dolphin]
+    },
+    %{
+      name: :live_af,
+      flag: "--live-af",
+      type: :boolean,
+      short: nil,
+      default: false,
+      desc:
+        "Normalize the bridge's action_frame into the PARSED convention every checkpoint was trained on (task #8 / GOTCHAS #81). Off = current behaviour (exact no-op). Only the 77 measured action states are converted; see ExPhil.Data.ActionFrameConvention",
+      group: [:dolphin]
+    },
+    %{
+      name: :no_audio,
+      flag: "--no-audio",
+      type: :boolean,
+      short: nil,
+      default: false,
+      desc: "Silence Dolphin (farm/unattended sessions)",
+      group: [:dolphin]
+    },
+    %{
+      name: :connect_code,
+      flag: "--connect-code",
+      type: :string,
+      short: nil,
+      default: nil,
+      desc:
+        "Slippi Direct netplay: connect to this code (e.g. ABCD#123). Requires a logged-in Slippi account in the local Dolphin User dir; disables dummies. Pair with a delay-robust model.",
+      group: [:dolphin]
+    },
+    %{
+      name: :headless,
+      flag: "--headless",
+      type: :boolean,
+      short: nil,
+      default: false,
+      desc:
+        "Null gfx backend + no audio + blocking input: no window, no GC adapter, game paced by the policy loop (runs faster than realtime; safe to run several in parallel)",
+      group: [:dolphin]
+    },
+    %{
+      name: :blocking_input,
+      flag: "--blocking-input",
+      type: :boolean,
+      short: nil,
+      default: false,
+      desc:
+        "Dolphin waits for the bot's controller write each frame — the game CANNOT outrun inference (slippi-ai harness parity step 1; already implied by --headless). Validation: skip stat stays 0 and offset calibration collapses to one peak",
+      group: [:dolphin]
+    },
+    %{
+      name: :console_timeout,
+      flag: "--console-timeout",
+      type: :float,
+      short: nil,
+      default: nil,
+      desc:
+        "Console polling timeout in seconds (default 0.1): step returns no-frame instead of blocking forever, which is what lets LRAS complete through the pause. 0 = legacy blocking dispatch (disables LRAS)",
+      group: [:dolphin]
+    },
+    %{
+      name: :replay_dir,
+      flag: "--replay-dir",
+      type: :string,
+      short: nil,
+      default: nil,
+      desc:
+        "Write .slp replays to this directory (flat, no monthly folders). Give each parallel probe its own dir for unambiguous attribution.",
+      group: [:dolphin]
+    },
+    %{
+      name: :slippi_port,
+      flag: "--slippi-port",
+      type: :integer,
+      short: nil,
+      default: nil,
+      desc: "Slippi spectator port (default 51441). Parallel instances need distinct ports.",
+      group: [:dolphin]
+    },
+    %{
+      name: :postgame_delay,
+      flag: "--postgame-delay",
+      type: :integer,
+      short: nil,
+      default: nil,
+      desc:
+        "Seconds to hold autostart after a game ends, so a human can change character at the CSS without racing the bot's START press. Default nil = immediate restart (eval behavior). Human sessions: 15 is comfortable.",
+      group: [:dolphin]
+    },
+    %{
+      name: :require_stage,
+      flag: "--require-stage",
+      type: :string,
+      short: nil,
+      default: nil,
+      desc:
+        "Stage filter for netplay evals: if a game opens on any other stage, LRAS out immediately and requeue (Slippi Direct game 1 is a random legal stage; loser picks thereafter). Accepts fd/bf/ys/dl/fod/ps or full names. Expect ~6 draws per specific stage.",
+      group: [:dolphin]
+    },
+    %{
+      name: :policy_server,
+      flag: "--policy-server",
+      type: :boolean,
+      short: nil,
+      default: false,
+      desc:
+        "Check the Agent out of a running resident policy server (scripts/policy_server.exs) instead of loading+JIT-compiling locally — session boot collapses to menu time. The session runs EXLA CPU-only (second-client law). See docs/planning/POLICY_SERVER_DESIGN.md.",
+      group: [:dolphin]
+    },
+    %{
+      name: :frozen_stadium,
+      flag: "--frozen-stadium",
+      type: :boolean,
+      short: nil,
+      default: true,
+      desc:
+        "Toggle Frozen Stadium at local stage select (default true = frozen, no transformations — the libmelee MenuHelper default). Pass --no-frozen-stadium for live transformations (needed for any PS stage-internal work; discovered 2026-08-24 when a transform hunt played 4 silent minutes on a frozen stadium).",
+      group: [:dolphin]
+    },
+    %{
+      name: :nametag,
+      flag: "--nametag",
+      type: :string,
+      short: nil,
+      default: nil,
+      desc:
+        "In-game Melee nametag (max 4 chars, e.g. EXPH) the menu helper creates and equips at the CSS. Local play only (netplay shows the connect-code tag instead); needs memory-card save data for the tag list.",
+      group: [:dolphin]
+    },
+    %{
+      name: :pace_hz,
+      flag: "--pace-hz",
+      type: :integer,
+      short: nil,
+      default: nil,
+      desc:
+        "Frame-loop pacing for headless games (default 60 when --headless; 0 = unpaced). Unthrottled policy-driven games mistime inputs.",
+      group: [:dolphin]
+    },
+    %{
+      name: :local_delay,
+      flag: "--local-delay",
+      type: :integer,
+      short: nil,
+      default: nil,
+      desc:
+        "Explicit bridge-side action delay: each policy action applies exactly N frames after the state it answered (frame-keyed queue in melee_bridge; LATENCY_ARCHITECTURE direction #3). Independent of --frame-delay (Slippi's native online delay); composes with it. SD/dummy inputs are never delayed",
+      group: [:dolphin]
+    },
+    %{
+      name: :emulation_speed,
+      flag: "--emulation-speed",
+      type: :float,
+      short: nil,
+      default: nil,
+      desc:
+        "Headless emulation speed (default 1.0 = realtime throttle). 0 = unthrottled: menus fly at max fps and gameplay paces to the frame loop via blocking input — pair with --pace-hz 60. Single-clock pacing; see LATENCY_ARCHITECTURE headless trust notes",
+      group: [:dolphin]
+    },
 
     # PPO training flags (for train_ppo.exs)
-    %{name: :pretrained, flag: "--pretrained", type: :string, short: nil, default: nil,
-      desc: "Path to pretrained imitation policy", group: [:ppo]},
-    %{name: :timesteps, flag: "--timesteps", type: :integer, short: nil, default: 100_000,
-      desc: "Total timesteps to train", group: [:ppo]},
-    %{name: :rollout_length, flag: "--rollout-length", type: :integer, short: nil, default: 2048,
-      desc: "Steps per rollout", group: [:ppo]},
-    %{name: :num_epochs, flag: "--num-epochs", type: :integer, short: nil, default: 10,
-      desc: "PPO epochs per update", group: [:ppo]},
-    %{name: :opponent, flag: "--opponent", type: :string, short: nil, default: "cpu3",
-      desc: "Opponent type: cpu1-9 or self", group: [:ppo]},
-    %{name: :mock, flag: "--mock", type: :boolean, short: nil, default: false,
-      desc: "Use mock environment (no Dolphin required)", group: [:ppo]},
-    %{name: :mock_episodes, flag: "--mock-episodes", type: :integer, short: nil, default: 4,
-      desc: "Episodes per rollout in mock mode", group: [:ppo]},
-    %{name: :hidden_sizes, flag: "--hidden-sizes", type: :string, short: nil, default: nil,
-      desc: "Hidden layer sizes (comma-separated)", group: [:ppo, :training]}
+    %{
+      name: :pretrained,
+      flag: "--pretrained",
+      type: :string,
+      short: nil,
+      default: nil,
+      desc: "Path to pretrained imitation policy",
+      group: [:ppo]
+    },
+    %{
+      name: :timesteps,
+      flag: "--timesteps",
+      type: :integer,
+      short: nil,
+      default: 100_000,
+      desc: "Total timesteps to train",
+      group: [:ppo]
+    },
+    %{
+      name: :rollout_length,
+      flag: "--rollout-length",
+      type: :integer,
+      short: nil,
+      default: 2048,
+      desc: "Steps per rollout",
+      group: [:ppo]
+    },
+    %{
+      name: :num_epochs,
+      flag: "--num-epochs",
+      type: :integer,
+      short: nil,
+      default: 10,
+      desc: "PPO epochs per update",
+      group: [:ppo]
+    },
+    %{
+      name: :opponent,
+      flag: "--opponent",
+      type: :string,
+      short: nil,
+      default: "cpu3",
+      desc: "Opponent type: cpu1-9 or self",
+      group: [:ppo]
+    },
+    %{
+      name: :mock,
+      flag: "--mock",
+      type: :boolean,
+      short: nil,
+      default: false,
+      desc: "Use mock environment (no Dolphin required)",
+      group: [:ppo]
+    },
+    %{
+      name: :mock_episodes,
+      flag: "--mock-episodes",
+      type: :integer,
+      short: nil,
+      default: 4,
+      desc: "Episodes per rollout in mock mode",
+      group: [:ppo]
+    },
+    %{
+      name: :hidden_sizes,
+      flag: "--hidden-sizes",
+      type: :string,
+      short: nil,
+      default: nil,
+      desc: "Hidden layer sizes (comma-separated)",
+      group: [:ppo, :training]
+    }
   ]
 
   @doc "Get all flag definitions"
@@ -315,10 +1016,11 @@ defmodule ExPhil.CLI do
     {strict_spec, aliases} = build_option_spec(group_flags, extra_flags)
 
     # Parse arguments
-    {parsed, positional, invalid} = OptionParser.parse(args,
-      strict: strict_spec,
-      aliases: aliases
-    )
+    {parsed, positional, invalid} =
+      OptionParser.parse(args,
+        strict: strict_spec,
+        aliases: aliases
+      )
 
     # Warn about invalid flags
     for {flag, _} <- invalid do
@@ -371,10 +1073,13 @@ defmodule ExPhil.CLI do
     strict =
       flags
       |> Enum.map(fn flag ->
-        type = case flag.type do
-          :atom -> :string  # OptionParser doesn't have :atom
-          other -> other
-        end
+        type =
+          case flag.type do
+            # OptionParser doesn't have :atom
+            :atom -> :string
+            other -> other
+          end
+
         {flag.name, type}
       end)
       |> Keyword.new()
@@ -403,10 +1108,14 @@ defmodule ExPhil.CLI do
   @doc "Get the value after a flag, or nil if not present"
   def get_arg_value(args, flag) do
     case Enum.find_index(args, &(&1 == flag)) do
-      nil -> nil
+      nil ->
+        nil
+
       idx ->
         case Enum.at(args, idx + 1) do
-          nil -> nil
+          nil ->
+            nil
+
           value when is_binary(value) ->
             if String.starts_with?(value, "--"), do: nil, else: value
         end
@@ -432,7 +1141,9 @@ defmodule ExPhil.CLI do
   @doc "Parse a float argument (supports scientific notation like 1e-4)"
   def parse_float_arg(opts, args, flag, key) do
     case get_arg_value(args, flag) do
-      nil -> opts
+      nil ->
+        opts
+
       value ->
         case Float.parse(value) do
           {float, ""} -> Keyword.put(opts, key, float)
@@ -461,7 +1172,9 @@ defmodule ExPhil.CLI do
   @doc "Parse a comma-separated list of integers"
   def parse_int_list_arg(opts, args, flag, key) do
     case get_arg_value(args, flag) do
-      nil -> opts
+      nil ->
+        opts
+
       value ->
         list = value |> String.split(",") |> Enum.map(&String.to_integer(String.trim(&1)))
         Keyword.put(opts, key, list)
@@ -471,7 +1184,9 @@ defmodule ExPhil.CLI do
   @doc "Parse a comma-separated list of atoms"
   def parse_atom_list_arg(opts, args, flag, key) do
     case get_arg_value(args, flag) do
-      nil -> opts
+      nil ->
+        opts
+
       value ->
         list = value |> String.split(",") |> Enum.map(&String.to_atom(String.trim(&1)))
         Keyword.put(opts, key, list)
@@ -551,11 +1266,13 @@ defmodule ExPhil.CLI do
 
   defp format_flag_help(flag) do
     short = if flag.short, do: "-#{flag.short}, ", else: "    "
-    default = if flag.default != nil && flag.default != false do
-      " (default: #{inspect(flag.default)})"
-    else
-      ""
-    end
+
+    default =
+      if flag.default != nil && flag.default != false do
+        " (default: #{inspect(flag.default)})"
+      else
+        ""
+      end
 
     "  #{short}#{flag.flag}\t#{flag.desc}#{default}"
   end
@@ -632,12 +1349,13 @@ defmodule ExPhil.CLI do
       |> Enum.filter(fn key -> opts[key] == nil end)
 
     if length(missing) > 0 do
-      flags = Enum.map(missing, fn key ->
-        case Enum.find(@flag_definitions, &(&1.name == key)) do
-          nil -> "--#{key}"
-          flag -> flag.flag
-        end
-      end)
+      flags =
+        Enum.map(missing, fn key ->
+          case Enum.find(@flag_definitions, &(&1.name == key)) do
+            nil -> "--#{key}"
+            flag -> flag.flag
+          end
+        end)
 
       raise ArgumentError, "Missing required options: #{Enum.join(flags, ", ")}"
     end
@@ -656,12 +1374,13 @@ defmodule ExPhil.CLI do
     present = Enum.filter(keys, fn key -> opts[key] != nil end)
 
     if length(present) == 0 do
-      flags = Enum.map(keys, fn key ->
-        case Enum.find(@flag_definitions, &(&1.name == key)) do
-          nil -> "--#{key}"
-          flag -> flag.flag
-        end
-      end)
+      flags =
+        Enum.map(keys, fn key ->
+          case Enum.find(@flag_definitions, &(&1.name == key)) do
+            nil -> "--#{key}"
+            flag -> flag.flag
+          end
+        end)
 
       raise ArgumentError, "Requires at least one of: #{Enum.join(flags, ", ")}"
     end

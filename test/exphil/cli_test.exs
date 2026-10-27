@@ -18,20 +18,22 @@ defmodule ExPhil.CLITest do
     end
 
     test "parses replay flags" do
-      opts = CLI.parse_args(
-        ["--replays", "/path/to/replays", "--max-files", "100"],
-        flags: [:replay]
-      )
+      opts =
+        CLI.parse_args(
+          ["--replays", "/path/to/replays", "--max-files", "100"],
+          flags: [:replay]
+        )
 
       assert opts[:replays] == "/path/to/replays"
       assert opts[:max_files] == 100
     end
 
     test "parses checkpoint flags" do
-      opts = CLI.parse_args(
-        ["--checkpoint", "model.axon", "--policy", "policy.bin"],
-        flags: [:checkpoint]
-      )
+      opts =
+        CLI.parse_args(
+          ["--checkpoint", "model.axon", "--policy", "policy.bin"],
+          flags: [:checkpoint]
+        )
 
       assert opts[:checkpoint] == "model.axon"
       assert opts[:policy] == "policy.bin"
@@ -46,41 +48,45 @@ defmodule ExPhil.CLITest do
     end
 
     test "allows default overrides" do
-      opts = CLI.parse_args(
-        [],
-        flags: [:training],
-        defaults: [batch_size: 512, epochs: 100]
-      )
+      opts =
+        CLI.parse_args(
+          [],
+          flags: [:training],
+          defaults: [batch_size: 512, epochs: 100]
+        )
 
       assert opts[:batch_size] == 512
       assert opts[:epochs] == 100
     end
 
     test "parses extra script-specific flags" do
-      opts = CLI.parse_args(
-        ["--temporal", "--backbone", "mamba"],
-        flags: [:verbosity],
-        extra: [temporal: :boolean, backbone: :string]
-      )
+      opts =
+        CLI.parse_args(
+          ["--temporal", "--backbone", "mamba"],
+          flags: [:verbosity],
+          extra: [temporal: :boolean, backbone: :string]
+        )
 
       assert opts[:temporal] == true
       assert opts[:backbone] == "mamba"
     end
 
     test "captures positional arguments" do
-      opts = CLI.parse_args(
-        ["--quiet", "file1.slp", "file2.slp"],
-        flags: [:verbosity]
-      )
+      opts =
+        CLI.parse_args(
+          ["--quiet", "file1.slp", "file2.slp"],
+          flags: [:verbosity]
+        )
 
       assert opts[:_positional] == ["file1.slp", "file2.slp"]
     end
 
     test "parses short aliases" do
-      opts = CLI.parse_args(
-        ["-r", "/replays", "-b", "256"],
-        flags: [:replay, :training]
-      )
+      opts =
+        CLI.parse_args(
+          ["-r", "/replays", "-b", "256"],
+          flags: [:replay, :training]
+        )
 
       assert opts[:replays] == "/replays"
       assert opts[:batch_size] == 256
@@ -120,7 +126,7 @@ defmodule ExPhil.CLITest do
 
     test "preserves defaults for missing args" do
       args = ["--quiet"]
-      opts = CLI.parse_raw(args, [batch_size: 64, replays: "./replays"])
+      opts = CLI.parse_raw(args, batch_size: 64, replays: "./replays")
 
       assert opts[:batch_size] == 64
       assert opts[:replays] == "./replays"

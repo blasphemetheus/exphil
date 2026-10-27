@@ -36,33 +36,37 @@ alias ExPhil.Training.Output
 # Parse command line arguments using CLI module
 flag_groups = [:verbosity, :checkpoint, :replay, :dolphin, :common]
 
-opts = CLI.parse_args(System.argv(),
-  flags: flag_groups,
-  defaults: [character: "mewtwo"]
-)
+opts =
+  CLI.parse_args(System.argv(),
+    flags: flag_groups,
+    defaults: [character: "mewtwo"]
+  )
 
 # Setup verbosity early
 CLI.setup_verbosity(opts)
 
 # Convert character and stage to atoms if strings
-opts = Keyword.update(opts, :character, :mewtwo, fn
-  c when is_binary(c) -> String.to_atom(c)
-  c -> c
-end)
+opts =
+  Keyword.update(opts, :character, :mewtwo, fn
+    c when is_binary(c) -> String.to_atom(c)
+    c -> c
+  end)
 
-opts = Keyword.update(opts, :stage, :final_destination, fn
-  s when is_binary(s) -> String.to_atom(s)
-  s -> s
-end)
+opts =
+  Keyword.update(opts, :stage, :final_destination, fn
+    s when is_binary(s) -> String.to_atom(s)
+    s -> s
+  end)
 
 # Convert on_game_end to atom
-opts = Keyword.update(opts, :on_game_end, :restart, fn
-  "restart" -> :restart
-  "stop" -> :stop
-  :restart -> :restart
-  :stop -> :stop
-  _ -> :restart
-end)
+opts =
+  Keyword.update(opts, :on_game_end, :restart, fn
+    "restart" -> :restart
+    "stop" -> :stop
+    :restart -> :restart
+    :stop -> :stop
+    _ -> :restart
+  end)
 
 # Handle help
 CLI.maybe_show_help(opts, "play_dolphin_async.exs", flag_groups, fn ->
@@ -104,7 +108,10 @@ rung =
   end
 
 if rung.source == :frame_delay_alias,
-  do: Output.warning("--frame-delay is deprecated; this run == --reaction-delay #{rung.reaction_delay}")
+  do:
+    Output.warning(
+      "--frame-delay is deprecated; this run == --reaction-delay #{rung.reaction_delay}"
+    )
 
 opts = Keyword.put(opts, :frame_delay, rung.knob)
 
@@ -136,7 +143,7 @@ opts =
 temperature =
   cond do
     opts[:buttons_temperature] || opts[:main_temperature] ||
-        opts[:c_temperature] || opts[:shoulder_temperature] ->
+      opts[:c_temperature] || opts[:shoulder_temperature] ->
       %{
         buttons: opts[:buttons_temperature] || opts[:temperature] || 1.0,
         main: opts[:main_temperature] || opts[:temperature] || 1.0,
@@ -166,7 +173,8 @@ Output.config([
   # the bracket a fake null — the flag-drop bug class, guard #6).
   {"Deterministic buttons", opts[:deterministic_buttons] || false},
   {"Mode-of-N", opts[:mode_of_n] || "off"},
-  {"Critic selector", if(opts[:critic], do: "#{opts[:critic]} (K=#{opts[:critic_k]})", else: "off")},
+  {"Critic selector",
+   if(opts[:critic], do: "#{opts[:critic]} (K=#{opts[:critic_k]})", else: "off")},
   {"Button hysteresis",
    if(opts[:press_threshold] || opts[:release_threshold],
      do: "press=#{inspect(opts[:press_threshold])} release=#{inspect(opts[:release_threshold])}",
@@ -248,7 +256,6 @@ agent =
     agent
   end
 
-
 config = Agent.get_config(agent)
 Output.success("Agent loaded")
 Output.puts("    Temporal: #{config.temporal}")
@@ -325,8 +332,15 @@ if opts[:connect_code] do
     else
       _ ->
         Output.error("Netplay: no logged-in Slippi account at #{user_json}")
-        Output.puts("  Set EXPHIL_NETPLAY_HOME to a Dolphin User dir holding the BOT's Slippi/user.json")
-        Output.puts("  (e.g. EXPHIL_NETPLAY_HOME=$HOME/.config/slippi-dolphin-bot). Without it Dolphin")
+
+        Output.puts(
+          "  Set EXPHIL_NETPLAY_HOME to a Dolphin User dir holding the BOT's Slippi/user.json"
+        )
+
+        Output.puts(
+          "  (e.g. EXPHIL_NETPLAY_HOME=$HOME/.config/slippi-dolphin-bot). Without it Dolphin"
+        )
+
         Output.puts("  boots to the login screen and the menu helper mashes there.")
         System.halt(2)
     end
@@ -335,13 +349,21 @@ if opts[:connect_code] do
   target = String.upcase(String.trim(opts[:connect_code]))
 
   if String.upcase(own_code) == target do
-    Output.error("Netplay: account #{own_code} (#{own_name}) cannot connect to ITSELF (#{target})")
-    Output.puts("  You are launching the bot with the account you play on. Point EXPHIL_NETPLAY_HOME")
+    Output.error(
+      "Netplay: account #{own_code} (#{own_name}) cannot connect to ITSELF (#{target})"
+    )
+
+    Output.puts(
+      "  You are launching the bot with the account you play on. Point EXPHIL_NETPLAY_HOME"
+    )
+
     Output.puts("  at the bot account (EXPH#288) or connect to a different code.")
     System.halt(2)
   end
 
-  Output.puts("  Netplay: playing as #{own_code} (#{own_name}) -> connecting to #{target} (dummies disabled)")
+  Output.puts(
+    "  Netplay: playing as #{own_code} (#{own_name}) -> connecting to #{target} (dummies disabled)"
+  )
 end
 
 # Warmup readiness flag for the CSS interlock (see MeleePort
@@ -625,8 +647,12 @@ defmodule GracefulSD do
   """
   def await(runner, waited \\ 0) do
     cond do
-      AsyncRunner.sd_complete?(runner) -> :ok
-      waited >= @timeout_ms -> {:error, :sd_timeout}
+      AsyncRunner.sd_complete?(runner) ->
+        :ok
+
+      waited >= @timeout_ms ->
+        {:error, :sd_timeout}
+
       true ->
         Process.sleep(@poll_ms)
         await(runner, waited + @poll_ms)
@@ -649,7 +675,17 @@ defmodule GracefulSD do
     main_stick: %{x: 0.5, y: 0.5},
     c_stick: %{x: 0.5, y: 0.5},
     shoulder: 0.0,
-    buttons: %{a: true, b: false, x: false, y: false, z: false, l: true, r: true, d_up: false, start: true}
+    buttons: %{
+      a: true,
+      b: false,
+      x: false,
+      y: false,
+      z: false,
+      l: true,
+      r: true,
+      d_up: false,
+      start: true
+    }
   }
 
   # Frames of LRAS attempts before falling back to the hold-left walk-off.
@@ -716,10 +752,17 @@ defmodule GracefulSD do
           :timeout ->
             run(bridge, frames_left - 1, timeouts + 1)
 
-          {:postgame, _} -> {:ok, :game_ended}
-          {:menu, _} -> {:ok, :game_ended}
-          {:game_ended, _} -> {:ok, :game_ended}
-          {:error, reason} -> {:error, reason}
+          {:postgame, _} ->
+            {:ok, :game_ended}
+
+          {:menu, _} ->
+            {:ok, :game_ended}
+
+          {:game_ended, _} ->
+            {:ok, :game_ended}
+
+          {:error, reason} ->
+            {:error, reason}
         end
     end
   end
