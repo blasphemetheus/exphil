@@ -1,0 +1,30 @@
+{
+  "mode": "dense",
+  "client": "cuda",
+  "results": [
+    {
+      "rows": 1,
+      "operation": "step",
+      "median_us": 178,
+      "p95_us": 230
+    },
+    {
+      "rows": 1,
+      "operation": "replay",
+      "median_us": 7742,
+      "p95_us": 7966
+    },
+    {
+      "rows": 8,
+      "operation": "step",
+      "median_us": 1314,
+      "p95_us": 1425
+    },
+    {
+      "rows": 8,
+      "operation": "replay",
+      "median_us": 77552,
+      "p95_us": 77903
+    }
+  ]
+}

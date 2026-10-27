@@ -1110,3 +1110,28 @@ per build, trained delay zero) have zero warm-frame budget overruns. No win-rate
 or netplay promotion claim, dependency merge, shared native rebuild, or default
 change. All measurement processes exited. Results and remaining limits:
 `eval_runs/mamba_batch_parity_20261026/RESULTS.md`.
+
+## 2026-10-27 — Resolving trained Mamba carry differences (AI-generated)
+
+Codex is comparing complete f32/f64 trajectories against captured Agent inputs,
+resets, outputs and carry. Initial CPU/CUDA trajectory replay reproduces the
+actual batch Agent exactly. f64 batch/single differences collapse to ~1e-12;
+f32 comparisons expose additional output-feature failures missed by four-frame
+sampling. Testing narrow precision changes in isolated VMs before choosing any
+production change. Existing tolerances remain unchanged; no shared native build
+or deployment defaults are changed during these experiments.
+
+**AI-generated poem**
+
+> We follow every frame in turn;
+> The smallest sums have more to learn.
+
+Completed: the discrepancy is sensitive to dense accumulation precision.
+Full f64 dense accumulation passes the original bounds but makes eight-row GPU
+replay 77.6 ms (baseline 5.35 ms). Eight-term f32 products combined in f64 also
+pass CPU/CUDA reference checks, at 7.25 ms replay. No production changes:
+this resolves the observed cause, while the existing f32 numerical gate remains
+failed. Longer trajectories and staggered resets are needed before promoting
+the experiment. Reusable capture/reference and timing scripts plus full limits
+are in `docs/guides/MAMBA_CARRY_RESOLUTION.md`. All experimental replacements
+are private to the diagnostic VM; no shared native rebuild was performed.

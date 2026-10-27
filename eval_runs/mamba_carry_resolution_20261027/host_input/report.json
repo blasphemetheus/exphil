@@ -1,0 +1,789 @@
+{
+  "rows": [
+    {
+      "row": 0,
+      "f32_batch_vs_single": {
+        "output": {
+          "values": 81920,
+          "max_abs": 1.0669231414794922e-4,
+          "max_error_over_bound": 0.7816669950593096,
+          "failed_values": 0,
+          "rms": 6.276038225608116e-6
+        },
+        "conv": {
+          "values": 983040,
+          "max_abs": 3.92913818359375e-4,
+          "max_error_over_bound": 1.2136654118398336,
+          "failed_values": 9,
+          "rms": 6.563371715843384e-6
+        },
+        "h": {
+          "values": 32768,
+          "max_abs": 1.9073486328125e-6,
+          "max_error_over_bound": 0.010057088054633321,
+          "failed_values": 0,
+          "rms": 4.011475120088847e-8
+        }
+      },
+      "f64_batch_vs_single": {
+        "output": {
+          "values": 81920,
+          "max_abs": 1.8907098109366416e-13,
+          "max_error_over_bound": 1.2388566360441091e-9,
+          "failed_values": 0,
+          "rms": 1.3277037811995332e-14
+        },
+        "conv": {
+          "values": 983040,
+          "max_abs": 5.968558980384842e-13,
+          "max_error_over_bound": 3.800976278392936e-9,
+          "failed_values": 0,
+          "rms": 1.2892265003330516e-14
+        },
+        "h": {
+          "values": 32768,
+          "max_abs": 4.9960036108132044e-15,
+          "max_error_over_bound": 4.604805457859291e-11,
+          "failed_values": 0,
+          "rms": 1.4017986294198993e-16
+        }
+      },
+      "batch32_vs_reference": {
+        "output": {
+          "values": 81920,
+          "max_abs": 1.0613580287177626e-4,
+          "max_error_over_bound": 0.6013370206226112,
+          "failed_values": 0,
+          "rms": 4.976350629951941e-6
+        },
+        "conv": {
+          "values": 983040,
+          "max_abs": 1.580997508856541e-4,
+          "max_error_over_bound": 0.7218452481667357,
+          "failed_values": 0,
+          "rms": 4.697921465712352e-6
+        },
+        "h": {
+          "values": 32768,
+          "max_abs": 2.543238307950446e-6,
+          "max_error_over_bound": 0.009355079839814354,
+          "failed_values": 0,
+          "rms": 5.466036247460724e-8
+        }
+      },
+      "single32_vs_reference": {
+        "output": {
+          "values": 81920,
+          "max_abs": 1.2902398646552626e-4,
+          "max_error_over_bound": 0.5422559287304105,
+          "failed_values": 0,
+          "rms": 6.481772907541323e-6
+        },
+        "conv": {
+          "values": 983040,
+          "max_abs": 3.219351490812983e-4,
+          "max_error_over_bound": 0.9312534142615396,
+          "failed_values": 0,
+          "rms": 6.807916511347657e-6
+        },
+        "h": {
+          "values": 32768,
+          "max_abs": 2.0181411244379888e-6,
+          "max_error_over_bound": 0.006955522577814254,
+          "failed_values": 0,
+          "rms": 4.4512030444058066e-8
+        }
+      }
+    },
+    {
+      "row": 1,
+      "f32_batch_vs_single": {
+        "output": {
+          "values": 81920,
+          "max_abs": 6.723403930664062e-5,
+          "max_error_over_bound": 0.48148034019474917,
+          "failed_values": 0,
+          "rms": 5.938820514322866e-6
+        },
+        "conv": {
+          "values": 983040,
+          "max_abs": 4.177093505859375e-4,
+          "max_error_over_bound": 1.5464869621282782,
+          "failed_values": 27,
+          "rms": 7.81810340912965e-6
+        },
+        "h": {
+          "values": 32768,
+          "max_abs": 2.8138892957940698e-6,
+          "max_error_over_bound": 0.02813471056708161,
+          "failed_values": 0,
+          "rms": 8.319496849713534e-8
+        }
+      },
+      "f64_batch_vs_single": {
+        "output": {
+          "values": 81920,
+          "max_abs": 1.6298074001497298e-13,
+          "max_error_over_bound": 9.970377815632857e-10,
+          "failed_values": 0,
+          "rms": 1.1620899452436764e-14
+        },
+        "conv": {
+          "values": 983040,
+          "max_abs": 5.258016244624741e-13,
+          "max_error_over_bound": 2.4149087895522944e-9,
+          "failed_values": 0,
+          "rms": 1.4850159156001587e-14
+        },
+        "h": {
+          "values": 32768,
+          "max_abs": 2.886579864025407e-15,
+          "max_error_over_bound": 2.6191580660072105e-11,
+          "failed_values": 0,
+          "rms": 9.639408082764484e-17
+        }
+      },
+      "batch32_vs_reference": {
+        "output": {
+          "values": 81920,
+          "max_abs": 6.907207045436792e-5,
+          "max_error_over_bound": 0.3229491497517814,
+          "failed_values": 0,
+          "rms": 4.121120387234004e-6
+        },
+        "conv": {
+          "values": 983040,
+          "max_abs": 2.050681825380707e-4,
+          "max_error_over_bound": 0.8622193294637769,
+          "failed_values": 0,
+          "rms": 4.973962494608529e-6
+        },
+        "h": {
+          "values": 32768,
+          "max_abs": 1.1064138263350287e-6,
+          "max_error_over_bound": 0.008440605281754766,
+          "failed_values": 0,
+          "rms": 3.148483571272035e-8
+        }
+      },
+      "single32_vs_reference": {
+        "output": {
+          "values": 81920,
+          "max_abs": 6.838623009919331e-5,
+          "max_error_over_bound": 0.4942031786222415,
+          "failed_values": 0,
+          "rms": 6.052416843905834e-6
+        },
+        "conv": {
+          "values": 983040,
+          "max_abs": 3.5945251068802975e-4,
+          "max_error_over_bound": 1.6927967668367916,
+          "failed_values": 22,
+          "rms": 7.858115561916036e-6
+        },
+        "h": {
+          "values": 32768,
+          "max_abs": 1.969701630489569e-6,
+          "max_error_over_bound": 0.019694049876687526,
+          "failed_values": 0,
+          "rms": 6.696930086299314e-8
+        }
+      }
+    },
+    {
+      "row": 2,
+      "f32_batch_vs_single": {
+        "output": {
+          "values": 81920,
+          "max_abs": 7.963180541992188e-5,
+          "max_error_over_bound": 0.49292695670794484,
+          "failed_values": 0,
+          "rms": 6.877295968152148e-6
+        },
+        "conv": {
+          "values": 983040,
+          "max_abs": 4.673004150390625e-4,
+          "max_error_over_bound": 1.9869593742758724,
+          "failed_values": 69,
+          "rms": 1.0161732700328027e-5
+        },
+        "h": {
+          "values": 32768,
+          "max_abs": 1.1920928955078125e-6,
+          "max_error_over_bound": 0.008256646223511735,
+          "failed_values": 0,
+          "rms": 3.0948552858532674e-8
+        }
+      },
+      "f64_batch_vs_single": {
+        "output": {
+          "values": 81920,
+          "max_abs": 1.8252066524837574e-13,
+          "max_error_over_bound": 1.0865610167094038e-9,
+          "failed_values": 0,
+          "rms": 1.2740324918946968e-14
+        },
+        "conv": {
+          "values": 983040,
+          "max_abs": 8.846257060213247e-13,
+          "max_error_over_bound": 3.906112531147423e-9,
+          "failed_values": 0,
+          "rms": 1.7953560531450223e-14
+        },
+        "h": {
+          "values": 32768,
+          "max_abs": 3.552713678800501e-15,
+          "max_error_over_bound": 2.176978587756275e-11,
+          "failed_values": 0,
+          "rms": 7.270021954304177e-17
+        }
+      },
+      "batch32_vs_reference": {
+        "output": {
+          "values": 81920,
+          "max_abs": 9.354439089914734e-5,
+          "max_error_over_bound": 0.6443164079421116,
+          "failed_values": 0,
+          "rms": 4.8275216547060265e-6
+        },
+        "conv": {
+          "values": 983040,
+          "max_abs": 2.411685375618422e-4,
+          "max_error_over_bound": 1.3488020568794972,
+          "failed_values": 3,
+          "rms": 5.442466820111261e-6
+        },
+        "h": {
+          "values": 32768,
+          "max_abs": 1.2173101593404567e-6,
+          "max_error_over_bound": 0.005962696284674015,
+          "failed_values": 0,
+          "rms": 2.92246989715219e-8
+        }
+      },
+      "single32_vs_reference": {
+        "output": {
+          "values": 81920,
+          "max_abs": 6.162248533847503e-5,
+          "max_error_over_bound": 0.38527910967968676,
+          "failed_values": 0,
+          "rms": 6.220650230450009e-6
+        },
+        "conv": {
+          "values": 983040,
+          "max_abs": 3.991647144054866e-4,
+          "max_error_over_bound": 1.9149732679533937,
+          "failed_values": 63,
+          "rms": 9.692339663029807e-6
+        },
+        "h": {
+          "values": 32768,
+          "max_abs": 1.168116926297813e-6,
+          "max_error_over_bound": 0.00863246045521895,
+          "failed_values": 0,
+          "rms": 3.490554937582887e-8
+        }
+      }
+    },
+    {
+      "row": 3,
+      "f32_batch_vs_single": {
+        "output": {
+          "values": 81920,
+          "max_abs": 1.1730194091796875e-4,
+          "max_error_over_bound": 0.7090608831696393,
+          "failed_values": 0,
+          "rms": 5.558031741281761e-6
+        },
+        "conv": {
+          "values": 983040,
+          "max_abs": 4.69207763671875e-4,
+          "max_error_over_bound": 2.379577274348368,
+          "failed_values": 48,
+          "rms": 9.308721573467265e-6
+        },
+        "h": {
+          "values": 32768,
+          "max_abs": 2.294778823852539e-6,
+          "max_error_over_bound": 0.019001385632862307,
+          "failed_values": 0,
+          "rms": 4.928364544086233e-8
+        }
+      },
+      "f64_batch_vs_single": {
+        "output": {
+          "values": 81920,
+          "max_abs": 1.723066134218243e-13,
+          "max_error_over_bound": 1.0289604572680922e-9,
+          "failed_values": 0,
+          "rms": 1.2704412484557322e-14
+        },
+        "conv": {
+          "values": 983040,
+          "max_abs": 1.0036416142611415e-12,
+          "max_error_over_bound": 3.694018140889064e-9,
+          "failed_values": 0,
+          "rms": 1.9849173200615768e-14
+        },
+        "h": {
+          "values": 32768,
+          "max_abs": 4.218847493575595e-15,
+          "max_error_over_bound": 2.2288707153464717e-11,
+          "failed_values": 0,
+          "rms": 1.164038653834668e-16
+        }
+      },
+      "batch32_vs_reference": {
+        "output": {
+          "values": 81920,
+          "max_abs": 5.170767792517239e-5,
+          "max_error_over_bound": 0.3395894812852559,
+          "failed_values": 0,
+          "rms": 3.9077926878596964e-6
+        },
+        "conv": {
+          "values": 983040,
+          "max_abs": 1.7746245227368007e-4,
+          "max_error_over_bound": 0.7383942552906715,
+          "failed_values": 0,
+          "rms": 5.173539781528296e-6
+        },
+        "h": {
+          "values": 32768,
+          "max_abs": 1.5540281319559313e-6,
+          "max_error_over_bound": 0.009323488861033992,
+          "failed_values": 0,
+          "rms": 7.21033782284523e-8
+        }
+      },
+      "single32_vs_reference": {
+        "output": {
+          "values": 81920,
+          "max_abs": 1.3311306669017142e-4,
+          "max_error_over_bound": 0.8532065176910959,
+          "failed_values": 0,
+          "rms": 6.384762464034971e-6
+        },
+        "conv": {
+          "values": 983040,
+          "max_abs": 5.025428928515652e-4,
+          "max_error_over_bound": 2.558790117229016,
+          "failed_values": 66,
+          "rms": 1.0166558942893472e-5
+        },
+        "h": {
+          "values": 32768,
+          "max_abs": 2.661106929924273e-6,
+          "max_error_over_bound": 0.021202729179873134,
+          "failed_values": 0,
+          "rms": 8.427129157019129e-8
+        }
+      }
+    },
+    {
+      "row": 4,
+      "f32_batch_vs_single": {
+        "output": {
+          "values": 81920,
+          "max_abs": 7.18832015991211e-5,
+          "max_error_over_bound": 0.44856587123853564,
+          "failed_values": 0,
+          "rms": 4.797968858332628e-6
+        },
+        "conv": {
+          "values": 983040,
+          "max_abs": 3.7479400634765625e-4,
+          "max_error_over_bound": 1.9395969542732618,
+          "failed_values": 49,
+          "rms": 9.627265567421818e-6
+        },
+        "h": {
+          "values": 32768,
+          "max_abs": 2.1345913410186768e-6,
+          "max_error_over_bound": 0.02050770792939546,
+          "failed_values": 0,
+          "rms": 6.12253775827597e-8
+        }
+      },
+      "f64_batch_vs_single": {
+        "output": {
+          "values": 81920,
+          "max_abs": 2.0339285811132868e-13,
+          "max_error_over_bound": 1.307364082278516e-9,
+          "failed_values": 0,
+          "rms": 1.0930387042275896e-14
+        },
+        "conv": {
+          "values": 983040,
+          "max_abs": 1.0373923942097463e-12,
+          "max_error_over_bound": 4.9141992188968435e-9,
+          "failed_values": 0,
+          "rms": 2.27954005224452e-14
+        },
+        "h": {
+          "values": 32768,
+          "max_abs": 3.5388358909926865e-15,
+          "max_error_over_bound": 3.4125844960676785e-11,
+          "failed_values": 0,
+          "rms": 1.2756394851188184e-16
+        }
+      },
+      "batch32_vs_reference": {
+        "output": {
+          "values": 81920,
+          "max_abs": 4.63868901046105e-5,
+          "max_error_over_bound": 0.4015016972349945,
+          "failed_values": 0,
+          "rms": 3.4614609772680855e-6
+        },
+        "conv": {
+          "values": 983040,
+          "max_abs": 2.1526218956324783e-4,
+          "max_error_over_bound": 0.9609546925071197,
+          "failed_values": 0,
+          "rms": 5.808481373747519e-6
+        },
+        "h": {
+          "values": 32768,
+          "max_abs": 1.0285896393288224e-6,
+          "max_error_over_bound": 0.01026447267151713,
+          "failed_values": 0,
+          "rms": 3.523678847582753e-8
+        }
+      },
+      "single32_vs_reference": {
+        "output": {
+          "values": 81920,
+          "max_abs": 5.7312913303242397e-5,
+          "max_error_over_bound": 0.4065863278074227,
+          "failed_values": 0,
+          "rms": 5.173278247330476e-6
+        },
+        "conv": {
+          "values": 983040,
+          "max_abs": 4.179208212491403e-4,
+          "max_error_over_bound": 2.441405721380348,
+          "failed_values": 48,
+          "rms": 1.0090638106867254e-5
+        },
+        "h": {
+          "values": 32768,
+          "max_abs": 1.6744148636504974e-6,
+          "max_error_over_bound": 0.013783895705033392,
+          "failed_values": 0,
+          "rms": 4.6924933803288394e-8
+        }
+      }
+    },
+    {
+      "row": 5,
+      "f32_batch_vs_single": {
+        "output": {
+          "values": 81920,
+          "max_abs": 1.1277198791503906e-4,
+          "max_error_over_bound": 0.8725993076435176,
+          "failed_values": 0,
+          "rms": 7.308141176800614e-6
+        },
+        "conv": {
+          "values": 983040,
+          "max_abs": 6.046295166015625e-4,
+          "max_error_over_bound": 3.463407836789555,
+          "failed_values": 153,
+          "rms": 1.1529231538151434e-5
+        },
+        "h": {
+          "values": 32768,
+          "max_abs": 3.0174851417541504e-6,
+          "max_error_over_bound": 0.02818568691567243,
+          "failed_values": 0,
+          "rms": 7.81261172018742e-8
+        }
+      },
+      "f64_batch_vs_single": {
+        "output": {
+          "values": 81920,
+          "max_abs": 2.1782575743145571e-13,
+          "max_error_over_bound": 1.7562652773853218e-9,
+          "failed_values": 0,
+          "rms": 1.542947508090059e-14
+        },
+        "conv": {
+          "values": 983040,
+          "max_abs": 1.1937117960769683e-12,
+          "max_error_over_bound": 5.192434267537569e-9,
+          "failed_values": 0,
+          "rms": 2.3570274473257497e-14
+        },
+        "h": {
+          "values": 32768,
+          "max_abs": 1.3322676295501878e-14,
+          "max_error_over_bound": 1.0035646779115366e-10,
+          "failed_values": 0,
+          "rms": 1.8140929744128543e-16
+        }
+      },
+      "batch32_vs_reference": {
+        "output": {
+          "values": 81920,
+          "max_abs": 9.618710565995059e-5,
+          "max_error_over_bound": 0.5353163668745553,
+          "failed_values": 0,
+          "rms": 4.532034392137915e-6
+        },
+        "conv": {
+          "values": 983040,
+          "max_abs": 2.543903712233231e-4,
+          "max_error_over_bound": 1.20603782210349,
+          "failed_values": 9,
+          "rms": 6.6004536247728634e-6
+        },
+        "h": {
+          "values": 32768,
+          "max_abs": 3.501883658052485e-6,
+          "max_error_over_bound": 0.024842337714089755,
+          "failed_values": 0,
+          "rms": 6.62643076734165e-8
+        }
+      },
+      "single32_vs_reference": {
+        "output": {
+          "values": 81920,
+          "max_abs": 1.2138002635775358e-4,
+          "max_error_over_bound": 0.8846210109805074,
+          "failed_values": 0,
+          "rms": 7.290655752963876e-6
+        },
+        "conv": {
+          "values": 983040,
+          "max_abs": 4.597490218216649e-4,
+          "max_error_over_bound": 3.7432091310166578,
+          "failed_values": 117,
+          "rms": 1.1808007258615078e-5
+        },
+        "h": {
+          "values": 32768,
+          "max_abs": 1.8276666192279523e-6,
+          "max_error_over_bound": 0.01707187430588573,
+          "failed_values": 0,
+          "rms": 6.407701448823941e-8
+        }
+      }
+    },
+    {
+      "row": 6,
+      "f32_batch_vs_single": {
+        "output": {
+          "values": 81920,
+          "max_abs": 1.5020370483398438e-4,
+          "max_error_over_bound": 0.907360632924241,
+          "failed_values": 0,
+          "rms": 9.241786195159232e-6
+        },
+        "conv": {
+          "values": 983040,
+          "max_abs": 5.779266357421875e-4,
+          "max_error_over_bound": 4.6133792691371305,
+          "failed_values": 150,
+          "rms": 1.2309887150786926e-5
+        },
+        "h": {
+          "values": 32768,
+          "max_abs": 2.0675361156463623e-6,
+          "max_error_over_bound": 0.019737335749225902,
+          "failed_values": 0,
+          "rms": 5.4205893656327104e-8
+        }
+      },
+      "f64_batch_vs_single": {
+        "output": {
+          "values": 81920,
+          "max_abs": 4.2676973066591017e-13,
+          "max_error_over_bound": 2.4974915006330747e-9,
+          "failed_values": 0,
+          "rms": 2.074408627359631e-14
+        },
+        "conv": {
+          "values": 983040,
+          "max_abs": 1.8545165403338615e-12,
+          "max_error_over_bound": 1.0514604295922332e-8,
+          "failed_values": 0,
+          "rms": 2.6256929688006983e-14
+        },
+        "h": {
+          "values": 32768,
+          "max_abs": 1.5806800313100666e-14,
+          "max_error_over_bound": 1.5089702195383468e-10,
+          "failed_values": 0,
+          "rms": 3.1812135212912245e-16
+        }
+      },
+      "batch32_vs_reference": {
+        "output": {
+          "values": 81920,
+          "max_abs": 1.0546128052535408e-4,
+          "max_error_over_bound": 0.7581516078334848,
+          "failed_values": 0,
+          "rms": 5.5841688462816974e-6
+        },
+        "conv": {
+          "values": 983040,
+          "max_abs": 3.743621581655532e-4,
+          "max_error_over_bound": 2.14861384686469,
+          "failed_values": 42,
+          "rms": 7.660424007747681e-6
+        },
+        "h": {
+          "values": 32768,
+          "max_abs": 2.0520591088278584e-6,
+          "max_error_over_bound": 0.020140410754516423,
+          "failed_values": 0,
+          "rms": 4.900459966935673e-8
+        }
+      },
+      "single32_vs_reference": {
+        "output": {
+          "values": 81920,
+          "max_abs": 1.6700041692851997e-4,
+          "max_error_over_bound": 0.8626140457797806,
+          "failed_values": 0,
+          "rms": 8.290742773154544e-6
+        },
+        "conv": {
+          "values": 983040,
+          "max_abs": 6.477047526516344e-4,
+          "max_error_over_bound": 5.181428065404958,
+          "failed_values": 117,
+          "rms": 1.205557203667704e-5
+        },
+        "h": {
+          "values": 32768,
+          "max_abs": 3.081391398637723e-6,
+          "max_error_over_bound": 0.029415996679810312,
+          "failed_values": 0,
+          "rms": 6.130686802913043e-8
+        }
+      }
+    },
+    {
+      "row": 7,
+      "f32_batch_vs_single": {
+        "output": {
+          "values": 81920,
+          "max_abs": 1.5854835510253906e-4,
+          "max_error_over_bound": 1.3209431317767246,
+          "failed_values": 3,
+          "rms": 1.0932210646066863e-5
+        },
+        "conv": {
+          "values": 983040,
+          "max_abs": 7.076263427734375e-4,
+          "max_error_over_bound": 3.6825799552324088,
+          "failed_values": 165,
+          "rms": 1.2553499353763747e-5
+        },
+        "h": {
+          "values": 32768,
+          "max_abs": 1.8309801816940308e-6,
+          "max_error_over_bound": 0.018037440423348084,
+          "failed_values": 0,
+          "rms": 5.1657750488472735e-8
+        }
+      },
+      "f64_batch_vs_single": {
+        "output": {
+          "values": 81920,
+          "max_abs": 3.739231146937527e-13,
+          "max_error_over_bound": 2.489985131983449e-9,
+          "failed_values": 0,
+          "rms": 2.2050960744836795e-14
+        },
+        "conv": {
+          "values": 983040,
+          "max_abs": 1.1013412404281553e-12,
+          "max_error_over_bound": 6.756293732669087e-9,
+          "failed_values": 0,
+          "rms": 2.384596769663881e-14
+        },
+        "h": {
+          "values": 32768,
+          "max_abs": 5.2735593669694936e-15,
+          "max_error_over_bound": 4.1614089727798514e-11,
+          "failed_values": 0,
+          "rms": 1.792573671885615e-16
+        }
+      },
+      "batch32_vs_reference": {
+        "output": {
+          "values": 81920,
+          "max_abs": 1.1010407616796059e-4,
+          "max_error_over_bound": 0.7022319417403244,
+          "failed_values": 0,
+          "rms": 6.436415312549918e-6
+        },
+        "conv": {
+          "values": 983040,
+          "max_abs": 2.59061718930198e-4,
+          "max_error_over_bound": 1.22715639634206,
+          "failed_values": 12,
+          "rms": 6.807050648910583e-6
+        },
+        "h": {
+          "values": 32768,
+          "max_abs": 2.43324420878821e-6,
+          "max_error_over_bound": 0.01845333771868738,
+          "failed_values": 0,
+          "rms": 6.455839622864745e-8
+        }
+      },
+      "single32_vs_reference": {
+        "output": {
+          "values": 81920,
+          "max_abs": 1.5058319249305896e-4,
+          "max_error_over_bound": 1.36564752214761,
+          "failed_values": 3,
+          "rms": 9.939134906024778e-6
+        },
+        "conv": {
+          "values": 983040,
+          "max_abs": 7.051215609408246e-4,
+          "max_error_over_bound": 3.405077802330812,
+          "failed_values": 141,
+          "rms": 1.194745483891967e-5
+        },
+        "h": {
+          "values": 32768,
+          "max_abs": 3.3481891938969e-6,
+          "max_error_over_bound": 0.017384924250831813,
+          "failed_values": 0,
+          "rms": 7.298864462048795e-8
+        }
+      }
+    }
+  ],
+  "client": "host",
+  "ticks": 160,
+  "actual_agent_vs_compiled_trajectory": {
+    "output": {
+      "values": 655360,
+      "max_abs": 8.821487426757812e-5,
+      "max_error_over_bound": 0.562076650845639,
+      "failed_values": 0,
+      "rms": 2.855118880772937e-6
+    },
+    "conv": {
+      "values": 7864320,
+      "max_abs": 2.25067138671875e-4,
+      "max_error_over_bound": 1.112441106452686,
+      "failed_values": 9,
+      "rms": 3.3857875321118074e-6
+    },
+    "h": {
+      "values": 262144,
+      "max_abs": 3.844499588012695e-6,
+      "max_error_over_bound": 0.03187668788794795,
+      "failed_values": 0,
+      "rms": 3.0231536687036053e-8
+    }
+  }
+}

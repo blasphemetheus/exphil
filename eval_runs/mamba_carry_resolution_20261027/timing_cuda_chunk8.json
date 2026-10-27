@@ -1,0 +1,30 @@
+{
+  "mode": "chunk8",
+  "client": "cuda",
+  "results": [
+    {
+      "rows": 1,
+      "operation": "step",
+      "median_us": 149,
+      "p95_us": 232
+    },
+    {
+      "rows": 1,
+      "operation": "replay",
+      "median_us": 4731,
+      "p95_us": 5017
+    },
+    {
+      "rows": 8,
+      "operation": "step",
+      "median_us": 188,
+      "p95_us": 246
+    },
+    {
+      "rows": 8,
+      "operation": "replay",
+      "median_us": 7254,
+      "p95_us": 7429
+    }
+  ]
+}
