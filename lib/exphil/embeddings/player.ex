@@ -181,8 +181,12 @@ defmodule ExPhil.Embeddings.Player do
   """
   @spec danger_columns(config()) :: [non_neg_integer()]
   def danger_columns(config \\ default_config()) do
-    action_size = if config.action_mode == :one_hot, do: Primitives.embedding_size(:action), else: 0
-    character_size = if config.character_mode == :one_hot, do: Primitives.embedding_size(:character), else: 0
+    action_size =
+      if config.action_mode == :one_hot, do: Primitives.embedding_size(:action), else: 0
+
+    character_size =
+      if config.character_mode == :one_hot, do: Primitives.embedding_size(:character), else: 0
+
     jumps_size = if config.jumps_normalized, do: 1, else: Primitives.embedding_size(:jumps_left)
 
     # percent, facing, x, y | action | character | invulnerable, jumps, shield, on_ground
@@ -389,7 +393,8 @@ defmodule ExPhil.Embeddings.Player do
     Tensor of shape [batch_size, embedding_size]
   """
   @spec embed_batch([PlayerState.t() | nil], config(), [float() | nil] | nil) :: Nx.Tensor.t()
-  def embed_batch(players, config \\ default_config(), stage_edges \\ nil) when is_list(players) do
+  def embed_batch(players, config \\ default_config(), stage_edges \\ nil)
+      when is_list(players) do
     # Handle empty list
     if Enum.empty?(players) do
       Nx.broadcast(0.0, {0, embedding_size(config)})
@@ -916,16 +921,21 @@ defmodule ExPhil.Embeddings.Player do
   def embed_frame_info(player, config \\ default_config())
 
   def embed_frame_info(%PlayerState{} = player, config) do
-    # Hitstun frames: normalize by max hitstun (120 frames)
-    hitstun = max(0.0, min((player.hitstun_frames_left || 0) / Constants.max_hitstun_frames(), 1.0))
-    # Action frame: normalize by standard animation length, allow overflow
-    action_frame =
-      max(0.0, min(
-        action_frame_in_parsed_space(player, config) / Constants.standard_action_frames(),
-        2.0
-      ))
-
-    Nx.tensor([hitstun, action_frame], type: :f32)
+    # Training batches cast to f32 before multiplying by the reciprocal.
+    # Dividing Elixir floats first rounds differently and the recurrent model
+    # can amplify that small input difference across successive frames.
+    Nx.concatenate([
+      Primitives.float_embed(player.hitstun_frames_left || 0,
+        scale: 1 / Constants.max_hitstun_frames(),
+        lower: 0.0,
+        upper: 1.0
+      ),
+      Primitives.float_embed(action_frame_in_parsed_space(player, config),
+        scale: 1 / Constants.standard_action_frames(),
+        lower: 0.0,
+        upper: 2.0
+      )
+    ])
   end
 
   @doc """

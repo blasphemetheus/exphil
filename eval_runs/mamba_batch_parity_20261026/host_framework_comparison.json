@@ -1,0 +1,824 @@
+{
+  "scope": "Deterministic trained-policy inference on identical replay frames. Does not validate training updates, fused scans, or match quality.",
+  "baseline": "eval_runs/mamba_batch_parity_20261026/host_final.json",
+  "candidate": "eval_runs/mamba_batch_parity_20261026/host_candidate.json",
+  "checks": [
+    {
+      "tick": 0,
+      "features": {
+        "close": true,
+        "max_abs": 3.337860107421875e-6
+      },
+      "controllers_equal": true
+    },
+    {
+      "tick": 1,
+      "features": null,
+      "controllers_equal": true
+    },
+    {
+      "tick": 2,
+      "features": null,
+      "controllers_equal": true
+    },
+    {
+      "tick": 3,
+      "features": null,
+      "controllers_equal": true
+    },
+    {
+      "tick": 4,
+      "features": null,
+      "controllers_equal": true
+    },
+    {
+      "tick": 5,
+      "features": null,
+      "controllers_equal": true
+    },
+    {
+      "tick": 6,
+      "features": null,
+      "controllers_equal": true
+    },
+    {
+      "tick": 7,
+      "features": null,
+      "controllers_equal": true
+    },
+    {
+      "tick": 8,
+      "features": null,
+      "controllers_equal": true
+    },
+    {
+      "tick": 9,
+      "features": null,
+      "controllers_equal": true
+    },
+    {
+      "tick": 10,
+      "features": null,
+      "controllers_equal": true
+    },
+    {
+      "tick": 11,
+      "features": null,
+      "controllers_equal": true
+    },
+    {
+      "tick": 12,
+      "features": null,
+      "controllers_equal": true
+    },
+    {
+      "tick": 13,
+      "features": null,
+      "controllers_equal": true
+    },
+    {
+      "tick": 14,
+      "features": null,
+      "controllers_equal": true
+    },
+    {
+      "tick": 15,
+      "features": null,
+      "controllers_equal": true
+    },
+    {
+      "tick": 16,
+      "features": null,
+      "controllers_equal": true
+    },
+    {
+      "tick": 17,
+      "features": null,
+      "controllers_equal": true
+    },
+    {
+      "tick": 18,
+      "features": null,
+      "controllers_equal": true
+    },
+    {
+      "tick": 19,
+      "features": null,
+      "controllers_equal": true
+    },
+    {
+      "tick": 20,
+      "features": null,
+      "controllers_equal": true
+    },
+    {
+      "tick": 21,
+      "features": null,
+      "controllers_equal": true
+    },
+    {
+      "tick": 22,
+      "features": null,
+      "controllers_equal": true
+    },
+    {
+      "tick": 23,
+      "features": null,
+      "controllers_equal": true
+    },
+    {
+      "tick": 24,
+      "features": null,
+      "controllers_equal": true
+    },
+    {
+      "tick": 25,
+      "features": null,
+      "controllers_equal": true
+    },
+    {
+      "tick": 26,
+      "features": null,
+      "controllers_equal": true
+    },
+    {
+      "tick": 27,
+      "features": null,
+      "controllers_equal": true
+    },
+    {
+      "tick": 28,
+      "features": null,
+      "controllers_equal": true
+    },
+    {
+      "tick": 29,
+      "features": null,
+      "controllers_equal": true
+    },
+    {
+      "tick": 30,
+      "features": null,
+      "controllers_equal": true
+    },
+    {
+      "tick": 31,
+      "features": {
+        "close": true,
+        "max_abs": 1.5735626220703125e-5
+      },
+      "controllers_equal": true
+    },
+    {
+      "tick": 32,
+      "features": null,
+      "controllers_equal": true
+    },
+    {
+      "tick": 33,
+      "features": null,
+      "controllers_equal": true
+    },
+    {
+      "tick": 34,
+      "features": null,
+      "controllers_equal": true
+    },
+    {
+      "tick": 35,
+      "features": null,
+      "controllers_equal": true
+    },
+    {
+      "tick": 36,
+      "features": null,
+      "controllers_equal": true
+    },
+    {
+      "tick": 37,
+      "features": null,
+      "controllers_equal": true
+    },
+    {
+      "tick": 38,
+      "features": null,
+      "controllers_equal": true
+    },
+    {
+      "tick": 39,
+      "features": null,
+      "controllers_equal": true
+    },
+    {
+      "tick": 40,
+      "features": null,
+      "controllers_equal": true
+    },
+    {
+      "tick": 41,
+      "features": null,
+      "controllers_equal": true
+    },
+    {
+      "tick": 42,
+      "features": null,
+      "controllers_equal": true
+    },
+    {
+      "tick": 43,
+      "features": null,
+      "controllers_equal": true
+    },
+    {
+      "tick": 44,
+      "features": null,
+      "controllers_equal": true
+    },
+    {
+      "tick": 45,
+      "features": null,
+      "controllers_equal": true
+    },
+    {
+      "tick": 46,
+      "features": null,
+      "controllers_equal": true
+    },
+    {
+      "tick": 47,
+      "features": null,
+      "controllers_equal": true
+    },
+    {
+      "tick": 48,
+      "features": null,
+      "controllers_equal": true
+    },
+    {
+      "tick": 49,
+      "features": null,
+      "controllers_equal": true
+    },
+    {
+      "tick": 50,
+      "features": null,
+      "controllers_equal": true
+    },
+    {
+      "tick": 51,
+      "features": null,
+      "controllers_equal": true
+    },
+    {
+      "tick": 52,
+      "features": null,
+      "controllers_equal": true
+    },
+    {
+      "tick": 53,
+      "features": null,
+      "controllers_equal": true
+    },
+    {
+      "tick": 54,
+      "features": null,
+      "controllers_equal": true
+    },
+    {
+      "tick": 55,
+      "features": null,
+      "controllers_equal": true
+    },
+    {
+      "tick": 56,
+      "features": null,
+      "controllers_equal": true
+    },
+    {
+      "tick": 57,
+      "features": null,
+      "controllers_equal": true
+    },
+    {
+      "tick": 58,
+      "features": null,
+      "controllers_equal": true
+    },
+    {
+      "tick": 59,
+      "features": null,
+      "controllers_equal": true
+    },
+    {
+      "tick": 60,
+      "features": null,
+      "controllers_equal": true
+    },
+    {
+      "tick": 61,
+      "features": null,
+      "controllers_equal": true
+    },
+    {
+      "tick": 62,
+      "features": null,
+      "controllers_equal": true
+    },
+    {
+      "tick": 63,
+      "features": {
+        "close": true,
+        "max_abs": 7.152557373046875e-6
+      },
+      "controllers_equal": true
+    },
+    {
+      "tick": 64,
+      "features": null,
+      "controllers_equal": true
+    },
+    {
+      "tick": 65,
+      "features": null,
+      "controllers_equal": true
+    },
+    {
+      "tick": 66,
+      "features": null,
+      "controllers_equal": true
+    },
+    {
+      "tick": 67,
+      "features": null,
+      "controllers_equal": true
+    },
+    {
+      "tick": 68,
+      "features": null,
+      "controllers_equal": true
+    },
+    {
+      "tick": 69,
+      "features": null,
+      "controllers_equal": true
+    },
+    {
+      "tick": 70,
+      "features": null,
+      "controllers_equal": true
+    },
+    {
+      "tick": 71,
+      "features": null,
+      "controllers_equal": true
+    },
+    {
+      "tick": 72,
+      "features": null,
+      "controllers_equal": true
+    },
+    {
+      "tick": 73,
+      "features": null,
+      "controllers_equal": true
+    },
+    {
+      "tick": 74,
+      "features": null,
+      "controllers_equal": true
+    },
+    {
+      "tick": 75,
+      "features": null,
+      "controllers_equal": true
+    },
+    {
+      "tick": 76,
+      "features": null,
+      "controllers_equal": true
+    },
+    {
+      "tick": 77,
+      "features": null,
+      "controllers_equal": true
+    },
+    {
+      "tick": 78,
+      "features": null,
+      "controllers_equal": true
+    },
+    {
+      "tick": 79,
+      "features": null,
+      "controllers_equal": true
+    },
+    {
+      "tick": 80,
+      "features": null,
+      "controllers_equal": true
+    },
+    {
+      "tick": 81,
+      "features": null,
+      "controllers_equal": true
+    },
+    {
+      "tick": 82,
+      "features": null,
+      "controllers_equal": true
+    },
+    {
+      "tick": 83,
+      "features": null,
+      "controllers_equal": true
+    },
+    {
+      "tick": 84,
+      "features": null,
+      "controllers_equal": true
+    },
+    {
+      "tick": 85,
+      "features": null,
+      "controllers_equal": true
+    },
+    {
+      "tick": 86,
+      "features": null,
+      "controllers_equal": true
+    },
+    {
+      "tick": 87,
+      "features": null,
+      "controllers_equal": true
+    },
+    {
+      "tick": 88,
+      "features": null,
+      "controllers_equal": true
+    },
+    {
+      "tick": 89,
+      "features": null,
+      "controllers_equal": true
+    },
+    {
+      "tick": 90,
+      "features": null,
+      "controllers_equal": true
+    },
+    {
+      "tick": 91,
+      "features": null,
+      "controllers_equal": true
+    },
+    {
+      "tick": 92,
+      "features": null,
+      "controllers_equal": true
+    },
+    {
+      "tick": 93,
+      "features": null,
+      "controllers_equal": true
+    },
+    {
+      "tick": 94,
+      "features": null,
+      "controllers_equal": true
+    },
+    {
+      "tick": 95,
+      "features": null,
+      "controllers_equal": true
+    },
+    {
+      "tick": 96,
+      "features": null,
+      "controllers_equal": true
+    },
+    {
+      "tick": 97,
+      "features": null,
+      "controllers_equal": true
+    },
+    {
+      "tick": 98,
+      "features": null,
+      "controllers_equal": true
+    },
+    {
+      "tick": 99,
+      "features": null,
+      "controllers_equal": true
+    },
+    {
+      "tick": 100,
+      "features": null,
+      "controllers_equal": true
+    },
+    {
+      "tick": 101,
+      "features": null,
+      "controllers_equal": true
+    },
+    {
+      "tick": 102,
+      "features": null,
+      "controllers_equal": true
+    },
+    {
+      "tick": 103,
+      "features": null,
+      "controllers_equal": true
+    },
+    {
+      "tick": 104,
+      "features": null,
+      "controllers_equal": true
+    },
+    {
+      "tick": 105,
+      "features": null,
+      "controllers_equal": true
+    },
+    {
+      "tick": 106,
+      "features": null,
+      "controllers_equal": true
+    },
+    {
+      "tick": 107,
+      "features": null,
+      "controllers_equal": true
+    },
+    {
+      "tick": 108,
+      "features": null,
+      "controllers_equal": true
+    },
+    {
+      "tick": 109,
+      "features": null,
+      "controllers_equal": true
+    },
+    {
+      "tick": 110,
+      "features": null,
+      "controllers_equal": true
+    },
+    {
+      "tick": 111,
+      "features": null,
+      "controllers_equal": true
+    },
+    {
+      "tick": 112,
+      "features": null,
+      "controllers_equal": true
+    },
+    {
+      "tick": 113,
+      "features": null,
+      "controllers_equal": true
+    },
+    {
+      "tick": 114,
+      "features": null,
+      "controllers_equal": true
+    },
+    {
+      "tick": 115,
+      "features": null,
+      "controllers_equal": true
+    },
+    {
+      "tick": 116,
+      "features": null,
+      "controllers_equal": true
+    },
+    {
+      "tick": 117,
+      "features": null,
+      "controllers_equal": true
+    },
+    {
+      "tick": 118,
+      "features": null,
+      "controllers_equal": true
+    },
+    {
+      "tick": 119,
+      "features": null,
+      "controllers_equal": true
+    },
+    {
+      "tick": 120,
+      "features": null,
+      "controllers_equal": true
+    },
+    {
+      "tick": 121,
+      "features": null,
+      "controllers_equal": true
+    },
+    {
+      "tick": 122,
+      "features": null,
+      "controllers_equal": true
+    },
+    {
+      "tick": 123,
+      "features": null,
+      "controllers_equal": true
+    },
+    {
+      "tick": 124,
+      "features": null,
+      "controllers_equal": true
+    },
+    {
+      "tick": 125,
+      "features": null,
+      "controllers_equal": true
+    },
+    {
+      "tick": 126,
+      "features": null,
+      "controllers_equal": true
+    },
+    {
+      "tick": 127,
+      "features": null,
+      "controllers_equal": true
+    },
+    {
+      "tick": 128,
+      "features": null,
+      "controllers_equal": true
+    },
+    {
+      "tick": 129,
+      "features": null,
+      "controllers_equal": true
+    },
+    {
+      "tick": 130,
+      "features": null,
+      "controllers_equal": true
+    },
+    {
+      "tick": 131,
+      "features": null,
+      "controllers_equal": true
+    },
+    {
+      "tick": 132,
+      "features": null,
+      "controllers_equal": true
+    },
+    {
+      "tick": 133,
+      "features": null,
+      "controllers_equal": true
+    },
+    {
+      "tick": 134,
+      "features": null,
+      "controllers_equal": true
+    },
+    {
+      "tick": 135,
+      "features": null,
+      "controllers_equal": true
+    },
+    {
+      "tick": 136,
+      "features": null,
+      "controllers_equal": true
+    },
+    {
+      "tick": 137,
+      "features": null,
+      "controllers_equal": true
+    },
+    {
+      "tick": 138,
+      "features": null,
+      "controllers_equal": true
+    },
+    {
+      "tick": 139,
+      "features": null,
+      "controllers_equal": true
+    },
+    {
+      "tick": 140,
+      "features": null,
+      "controllers_equal": true
+    },
+    {
+      "tick": 141,
+      "features": null,
+      "controllers_equal": true
+    },
+    {
+      "tick": 142,
+      "features": null,
+      "controllers_equal": true
+    },
+    {
+      "tick": 143,
+      "features": null,
+      "controllers_equal": true
+    },
+    {
+      "tick": 144,
+      "features": null,
+      "controllers_equal": true
+    },
+    {
+      "tick": 145,
+      "features": null,
+      "controllers_equal": true
+    },
+    {
+      "tick": 146,
+      "features": null,
+      "controllers_equal": true
+    },
+    {
+      "tick": 147,
+      "features": null,
+      "controllers_equal": true
+    },
+    {
+      "tick": 148,
+      "features": null,
+      "controllers_equal": true
+    },
+    {
+      "tick": 149,
+      "features": null,
+      "controllers_equal": true
+    },
+    {
+      "tick": 150,
+      "features": null,
+      "controllers_equal": true
+    },
+    {
+      "tick": 151,
+      "features": null,
+      "controllers_equal": true
+    },
+    {
+      "tick": 152,
+      "features": null,
+      "controllers_equal": true
+    },
+    {
+      "tick": 153,
+      "features": null,
+      "controllers_equal": true
+    },
+    {
+      "tick": 154,
+      "features": null,
+      "controllers_equal": true
+    },
+    {
+      "tick": 155,
+      "features": null,
+      "controllers_equal": true
+    },
+    {
+      "tick": 156,
+      "features": null,
+      "controllers_equal": true
+    },
+    {
+      "tick": 157,
+      "features": null,
+      "controllers_equal": true
+    },
+    {
+      "tick": 158,
+      "features": null,
+      "controllers_equal": true
+    },
+    {
+      "tick": 159,
+      "features": {
+        "close": true,
+        "max_abs": 8.58306884765625e-6
+      },
+      "controllers_equal": true
+    }
+  ],
+  "passed": true,
+  "controller_frames_differ": 0,
+  "sampled_feature_checks": 4,
+  "atol": 0.0001,
+  "rtol": 0.0001
+}

@@ -1079,3 +1079,34 @@ an already due replay. Version-3 snapshots preserve single and batch schedules.
 legacy snapshots and policy reload. Formatting checks pass. Existing Mamba
 trained-checkpoint numerical discrepancies and gameplay promotion remain open;
 no deployment defaults changed. Details: `docs/guides/RESYNC_PHASES.md`.
+
+## 2026-10-26 — Trained Mamba batch diagnosis and gameplay validation (AI-generated)
+
+Codex is tracing trained batch/single discrepancies with reusable Elixir scripts,
+then checking supported resync phases under native Dolphin and recording actual
+framework builds. No live GPU/training processes were present at launch. Scope:
+new diagnostic scripts, reports, and focused fixes if evidence requires them.
+No Python, shared native rebuild, policy promotion, or deployment-default change.
+
+**AI-generated poem**
+
+> A difference starts in one small sum;
+> We trace its path before results come.
+
+Completed this investigation: timing-feature and distance normalization now
+match training's f32 operation order. Two exact-equality regressions fail before
+the fixes; 152 focused tests pass afterward. Four trained CPU/CUDA/build runs
+have identical single/batch embeddings and controllers (1,280 decisions each).
+Remaining convolution-buffer failures start with batch-shape rounding in matrix
+multiplication and remain reported at the original tolerance. All SSM hidden
+state checks pass; this is not a strict full-carry parity signoff.
+
+Installed Axon 0.8/XLA 0.10 versus isolated Axon 0.9/XLA 0.11 inference comparisons
+pass on both CPU and CUDA. Reusable launch/compare tools use Elixir only.
+Native Dolphin's absolute-60-Hz timing sweep is complete: CPU aligned resync
+exceeds the inference budget 14/440 times in each round; staggered has zero.
+GPU schedules both have zero budget overruns. Two longer GPU checks (3,600 frames
+per build, trained delay zero) have zero warm-frame budget overruns. No win-rate
+or netplay promotion claim, dependency merge, shared native rebuild, or default
+change. All measurement processes exited. Results and remaining limits:
+`eval_runs/mamba_batch_parity_20261026/RESULTS.md`.

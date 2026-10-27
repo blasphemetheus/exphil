@@ -32,9 +32,8 @@ defmodule ExPhil.Embeddings.Game.Spatial do
   @spec embed_distance(GameState.t(), map() | nil, map() | nil) :: Nx.Tensor.t()
   def embed_distance(game_state, own, opponent) do
     distance = calculate_distance(game_state, own, opponent)
-    # Normalize: typical stage width ~200, max distance ~300
-    normalized = min(distance / 200.0, 1.5)
-    Nx.tensor([normalized], type: :f32)
+    # Match training's f32 cast before scaling, including its rounding.
+    Primitives.float_embed(distance, scale: 1 / 200.0, lower: 0.0, upper: 1.5)
   end
 
   @doc """

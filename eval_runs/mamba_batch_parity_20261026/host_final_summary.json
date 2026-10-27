@@ -1,0 +1,114 @@
+{
+  "file": "eval_runs/mamba_batch_parity_20261026/host_final.json",
+  "client": "host",
+  "versions": {
+    "axon": {
+      "path": "/home/blewf/git/exphil/_build/dev/lib/axon",
+      "version": "0.8.0"
+    },
+    "edifice": {
+      "path": "/home/blewf/git/exphil/_build/dev/lib/edifice",
+      "version": "0.2.0"
+    },
+    "exla": {
+      "path": "/home/blewf/git/exphil/_build/dev/lib/exla",
+      "version": "1.0.0"
+    },
+    "nx": {
+      "path": "/home/blewf/git/exphil/_build/dev/lib/nx",
+      "version": "1.0.0"
+    },
+    "xla": {
+      "path": "/home/blewf/git/exphil/_build/dev/lib/xla",
+      "version": "0.10.0"
+    }
+  },
+  "samples": 1280,
+  "controller_differences": 0,
+  "embedding_differences": 0,
+  "carry": {
+    "conv": {
+      "max_abs": 0.00107574462890625,
+      "failures": 252
+    },
+    "h": {
+      "max_abs": 3.179837949573994e-5,
+      "failures": 0
+    }
+  },
+  "isolated_output_max": 2.86102294921875e-5,
+  "isolated_stages": {
+    "input_projection": {
+      "max_abs": 3.814697265625e-6,
+      "failures": 0
+    },
+    "input_projection_f64": {
+      "max_abs": 7.105427357601002e-15,
+      "failures": 0
+    },
+    "mamba_block_1/conv": {
+      "max_abs": 8.58306884765625e-6,
+      "failures": 0
+    },
+    "mamba_block_1/gate": {
+      "max_abs": 4.9948692321777344e-5,
+      "failures": 0
+    },
+    "mamba_block_1/in_proj": {
+      "max_abs": 4.57763671875e-5,
+      "failures": 0
+    },
+    "mamba_block_1/norm": {
+      "max_abs": 2.86102294921875e-6,
+      "failures": 0
+    },
+    "mamba_block_1/residual": {
+      "max_abs": 1.811981201171875e-5,
+      "failures": 0
+    },
+    "mamba_block_1/silu": {
+      "max_abs": 3.4533441066741943e-6,
+      "failures": 0
+    },
+    "mamba_block_1/ssm_h": {
+      "max_abs": 2.384185791015625e-6,
+      "failures": 0
+    },
+    "mamba_block_1/ssm_y": {
+      "max_abs": 2.288818359375e-5,
+      "failures": 0
+    },
+    "mamba_block_2/conv": {
+      "max_abs": 3.381073474884033e-5,
+      "failures": 0
+    },
+    "mamba_block_2/gate": {
+      "max_abs": 5.7220458984375e-5,
+      "failures": 0
+    },
+    "mamba_block_2/in_proj": {
+      "max_abs": 1.8835067749023438e-4,
+      "failures": 0
+    },
+    "mamba_block_2/norm": {
+      "max_abs": 1.3589859008789062e-5,
+      "failures": 0
+    },
+    "mamba_block_2/residual": {
+      "max_abs": 2.86102294921875e-5,
+      "failures": 0
+    },
+    "mamba_block_2/silu": {
+      "max_abs": 1.7642974853515625e-5,
+      "failures": 0
+    },
+    "mamba_block_2/ssm_h": {
+      "max_abs": 2.3618340492248535e-6,
+      "failures": 0
+    },
+    "mamba_block_2/ssm_y": {
+      "max_abs": 6.370246410369873e-6,
+      "failures": 0
+    }
+  }
+}

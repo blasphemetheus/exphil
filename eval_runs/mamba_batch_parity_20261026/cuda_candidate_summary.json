@@ -1,0 +1,114 @@
+{
+  "file": "eval_runs/mamba_batch_parity_20261026/cuda_candidate.json",
+  "client": "cuda",
+  "versions": {
+    "axon": {
+      "path": "/home/blewf/git/exphil-nx-upgrade/scripts/framework_stack/_build/dev/lib/axon",
+      "version": "0.9.0"
+    },
+    "edifice": {
+      "path": "/home/blewf/git/exphil/_build/dev/lib/edifice",
+      "version": "0.2.0"
+    },
+    "exla": {
+      "path": "/home/blewf/git/exphil-nx-upgrade/scripts/framework_stack/_build/dev/lib/exla",
+      "version": "1.0.0"
+    },
+    "nx": {
+      "path": "/home/blewf/git/exphil-nx-upgrade/scripts/framework_stack/_build/dev/lib/nx",
+      "version": "1.0.0"
+    },
+    "xla": {
+      "path": "/home/blewf/git/exphil-nx-upgrade/scripts/framework_stack/_build/dev/lib/xla",
+      "version": "0.11.0"
+    }
+  },
+  "samples": 1280,
+  "controller_differences": 0,
+  "embedding_differences": 0,
+  "carry": {
+    "conv": {
+      "max_abs": 0.0010013580322265625,
+      "failures": 194
+    },
+    "h": {
+      "max_abs": 4.604458808898926e-5,
+      "failures": 0
+    }
+  },
+  "isolated_output_max": 3.528594970703125e-5,
+  "isolated_stages": {
+    "input_projection": {
+      "max_abs": 3.814697265625e-6,
+      "failures": 0
+    },
+    "input_projection_f64": {
+      "max_abs": 3.552713678800501e-15,
+      "failures": 0
+    },
+    "mamba_block_1/conv": {
+      "max_abs": 7.152557373046875e-6,
+      "failures": 0
+    },
+    "mamba_block_1/gate": {
+      "max_abs": 3.4928321838378906e-5,
+      "failures": 0
+    },
+    "mamba_block_1/in_proj": {
+      "max_abs": 3.4332275390625e-5,
+      "failures": 0
+    },
+    "mamba_block_1/norm": {
+      "max_abs": 2.86102294921875e-6,
+      "failures": 0
+    },
+    "mamba_block_1/residual": {
+      "max_abs": 4.863739013671875e-5,
+      "failures": 0
+    },
+    "mamba_block_1/silu": {
+      "max_abs": 3.0994415283203125e-6,
+      "failures": 0
+    },
+    "mamba_block_1/ssm_h": {
+      "max_abs": 3.0994415283203125e-6,
+      "failures": 0
+    },
+    "mamba_block_1/ssm_y": {
+      "max_abs": 4.1961669921875e-5,
+      "failures": 0
+    },
+    "mamba_block_2/conv": {
+      "max_abs": 4.2438507080078125e-5,
+      "failures": 0
+    },
+    "mamba_block_2/gate": {
+      "max_abs": 3.2901763916015625e-5,
+      "failures": 0
+    },
+    "mamba_block_2/in_proj": {
+      "max_abs": 2.3746490478515625e-4,
+      "failures": 0
+    },
+    "mamba_block_2/norm": {
+      "max_abs": 2.1159648895263672e-5,
+      "failures": 0
+    },
+    "mamba_block_2/residual": {
+      "max_abs": 3.4332275390625e-5,
+      "failures": 0
+    },
+    "mamba_block_2/silu": {
+      "max_abs": 3.0100345611572266e-5,
+      "failures": 0
+    },
+    "mamba_block_2/ssm_h": {
+      "max_abs": 5.364418029785156e-6,
+      "failures": 0
+    },
+    "mamba_block_2/ssm_y": {
+      "max_abs": 9.5367431640625e-6,
+      "failures": 0
+    }
+  }
+}
