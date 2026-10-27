@@ -1135,3 +1135,32 @@ failed. Longer trajectories and staggered resets are needed before promoting
 the experiment. Reusable capture/reference and timing scripts plus full limits
 are in `docs/guides/MAMBA_CARRY_RESOLUTION.md`. All experimental replacements
 are private to the diagnostic VM; no shared native rebuild was performed.
+
+## 2026-10-27 — Extended Mamba accuracy gate (AI-generated)
+
+Codex is extending `resolve_mamba_carry.exs` to per-row reset masks, selectable
+checkpoints/replay offsets, and full Agent timing capture. No Agent source edits.
+Eight rows over 512 staggered frames already reject unconditional promotion of
+chunk8: the fullscale checkpoint has reference carry failures beyond the old
+160-frame sample; the Mewtwo full checkpoint has output-feature failures even
+when carry passes. Checking dense-f64 and additional weights before deciding
+whether any production accuracy mode is justified. No tolerance widening.
+
+**AI-generated poem**
+
+> A longer path can change the view;
+> We keep the failures in it too.
+
+Completed: 512-frame staggered checks across three trained checkpoints reject
+the general accuracy mode. Fullscale CUDA has 15 batch / 12 single convolution
+reference failures. Mewtwo checkpoint output failures on Fox inputs are a
+cross-character stress result: the full Mewtwo checkpoint passes on the matching
+Mewtwo replay, with worst error/bound below 0.07. Dense-f64 and dense+norm-f64
+do not fix the cross-character output failures. Complete idle CUDA Agent resync
+medians are 4.972 ms baseline and 6.287 ms chunk8. No production API or speed
+change was promoted. Two checker tests pass; the strict CLI gate was verified
+to exit 1 on the screen checkpoint's reference failure. Findings and commands
+are in `docs/guides/MAMBA_CARRY_RESOLUTION.md`; raw results and generated summary
+are in `eval_runs/mamba_accuracy_extended/`. Edifice changes clarify numerical
+guarantees and record the failed promotion gate. All measurement processes
+have exited; no native rebuild or Agent source edit was needed.

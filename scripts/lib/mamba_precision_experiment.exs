@@ -2,9 +2,26 @@ defmodule MambaPrecisionExperiment do
   @moduledoc "Diagnostic-only primitive replacement inside this VM; source files are never modified."
   def install("baseline"), do: :ok
 
-  def install(mode) when mode in ["dense", "norm", "input", "row_dot", "chunk32", "chunk8"] do
+  def install(mode)
+      when mode in ["dense", "norm", "input", "row_dot", "chunk32", "chunk8", "dense_norm"] do
     path = Path.expand("../edifice/lib/edifice/stateful/ops.ex")
     source = File.read!(path)
+
+    source =
+      if mode == "dense_norm" do
+        source
+        |> String.replace("def layer_norm(x,", "def original_layer_norm(x,")
+        |> String.replace("defmodule Edifice.Stateful.Ops do", """
+        defmodule Edifice.Stateful.Ops do
+          def layer_norm(x, params, epsilon \\\\ 1.0e-5) do
+            type = Nx.type(x)
+            p = Nx.Defn.Composite.traverse(params, &Nx.as_type(&1, :f64))
+            original_layer_norm(Nx.as_type(x, :f64), p, epsilon) |> Nx.as_type(type)
+          end
+        """)
+      else
+        source
+      end
 
     wrapper =
       if mode == "norm" do
