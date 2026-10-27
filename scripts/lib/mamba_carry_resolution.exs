@@ -203,6 +203,10 @@ defmodule MambaCarryResolution do
     File.mkdir_p!(out)
     capture_mode = opts[:capture_mode] || "baseline"
 
+    if Keyword.get(opts, :carry_f64, false) and
+         "ssm" not in String.split(opts[:mode] || "baseline", "+"),
+       do: raise(ArgumentError, "carry-f64 requires +ssm to preserve f32 frame interfaces")
+
     if capture_mode != "baseline" and capture_mode != (opts[:mode] || "baseline"),
       do: raise("capture-mode must match mode when replacing Agent primitives")
 
@@ -219,6 +223,11 @@ defmodule MambaCarryResolution do
         else: data
 
     n = Nx.axis_size(data.frames, 0)
+
+    data =
+      if opts[:carry_f64],
+        do: %{data | initial: %{data.initial | h: Nx.as_type(data.initial.h, :f64)}},
+        else: data
 
     data =
       if Nx.rank(data.resets) == 1,
@@ -297,13 +306,15 @@ defmodule MambaCarryResolution do
       ticks: ticks,
       batch_size: n,
       mode: mode,
+      carry_h_type: inspect(Nx.type(data.initial.h)),
       atol: 1.0e-4,
       rtol: 1.0e-4,
       reference_checks_passed: passed,
       # Staggered Agent replay gathers due rows; the independent reference
       # replays the full batch then selects rows. These can round differently.
       agent_comparison_is_baseline_reproduction:
-        mode == "baseline" and not (opts[:stagger] || false) and is_nil(opts[:capture]),
+        mode == "baseline" and not (opts[:stagger] || false) and not (opts[:carry_f64] || false) and
+          is_nil(opts[:capture]),
       reset_frames:
         data.resets
         |> Nx.to_list()

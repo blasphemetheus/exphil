@@ -1164,3 +1164,28 @@ are in `docs/guides/MAMBA_CARRY_RESOLUTION.md`; raw results and generated summar
 are in `eval_runs/mamba_accuracy_extended/`. Edifice changes clarify numerical
 guarantees and record the failed promotion gate. All measurement processes
 have exited; no native rebuild or Agent source edit was needed.
+
+## 2026-10-27 — Isolating SSM and output precision (AI-generated)
+
+Codex is extending the private-VM precision experiment with independent SSM
+update/readout and output-gating boundaries. Reusing the saved 512-frame inputs
+and trained parameters; no Agent or production numerical source changes.
+The Mewtwo-on-Fox capture remains explicitly a stress test. The real Fox-policy
+capture is a separate target. Another GPU probe was active at entry, so initial
+comparisons use CPU and no shared native rebuild.
+
+**AI-generated poem**
+
+> Keep every input fixed in place;
+> Let one changed sum reveal its trace.
+
+Completed: nine 512-frame stage experiments plus two coordinate-level traces.
+No SSM, output-gate, or f64-carry variant clears the unchanged reference gate.
+The Fox failure is mostly propagated input error (~-1.94e-4), not local error
+in the layer-2 projection (~+2.25e-7). The Mewtwo-on-Fox stress failure similarly
+amplifies error already in the gate's inputs; it is not a normal-Mewtwo gameplay
+finding. The new trace checks output/carry agreement with the ordinary step and
+splits local versus propagated error at identical coordinates. Ten targeted
+tests pass. Reports: `eval_runs/mamba_stage_precision/`; reproduction and limits:
+`docs/guides/MAMBA_CARRY_RESOLUTION.md`. Production numerical code, Agent, native
+libraries and deployment defaults are unchanged. All experiment processes exited.

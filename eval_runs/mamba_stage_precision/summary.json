@@ -1,0 +1,707 @@
+{
+  "reports": [
+    {
+      "file": "fox_carry_cuda/report.json",
+      "mode": "chunk8+ssm",
+      "comparisons": {
+        "batch32_vs_reference": {
+          "conv": {
+            "failed_values": 9,
+            "max_abs": 2.0667381746797275e-4,
+            "max_error_over_bound": 1.0525128082994653
+          },
+          "h": {
+            "failed_values": 0,
+            "max_abs": 1.108652100567653e-6,
+            "max_error_over_bound": 0.005542344073769269
+          },
+          "output": {
+            "failed_values": 0,
+            "max_abs": 6.715271153590052e-5,
+            "max_error_over_bound": 0.5317826342004566
+          }
+        },
+        "f32_batch_vs_single": {
+          "conv": {
+            "failed_values": 0,
+            "max_abs": 1.9359588623046875e-4,
+            "max_error_over_bound": 0.6785896050787075
+          },
+          "h": {
+            "failed_values": 0,
+            "max_abs": 1.7068959696775465e-6,
+            "max_error_over_bound": 0.011220562724376592
+          },
+          "output": {
+            "failed_values": 0,
+            "max_abs": 5.7220458984375e-5,
+            "max_error_over_bound": 0.4299158135609237
+          }
+        },
+        "f64_batch_vs_single": {
+          "conv": {
+            "failed_values": 0,
+            "max_abs": 1.4317436125566019e-12,
+            "max_error_over_bound": 1.0033877784347602e-8
+          },
+          "h": {
+            "failed_values": 0,
+            "max_abs": 8.881784197001252e-15,
+            "max_error_over_bound": 6.48962649222279e-11
+          },
+          "output": {
+            "failed_values": 0,
+            "max_abs": 4.5341508325691393e-13,
+            "max_error_over_bound": 3.392737639760921e-9
+          }
+        },
+        "single32_vs_reference": {
+          "conv": {
+            "failed_values": 15,
+            "max_abs": 2.0173372765341924e-4,
+            "max_error_over_bound": 1.2121870226260385
+          },
+          "h": {
+            "failed_values": 0,
+            "max_abs": 1.2339747107459331e-6,
+            "max_error_over_bound": 0.008428376159693059
+          },
+          "output": {
+            "failed_values": 0,
+            "max_abs": 7.204014686701399e-5,
+            "max_error_over_bound": 0.49090392216767437
+          }
+        }
+      },
+      "passed": false,
+      "client": "cuda",
+      "carry_h_type": "{:f, 64}",
+      "ticks": 512
+    },
+    {
+      "file": "fox_output_cuda/report.json",
+      "mode": "chunk8+output",
+      "comparisons": {
+        "batch32_vs_reference": {
+          "conv": {
+            "failed_values": 12,
+            "max_abs": 2.0953484042429693e-4,
+            "max_error_over_bound": 1.0830162200574454
+          },
+          "h": {
+            "failed_values": 0,
+            "max_abs": 8.050294287187398e-6,
+            "max_error_over_bound": 0.046967193346752756
+          },
+          "output": {
+            "failed_values": 0,
+            "max_abs": 6.813421741735937e-5,
+            "max_error_over_bound": 0.5419220548844118
+          }
+        },
+        "f32_batch_vs_single": {
+          "conv": {
+            "failed_values": 0,
+            "max_abs": 2.0313262939453125e-4,
+            "max_error_over_bound": 0.6816772246723586
+          },
+          "h": {
+            "failed_values": 0,
+            "max_abs": 1.9073486328125e-6,
+            "max_error_over_bound": 0.012592849225096635
+          },
+          "output": {
+            "failed_values": 0,
+            "max_abs": 5.650520324707031e-5,
+            "max_error_over_bound": 0.446138780390416
+          }
+        },
+        "f64_batch_vs_single": {
+          "conv": {
+            "failed_values": 0,
+            "max_abs": 1.4210854715202004e-12,
+            "max_error_over_bound": 1.053632937624781e-8
+          },
+          "h": {
+            "failed_values": 0,
+            "max_abs": 8.881784197001252e-15,
+            "max_error_over_bound": 6.750254062191577e-11
+          },
+          "output": {
+            "failed_values": 0,
+            "max_abs": 4.627409566637652e-13,
+            "max_error_over_bound": 3.3927376397609223e-9
+          }
+        },
+        "single32_vs_reference": {
+          "conv": {
+            "failed_values": 12,
+            "max_abs": 2.112704708103763e-4,
+            "max_error_over_bound": 1.239320534362541
+          },
+          "h": {
+            "failed_values": 0,
+            "max_abs": 9.411591527452856e-6,
+            "max_error_over_bound": 0.042676350208718856
+          },
+          "output": {
+            "failed_values": 0,
+            "max_abs": 7.180172828613607e-5,
+            "max_error_over_bound": 0.5100077191258167
+          }
+        }
+      },
+      "passed": false,
+      "client": "cuda",
+      "carry_h_type": "{:f, 32}",
+      "ticks": 512
+    },
+    {
+      "file": "fox_ssm_cuda/report.json",
+      "mode": "chunk8+ssm",
+      "comparisons": {
+        "batch32_vs_reference": {
+          "conv": {
+            "failed_values": 9,
+            "max_abs": 2.0381279451697765e-4,
+            "max_error_over_bound": 1.061616968313986
+          },
+          "h": {
+            "failed_values": 0,
+            "max_abs": 1.4864488768751016e-6,
+            "max_error_over_bound": 0.00603108931582474
+          },
+          "output": {
+            "failed_values": 0,
+            "max_abs": 6.715271155410818e-5,
+            "max_error_over_bound": 0.5297547500780182
+          }
+        },
+        "f32_batch_vs_single": {
+          "conv": {
+            "failed_values": 0,
+            "max_abs": 1.79290771484375e-4,
+            "max_error_over_bound": 0.6805274119464391
+          },
+          "h": {
+            "failed_values": 0,
+            "max_abs": 1.430511474609375e-6,
+            "max_error_over_bound": 0.008395024126359597
+          },
+          "output": {
+            "failed_values": 0,
+            "max_abs": 6.008148193359375e-5,
+            "max_error_over_bound": 0.41823028456136474
+          }
+        },
+        "f64_batch_vs_single": {
+          "conv": {
+            "failed_values": 0,
+            "max_abs": 1.4193091146808001e-12,
+            "max_error_over_bound": 1.0604049053572716e-8
+          },
+          "h": {
+            "failed_values": 0,
+            "max_abs": 1.0658141036401503e-14,
+            "max_error_over_bound": 5.864120324297697e-11
+          },
+          "output": {
+            "failed_values": 0,
+            "max_abs": 4.645173135031655e-13,
+            "max_error_over_bound": 3.384688440141084e-9
+          }
+        },
+        "single32_vs_reference": {
+          "conv": {
+            "failed_values": 6,
+            "max_abs": 1.986183723303725e-4,
+            "max_error_over_bound": 1.0233036286364205
+          },
+          "h": {
+            "failed_values": 0,
+            "max_abs": 1.6305033296859506e-6,
+            "max_error_over_bound": 0.00978360015404536
+          },
+          "output": {
+            "failed_values": 0,
+            "max_abs": 7.33515946107488e-5,
+            "max_error_over_bound": 0.5298515575371703
+          }
+        }
+      },
+      "passed": false,
+      "client": "cuda",
+      "carry_h_type": "{:f, 32}",
+      "ticks": 512
+    },
+    {
+      "file": "mewtwo_carry/report.json",
+      "mode": "dense_norm+ssm",
+      "comparisons": {
+        "batch32_vs_reference": {
+          "conv": {
+            "failed_values": 0,
+            "max_abs": 7.522358711486987e-5,
+            "max_error_over_bound": 0.5528233081421721
+          },
+          "h": {
+            "failed_values": 0,
+            "max_abs": 2.135854750839883e-6,
+            "max_error_over_bound": 0.005339177792027323
+          },
+          "output": {
+            "failed_values": 188,
+            "max_abs": 0.015067431726947689,
+            "max_error_over_bound": 19.077905700769648
+          }
+        },
+        "f32_batch_vs_single": {
+          "conv": {
+            "failed_values": 0,
+            "max_abs": 1.4210854715202004e-14,
+            "max_error_over_bound": 1.421085146152638e-10
+          },
+          "h": {
+            "failed_values": 0,
+            "max_abs": 0.0,
+            "max_error_over_bound": 0.0
+          },
+          "output": {
+            "failed_values": 0,
+            "max_abs": 0.0,
+            "max_error_over_bound": 0.0
+          }
+        },
+        "f64_batch_vs_single": {
+          "conv": {
+            "failed_values": 0,
+            "max_abs": 5.497824417943775e-13,
+            "max_error_over_bound": 3.217113093579984e-9
+          },
+          "h": {
+            "failed_values": 0,
+            "max_abs": 2.4868995751603507e-14,
+            "max_error_over_bound": 6.675096038369332e-11
+          },
+          "output": {
+            "failed_values": 0,
+            "max_abs": 1.1618794815149158e-10,
+            "max_error_over_bound": 1.0472482296097186e-7
+          }
+        },
+        "single32_vs_reference": {
+          "conv": {
+            "failed_values": 0,
+            "max_abs": 7.522358711486987e-5,
+            "max_error_over_bound": 0.5528233081421721
+          },
+          "h": {
+            "failed_values": 0,
+            "max_abs": 2.135854750839883e-6,
+            "max_error_over_bound": 0.005339177792027323
+          },
+          "output": {
+            "failed_values": 188,
+            "max_abs": 0.015067431726947689,
+            "max_error_over_bound": 19.077905700769648
+          }
+        }
+      },
+      "passed": false,
+      "client": "host",
+      "carry_h_type": "{:f, 64}",
+      "ticks": 512
+    },
+    {
+      "file": "mewtwo_gate/report.json",
+      "mode": "dense_norm+gate",
+      "comparisons": {
+        "batch32_vs_reference": {
+          "conv": {
+            "failed_values": 0,
+            "max_abs": 7.819280778575965e-5,
+            "max_error_over_bound": 0.5350570517842694
+          },
+          "h": {
+            "failed_values": 0,
+            "max_abs": 2.911754121370791e-6,
+            "max_error_over_bound": 0.008478195232268651
+          },
+          "output": {
+            "failed_values": 232,
+            "max_abs": 0.017561268638928595,
+            "max_error_over_bound": 16.615587348537403
+          }
+        },
+        "f32_batch_vs_single": {
+          "conv": {
+            "failed_values": 0,
+            "max_abs": 0.0,
+            "max_error_over_bound": 0.0
+          },
+          "h": {
+            "failed_values": 0,
+            "max_abs": 0.0,
+            "max_error_over_bound": 0.0
+          },
+          "output": {
+            "failed_values": 0,
+            "max_abs": 0.0,
+            "max_error_over_bound": 0.0
+          }
+        },
+        "f64_batch_vs_single": {
+          "conv": {
+            "failed_values": 0,
+            "max_abs": 5.497824417943775e-13,
+            "max_error_over_bound": 3.217113093579984e-9
+          },
+          "h": {
+            "failed_values": 0,
+            "max_abs": 2.4868995751603507e-14,
+            "max_error_over_bound": 6.675096038369332e-11
+          },
+          "output": {
+            "failed_values": 0,
+            "max_abs": 1.1618794815149158e-10,
+            "max_error_over_bound": 1.0472482296097186e-7
+          }
+        },
+        "single32_vs_reference": {
+          "conv": {
+            "failed_values": 0,
+            "max_abs": 7.819280778575965e-5,
+            "max_error_over_bound": 0.5350570517842694
+          },
+          "h": {
+            "failed_values": 0,
+            "max_abs": 2.911754121370791e-6,
+            "max_error_over_bound": 0.008478195232268651
+          },
+          "output": {
+            "failed_values": 232,
+            "max_abs": 0.017561268638928595,
+            "max_error_over_bound": 16.615587348537403
+          }
+        }
+      },
+      "passed": false,
+      "client": "host",
+      "carry_h_type": "{:f, 32}",
+      "ticks": 512
+    },
+    {
+      "file": "mewtwo_output/report.json",
+      "mode": "dense_norm+output",
+      "comparisons": {
+        "batch32_vs_reference": {
+          "conv": {
+            "failed_values": 0,
+            "max_abs": 7.795438920665809e-5,
+            "max_error_over_bound": 0.5357054553009811
+          },
+          "h": {
+            "failed_values": 0,
+            "max_abs": 3.388591279573916e-6,
+            "max_error_over_bound": 0.009065785308070395
+          },
+          "output": {
+            "failed_values": 233,
+            "max_abs": 0.017561268638928595,
+            "max_error_over_bound": 16.945752814184054
+          }
+        },
+        "f32_batch_vs_single": {
+          "conv": {
+            "failed_values": 0,
+            "max_abs": 0.0,
+            "max_error_over_bound": 0.0
+          },
+          "h": {
+            "failed_values": 0,
+            "max_abs": 0.0,
+            "max_error_over_bound": 0.0
+          },
+          "output": {
+            "failed_values": 0,
+            "max_abs": 0.0,
+            "max_error_over_bound": 0.0
+          }
+        },
+        "f64_batch_vs_single": {
+          "conv": {
+            "failed_values": 0,
+            "max_abs": 5.497824417943775e-13,
+            "max_error_over_bound": 3.217113093579984e-9
+          },
+          "h": {
+            "failed_values": 0,
+            "max_abs": 2.4868995751603507e-14,
+            "max_error_over_bound": 6.675096038369332e-11
+          },
+          "output": {
+            "failed_values": 0,
+            "max_abs": 1.1618794815149158e-10,
+            "max_error_over_bound": 1.0472482296097186e-7
+          }
+        },
+        "single32_vs_reference": {
+          "conv": {
+            "failed_values": 0,
+            "max_abs": 7.795438920665809e-5,
+            "max_error_over_bound": 0.5357054553009811
+          },
+          "h": {
+            "failed_values": 0,
+            "max_abs": 3.388591279573916e-6,
+            "max_error_over_bound": 0.009065785308070395
+          },
+          "output": {
+            "failed_values": 233,
+            "max_abs": 0.017561268638928595,
+            "max_error_over_bound": 16.945752814184054
+          }
+        }
+      },
+      "passed": false,
+      "client": "host",
+      "carry_h_type": "{:f, 32}",
+      "ticks": 512
+    },
+    {
+      "file": "mewtwo_readout/report.json",
+      "mode": "dense_norm+readout",
+      "comparisons": {
+        "batch32_vs_reference": {
+          "conv": {
+            "failed_values": 0,
+            "max_abs": 8.746576679730111e-5,
+            "max_error_over_bound": 0.4586751175156221
+          },
+          "h": {
+            "failed_values": 0,
+            "max_abs": 3.6853188518648494e-6,
+            "max_error_over_bound": 0.007152772859290547
+          },
+          "output": {
+            "failed_values": 219,
+            "max_abs": 0.01696528504339767,
+            "max_error_over_bound": 17.458901549948123
+          }
+        },
+        "f32_batch_vs_single": {
+          "conv": {
+            "failed_values": 0,
+            "max_abs": 0.0,
+            "max_error_over_bound": 0.0
+          },
+          "h": {
+            "failed_values": 0,
+            "max_abs": 0.0,
+            "max_error_over_bound": 0.0
+          },
+          "output": {
+            "failed_values": 0,
+            "max_abs": 0.0,
+            "max_error_over_bound": 0.0
+          }
+        },
+        "f64_batch_vs_single": {
+          "conv": {
+            "failed_values": 0,
+            "max_abs": 5.497824417943775e-13,
+            "max_error_over_bound": 3.217113093579984e-9
+          },
+          "h": {
+            "failed_values": 0,
+            "max_abs": 2.4868995751603507e-14,
+            "max_error_over_bound": 6.675096038369332e-11
+          },
+          "output": {
+            "failed_values": 0,
+            "max_abs": 1.1618794815149158e-10,
+            "max_error_over_bound": 1.0472482296097186e-7
+          }
+        },
+        "single32_vs_reference": {
+          "conv": {
+            "failed_values": 0,
+            "max_abs": 8.746576679730111e-5,
+            "max_error_over_bound": 0.4586751175156221
+          },
+          "h": {
+            "failed_values": 0,
+            "max_abs": 3.6853188518648494e-6,
+            "max_error_over_bound": 0.007152772859290547
+          },
+          "output": {
+            "failed_values": 219,
+            "max_abs": 0.01696528504339767,
+            "max_error_over_bound": 17.458901549948123
+          }
+        }
+      },
+      "passed": false,
+      "client": "host",
+      "carry_h_type": "{:f, 32}",
+      "ticks": 512
+    },
+    {
+      "file": "mewtwo_ssm/report.json",
+      "mode": "dense_norm+ssm",
+      "comparisons": {
+        "batch32_vs_reference": {
+          "conv": {
+            "failed_values": 0,
+            "max_abs": 7.522358711486987e-5,
+            "max_error_over_bound": 0.5572324520558122
+          },
+          "h": {
+            "failed_values": 0,
+            "max_abs": 2.1853228382440193e-6,
+            "max_error_over_bound": 0.00619724283126833
+          },
+          "output": {
+            "failed_values": 193,
+            "max_abs": 0.015067431726947689,
+            "max_error_over_bound": 19.193264718887153
+          }
+        },
+        "f32_batch_vs_single": {
+          "conv": {
+            "failed_values": 0,
+            "max_abs": 0.0,
+            "max_error_over_bound": 0.0
+          },
+          "h": {
+            "failed_values": 0,
+            "max_abs": 0.0,
+            "max_error_over_bound": 0.0
+          },
+          "output": {
+            "failed_values": 0,
+            "max_abs": 0.0,
+            "max_error_over_bound": 0.0
+          }
+        },
+        "f64_batch_vs_single": {
+          "conv": {
+            "failed_values": 0,
+            "max_abs": 5.497824417943775e-13,
+            "max_error_over_bound": 3.217113093579984e-9
+          },
+          "h": {
+            "failed_values": 0,
+            "max_abs": 2.4868995751603507e-14,
+            "max_error_over_bound": 6.675096038369332e-11
+          },
+          "output": {
+            "failed_values": 0,
+            "max_abs": 1.1618794815149158e-10,
+            "max_error_over_bound": 1.0472482296097186e-7
+          }
+        },
+        "single32_vs_reference": {
+          "conv": {
+            "failed_values": 0,
+            "max_abs": 7.522358711486987e-5,
+            "max_error_over_bound": 0.5572324520558122
+          },
+          "h": {
+            "failed_values": 0,
+            "max_abs": 2.1853228382440193e-6,
+            "max_error_over_bound": 0.00619724283126833
+          },
+          "output": {
+            "failed_values": 193,
+            "max_abs": 0.015067431726947689,
+            "max_error_over_bound": 19.193264718887153
+          }
+        }
+      },
+      "passed": false,
+      "client": "host",
+      "carry_h_type": "{:f, 32}",
+      "ticks": 512
+    },
+    {
+      "file": "mewtwo_update/report.json",
+      "mode": "dense_norm+update",
+      "comparisons": {
+        "batch32_vs_reference": {
+          "conv": {
+            "failed_values": 0,
+            "max_abs": 7.683150588100318e-5,
+            "max_error_over_bound": 0.5691630767633089
+          },
+          "h": {
+            "failed_values": 0,
+            "max_abs": 3.1389971546502693e-6,
+            "max_error_over_bound": 0.009844106334133528
+          },
+          "output": {
+            "failed_values": 197,
+            "max_abs": 0.014753651451428595,
+            "max_error_over_bound": 19.758126117945277
+          }
+        },
+        "f32_batch_vs_single": {
+          "conv": {
+            "failed_values": 0,
+            "max_abs": 2.47955322265625e-5,
+            "max_error_over_bound": 0.17176472772146095
+          },
+          "h": {
+            "failed_values": 0,
+            "max_abs": 2.384185791015625e-6,
+            "max_error_over_bound": 0.006672064856420266
+          },
+          "output": {
+            "failed_values": 60,
+            "max_abs": 0.005615234375,
+            "max_error_over_bound": 5.887836034108082
+          }
+        },
+        "f64_batch_vs_single": {
+          "conv": {
+            "failed_values": 0,
+            "max_abs": 5.497824417943775e-13,
+            "max_error_over_bound": 3.217113093579984e-9
+          },
+          "h": {
+            "failed_values": 0,
+            "max_abs": 2.4868995751603507e-14,
+            "max_error_over_bound": 6.675096038369332e-11
+          },
+          "output": {
+            "failed_values": 0,
+            "max_abs": 1.1618794815149158e-10,
+            "max_error_over_bound": 1.0472482296097186e-7
+          }
+        },
+        "single32_vs_reference": {
+          "conv": {
+            "failed_values": 0,
+            "max_abs": 9.143464385097388e-5,
+            "max_error_over_bound": 0.656438190112714
+          },
+          "h": {
+            "failed_values": 0,
+            "max_abs": 1.9196887421912834e-6,
+            "max_error_over_bound": 0.007605243934804495
+          },
+          "output": {
+            "failed_values": 196,
+            "max_abs": 0.01677641610194769,
+            "max_error_over_bound": 19.5353638760632
+          }
+        }
+      },
+      "passed": false,
+      "client": "host",
+      "carry_h_type": "{:f, 32}",
+      "ticks": 512
+    }
+  ],
+  "agent_timings": []
+}

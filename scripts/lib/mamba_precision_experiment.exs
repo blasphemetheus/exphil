@@ -1,9 +1,20 @@
 defmodule MambaPrecisionExperiment do
   @moduledoc "Diagnostic-only primitive replacement inside this VM; source files are never modified."
-  def install("baseline"), do: :ok
+  def install(mode) when is_binary(mode) do
+    case String.split(mode, "+") do
+      [base] ->
+        install_base(base)
 
-  def install(mode)
-      when mode in ["dense", "norm", "input", "row_dot", "chunk32", "chunk8", "dense_norm"] do
+      [base | stages] ->
+        install_base(base)
+        install_stages(stages)
+    end
+  end
+
+  defp install_base("baseline"), do: :ok
+
+  defp install_base(mode)
+       when mode in ["dense", "norm", "input", "row_dot", "chunk32", "chunk8", "dense_norm"] do
     path = Path.expand("../edifice/lib/edifice/stateful/ops.ex")
     source = File.read!(path)
 
@@ -97,5 +108,82 @@ defmodule MambaPrecisionExperiment do
       )
 
     Code.compile_string(source, path <> ".experiment")
+  end
+
+  defp install_stages(stages) do
+    unless Enum.all?(stages, &(&1 in ["ssm", "update", "readout", "gate", "output"])) and
+             length(Enum.uniq(stages)) == length(stages) and
+             Enum.count(stages, &(&1 in ["ssm", "update", "readout"])) <= 1 and
+             Enum.count(stages, &(&1 in ["gate", "output"])) <= 1,
+           do: raise(ArgumentError, "Choose one SSM stage and/or one output stage")
+
+    path = Path.expand("../edifice/lib/edifice/ssm/common.ex")
+    source = File.read!(path)
+    source = Enum.reduce(stages, source, &replace_stage/2)
+    Code.compile_string(source, path <> ".experiment")
+  end
+
+  defp replace_stage(stage, source) when stage in ["ssm", "update"] do
+    body =
+      if stage == "ssm" do
+        "{Nx.as_type(y, Nx.type(x)), Nx.as_type(next_h, Nx.type(h))}"
+      else
+        """
+        next_h = Nx.as_type(next_h, Nx.type(h))
+        y = Nx.sum(Nx.multiply(Nx.new_axis(c, 1), next_h), axes: [2])
+        {y, next_h}
+        """
+      end
+
+    source
+    |> replace_once!(
+      "def step_discretized_ssm(x, b, c, dt, h) do",
+      "def original_step_discretized_ssm(x, b, c, dt, h) do"
+    )
+    |> replace_once!("defmodule Edifice.SSM.Common do", """
+    defmodule Edifice.SSM.Common do
+      def step_discretized_ssm(x, b, c, dt, h) do
+        {#{if stage == "update", do: "_y", else: "y"}, next_h} = original_step_discretized_ssm(
+          Nx.as_type(x, :f64), Nx.as_type(b, :f64), Nx.as_type(c, :f64),
+          Nx.as_type(dt, :f64), Nx.as_type(h, :f64))
+        #{body}
+      end
+    """)
+  end
+
+  defp replace_stage("readout", source) do
+    replace_once!(
+      source,
+      "y = Nx.sum(Nx.multiply(Nx.new_axis(c, 1), new_h), axes: [2])",
+      "y = Nx.sum(Nx.multiply(Nx.new_axis(Nx.as_type(c, :f64), 1), Nx.as_type(new_h, :f64)), axes: [2]) |> Nx.as_type(Nx.type(x))"
+    )
+  end
+
+  defp replace_stage(stage, source) when stage in ["gate", "output"] do
+    source =
+      replace_once!(
+        source,
+        "gated = Nx.multiply(y, Ops.silu(z_branch))",
+        "gated = Nx.multiply(Nx.as_type(y, :f64), Ops.silu(Nx.as_type(z_branch, :f64)))" <>
+          if(stage == "gate", do: " |> Nx.as_type(Nx.type(y))", else: "")
+      )
+
+    if stage == "output" do
+      replace_once!(
+        source,
+        ~S'out = Ops.dense(gated, Ops.layer_params!(params, "#{name}_out_proj"))',
+        ~S'out_params = Ops.layer_params!(params, "#{name}_out_proj") |> Nx.Defn.Composite.traverse(&Nx.as_type(&1, :f64))' <>
+          "\nout = Ops.dense(gated, out_params) |> Nx.as_type(Nx.type(frame))"
+      )
+    else
+      source
+    end
+  end
+
+  defp replace_once!(source, old, new) do
+    unless length(String.split(source, old)) == 2,
+      do: raise(ArgumentError, "Expected exactly one source match for #{inspect(old)}")
+
+    String.replace(source, old, new, global: false)
   end
 end

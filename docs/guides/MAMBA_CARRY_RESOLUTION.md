@@ -6,6 +6,112 @@
 
 ## Finding
 
+### SSM and gating isolation follow-up
+
+**AI-generated.** Promoting the SSM update, its output calculation, gating, or
+carried SSM memory to f64 did not clear the numerical gate. Frame-level traces
+show that much of the remaining error already exists in each operation's
+inputs. Learned projections and gates amplify those small differences. This is
+evidence of error propagation, not evidence of a single incorrect SSM equation.
+The precise earliest source across the whole replay is not yet isolated.
+
+These runs reuse the saved 512-frame, eight-row staggered captures. The Mewtwo
+capture with Fox observations is still a stress test. Its baseline is
+`dense_norm` (dense calculations and normalization in f64, rounded back to f32).
+Counts below are output values exceeding the unchanged reference bound.
+
+| Extra precision boundary | Batch reference failures | Single reference failures |
+| --- | ---: | ---: |
+| None: previous `dense_norm` control | 232 | 232 |
+| SSM update only | 197 | 196 |
+| SSM output sum only | 219 | 219 |
+| Entire SSM, carry stored in f32 | 193 | 193 |
+| Gate activation and multiplication, then round to f32 | 232 | 232 |
+| Keep gate result in f64 through output projection | 233 | 233 |
+| Entire SSM, carry stored in f64 | 188 | 188 |
+
+Fewer failures do not imply every error improved. For example, the full-SSM
+variant's worst error/bound ratio rises from about 16.7 to 19.2 on this stress
+capture. Compiler fusion can also change when precision boundaries change;
+these are end-to-end interventions, not a promise that every other f32 rounding
+decision is held fixed.
+
+The actual Fox-policy CUDA capture uses the cheaper `chunk8` control. Its
+convolution-history reference failures change from **15 batch / 12 single** to
+**9 / 6** with the full SSM in f64. Keeping the output path in f64 gives **12 /
+12**. Storing SSM carry in f64 gives **9 / 15**. All of these still fail. Output
+features and final SSM state pass on this Fox capture. No precision API or
+production default was changed, and these runs make no speed claim.
+
+#### Where the error grows
+
+The new trace runner selects the largest error relative to its bound, replays to the state just
+before that frame, and exports the layer intermediates. It then recomputes each
+operation in f64 using exactly that operation's f32 inputs, promoted without
+changing their values. This separates two quantities:
+
+- **Local error:** the operation's result minus that f64 recomputation.
+- **Propagated error:** that recomputation minus the full f64 trajectory result.
+
+These signed errors sum to the total error at the same coordinate. Separate
+maximum errors can occur at different coordinates and must not be added.
+
+On the Fox capture, row 3, tick 264, layer 2, channel 166, the input projection
+that feeds convolution history differs from the reference by about
+**−0.00019347**. Its own calculation contributes **+0.000000225**; its inputs
+contribute **−0.00019370**. Improving that projection alone cannot remove an
+error that it receives from the previous layer.
+
+On the Mewtwo stress capture, row 4, tick 184, the second layer's worst gated
+coordinate has **+0.00092526** total error. Local multiplication contributes
+about **−0.0000000263**; its inputs contribute **+0.00092529**. The final worst
+output channel is 148: **0.20071316** versus reference **0.19871665**. At that
+coordinate the residual addition contributes zero local rounding error; the
+difference is already in its operands.
+
+The trace runner checks its exported output, SSM state and newest convolution
+slot against an ordinary compiled step. It refuses to interpret a trace that
+exceeds the original tolerance. Inspect `instrumentation_vs_step` for the exact
+differences. The convolution target selects the newest history slot, whose
+producer is the current frame; it does not misattribute an older replayed slot
+to the current computation.
+
+#### Reproduce stage isolation
+
+Use a fresh VM for each mode. A `+` adds a stage change to an existing dense
+experiment. Supported stages are `update`, `readout`, `ssm`, `gate`, and
+`output`; one SSM stage and one output stage may be combined. `--carry-f64`
+promotes the initial SSM memory only; use it with `+ssm` to compare storage
+precision while retaining f32 frames and convolution history. Report labels
+retain `f32_*` for compatibility, but `carry_h_type` records the mixed state.
+
+```sh
+RECURRENT_CLIENT=host ERL_FLAGS='+S 2:2' devenv shell -- \
+  elixir -pa '_build/dev/lib/*/ebin' scripts/run_recurrent_validation.exs \
+  scripts/resolve_mamba_carry.exs \
+  --capture eval_runs/mamba_accuracy_extended/mewtwo_host/capture.nx \
+  --mode dense_norm+ssm --carry-f64 --out /tmp/mamba-ssm-carry
+
+RECURRENT_CLIENT=cuda ERL_FLAGS='+S 2:2' devenv shell -- \
+  elixir -pa '_build/dev/lib/*/ebin' scripts/run_recurrent_validation.exs \
+  scripts/trace_mamba_precision.exs \
+  --capture eval_runs/mamba_accuracy_extended/fullscale_cuda/capture.nx \
+  --mode chunk8 --row 3 --target conv --out /tmp/mamba-fox-trace.json
+```
+
+For the stress trace use `--mode dense_norm --row 4 --target output` with
+`mewtwo_host/capture.nx`. Row numbers and ticks are zero-based. Trace modes are
+restricted to unmodified SSM/gate baselines, so the tracing equations remain
+comparable to the ordinary step. Captures remain local. Reports and traces are
+under `eval_runs/mamba_stage_precision/`; regenerate its summary with
+`scripts/summarize_mamba_accuracy.exs`.
+
+Tests cover unchanged f64 equations, f32 interfaces, mixed-precision carry,
+readout cancellation, trace equivalence and reset handling at a target frame.
+The next useful decision is whether these feature errors change controller
+choices on matching replays. The current evidence does not justify a blanket
+precision mode or demonstrate a gameplay regression.
+
 **Update after broader validation:** the 160-frame pass below does not
 generalize. The 512-frame, staggered, three-checkpoint checks described next
 reject promotion of the eight-term method. It remains a diagnostic experiment.

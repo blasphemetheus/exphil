@@ -16,6 +16,7 @@ Code.require_file("lib/mamba_carry_resolution.exs", __DIR__)
       capture: :string,
       mode: :string,
       capture_mode: :string,
+      carry_f64: :boolean,
       policy: :string,
       replay: :string,
       character: :string,

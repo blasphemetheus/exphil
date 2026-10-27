@@ -34,6 +34,7 @@ reports =
       passed: report["reference_checks_passed"],
       client: report["client"],
       mode: report["mode"],
+      carry_h_type: report["carry_h_type"] || "{:f, 32}",
       ticks: report["ticks"],
       comparisons: comparisons
     }
