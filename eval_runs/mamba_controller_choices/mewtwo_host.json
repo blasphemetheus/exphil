@@ -1,0 +1,276 @@
+{
+  "capture": "eval_runs/mamba_accuracy_extended/mewtwo_replay_host/capture.nx",
+  "reference": "f64 trunk rounded to f32 at production head interface",
+  "rows": 8,
+  "client": "host",
+  "policy": "checkpoints/mewtwo_combo_newera_mamba_full_r13_policy.bin",
+  "ticks": 512,
+  "stochastic": "temperature 1, shared key 10000 + tick, one draw per row/frame",
+  "hashes": {
+    "checkpoints/mewtwo_combo_newera_mamba_full_r13_policy.bin": "cd969063beec7ac3d64caed9f15e4db9436702eccc317735bea765cfceb6f33f",
+    "replays/greg/mewtwo/Game_20240222T222930.slp": "189724f6e3a95462eedb159321da78ea9e75b7705f4dcf83754b4ea8aababf8b"
+  },
+  "head_precision": "f32 for all comparisons",
+  "feature_metrics": {
+    "agent": {
+      "values": 1048576,
+      "max_abs": 7.672490127674791e-5,
+      "max_error_over_bound": 0.24994602285334008,
+      "failed_values": 0,
+      "rms": 2.5875477879846208e-6
+    },
+    "replay": {
+      "values": 1048576,
+      "max_abs": 7.672490127674791e-5,
+      "max_error_over_bound": 0.25439308455123155,
+      "failed_values": 0,
+      "rms": 2.5880542332906515e-6
+    }
+  },
+  "choices": {
+    "deterministic": {
+      "agent": {
+        "max_logit_error": 0.001220703125,
+        "decisions": 4096,
+        "changed_decisions": 0,
+        "ordinary_changes": 0,
+        "resync_changes": 0,
+        "ordinary_decisions": 3972,
+        "resync_decisions": 124,
+        "by_component": {
+          "buttons": 0,
+          "main_x": 0,
+          "main_y": 0,
+          "c_x": 0,
+          "c_y": 0,
+          "shoulder": 0
+        },
+        "minimum_reference_margin": {
+          "buttons": 5.479790270328522e-4,
+          "main_x": 1.1444091796875e-4,
+          "main_y": 0.0031105875968933105,
+          "c_x": 5.964658737182617,
+          "c_y": 23.403085708618164,
+          "shoulder": 0.021104834973812103
+        },
+        "changed_examples": []
+      },
+      "replay": {
+        "max_logit_error": 0.001220703125,
+        "decisions": 4096,
+        "changed_decisions": 0,
+        "ordinary_changes": 0,
+        "resync_changes": 0,
+        "ordinary_decisions": 3972,
+        "resync_decisions": 124,
+        "by_component": {
+          "buttons": 0,
+          "main_x": 0,
+          "main_y": 0,
+          "c_x": 0,
+          "c_y": 0,
+          "shoulder": 0
+        },
+        "minimum_reference_margin": {
+          "buttons": 5.479790270328522e-4,
+          "main_x": 1.1444091796875e-4,
+          "main_y": 0.0031105875968933105,
+          "c_x": 5.964658737182617,
+          "c_y": 23.403085708618164,
+          "shoulder": 0.021104834973812103
+        },
+        "changed_examples": []
+      }
+    },
+    "stochastic": {
+      "agent": {
+        "max_logit_error": 0.001220703125,
+        "decisions": 4096,
+        "changed_decisions": 1,
+        "ordinary_changes": 1,
+        "resync_changes": 0,
+        "ordinary_decisions": 3972,
+        "resync_decisions": 124,
+        "by_component": {
+          "buttons": 0,
+          "main_x": 1,
+          "main_y": 0,
+          "c_x": 0,
+          "c_y": 0,
+          "shoulder": 0
+        },
+        "minimum_reference_margin": {
+          "buttons": 5.479790270328522e-4,
+          "main_x": 1.1444091796875e-4,
+          "main_y": 0.0031105875968933105,
+          "c_x": 5.964658737182617,
+          "c_y": 23.403085708618164,
+          "shoulder": 0.021104834973812103
+        },
+        "changed_examples": [
+          {
+            "tick": 309,
+            "row": 1,
+            "candidate": "agent",
+            "resync": false,
+            "max_logit_error": 2.44140625e-4,
+            "changed_components": [
+              "main_x"
+            ],
+            "changed_details": {
+              "main_x": {
+                "candidate_choice": [
+                  0
+                ],
+                "reference_choice": [
+                  8
+                ],
+                "candidate_probabilities": [
+                  0.5145751423374952,
+                  3.136223331423421e-4,
+                  0.008989656455774887,
+                  1.115043000501531e-6,
+                  1.2022641103864428e-6,
+                  5.962663824757114e-4,
+                  1.1519949160641498e-25,
+                  1.117250503483621e-25,
+                  0.37930163222357616,
+                  3.476312403662805e-25,
+                  7.634829337954818e-7,
+                  5.067147109210923e-7,
+                  4.0880994708138627e-5,
+                  1.0501876977126667e-4,
+                  4.387427780326577e-6,
+                  0.09606980557052025,
+                  2.2811088284883777e-25
+                ],
+                "reference_probabilities": [
+                  0.514570963516467,
+                  3.1362038442485146e-4,
+                  0.008989617744143119,
+                  1.1150381988570796e-6,
+                  1.202256640022082e-6,
+                  5.96265520735564e-4,
+                  1.1520317037351537e-25,
+                  1.117294705880216e-25,
+                  0.37930433962798715,
+                  3.476396892912171e-25,
+                  7.634898396746452e-7,
+                  5.067221937518347e-7,
+                  4.088159841187446e-5,
+                  1.050207212411218e-4,
+                  4.387492570984451e-6,
+                  0.09607131588714614,
+                  2.2811642691824986e-25
+                ],
+                "max_probability_change": 4.17882102821121e-6
+              }
+            },
+            "reference_margins": {
+              "buttons": 0.6624138355255127,
+              "main_x": 0.3049945831298828,
+              "main_y": 6.828539848327637,
+              "c_x": 65.5123405456543,
+              "c_y": 169.0140037536621,
+              "shoulder": 2.877969980239868
+            }
+          }
+        ]
+      },
+      "replay": {
+        "max_logit_error": 0.001220703125,
+        "decisions": 4096,
+        "changed_decisions": 1,
+        "ordinary_changes": 1,
+        "resync_changes": 0,
+        "ordinary_decisions": 3972,
+        "resync_decisions": 124,
+        "by_component": {
+          "buttons": 0,
+          "main_x": 1,
+          "main_y": 0,
+          "c_x": 0,
+          "c_y": 0,
+          "shoulder": 0
+        },
+        "minimum_reference_margin": {
+          "buttons": 5.479790270328522e-4,
+          "main_x": 1.1444091796875e-4,
+          "main_y": 0.0031105875968933105,
+          "c_x": 5.964658737182617,
+          "c_y": 23.403085708618164,
+          "shoulder": 0.021104834973812103
+        },
+        "changed_examples": [
+          {
+            "tick": 309,
+            "row": 1,
+            "candidate": "replay",
+            "resync": false,
+            "max_logit_error": 1.52587890625e-4,
+            "changed_components": [
+              "main_x"
+            ],
+            "changed_details": {
+              "main_x": {
+                "candidate_choice": [
+                  0
+                ],
+                "reference_choice": [
+                  8
+                ],
+                "candidate_probabilities": [
+                  0.514575609386744,
+                  3.13622617798679e-4,
+                  0.008989664615151329,
+                  1.1150397590125048e-6,
+                  1.2022606153410333e-6,
+                  5.9626635502706e-4,
+                  1.1519959616614123e-25,
+                  1.117251517545447e-25,
+                  0.3793012530326898,
+                  3.4762890368230555e-25,
+                  7.634778018679407e-7,
+                  5.067132378746054e-7,
+                  4.088087586492302e-5,
+                  1.0501866478315954e-4,
+                  4.3874317625338005e-6,
+                  0.09606970952876448,
+                  2.2810934954865473e-25
+                ],
+                "reference_probabilities": [
+                  0.514570963516467,
+                  3.1362038442485146e-4,
+                  0.008989617744143119,
+                  1.1150381988570796e-6,
+                  1.202256640022082e-6,
+                  5.96265520735564e-4,
+                  1.1520317037351537e-25,
+                  1.117294705880216e-25,
+                  0.37930433962798715,
+                  3.476396892912171e-25,
+                  7.634898396746452e-7,
+                  5.067221937518347e-7,
+                  4.088159841187446e-5,
+                  1.050207212411218e-4,
+                  4.387492570984451e-6,
+                  0.09607131588714614,
+                  2.2811642691824986e-25
+                ],
+                "max_probability_change": 4.645870276931419e-6
+              }
+            },
+            "reference_margins": {
+              "buttons": 0.6624138355255127,
+              "main_x": 0.3049945831298828,
+              "main_y": 6.828539848327637,
+              "c_x": 65.5123405456543,
+              "c_y": 169.0140037536621,
+              "shoulder": 2.877969980239868
+            }
+          }
+        ]
+      }
+    }
+  }
+}

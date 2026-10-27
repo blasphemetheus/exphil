@@ -1,0 +1,140 @@
+{
+  "capture": "eval_runs/mamba_accuracy_extended/timing_baseline/capture.nx",
+  "reference": "f64 trunk rounded to f32 at production head interface",
+  "rows": 8,
+  "client": "cuda",
+  "policy": "checkpoints/coh_fullscale_mamba_v1/model_best_policy.bin",
+  "ticks": 512,
+  "stochastic": "temperature 1, shared key 10000 + tick, one draw per row/frame",
+  "hashes": {
+    "/home/blewf/Slippi/2026-10-Mainline/Game_20261022T170737.slp": "98a1d4a3fe94f7f2147c60c4d99c289d1de79368ee9868aa2e9c5cbda54cd28e",
+    "checkpoints/coh_fullscale_mamba_v1/model_best_policy.bin": "3eeb7556fe9c5d1f3fc7c3c29f993e50c9e257620615afcd702217af1d268da6"
+  },
+  "head_precision": "f32 for all comparisons",
+  "feature_metrics": {
+    "agent": {
+      "values": 2097152,
+      "max_abs": 1.34260012446763e-4,
+      "max_error_over_bound": 0.9237340462856665,
+      "failed_values": 0,
+      "rms": 4.098646956702033e-6
+    },
+    "replay": {
+      "values": 2097152,
+      "max_abs": 1.3569052392137237e-4,
+      "max_error_over_bound": 0.9267912425924395,
+      "failed_values": 0,
+      "rms": 4.165421789648649e-6
+    }
+  },
+  "choices": {
+    "deterministic": {
+      "agent": {
+        "max_logit_error": 0.00118255615234375,
+        "decisions": 4096,
+        "changed_decisions": 0,
+        "ordinary_changes": 0,
+        "resync_changes": 0,
+        "ordinary_decisions": 3977,
+        "resync_decisions": 119,
+        "by_component": {
+          "buttons": 0,
+          "main_x": 0,
+          "main_y": 0,
+          "c_x": 0,
+          "c_y": 0,
+          "shoulder": 0
+        },
+        "minimum_reference_margin": {
+          "buttons": 0.004502922296524048,
+          "main_x": 1.5532970428466797e-4,
+          "main_y": 0.004960060119628906,
+          "c_x": 0.5830705761909485,
+          "c_y": 0.05996978282928467,
+          "shoulder": 0.03222861886024475
+        },
+        "changed_examples": []
+      },
+      "replay": {
+        "max_logit_error": 0.001201629638671875,
+        "decisions": 4096,
+        "changed_decisions": 0,
+        "ordinary_changes": 0,
+        "resync_changes": 0,
+        "ordinary_decisions": 3977,
+        "resync_decisions": 119,
+        "by_component": {
+          "buttons": 0,
+          "main_x": 0,
+          "main_y": 0,
+          "c_x": 0,
+          "c_y": 0,
+          "shoulder": 0
+        },
+        "minimum_reference_margin": {
+          "buttons": 0.004502922296524048,
+          "main_x": 1.5532970428466797e-4,
+          "main_y": 0.004960060119628906,
+          "c_x": 0.5830705761909485,
+          "c_y": 0.05996978282928467,
+          "shoulder": 0.03222861886024475
+        },
+        "changed_examples": []
+      }
+    },
+    "stochastic": {
+      "agent": {
+        "max_logit_error": 9.65118408203125e-4,
+        "decisions": 4096,
+        "changed_decisions": 0,
+        "ordinary_changes": 0,
+        "resync_changes": 0,
+        "ordinary_decisions": 3977,
+        "resync_decisions": 119,
+        "by_component": {
+          "buttons": 0,
+          "main_x": 0,
+          "main_y": 0,
+          "c_x": 0,
+          "c_y": 0,
+          "shoulder": 0
+        },
+        "minimum_reference_margin": {
+          "buttons": 0.004502922296524048,
+          "main_x": 0.001227259635925293,
+          "main_y": 0.002449512481689453,
+          "c_x": 0.15328887104988098,
+          "c_y": 0.013453364372253418,
+          "shoulder": 0.009071484208106995
+        },
+        "changed_examples": []
+      },
+      "replay": {
+        "max_logit_error": 9.5367431640625e-4,
+        "decisions": 4096,
+        "changed_decisions": 0,
+        "ordinary_changes": 0,
+        "resync_changes": 0,
+        "ordinary_decisions": 3977,
+        "resync_decisions": 119,
+        "by_component": {
+          "buttons": 0,
+          "main_x": 0,
+          "main_y": 0,
+          "c_x": 0,
+          "c_y": 0,
+          "shoulder": 0
+        },
+        "minimum_reference_margin": {
+          "buttons": 0.004502922296524048,
+          "main_x": 0.001227259635925293,
+          "main_y": 0.002449512481689453,
+          "c_x": 0.15328887104988098,
+          "c_y": 0.013453364372253418,
+          "shoulder": 0.009071484208106995
+        },
+        "changed_examples": []
+      }
+    }
+  }
+}

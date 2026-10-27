@@ -6,6 +6,15 @@
 
 ## Finding
 
+### Controller-choice follow-up
+
+**AI-generated.** Matching Fox and Mewtwo replay checks found zero deterministic
+choice changes across 4,096 decisions each. Shared-key stochastic sampling
+changed zero Fox decisions and one Mewtwo main-stick decision. Both the captured
+Agent features and the replayed f32 features give those counts against an f64
+trunk feeding the same f32 production heads. Inputs remain fixed; this is not a
+closed-loop gameplay test. See [method, results, and reproduction](MAMBA_CONTROLLER_CHOICES.md).
+
 ### SSM and gating isolation follow-up
 
 **AI-generated.** Promoting the SSM update, its output calculation, gating, or

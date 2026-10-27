@@ -1189,3 +1189,20 @@ splits local versus propagated error at identical coordinates. Ten targeted
 tests pass. Reports: `eval_runs/mamba_stage_precision/`; reproduction and limits:
 `docs/guides/MAMBA_CARRY_RESOLUTION.md`. Production numerical code, Agent, native
 libraries and deployment defaults are unchanged. All experiment processes exited.
+
+## 2026-10-27 — Controller-choice validation complete (AI-generated)
+
+Added a script-only comparison of captured Agent and replayed f32 features
+against an f64 trunk feeding the same production f32 heads. Matching Fox/CUDA
+and Mewtwo/CPU: 0/4096 deterministic changes each; shared-key stochastic draws:
+0/4096 Fox, 1/4096 Mewtwo (main_x, ordinary frame, probability change ~4.18e-6).
+Inputs stay fixed, including previous actions; no closed-loop gameplay claim.
+Tool: `scripts/compare_mamba_choices.exs`. Results/method:
+`docs/guides/MAMBA_CONTROLLER_CHOICES.md`, `eval_runs/mamba_controller_choices/`.
+Two focused metrics tests pass. Agent/runtime/native source untouched. All probe
+processes exited. No precision variant promoted.
+
+**AI-generated poem**
+
+> Hold the inputs, count the choices;
+> Keep the evidence clear among the voices.
