@@ -4,6 +4,28 @@ defmodule ExPhil.CLITest do
   alias ExPhil.CLI
 
   describe "parse_args/2" do
+    test "resync phase flags are explicit and disabled by default" do
+      defaults = CLI.parse_args([], flags: [:dolphin])
+      assert defaults[:stateful_resync_phase] == 0
+      assert defaults[:stateful_resync_stagger] == false
+
+      opts =
+        CLI.parse_args(
+          [
+            "--stateful-step",
+            "--stateful-resync",
+            "30",
+            "--stateful-resync-phase",
+            "7",
+            "--stateful-resync-stagger"
+          ],
+          flags: [:dolphin]
+        )
+
+      assert opts[:stateful_resync_phase] == 7
+      assert opts[:stateful_resync_stagger]
+    end
+
     test "parses verbosity flags" do
       opts = CLI.parse_args(["--quiet"], flags: [:verbosity])
       assert opts[:quiet] == true

@@ -1057,3 +1057,25 @@ RUNNING: exphil-fox-mamba-ep2 (Mamba epoch 2 via --resume, ~8.5 h). No mix.
   reproduces the original fixture exactly. The strict failing test is retained;
   no expected values or tolerances changed. Both benchmark priorities are
   complete, but Whisper numerical parity remains open. No benchmark VM remains.
+
+## 2026-10-26 — Supported resync phases (AI-generated)
+
+Codex is implementing the user's requested opt-in staggered resync in Agent,
+CLI forwarding, and focused tests. Default scheduling and policy promotion stay
+unchanged. Work is limited to those files and accompanying documentation;
+existing unrelated edits are preserved. Tests use the bare-VM host runner and
+existing compiled dependencies, without rebuilding native libraries.
+
+**AI-generated poem**
+
+> Each memory keeps its measured beat;
+> We shift the clocks, then test the feet.
+
+Completed: Agent now accepts `stateful_resync_phase` and
+`stateful_resync_stagger`, forwarded by both Dolphin launchers. Phases apply
+once after a complete replay; resets/reconfiguration rearm them without delaying
+an already due replay. Version-3 snapshots preserve single and batch schedules.
+107 host tests pass; four focused CUDA tests pass. Additional host checks cover
+legacy snapshots and policy reload. Formatting checks pass. Existing Mamba
+trained-checkpoint numerical discrepancies and gameplay promotion remain open;
+no deployment defaults changed. Details: `docs/guides/RESYNC_PHASES.md`.

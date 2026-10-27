@@ -156,6 +156,8 @@ defmodule ExPhil.Agents.AgentStatefulStepTest do
     long = start_agent(%{params: params, config: config}, stateful_step: true)
     one = start_agent(%{params: params, config: %{config | window_size: 1}}, stateful_step: true)
     assert {:error, :bptt_cannot_resync} = Agent.reconfigure(long, stateful_resync: 30)
+    assert {:error, :bptt_cannot_resync} = Agent.reconfigure(long, stateful_resync_phase: 1)
+    assert {:error, :bptt_cannot_resync} = Agent.reconfigure(long, stateful_resync_stagger: true)
     assert :sys.get_state(long).stateful_resync == nil
 
     for xs <- [[10.0, -2.0], [4.0, 8.0]] do

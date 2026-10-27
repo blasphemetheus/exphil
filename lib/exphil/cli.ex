@@ -665,6 +665,26 @@ defmodule ExPhil.CLI do
       group: [:dolphin]
     },
     %{
+      name: :stateful_resync_phase,
+      flag: "--stateful-resync-phase",
+      type: :integer,
+      short: nil,
+      default: 0,
+      desc:
+        "Advance the counter once after the first complete resync (0..resync interval); assign distinct phases to independent bots",
+      group: [:dolphin]
+    },
+    %{
+      name: :stateful_resync_stagger,
+      flag: "--stateful-resync-stagger",
+      type: :boolean,
+      short: nil,
+      default: false,
+      desc:
+        "Space batch rows' resync phases evenly; opt-in, not generally faster for GPU batches",
+      group: [:dolphin]
+    },
+    %{
       name: :on_game_end,
       flag: "--on-game-end",
       type: :string,

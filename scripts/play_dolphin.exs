@@ -143,6 +143,8 @@ Output.step(1, 5, "Loading agent")
     # arms and only the activation check caught it
     stateful_step: opts[:stateful_step] || false,
     stateful_resync: opts[:stateful_resync],
+    stateful_resync_phase: opts[:stateful_resync_phase] || 0,
+    stateful_resync_stagger: opts[:stateful_resync_stagger] || false,
     # Same drop class as above (found 2026-09-17 by the V3 live gate): the
     # CLI group parsed --style-tag/--player-registry but only the async
     # script forwarded them, so a "styled" sync run played anonymous.

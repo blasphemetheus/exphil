@@ -217,6 +217,8 @@ agent_opts =
     uncertainty_log: opts[:uncertainty_log],
     stateful_step: opts[:stateful_step] || false,
     stateful_resync: opts[:stateful_resync],
+    stateful_resync_phase: opts[:stateful_resync_phase] || 0,
+    stateful_resync_stagger: opts[:stateful_resync_stagger] || false,
     af_convention: if(opts[:live_af], do: :libmelee, else: :parsed)
   ]
 

@@ -105,6 +105,149 @@ defmodule ExPhil.Agents.AgentStatefulMinGRUTest do
     agent
   end
 
+  for backbone <- [:min_gru, :mamba, :mamba_2] do
+    @tag :resync_phase
+    test "#{backbone}: supported phases match independent schedules across reset and observe" do
+      policy = build_policy(:autoregressive, unquote(backbone))
+
+      batch =
+        start_agent(policy,
+          stateful_step: true,
+          stateful_resync: 3,
+          stateful_resync_stagger: true
+        )
+
+      singles =
+        for phase <- 0..2,
+            do:
+              start_agent(policy,
+                stateful_step: true,
+                stateful_resync: 3,
+                stateful_resync_phase: phase
+              )
+
+      :ok = Agent.batch_init(batch, 3)
+
+      for tick <- 0..26 do
+        if tick == 18 do
+          :ok = Agent.batch_reset_rows(batch, [1])
+          :ok = Agent.reset_buffer(Enum.at(singles, 1))
+          assert :sys.get_state(batch).batch.resync_phase_pending == [false, true, false]
+        end
+
+        frames = for row <- 0..2, do: %{game_state(tick * (row + 1) * 1.0) | frame: tick}
+
+        if tick in [2, 3, 12] do
+          :ok = Agent.batch_observe(batch, frames)
+
+          for {single, frame} <- Enum.zip(singles, frames),
+              do: :ok = Agent.observe(single, frame, nil)
+        else
+          assert {:ok, _} = Agent.batch_get_controllers(batch, frames)
+
+          for {single, frame} <- Enum.zip(singles, frames),
+              do: assert({:ok, _} = Agent.get_action(single, frame))
+        end
+
+        b = :sys.get_state(batch).batch
+        if tick == 7, do: assert(b.resync_steps == [0, 1, 2])
+        if tick == 9, do: assert(b.resync_steps == [2, 3, 0])
+        if tick == 11, do: assert(b.resync_steps == [0, 1, 2])
+
+        for {single, row} <- Enum.with_index(singles) do
+          s = :sys.get_state(single)
+          assert Enum.at(b.resync_steps, row) == s.steps_since_resync
+          assert Enum.at(b.resync_phase_pending, row) == s.resync_phase_pending
+
+          for {key, value} <- s.trunk_state do
+            Nx.Testing.assert_all_close(
+              Nx.slice_along_axis(b.trunk_state[key], row, 1, axis: 0),
+              value,
+              atol: 1.0e-5,
+              rtol: 1.0e-5
+            )
+          end
+        end
+      end
+
+      for agent <- [batch | singles], do: GenServer.stop(agent)
+    end
+  end
+
+  @tag :resync_phase
+  test "phase snapshots restore single and batch schedules and reject invalid reconfiguration" do
+    policy = build_policy(:autoregressive, :mamba)
+
+    for batched <- [false, true] do
+      agent =
+        start_agent(policy,
+          stateful_step: true,
+          stateful_resync: 3,
+          stateful_resync_phase: 1,
+          stateful_resync_stagger: batched
+        )
+
+      if batched, do: :ok = Agent.batch_init(agent, 3)
+
+      advance = fn tick ->
+        frame = %{game_state(tick * 1.0) | frame: tick}
+
+        if batched do
+          {:ok, actions} = Agent.batch_get_controllers(agent, List.duplicate(frame, 3))
+          {actions, :sys.get_state(agent).batch.resync_steps}
+        else
+          {:ok, result} = Agent.get_action(agent, frame)
+          {action_sig(result), :sys.get_state(agent).steps_since_resync}
+        end
+      end
+
+      # Snapshot both before phase assignment and after it has been consumed.
+      for range <- [0..5, 6..10] do
+        for tick <- range, do: advance.(tick)
+        {:ok, snapshot} = Agent.snapshot_state(agent)
+        expected = for tick <- 30..40, do: advance.(tick)
+        :ok = Agent.reconfigure(agent, stateful_resync: 6, stateful_resync_phase: 4)
+        :ok = Agent.restore_state(agent, snapshot)
+        assert for(tick <- 30..40, do: advance.(tick)) == expected
+      end
+
+      before = :sys.get_state(agent)
+      assert {:error, {:invalid_options, _}} = Agent.reconfigure(agent, stateful_resync_phase: 99)
+      assert :sys.get_state(agent) == before
+
+      if not batched do
+        {:ok, snapshot} = Agent.snapshot_state(agent)
+
+        legacy =
+          snapshot
+          |> :erlang.binary_to_term()
+          |> Map.put(:version, 2)
+          |> Map.drop([
+            :batch,
+            :stateful_resync,
+            :stateful_resync_phase,
+            :stateful_resync_stagger,
+            :resync_phase_pending
+          ])
+          |> :erlang.term_to_binary()
+
+        :ok = Agent.restore_state(agent, legacy)
+        restored = :sys.get_state(agent)
+        assert restored.stateful_resync_phase == 0
+        refute restored.resync_phase_pending
+        assert restored.steps_since_resync == before.steps_since_resync
+      end
+
+      :ok = Agent.load_policy(agent, policy)
+      reloaded = :sys.get_state(agent)
+      assert reloaded.resync_phase_pending
+      assert reloaded.steps_since_resync == 0
+      assert reloaded.step_frame_buffer == []
+      assert reloaded.batch == nil
+      GenServer.stop(agent)
+    end
+  end
+
   # Comparable, backend-independent fingerprint of an action
   defp action_sig(action) do
     %{

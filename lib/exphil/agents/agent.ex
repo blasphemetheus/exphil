@@ -177,6 +177,9 @@ defmodule ExPhil.Agents.Agent do
     # gap at 40 frames, compounding); re-sync bounds drift to K frames
     # while keeping the O(1) step for the other K-1. nil = off.
     :stateful_resync,
+    :stateful_resync_phase,
+    :stateful_resync_stagger,
+    :resync_phase_pending,
     :step_frame_buffer,
     :steps_since_resync,
     :batch
@@ -200,6 +203,9 @@ defmodule ExPhil.Agents.Agent do
           | {:action_repeat, pos_integer()}
           | {:use_incremental, boolean()}
           | {:stateful_step, boolean()}
+          | {:stateful_resync, non_neg_integer() | nil}
+          | {:stateful_resync_phase, non_neg_integer()}
+          | {:stateful_resync_stagger, boolean()}
 
   @doc """
   Start an Agent GenServer.
@@ -217,6 +223,11 @@ defmodule ExPhil.Agents.Agent do
     - `:stateful_step` - O(1) recurrent inference via the Edifice.Stateful
       step API (temporal GRU/LSTM/Mamba/Mamba-2/MinGRU policies; default: false). Enables
       `snapshot_state/1` / `restore_state/2` for netplay rollback.
+    - `:stateful_resync` - Replay threshold; nil disables periodic replay.
+    - `:stateful_resync_phase` - One-time counter advance after a full replay,
+      from zero through the resync threshold (default: zero).
+    - `:stateful_resync_stagger` - Evenly distribute batch rows' phases (default:
+      false). See `docs/guides/RESYNC_PHASES.md` for scheduling and reset semantics.
   """
   @spec start_link([start_option()]) :: GenServer.on_start()
   def start_link(opts) do
@@ -587,11 +598,16 @@ defmodule ExPhil.Agents.Agent do
       heads_predict_fn: nil,
       trunk_cold: true,
       stateful_resync: Keyword.get(opts, :stateful_resync, nil),
+      stateful_resync_phase: Keyword.get(opts, :stateful_resync_phase, 0),
+      stateful_resync_stagger: Keyword.get(opts, :stateful_resync_stagger, false),
+      resync_phase_pending: true,
       step_frame_buffer: [],
       steps_since_resync: 0,
       # batched sim path (batch_init/2): %{n, trunk_state, cold} or nil
       batch: nil
     }
+
+    validate_resync_schedule!(state)
 
     # Typed decode struct — the single source every decision path reads
     # (validated loudly here, not at frame 60).
@@ -711,6 +727,9 @@ defmodule ExPhil.Agents.Agent do
       incremental_step: if(state.mamba_cache, do: state.mamba_cache.step, else: 0),
       # Edifice.Stateful step path status
       stateful_step: state.stateful_step,
+      stateful_resync: state.stateful_resync,
+      stateful_resync_phase: state.stateful_resync_phase,
+      stateful_resync_stagger: state.stateful_resync_stagger,
       stateful_step_active: state.trunk_state != nil
     }
 
@@ -741,7 +760,8 @@ defmodule ExPhil.Agents.Agent do
                stick_runs: List.duplicate({0, 0}, n),
                replay_frames: [],
                replay_lengths: List.duplicate(0, n),
-               resync_steps: List.duplicate(0, n)
+               resync_steps: List.duplicate(0, n),
+               resync_phase_pending: List.duplicate(true, n)
              }
          }}
 
@@ -819,7 +839,10 @@ defmodule ExPhil.Agents.Agent do
     b = %{
       b
       | replay_lengths: reset_row_counts(b.replay_lengths, rows),
-        resync_steps: reset_row_counts(b.resync_steps, rows)
+        resync_steps: reset_row_counts(b.resync_steps, rows),
+        resync_phase_pending:
+          Enum.with_index(b.resync_phase_pending)
+          |> Enum.map(fn {pending, row} -> pending or row in rows end)
     }
 
     {:reply, :ok, %{state | batch: Map.put(%{b | trunk_state: trunk}, :cold_rows, cold_rows)}}
@@ -1011,6 +1034,7 @@ defmodule ExPhil.Agents.Agent do
         trunk_state: new_trunk_state,
         trunk_cold: true,
         step_frame_buffer: [],
+        resync_phase_pending: true,
         steps_since_resync: 0
     }
 
@@ -1179,6 +1203,8 @@ defmodule ExPhil.Agents.Agent do
     :style_id,
     :style_tag,
     :stateful_resync,
+    :stateful_resync_phase,
+    :stateful_resync_stagger,
     :af_convention
   ]
 
@@ -1209,7 +1235,10 @@ defmodule ExPhil.Agents.Agent do
     unknown = Keyword.keys(opts) -- @tunable_opts
 
     cond do
-      state.bptt == true and Keyword.get(opts, :stateful_resync) != nil ->
+      state.bptt == true and
+          (Keyword.get(opts, :stateful_resync) != nil or
+             Keyword.get(opts, :stateful_resync_phase, 0) != 0 or
+             Keyword.get(opts, :stateful_resync_stagger, false) != false) ->
         {:reply, {:error, :bptt_cannot_resync}, state}
 
       unknown != [] ->
@@ -1218,6 +1247,29 @@ defmodule ExPhil.Agents.Agent do
       true ->
         new_state =
           Enum.reduce(opts, state, fn {k, v}, acc -> Map.put(acc, k, v) end)
+
+        validate_resync_schedule!(new_state)
+
+        # Apply a new phase only after the next complete replay, never by
+        # postponing a replay that is already due.
+        new_state =
+          if Enum.any?(
+               [:stateful_resync, :stateful_resync_phase, :stateful_resync_stagger],
+               &Keyword.has_key?(opts, &1)
+             ) do
+            batch =
+              case new_state.batch do
+                %{mode: :stateful, n: n} = batch ->
+                  Map.put(batch, :resync_phase_pending, List.duplicate(true, n))
+
+                batch ->
+                  batch
+              end
+
+            %{new_state | resync_phase_pending: true, batch: batch}
+          else
+            new_state
+          end
 
         # style_tag / style_id go through the SAME resolver init uses.
         # Before 2026-09-09 `reconfigure(style_tag: "X")` returned :ok and
@@ -1279,6 +1331,8 @@ defmodule ExPhil.Agents.Agent do
           {:reply, :ok, %{new_state | decode: ExPhil.Agents.Decode.from_state(new_state)}}
         end
     end
+  rescue
+    e in ArgumentError -> {:reply, {:error, {:invalid_options, Exception.message(e)}}, state}
   end
 
   @impl true
@@ -1293,7 +1347,12 @@ defmodule ExPhil.Agents.Agent do
     else
       blob =
         :erlang.term_to_binary(%{
-          version: 2,
+          version: 3,
+          stateful_resync: state.stateful_resync,
+          stateful_resync_phase: state.stateful_resync_phase,
+          stateful_resync_stagger: state.stateful_resync_stagger,
+          resync_phase_pending: state.resync_phase_pending,
+          batch: snapshot_batch(state.batch),
           trunk_state: Edifice.Stateful.serialize(state.trunk_state),
           trunk_cold: state.trunk_cold,
           jump_cooldown: state.jump_cooldown,
@@ -1318,11 +1377,19 @@ defmodule ExPhil.Agents.Agent do
       {:reply, {:error, :not_stateful}, state}
     else
       snap = :erlang.binary_to_term(blob)
-      unless snap.version in [1, 2], do: raise(ArgumentError, "unsupported snapshot version")
+      unless snap.version in [1, 2, 3], do: raise(ArgumentError, "unsupported snapshot version")
+
+      if snap.version < 3 and state.batch != nil,
+        do: raise(ArgumentError, "legacy snapshots do not contain batch state")
 
       new_state = %{
         state
         | trunk_state: Edifice.Stateful.deserialize(snap.trunk_state),
+          stateful_resync: Map.get(snap, :stateful_resync, state.stateful_resync),
+          stateful_resync_phase: Map.get(snap, :stateful_resync_phase, 0),
+          stateful_resync_stagger: Map.get(snap, :stateful_resync_stagger, false),
+          resync_phase_pending: Map.get(snap, :resync_phase_pending, false),
+          batch: restore_batch(Map.get(snap, :batch)),
           trunk_cold: Map.get(snap, :trunk_cold, false),
           jump_cooldown: snap.jump_cooldown,
           last_action: snap.last_action && Edifice.Stateful.deserialize(snap.last_action),
@@ -1339,6 +1406,13 @@ defmodule ExPhil.Agents.Agent do
           step_frame_buffer:
             Enum.map(Map.get(snap, :step_frame_buffer, []), &Edifice.Stateful.deserialize/1)
       }
+
+      validate_resync_schedule!(new_state)
+
+      if state.bptt == true and
+           (new_state.stateful_resync != nil or new_state.stateful_resync_phase != 0 or
+              new_state.stateful_resync_stagger),
+         do: raise(ArgumentError, "BPTT cannot resync")
 
       {:reply, :ok, new_state}
     end
@@ -2161,7 +2235,12 @@ defmodule ExPhil.Agents.Agent do
        | trunk_state: new_trunk_state,
          trunk_cold: false,
          step_frame_buffer: buffer,
-         steps_since_resync: if(resync?, do: 0, else: state.steps_since_resync + 1)
+         steps_since_resync:
+           if(resync?,
+             do: resync_phase(state, state.resync_phase_pending, 0, 1),
+             else: state.steps_since_resync + 1
+           ),
+         resync_phase_pending: state.resync_phase_pending and not resync?
      }}
   end
 
@@ -2722,6 +2801,62 @@ defmodule ExPhil.Agents.Agent do
     counts |> Enum.with_index() |> Enum.map(fn {count, i} -> if i in rows, do: 0, else: count end)
   end
 
+  defp validate_resync_schedule!(state) do
+    interval = state.stateful_resync
+    phase = state.stateful_resync_phase
+
+    unless is_nil(interval) or (is_integer(interval) and interval >= 0),
+      do: raise(ArgumentError, "stateful_resync must be a nonnegative integer or nil")
+
+    unless is_integer(phase) and phase >= 0 and (is_nil(interval) or phase <= interval),
+      do: raise(ArgumentError, "stateful_resync_phase must be between zero and stateful_resync")
+
+    unless is_boolean(state.stateful_resync_stagger),
+      do: raise(ArgumentError, "stateful_resync_stagger must be boolean")
+
+    :ok
+  end
+
+  defp snapshot_batch(nil), do: nil
+
+  defp snapshot_batch(batch) do
+    batch
+    |> Map.update!(:trunk_state, &Edifice.Stateful.serialize/1)
+    |> Map.update!(:replay_frames, fn frames ->
+      Enum.map(frames, &Edifice.Stateful.serialize/1)
+    end)
+    |> Map.update(:last_frames, nil, fn frames ->
+      if frames, do: Edifice.Stateful.serialize(frames)
+    end)
+    |> Map.update(:last_buttons, nil, fn buttons ->
+      if buttons, do: Edifice.Stateful.serialize(buttons)
+    end)
+  end
+
+  defp restore_batch(nil), do: nil
+
+  defp restore_batch(batch) do
+    batch
+    |> Map.update!(:trunk_state, &Edifice.Stateful.deserialize/1)
+    |> Map.update!(:replay_frames, fn frames ->
+      Enum.map(frames, &Edifice.Stateful.deserialize/1)
+    end)
+    |> Map.update(:last_frames, nil, fn frames ->
+      if frames, do: Edifice.Stateful.deserialize(frames)
+    end)
+    |> Map.update(:last_buttons, nil, fn buttons ->
+      if buttons, do: Edifice.Stateful.deserialize(buttons)
+    end)
+  end
+
+  defp resync_phase(_state, false, _row, _n), do: 0
+
+  defp resync_phase(state, true, row, n) do
+    period = state.stateful_resync + 1
+    spacing = if state.stateful_resync_stagger, do: div(row * period, n), else: 0
+    rem(state.stateful_resync_phase + spacing, period)
+  end
+
   # Replay due rows in one executable, with bounded padding for compile shapes.
   # A reset row must accumulate its own complete history before becoming due;
   # old frames in the shared tensor buffer cannot leak across game boundaries.
@@ -2755,7 +2890,14 @@ defmodule ExPhil.Agents.Agent do
       replay_frames: Enum.take([frames | b.replay_frames], history_size),
       replay_lengths: Enum.map(b.replay_lengths, &min(&1 + 1, history_size)),
       resync_steps:
-        Enum.zip_with(b.resync_steps, due, fn steps, due? -> if due?, do: 0, else: steps + 1 end)
+        Enum.with_index(Enum.zip(b.resync_steps, due))
+        |> Enum.map(fn {{steps, due?}, row} ->
+          if due?,
+            do: resync_phase(state, Enum.at(b.resync_phase_pending, row), row, b.n),
+            else: steps + 1
+        end),
+      resync_phase_pending:
+        Enum.zip_with(b.resync_phase_pending, due, fn pending, due? -> pending and not due? end)
     }
 
     {trunk, updates}
@@ -3236,9 +3378,14 @@ defmodule ExPhil.Agents.Agent do
     execution =
       ExPhil.Networks.Policy.ExecutionContract.validate_inference!(config, state.stateful_step)
 
-    if config[:bptt] == true and (state.stateful_resync != nil or is_binary(state.leace_eraser)),
-      do:
-        raise(ArgumentError, "BPTT stateful inference cannot use window resync or a LEACE eraser")
+    if config[:bptt] == true and
+         (state.stateful_resync != nil or state.stateful_resync_phase != 0 or
+            state.stateful_resync_stagger or is_binary(state.leace_eraser)),
+       do:
+         raise(
+           ArgumentError,
+           "BPTT stateful inference cannot use window resync or a LEACE eraser"
+         )
 
     # Extract config
     embed_config = Map.get(config, :embed_config, %{})
@@ -3704,6 +3851,10 @@ defmodule ExPhil.Agents.Agent do
         trunk_state: trunk_state,
         heads_predict_fn: heads_predict_fn,
         trunk_cold: true,
+        resync_phase_pending: true,
+        step_frame_buffer: [],
+        steps_since_resync: 0,
+        batch: nil,
         # Steering unit vector, copied to the default backend once at load —
         # the step path applies it eagerly every frame (host-resident copies
         # would re-transfer per frame; same rationale as
