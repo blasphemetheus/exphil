@@ -36,6 +36,7 @@ in
     pkgs.git
     pkgs.tmux
     pkgs.gcc
+    pkgs.clang   # XLA 0.11 headers require Clang for the EXLA bridge (Edifice 0183c57, 10-26)
     pkgs.gnumake
     pkgs.cmake
     pkgs.pkg-config
@@ -95,6 +96,8 @@ in
 
   # Shell setup
   enterShell = ''
+    # Set after stdenv's setup hooks, which otherwise restore g++: XLA 0.11 needs Clang for the EXLA bridge
+    export CXX="${pkgs.clang}/bin/clang++"
     export MIX_HOME="$PWD/.nix-mix"
     export HEX_HOME="$PWD/.nix-hex"
     mkdir -p "$MIX_HOME" "$HEX_HOME"
