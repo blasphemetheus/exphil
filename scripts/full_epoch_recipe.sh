@@ -35,7 +35,9 @@ set -uo pipefail
 cd /home/blewf/git/exphil
 N=${1:?usage: full_mamba_epoch.sh EPOCH_N}
 source "${RECIPE:-eval_runs/1011_full/recipe.sh}"
-export EDIFICE_LOCAL_NX=1 EDIFICE_FUSED_CUSTOM_CALL=1 EXLA_TARGET=cuda EXPHIL_EXLA_PRECISION=highest
+export EDIFICE_LOCAL_NX=1 EDIFICE_FUSED_CUSTOM_CALL=${EDIFICE_FUSED_CUSTOM_CALL:-1} EXLA_TARGET=cuda EXPHIL_EXLA_PRECISION=highest
+# EXTRA_FLAGS (10-28): extra trainer flags for a variant epoch (e.g. --press-window-weight 10); TAG names it
+extra_flags=(${EXTRA_FLAGS:-})
 lr=${LR:-$LR_DEFAULT}; seed=${SEED:-$SEED_DEFAULT}
 # TAG (10-15): suffix for a mixed/variant epoch N beside the plain one (same ep N-1 resume)
 name=${RUN}_ep${N}${TAG:+_$TAG}
@@ -65,7 +67,7 @@ if [ ! -f "$ckpt/model_best_policy.bin" ] || [ ! -f "$ckpt/completed.json" ]; th
   echo "== train ($(date +%H:%M)) -> $out/train.log"
   EXPHIL_GPU_MEMORY_FRACTION=0.70 mix run --no-compile --no-deps-check scripts/train_fox_mamba.exs \
     "${model[@]}" "${data[@]}" "${loss[@]}" "${pq[@]}" "${ev[@]}" "${rec0[@]}" "${knob[@]}" \
-    --learning-rate "$lr" --epochs 1 --seed "$seed" --name "coh-$name" "${mix_args[@]}" "${resume[@]}" \
+    --learning-rate "$lr" --epochs 1 --seed "$seed" --name "coh-$name" "${mix_args[@]}" "${resume[@]}" "${extra_flags[@]}" \
     --checkpoint "$ckpt/model.axon" >> "$out/train.log" 2>&1 || { echo "TRAIN_FAILED $name (see $out/train.log)"; exit 1; }
   [ -f "$ckpt/completed.json" ] || { echo "TRAIN_INCOMPLETE $name (no completed.json)"; exit 1; }
 fi

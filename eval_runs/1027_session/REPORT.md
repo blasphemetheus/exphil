@@ -165,3 +165,127 @@ Master arm closed loop (fused off): SD/min 0.688 = candidate's 0.688, deaths 0.7
   damage dealt 89/min vs 65. Less passive, same self-destructs, more offense. Null arm: SD/min 1.0 (worse than
   its parent), kills 1.1 — the null mix cost a little in play even though its loss did not move.
 Build note: everything in this session is on Axon 0.9 / Polaris 0.2 with the fused custom call OFF.
+
+# 10-28 follow-up: press-window dose + slice (2026-10-28 00:36)
+
+### arm pw_pw20 (files 1500) — --press-window-weight 20 (00:36)
+val_loss=3.3012
+RESULT pw_pw20: frames=30053 change_recall=0.306 hold_agreement=0.604 repeat_prev=0.785 (expert 0.818) neutral=0.263 (expert 0.336)
+RESULT pw_pw20 press edges/min model:expert  A 24.68:9.58  B 16.05:17.97  X 9.22:27.91  Y 33.78:18.69  Z 2.99:11.86  L 13.18:14.25  R 32.58:14.25
+RESULT pw_pw20 jab1 episodes=3 A-edges/episode model=1.0 expert=0.333
+RESULT pw_pw20 change events recall/precision  ±0: press 0.013/0.011 release 0.015/0.013 stick 0.017/0.017  |  ±2: press 0.046/0.041 release 0.05/0.043 stick 0.079/0.081  |  ±5: press 0.083/0.08 release 0.097/0.087 stick 0.164/0.17
+RESULT pw_pw20 vs idle: 16.0 env-min  SD/min 2.188  deaths/min 2.313  kills/min 0.375  dmg dealt/taken per min 40.467/0.125
+RESULT pw_pw20 deaths by verdict at the decision frame: kill 2 (0.125/min)  checkmate 0 (0.0/min)  forced 0 (0.0/min)  mixup 35 (2.188/min)
+RESULT pw_pw20 offstage eps/min 8.125  recovery rate 0.711  neutral 0.222  repeat_prev 0.694  max frozen run 127 f  (16.4s wall)
+RESULT pw_pw20: 36 cases x 8 trials  recovery 0.358  died 0.642  timeout 0.0  never 5/36  always 1/36
+RESULT pw_pw20 by routes: 1 routes: 0.875 (1 cases)  2-3 routes: 0.159 (11 cases)  4+ routes: 0.427 (24 cases)
+RESULT CHANGE frames (real input changed): n 2544  joint 9.4%  buttons 64.2%  families 22.6%  main dir 55.4% (bucket 44.2%, ±1 49.0%)  c dir 95.2%  trigger 92.6%  jump 85.3%  attack 96.3%  special 94.6%  surprise 4.178  change recall 37.9%  false change %
+RESULT frames with a real press edge: n 481  joint 0.8%  buttons 8.9%  families 18.9%  main dir 86.1% (bucket 76.1%, ±1 83.6%)  c dir 99.8%  trigger 93.8%  jump 58.6%  attack 90.6%  special 87.1%  surprise 6.31  change recall 31.2%  false change %
+RESULT press calibration jump: AUC 0.742  mean P on press frames 0.06 vs no-press 0.027  press frames above the no-press median 79.9%  (n 194 / 13868)
+RESULT press calibration attack: AUC 0.875  mean P on press frames 0.062 vs no-press 0.009  press frames above the no-press median 97.8%  (n 46 / 14647)
+RESULT press calibration special: AUC 0.831  mean P on press frames 0.128 vs no-press 0.011  press frames above the no-press median 89.4%  (n 66 / 14249)
+RESULT false press (model press edge on a frame with no real press): 0.3% of 14428
+RESULT STANDING change frames: n 60 change recall 36.7%  | press edges same-family: jump 0% attack 2.2% special 7.6% grab 0% trigger 79.5%
+RESULT pw_pw20 walk-off origins: 117 trips in 16.0 env-min (7.31/min)
+RESULT pw_pw20   jump_off      n  57  3.56/min  died 0.28  stick toward edge (10 f before) 0.41  full-out 0.0  jumps left 0.53  last ground action [["KNEE_BEND", 36], ["LANDING_SPECIAL", 2], ["SHIELD_START", 1]]
+RESULT pw_pw20   special_off   n  10  0.63/min  died 0.9  stick toward edge (10 f before) 0.86  full-out 0.0  jumps left 0.1  last ground action [["NEUTRAL_B_FULL_CHARGE_AIR", 4], ["FIREFOX_GROUND", 3], ["KNEE_BEND", 1]]
+
+### arm pw_pw40 (files 1500) — --press-window-weight 40 (00:51)
+val_loss=3.3901
+RESULT pw_pw40: frames=30053 change_recall=0.263 hold_agreement=0.512 repeat_prev=0.789 (expert 0.818) neutral=0.278 (expert 0.336)
+RESULT pw_pw40 press edges/min model:expert  A 32.22:9.58  B 42.05:17.97  X 10.42:27.91  Y 43.72:18.69  Z 11.38:11.86  L 12.58:14.25  R 35.7:14.25
+RESULT pw_pw40 jab1 episodes=3 A-edges/episode model=0.667 expert=0.333
+RESULT pw_pw40 change events recall/precision  ±0: press 0.016/0.01 release 0.009/0.006 stick 0.019/0.022  |  ±2: press 0.051/0.032 release 0.074/0.046 stick 0.09/0.107  |  ±5: press 0.107/0.073 release 0.126/0.082 stick 0.174/0.215
+RESULT pw_pw40 vs idle: 16.0 env-min  SD/min 1.375  deaths/min 1.375  kills/min 0.25  dmg dealt/taken per min 6.091/0.0
+RESULT pw_pw40 deaths by verdict at the decision frame: kill 0 (0.0/min)  checkmate 0 (0.0/min)  forced 0 (0.0/min)  mixup 22 (1.375/min)
+RESULT pw_pw40 offstage eps/min 9.688  recovery rate 0.855  neutral 0.257  repeat_prev 0.734  max frozen run 205 f  (15.9s wall)
+RESULT pw_pw40: 36 cases x 8 trials  recovery 0.344  died 0.656  timeout 0.0  never 9/36  always 3/36
+RESULT pw_pw40 by routes: 1 routes: 1.0 (1 cases)  2-3 routes: 0.227 (11 cases)  4+ routes: 0.37 (24 cases)
+RESULT CHANGE frames (real input changed): n 2544  joint 9.4%  buttons 64.0%  families 22.6%  main dir 55.7% (bucket 44.2%, ±1 48.8%)  c dir 95.2%  trigger 92.3%  jump 85.3%  attack 96.3%  special 94.4%  surprise 4.258  change recall 37.0%  false change %
+RESULT frames with a real press edge: n 481  joint 3.5%  buttons 12.3%  families 21.2%  main dir 86.1% (bucket 76.5%, ±1 83.2%)  c dir 100.0%  trigger 93.6%  jump 58.6%  attack 91.5%  special 88.1%  surprise 6.179  change recall 34.7%  false change %
+RESULT press calibration jump: AUC 0.725  mean P on press frames 0.071 vs no-press 0.031  press frames above the no-press median 79.4%  (n 194 / 13868)
+RESULT press calibration attack: AUC 0.874  mean P on press frames 0.095 vs no-press 0.012  press frames above the no-press median 95.7%  (n 46 / 14647)
+RESULT press calibration special: AUC 0.836  mean P on press frames 0.237 vs no-press 0.019  press frames above the no-press median 89.4%  (n 66 / 14249)
+RESULT false press (model press edge on a frame with no real press): 1.1% of 14428
+RESULT STANDING change frames: n 60 change recall 50%  | press edges same-family: jump 0% attack 10.9% special 19.7% grab 0% trigger 78.8%
+RESULT pw_pw40 walk-off origins: 153 trips in 16.0 env-min (9.56/min)
+RESULT pw_pw40   jump_off      n 101  6.31/min  died 0.13  stick toward edge (10 f before) 0.25  full-out 0.12  jumps left 0.62  last ground action [["KNEE_BEND", 65], ["DASHING", 2], ["LANDING_SPECIAL", 2]]
+RESULT pw_pw40   special_off   n   5  0.31/min  died 0.8  stick toward edge (10 f before) 0.6  full-out 0.2  jumps left 0.2  last ground action [["NEUTRAL_B_FULL_CHARGE_AIR", 3], ["KNEE_BEND", 2]]
+
+### arm pw_base3k (files 3000) —  (01:07)
+val_loss=3.2589
+RESULT pw_base3k: frames=32394 change_recall=0.282 hold_agreement=0.572 repeat_prev=0.788 (expert 0.764) neutral=0.262 (expert 0.303)
+RESULT pw_base3k press edges/min model:expert  A 19.34:13.22  B 27.56:11.0  X 24.89:30.12  Y 28.56:19.89  Z 4.67:10.0  L 15.67:26.34  R 19.45:8.33
+RESULT pw_base3k jab1 episodes=4 A-edges/episode model=0.25 expert=0.25
+RESULT pw_base3k change events recall/precision  ±0: press 0.011/0.01 release 0.007/0.006 stick 0.015/0.017  |  ±2: press 0.048/0.04 release 0.038/0.033 stick 0.08/0.092  |  ±5: press 0.121/0.102 release 0.096/0.082 stick 0.143/0.172
+RESULT pw_base3k vs idle: 16.0 env-min  SD/min 2.75  deaths/min 3.063  kills/min 0.75  dmg dealt/taken per min 36.179/0.438
+RESULT pw_base3k deaths by verdict at the decision frame: kill 6 (0.375/min)  checkmate 0 (0.0/min)  forced 0 (0.0/min)  mixup 43 (2.688/min)
+RESULT pw_base3k offstage eps/min 9.063  recovery rate 0.64  neutral 0.373  repeat_prev 0.81  max frozen run 616 f  (18.2s wall)
+RESULT pw_base3k: 36 cases x 8 trials  recovery 0.448  died 0.552  timeout 0.0  never 4/36  always 1/36
+RESULT pw_base3k by routes: 1 routes: 0.5 (1 cases)  2-3 routes: 0.17 (11 cases)  4+ routes: 0.573 (24 cases)
+RESULT CHANGE frames (real input changed): n 3326  joint 15.0%  buttons 68.9%  families 35.1%  main dir 63.7% (bucket 46.6%, ±1 54.6%)  c dir 96.2%  trigger 93.2%  jump 86.8%  attack 96.1%  special 97.0%  surprise 3.724  change recall 50.7%  false change %
+RESULT frames with a real press edge: n 533  joint 0.8%  buttons 14.8%  families 12.9%  main dir 86.7% (bucket 79.4%, ±1 85.6%)  c dir 100.0%  trigger 85.6%  jump 56.8%  attack 88.6%  special 90.2%  surprise 5.485  change recall 28.1%  false change %
+RESULT press calibration jump: AUC 0.767  mean P on press frames 0.024 vs no-press 0.022  press frames above the no-press median 86.9%  (n 222 / 14700)
+RESULT press calibration attack: AUC 0.869  mean P on press frames 0.046 vs no-press 0.008  press frames above the no-press median 90.2%  (n 61 / 15748)
+RESULT press calibration special: AUC 0.864  mean P on press frames 0.084 vs no-press 0.009  press frames above the no-press median 88.5%  (n 52 / 15723)
+RESULT false press (model press edge on a frame with no real press): 0.0% of 15547
+RESULT STANDING change frames: n 93 change recall 29%  | press edges same-family: jump 0% attack 0% special 1.9% grab 0% trigger 52.5%
+RESULT pw_base3k walk-off origins: 154 trips in 16.0 env-min (9.63/min)
+RESULT pw_base3k   jump_off      n  56  3.5/min  died 0.45  stick toward edge (10 f before) 0.45  full-out 0.01  jumps left 0.7  last ground action [["KNEE_BEND", 32]]
+RESULT pw_base3k   special_off   n  23  1.44/min  died 0.83  stick toward edge (10 f before) 0.58  full-out 0.04  jumps left 0.04  last ground action [["KNEE_BEND", 5], ["FIREFOX_GROUND", 1], ["NEUTRAL_B_FULL_CHARGE_AIR", 1]]
+
+### arm pw_pw10_3k (files 3000) — --press-window-weight 10 (01:30)
+val_loss=3.2326
+RESULT pw_pw10_3k: frames=32394 change_recall=0.275 hold_agreement=0.535 repeat_prev=0.795 (expert 0.764) neutral=0.221 (expert 0.303)
+RESULT pw_pw10_3k press edges/min model:expert  A 34.67:13.22  B 28.89:11.0  X 18.23:30.12  Y 13.89:19.89  Z 3.33:10.0  L 14.56:26.34  R 23.56:8.33
+RESULT pw_pw10_3k jab1 episodes=4 A-edges/episode model=0.5 expert=0.25
+RESULT pw_pw10_3k change events recall/precision  ±0: press 0.019/0.016 release 0.011/0.01 stick 0.016/0.019  |  ±2: press 0.059/0.051 release 0.047/0.041 stick 0.067/0.085  |  ±5: press 0.105/0.092 release 0.086/0.075 stick 0.138/0.178
+RESULT pw_pw10_3k vs idle: 16.0 env-min  SD/min 1.75  deaths/min 1.813  kills/min 0.563  dmg dealt/taken per min 31.805/0.125
+RESULT pw_pw10_3k deaths by verdict at the decision frame: kill 1 (0.063/min)  checkmate 0 (0.0/min)  forced 0 (0.0/min)  mixup 28 (1.75/min)
+RESULT pw_pw10_3k offstage eps/min 6.438  recovery rate 0.713  neutral 0.35  repeat_prev 0.79  max frozen run 577 f  (17.7s wall)
+RESULT pw_pw10_3k: 36 cases x 8 trials  recovery 0.472  died 0.528  timeout 0.0  never 3/36  always 3/36
+RESULT pw_pw10_3k by routes: 1 routes: 0.625 (1 cases)  2-3 routes: 0.307 (11 cases)  4+ routes: 0.542 (24 cases)
+RESULT CHANGE frames (real input changed): n 3326  joint 16.5%  buttons 68.4%  families 37.1%  main dir 65.4% (bucket 48.1%, ±1 56.1%)  c dir 96.2%  trigger 93.7%  jump 86.8%  attack 96.1%  special 97.0%  surprise 3.745  change recall 53.2%  false change %
+RESULT frames with a real press edge: n 533  joint 1.9%  buttons 12.9%  families 18.8%  main dir 88.9% (bucket 79.5%, ±1 87.1%)  c dir 100.0%  trigger 89.9%  jump 56.8%  attack 89.3%  special 91.0%  surprise 5.524  change recall 34.5%  false change %
+RESULT press calibration jump: AUC 0.767  mean P on press frames 0.037 vs no-press 0.021  press frames above the no-press median 86.5%  (n 222 / 14700)
+RESULT press calibration attack: AUC 0.865  mean P on press frames 0.159 vs no-press 0.011  press frames above the no-press median 93.4%  (n 61 / 15748)
+RESULT press calibration special: AUC 0.867  mean P on press frames 0.169 vs no-press 0.011  press frames above the no-press median 90.4%  (n 52 / 15723)
+RESULT false press (model press edge on a frame with no real press): 0.5% of 15547
+RESULT STANDING change frames: n 93 change recall 32.3%  | press edges same-family: jump 0% attack 6.6% special 9.6% grab 0% trigger 68.8%
+RESULT pw_pw10_3k walk-off origins: 95 trips in 16.0 env-min (5.94/min)
+RESULT pw_pw10_3k   jump_off      n  55  3.44/min  died 0.2  stick toward edge (10 f before) 0.2  full-out 0.04  jumps left 0.82  last ground action [["KNEE_BEND", 33]]
+RESULT pw_pw10_3k   special_off   n   5  0.31/min  died 1.0  stick toward edge (10 f before) 0.74  full-out 0.0  jumps left 0.0  last ground action [["NEUTRAL_B_FULL_CHARGE_AIR", 5]]
+
+### arm pw_pw20_3k (files 3000) — --press-window-weight 20 (01:54)
+val_loss=3.2773
+RESULT pw_pw20_3k: frames=32394 change_recall=0.298 hold_agreement=0.588 repeat_prev=0.814 (expert 0.764) neutral=0.349 (expert 0.303)
+RESULT pw_pw20_3k press edges/min model:expert  A 25.0:13.22  B 15.11:11.0  X 21.78:30.12  Y 22.23:19.89  Z 6.33:10.0  L 14.22:26.34  R 20.89:8.33
+RESULT pw_pw20_3k jab1 episodes=4 A-edges/episode model=0.5 expert=0.25
+RESULT pw_pw20_3k change events recall/precision  ±0: press 0.014/0.013 release 0.01/0.01 stick 0.016/0.019  |  ±2: press 0.05/0.049 release 0.048/0.045 stick 0.077/0.092  |  ±5: press 0.103/0.099 release 0.089/0.086 stick 0.154/0.189
+RESULT pw_pw20_3k vs idle: 16.0 env-min  SD/min 1.938  deaths/min 1.938  kills/min 0.688  dmg dealt/taken per min 42.224/0.063
+RESULT pw_pw20_3k deaths by verdict at the decision frame: kill 0 (0.0/min)  checkmate 0 (0.0/min)  forced 0 (0.0/min)  mixup 31 (1.938/min)
+RESULT pw_pw20_3k offstage eps/min 6.938  recovery rate 0.713  neutral 0.41  repeat_prev 0.809  max frozen run 609 f  (18.0s wall)
+RESULT pw_pw20_3k: 36 cases x 8 trials  recovery 0.417  died 0.583  timeout 0.0  never 6/36  always 1/36
+RESULT pw_pw20_3k by routes: 1 routes: 0.875 (1 cases)  2-3 routes: 0.17 (11 cases)  4+ routes: 0.51 (24 cases)
+RESULT CHANGE frames (real input changed): n 3326  joint 15.6%  buttons 68.4%  families 35.5%  main dir 63.5% (bucket 46.5%, ±1 54.4%)  c dir 96.1%  trigger 93.7%  jump 86.8%  attack 96.1%  special 97.0%  surprise 3.81  change recall 52.1%  false change %
+RESULT frames with a real press edge: n 533  joint 2.1%  buttons 13.1%  families 18.6%  main dir 87.6% (bucket 78.6%, ±1 85.7%)  c dir 100.0%  trigger 89.9%  jump 56.8%  attack 89.5%  special 90.8%  surprise 5.793  change recall 34.0%  false change %
+RESULT press calibration jump: AUC 0.707  mean P on press frames 0.044 vs no-press 0.022  press frames above the no-press median 77.0%  (n 222 / 14700)
+RESULT press calibration attack: AUC 0.874  mean P on press frames 0.165 vs no-press 0.012  press frames above the no-press median 91.8%  (n 61 / 15748)
+RESULT press calibration special: AUC 0.852  mean P on press frames 0.153 vs no-press 0.011  press frames above the no-press median 86.5%  (n 52 / 15723)
+RESULT false press (model press edge on a frame with no real press): 0.7% of 15547
+RESULT STANDING change frames: n 93 change recall 34.4%  | press edges same-family: jump 0% attack 8.2% special 7.7% grab 0% trigger 68.1%
+RESULT pw_pw20_3k walk-off origins: 114 trips in 16.0 env-min (7.13/min)
+RESULT pw_pw20_3k   jump_off      n  61  3.81/min  died 0.31  stick toward edge (10 f before) 0.39  full-out 0.0  jumps left 0.74  last ground action [["KNEE_BEND", 33], ["LANDING", 1], ["LANDING_SPECIAL", 1]]
+RESULT pw_pw20_3k   special_off   n   6  0.38/min  died 1.0  stick toward edge (10 f before) 0.47  full-out 0.0  jumps left 0.0  last ground action [["NEUTRAL_B_FULL_CHARGE_AIR", 6]]
+
+SESSION 2 DONE (02:17) — table: node scripts/pq_digest.js pw_base pw_base906 pw_pw2 pw_pw5 pw_pw10 pw_pw20 pw_pw40 pw_base3k pw_pw10_3k pw_pw20_3k
+
+## READ 2 (Claude, 02:25) — press-window dose + slice
+3,000-game slice (seed floor there ±0.4 fam / ±0.6 joint): base3k fam 35.1 joint 15.0 recall 50.7, press attack 0 / special 1.9,
+SD/min 2.75 | pw10_3k fam 37.1 (+2.0) joint 16.5 (+1.5) recall 53.2, press attack 6.6 / special 9.6, false press 0.5 %, AUC jump
+0.767 = base, SD/min 1.75, special-off trips 1.44 -> 0.31/min, STANDING 32 vs 29 | pw20_3k smaller gains and AUC jump 0.707 (down).
+1,500-game slice: dose 20 ~ dose 10; dose 40 commits hardest (attack 10.9, special 19.7, STANDING 50) but false press 1.1 % (over
+the bar) and val up. => DOSE 10 PASSES every bar on the standard slice: commitment up, families up beyond noise, false press <= 1,
+AUC flat, SDs not up. Jump presses still 0 % at every dose (jump onsets need something else — the double-jump timing is the one
+family the window does not fix). PROMOTE: full-scale A/B from master_ep6 (the better data): ep7 with --press-window-weight 10 vs
+plain ep7, same resume / lr / seed, fused custom call OFF (EXLA operand_layouts), light readout + agreement + walk-off each.
