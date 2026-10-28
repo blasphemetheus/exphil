@@ -2,7 +2,7 @@
 # 10-28: full-scale A/B of the press-window objective on the master-only arm (the better data):
 #   ep7_pw10 = master ep6 + one epoch with --press-window-weight 10   (lr 1e-4, seed 905)
 #   ep7      = master ep6 + one plain epoch                           (same resume / lr / seed)
-# Fused custom call OFF (EXLA operand_layouts on the new stack). Light readout + agreement each,
+# Fused custom call OFF (EXLA operand_layouts on the new stack); BATCH 64 (batch 128 OOMs at 14.8 GB fused-off). Light readout + agreement each,
 # then walk-off origins, then a 3-bot mini league (candidate, master_ep6, both ep7s).
 # PASS (pw10 vs plain, master held-out split): press-edge same-family agreement up (attack/special from
 # ~1-2 %), families up beyond ±0.4, false press <= 1 %, SD/min not up, league not worse.
@@ -18,7 +18,7 @@ for tag in pw10 plain; do
   waitbeam
   extra=""; [ "$tag" = pw10 ] && extra="--press-window-weight 10"
   log ""; log "## master ep7 ${tag} ($(date +%H:%M))"
-  env RECIPE=eval_runs/1024_master/recipe.sh READOUT=light AGREE_GAMES=8 LR=0.0001 TAG=$tag EXTRA_FLAGS="$extra" scripts/full_epoch_recipe.sh 7 2>&1 | grep -E "RESULT|DONE|FAILED|val_loss|INCOMPLETE|NO_PREV|STALE|\*\* \(" | sed 's/^\[[0-9:]*\] //' | cut -c1-330 | tee -a "$R"
+  env RECIPE=eval_runs/1024_master/recipe.sh READOUT=light AGREE_GAMES=8 LR=0.0001 BATCH=64 TAG=$tag EXTRA_FLAGS="$extra" scripts/full_epoch_recipe.sh 7 2>&1 | grep -E "RESULT|DONE|FAILED|val_loss|INCOMPLETE|NO_PREV|STALE|\*\* \(" | sed 's/^\[[0-9:]*\] //' | cut -c1-330 | tee -a "$R"
   name=fox_mamba_master_ep7_$tag
   if [ -f "checkpoints/coh_$name/model_best_policy.bin" ]; then
     waitbeam
