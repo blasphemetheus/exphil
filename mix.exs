@@ -198,7 +198,8 @@ defmodule ExPhil.MixProject do
       # ML Core
       if(local_nx?,
         do: {:nx, path: "../nx/nx", override: true},
-        else: {:nx, "~> 0.12"}
+        # non-local fallback = the upstream revision Edifice pins (XLA 0.11, #1878); hex exla still wants xla 0.10
+        else: {:nx, github: "elixir-nx/nx", ref: "171dcad658ae06f726aaacf785df2989eca047e0", sparse: "nx", override: true}
       ),
       {:axon, "~> 0.9"},
       if(local_nx?,
@@ -207,7 +208,7 @@ defmodule ExPhil.MixProject do
         # deps default to env: :prod while make sees the (empty) shell MIX_ENV,
         # which desyncs the .so from the beam and fails NIF load.
         do: {:exla, path: "../nx/exla", override: true, env: :dev},
-        else: {:exla, "~> 0.11"}
+        else: {:exla, github: "elixir-nx/nx", ref: "171dcad658ae06f726aaacf785df2989eca047e0", sparse: "exla", override: true}
       ),
       {:polaris, "~> 0.2"},
       # The local nx fork (integration branch, 10-07) requires complex ~> 1.0,
