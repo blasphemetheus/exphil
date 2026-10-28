@@ -28,6 +28,23 @@ defmodule ExPhil.Training.Imitation.PressWindowLossTest do
     assert commit < 0.05
   end
 
+  test "jump window: committing on X OR Y inside the window beats spreading over both" do
+    w = Nx.tensor([1.0, 1.0])
+    # sample 0: Y pressed at t+1 (jump family); sample 1: nothing
+    zeros = Nx.broadcast(0, {2, 8})
+    fut1 = Nx.put_slice(Nx.broadcast(0, {2, 2, 8}), [0, 1, 0], Nx.tensor([[[0, 0, 0, 1, 0, 0, 0, 0]]]))
+    a = %{buttons: zeros, future_buttons: fut1, future_mask: Nx.broadcast(1.0, {2, 2})}
+    mk = fn l -> {l, nil, nil, nil, nil, nil} end
+    spread = Nx.broadcast(-2.2, {2, 8})
+    s = Loss.jump_window_loss(mk.(spread), {mk.(spread), mk.(spread)}, a, w) |> Nx.to_number()
+    low = Nx.broadcast(-6.0, {2, 8})
+    # commit with X (not Y): the family term is satisfied either way
+    hi_x = Nx.put_slice(low, [0, 2], Nx.tensor([[4.0]]))
+    c = Loss.jump_window_loss(mk.(low), {mk.(low), mk.(hi_x)}, a, w) |> Nx.to_number()
+    assert c < s
+    assert c < 0.05
+  end
+
   test "frames past the game's end do not count" do
     w = Nx.tensor([1.0, 1.0])
     a = %{actions() | future_mask: Nx.tensor([[1.0, 0.0], [1.0, 0.0]])}

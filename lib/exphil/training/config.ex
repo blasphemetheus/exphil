@@ -1703,6 +1703,11 @@ defmodule ExPhil.Training.Config do
       # press in the window) per button. The per-frame BCE says "match this frame"; this term says
       # "commit on one of them" and lets the model pick which. nil = off.
       press_window_weight: nil,
+      # jump-family press window (2026-10-28): the full-scale press-window A/B moved attack x6 and
+      # special x2 but left jump at 0.4 % — jump presses are X-or-Y, so the per-button set term is
+      # split across two buttons and never crosses. This term is on the FAMILY: P(X or Y down on
+      # some frame of t..t+K) vs "any jump press in the window". nil = off.
+      jump_window_weight: nil,
       # scoped anti-passivity (2026-10-25): multiply the loss weight of NEUTRAL frames by this
       # when the subject is grounded and onstage (where --neutral-weight 0.5 doubled STANDING
       # change recall), leaving offstage / airborne neutral frames alone (where it tripled SDs).

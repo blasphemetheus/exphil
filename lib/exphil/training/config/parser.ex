@@ -328,6 +328,8 @@ defmodule ExPhil.Training.Config.Parser do
     {"--chunk-weight", :chunk_weight, :float},
     # press-window objective (2026-10-25): weight of the "pressed somewhere in the next K frames" set term
     {"--press-window-weight", :press_window_weight, :float},
+    # jump-family press window (2026-10-28): the same set term on "X or Y down on some frame of t..t+K"
+    {"--jump-window-weight", :jump_window_weight, :float},
     # anti-passivity scoped to GROUNDED ONSTAGE neutral frames (2026-10-25): multiplier < 1
     {"--neutral-grounded-weight", :neutral_grounded_weight, :float},
     {"--mixed-precision", :mixed_precision, :flag},

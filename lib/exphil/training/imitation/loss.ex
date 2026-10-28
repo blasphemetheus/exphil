@@ -166,7 +166,7 @@ defmodule ExPhil.Training.Imitation.Loss do
     loss_opts =
       LossConfig.to_loss_opts(lc) ++
         [chunk_weight: config[:chunk_weight] || 1.0, stick_duration_weight: config[:stick_duration_weight] || 1.0,
-         press_window_weight: config[:press_window_weight]]
+         press_window_weight: config[:press_window_weight], jump_window_weight: config[:jump_window_weight]]
 
     # KL-distillation anchor (F3 Route A): when distill_weight > 0 the
     # loss takes teacher logits + a distill mask as 5th/6th ARGUMENTS
@@ -446,6 +446,7 @@ defmodule ExPhil.Training.Imitation.Loss do
     {chunk_weight, loss_opts} = Keyword.pop(loss_opts, :chunk_weight, 1.0)
     {duration_weight, loss_opts} = Keyword.pop(loss_opts, :stick_duration_weight, 1.0)
     {press_window_weight, loss_opts} = Keyword.pop(loss_opts, :press_window_weight, nil)
+    {jump_window_weight, loss_opts} = Keyword.pop(loss_opts, :jump_window_weight, nil)
 
     {prediction, loss_opts, duration_loss} =
       duration_terms(head, predict_fn.(Utils.ensure_model_state(p), inputs), inputs, actions, frame_weights, loss_opts, duration_weight)
@@ -484,6 +485,13 @@ defmodule ExPhil.Training.Imitation.Loss do
             Nx.tensor(0.0)
           end
 
+        set_loss =
+          if jump_window_weight do
+            Nx.add(set_loss, Nx.multiply(jump_window_weight, jump_window_loss(main, futures, actions, frame_weights)))
+          else
+            set_loss
+          end
+
         main_loss
         |> Nx.add(Nx.multiply(chunk_weight, Nx.divide(future_loss, k)))
         |> Nx.add(set_loss)
@@ -503,6 +511,39 @@ defmodule ExPhil.Training.Imitation.Loss do
   # are satisfied trivially; the pressure lands on PRESS ONSETS, where every per-frame
   # p is small and the per-frame BCE is content with 0.1 everywhere: here P_any must
   # reach 1, which the model can only do by committing on some frame of its choice.
+  # Jump-family press window (2026-10-28): X (button 2) and Y (button 3) are one family. Per
+  # sample: y = 1 if X or Y is down on any frame of the window; P_any = 1 - prod over the window
+  # AND over both buttons of (1 - p). The per-button term lets the model split a jump between X
+  # and Y and never commit to either; this one only asks that SOME jump button be pressed.
+  @doc false
+  def jump_window_loss(main, futures, actions, frame_weights) do
+    {log_not, y} = window_log_not_and_y(main, futures, actions)
+    pick = fn t -> Nx.slice_along_axis(t, 2, 2, axis: 1) end
+    log_not_j = log_not |> pick.() |> Nx.sum(axes: [1])
+    y_j = y |> pick.() |> Nx.reduce_max(axes: [1])
+    log_any = Nx.log(Nx.max(Nx.subtract(1.0, Nx.exp(log_not_j)), 1.0e-6))
+    bce = Nx.negate(Nx.add(Nx.multiply(y_j, log_any), Nx.multiply(Nx.subtract(1.0, y_j), log_not_j)))
+    Nx.divide(Nx.sum(Nx.multiply(bce, frame_weights)), Nx.max(Nx.sum(frame_weights), 1.0e-3))
+  end
+
+  # shared by the two window terms: per-button log(1 - p) summed over the window, and the
+  # per-button "down on some frame of the window" target
+  defp window_log_not_and_y(main, futures, actions) do
+    k = tuple_size(futures)
+    main_b = elem(main, 0)
+    y0 = Nx.as_type(actions.buttons, :f32)
+    log_not0 = Axon.Activations.log_sigmoid(Nx.negate(main_b))
+
+    for j <- 0..(k - 1), reduce: {log_not0, y0} do
+      {ln, y} ->
+        at = fn t -> t |> Nx.slice_along_axis(j, 1, axis: 1) |> Nx.squeeze(axes: [1]) end
+        m = at.(actions.future_mask) |> Nx.as_type(:f32) |> Nx.new_axis(1)
+        lj = elem(elem(futures, j), 0)
+        yj = at.(actions.future_buttons) |> Nx.as_type(:f32)
+        {Nx.add(ln, Nx.multiply(m, Axon.Activations.log_sigmoid(Nx.negate(lj)))), Nx.max(y, Nx.multiply(m, yj))}
+    end
+  end
+
   @doc false
   def press_window_loss(main, futures, actions, frame_weights) do
     k = tuple_size(futures)
