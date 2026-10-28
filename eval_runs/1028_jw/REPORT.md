@@ -134,3 +134,123 @@ The term is blunter than the per-button one (P_any over two buttons AND the wind
 heavy. CAVEAT on the floor: this base3k reads fam 37.3 vs 35.1 for yesterday's base3k on the streaming path / old build
 (same seed, same slice) — cross-run drift of ~2 points, so the ±0.4 "seed floor" only holds WITHIN one queue and path.
 NEXT queue (now): base, base906 (within-queue floor), jw1, jw2, jw5 — find the dose that moves jump without the cost.
+
+# jump-window queue 2: floor + low doses (2026-10-28 13:40)
+== multi-arm training: 5 arms (13:40)
+Chunks ready: 18 in 968 s (10374753 frames)
+[32m✓ ARM jwb_base done in 523 s: val_loss=3.221759287516276[0m
+[32m✓ ARM jwb_base906 done in 504 s: val_loss=3.2360506693522137[0m
+[32m✓ ARM jwb_jw1 done in 517 s: val_loss=3.2272181193033855[0m
+[32m✓ ARM jwb_jw2 done in 511 s: val_loss=3.2365407307942706[0m
+[32m✓ ARM jwb_jw5 done in 513 s: val_loss=3.239979298909505[0m
+[32m✓ Multi-arm run complete[0m
+jwb_base val_loss=3.221759287516276
+RESULT jwb_base: frames=32394 change_recall=0.29 hold_agreement=0.569 repeat_prev=0.807 (expert 0.764) neutral=0.267 (expert 0.303)
+RESULT jwb_base press edges/min model:expert  A 20.67:13.22  B 14.0:11.0  X 21.0:30.12  Y 24.78:19.89  Z 4.0:10.0  L 17.0:26.34  R 16.34:8.33
+RESULT jwb_base jab1 episodes=4 A-edges/episode model=0.5 expert=0.25
+RESULT jwb_base change events recall/precision  ±0: press 0.007/0.007 release 0.007/0.008 stick 0.015/0.018  |  ±2: press 0.045/0.045 release 0.039/0.04 stick 0.069/0.082  |  ±5: press 0.094/0.095 release 0.087/0.091 stick 0.138/0.172
+RESULT jwb_base vs idle: 16.0 env-min  SD/min 2.0  deaths/min 2.0  kills/min 0.313  dmg dealt/taken per min 19.799/0.0
+RESULT jwb_base deaths by verdict at the decision frame: kill 0 (0.0/min)  checkmate 0 (0.0/min)  forced 0 (0.0/min)  mixup 32 (2.0/min)
+RESULT jwb_base offstage eps/min 6.5  recovery rate 0.683  neutral 0.348  repeat_prev 0.785  max frozen run 582 f  (23.4s wall)
+RESULT jwb_base: 36 cases x 8 trials  recovery 0.354  died 0.646  timeout 0.0  never 7/36  always 1/36
+RESULT jwb_base by routes: 1 routes: 0.625 (1 cases)  2-3 routes: 0.091 (11 cases)  4+ routes: 0.464 (24 cases)
+RESULT CHANGE frames (real input changed): n 3326  joint 16.7%  buttons 68.9%  families 37.1%  main dir 65.6% (bucket 48.3%, ±1 56.3%)  c dir 96.1%  trigger 93.3%  jump 86.8%  attack 96.1%  special 96.9%  surprise 3.754  change recall 52.1%  false change %
+RESULT frames with a real press edge: n 533  joint 0.8%  buttons 14.6%  families 13.5%  main dir 87.8% (bucket 79.5%, ±1 86.1%)  c dir 100.0%  trigger 85.9%  jump 56.8%  attack 88.6%  special 90.1%  surprise 5.627  change recall 27.6%  false change %
+RESULT press calibration jump: AUC 0.752  mean P on press frames 0.023 vs no-press 0.022  press frames above the no-press median 84.2%  (n 222 / 14700)
+RESULT press calibration attack: AUC 0.876  mean P on press frames 0.058 vs no-press 0.009  press frames above the no-press median 90.2%  (n 61 / 15748)
+RESULT false press (model press edge on a frame with no real press): 0.1% of 15547
+RESULT STANDING change frames: n 93 change recall 29%  | press edges same-family: jump 0% attack 0% special 0% grab 0% trigger 53.8%
+RESULT jwb_base walk-off origins: 134 trips in 16.0 env-min (8.38/min)
+RESULT jwb_base   jump_off      n  95  5.94/min  died 0.23  stick toward edge (10 f before) 0.26  full-out 0.05  jumps left 0.73  last ground action [["KNEE_BEND", 47], ["DASHING", 5], ["LANDING", 1]]
+RESULT jwb_base   special_off   n   8  0.5/min  died 0.63  stick toward edge (10 f before) 0.42  full-out 0.0  jumps left 0.38  last ground action [["KNEE_BEND", 1]]
+jwb_base906 val_loss=3.2360506693522137
+RESULT jwb_base906: frames=32394 change_recall=0.259 hold_agreement=0.505 repeat_prev=0.767 (expert 0.764) neutral=0.209 (expert 0.303)
+RESULT jwb_base906 press edges/min model:expert  A 28.34:13.22  B 26.45:11.0  X 33.23:30.12  Y 23.45:19.89  Z 7.45:10.0  L 17.45:26.34  R 33.45:8.33
+RESULT jwb_base906 jab1 episodes=4 A-edges/episode model=0.25 expert=0.25
+RESULT jwb_base906 change events recall/precision  ±0: press 0.009/0.007 release 0.011/0.008 stick 0.017/0.018  |  ±2: press 0.053/0.037 release 0.047/0.033 stick 0.081/0.084  |  ±5: press 0.116/0.082 release 0.096/0.068 stick 0.168/0.18
+RESULT jwb_base906 vs idle: 16.0 env-min  SD/min 0.875  deaths/min 1.0  kills/min 0.375  dmg dealt/taken per min 25.55/0.125
+RESULT jwb_base906 deaths by verdict at the decision frame: kill 2 (0.125/min)  checkmate 0 (0.0/min)  forced 0 (0.0/min)  mixup 14 (0.875/min)
+RESULT jwb_base906 offstage eps/min 5.25  recovery rate 0.81  neutral 0.313  repeat_prev 0.766  max frozen run 1086 f  (20.7s wall)
+RESULT jwb_base906: 36 cases x 8 trials  recovery 0.33  died 0.67  timeout 0.0  never 6/36  always 1/36
+RESULT jwb_base906 by routes: 1 routes: 0.625 (1 cases)  2-3 routes: 0.159 (11 cases)  4+ routes: 0.396 (24 cases)
+RESULT CHANGE frames (real input changed): n 3326  joint 16.8%  buttons 68.8%  families 36.6%  main dir 65.2% (bucket 48.4%, ±1 56.2%)  c dir 96.2%  trigger 93.4%  jump 86.8%  attack 96.1%  special 96.9%  surprise 3.65  change recall 53.0%  false change %
+RESULT frames with a real press edge: n 533  joint 0.8%  buttons 13.7%  families 14.4%  main dir 87.6% (bucket 78.6%, ±1 86.3%)  c dir 100.0%  trigger 87.1%  jump 56.8%  attack 88.6%  special 90.1%  surprise 5.301  change recall 30.8%  false change %
+RESULT press calibration jump: AUC 0.757  mean P on press frames 0.026 vs no-press 0.023  press frames above the no-press median 87.4%  (n 222 / 14700)
+RESULT press calibration attack: AUC 0.89  mean P on press frames 0.064 vs no-press 0.011  press frames above the no-press median 95.1%  (n 61 / 15748)
+RESULT false press (model press edge on a frame with no real press): 0.1% of 15547
+RESULT STANDING change frames: n 93 change recall 30.1%  | press edges same-family: jump 0% attack 0% special 0% grab 0% trigger 58.1%
+RESULT jwb_base906 walk-off origins: 85 trips in 16.0 env-min (5.31/min)
+RESULT jwb_base906   jump_off      n  47  2.94/min  died 0.19  stick toward edge (10 f before) 0.28  full-out 0.05  jumps left 0.62  last ground action [["KNEE_BEND", 27], ["RUNNING", 1]]
+RESULT jwb_base906   special_off   n   5  0.31/min  died 0.8  stick toward edge (10 f before) 0.2  full-out 0.0  jumps left 0.2  last ground action [["KNEE_BEND", 3]]
+jwb_jw1 val_loss=3.2272181193033855
+RESULT jwb_jw1: frames=32394 change_recall=0.288 hold_agreement=0.562 repeat_prev=0.773 (expert 0.764) neutral=0.229 (expert 0.303)
+RESULT jwb_jw1 press edges/min model:expert  A 17.67:13.22  B 21.12:11.0  X 21.23:30.12  Y 21.12:19.89  Z 5.22:10.0  L 19.23:26.34  R 28.67:8.33
+RESULT jwb_jw1 jab1 episodes=4 A-edges/episode model=0.25 expert=0.25
+RESULT jwb_jw1 change events recall/precision  ±0: press 0.013/0.012 release 0.008/0.007 stick 0.022/0.022  |  ±2: press 0.048/0.042 release 0.045/0.04 stick 0.095/0.094  |  ±5: press 0.1/0.092 release 0.095/0.085 stick 0.181/0.187
+RESULT jwb_jw1 vs idle: 16.0 env-min  SD/min 2.0  deaths/min 2.125  kills/min 0.313  dmg dealt/taken per min 28.169/0.188
+RESULT jwb_jw1 deaths by verdict at the decision frame: kill 2 (0.125/min)  checkmate 0 (0.0/min)  forced 0 (0.0/min)  mixup 32 (2.0/min)
+RESULT jwb_jw1 offstage eps/min 7.0  recovery rate 0.682  neutral 0.308  repeat_prev 0.766  max frozen run 495 f  (23.3s wall)
+RESULT jwb_jw1: 36 cases x 8 trials  recovery 0.333  died 0.667  timeout 0.0  never 5/36  always 0/36
+RESULT jwb_jw1 by routes: 1 routes: 0.75 (1 cases)  2-3 routes: 0.136 (11 cases)  4+ routes: 0.406 (24 cases)
+RESULT CHANGE frames (real input changed): n 3326  joint 16.6%  buttons 68.9%  families 37.3%  main dir 65.8% (bucket 48.5%, ±1 57.0%)  c dir 96.2%  trigger 93.4%  jump 86.8%  attack 96.1%  special 97.0%  surprise 3.726  change recall 53.6%  false change %
+RESULT frames with a real press edge: n 533  joint 0.9%  buttons 14.8%  families 14.3%  main dir 88.0% (bucket 80.1%, ±1 87.1%)  c dir 100.0%  trigger 86.7%  jump 56.8%  attack 88.6%  special 90.2%  surprise 5.512  change recall 28.5%  false change %
+RESULT press calibration jump: AUC 0.766  mean P on press frames 0.027 vs no-press 0.02  press frames above the no-press median 86.9%  (n 222 / 14700)
+RESULT press calibration attack: AUC 0.863  mean P on press frames 0.048 vs no-press 0.009  press frames above the no-press median 93.4%  (n 61 / 15748)
+RESULT false press (model press edge on a frame with no real press): 0.0% of 15547
+RESULT STANDING change frames: n 93 change recall 29%  | press edges same-family: jump 0% attack 0% special 1.9% grab 0% trigger 56.9%
+RESULT jwb_jw1 walk-off origins: 78 trips in 16.0 env-min (4.88/min)
+RESULT jwb_jw1   jump_off      n  39  2.44/min  died 0.23  stick toward edge (10 f before) 0.41  full-out 0.13  jumps left 0.69  last ground action [["KNEE_BEND", 23], ["DASHING", 3]]
+RESULT jwb_jw1   special_off   n   8  0.5/min  died 1.0  stick toward edge (10 f before) 0.38  full-out 0.0  jumps left 0.0  last ground action [["KNEE_BEND", 2], ["FIREFOX_GROUND", 1]]
+jwb_jw2 val_loss=3.2365407307942706
+RESULT jwb_jw2: frames=32394 change_recall=0.263 hold_agreement=0.516 repeat_prev=0.724 (expert 0.764) neutral=0.226 (expert 0.303)
+RESULT jwb_jw2 press edges/min model:expert  A 21.12:13.22  B 18.34:11.0  X 25.0:30.12  Y 32.67:19.89  Z 5.0:10.0  L 23.89:26.34  R 34.67:8.33
+RESULT jwb_jw2 jab1 episodes=4 A-edges/episode model=0.5 expert=0.25
+RESULT jwb_jw2 change events recall/precision  ±0: press 0.009/0.007 release 0.008/0.006 stick 0.024/0.022  |  ±2: press 0.05/0.037 release 0.052/0.039 stick 0.096/0.089  |  ±5: press 0.105/0.08 release 0.106/0.079 stick 0.175/0.172
+RESULT jwb_jw2 vs idle: 16.0 env-min  SD/min 2.563  deaths/min 2.688  kills/min 0.25  dmg dealt/taken per min 17.374/0.125
+RESULT jwb_jw2 deaths by verdict at the decision frame: kill 2 (0.125/min)  checkmate 0 (0.0/min)  forced 0 (0.0/min)  mixup 41 (2.563/min)
+RESULT jwb_jw2 offstage eps/min 9.75  recovery rate 0.721  neutral 0.322  repeat_prev 0.732  max frozen run 209 f  (23.5s wall)
+RESULT jwb_jw2: 36 cases x 8 trials  recovery 0.288  died 0.712  timeout 0.0  never 8/36  always 1/36
+RESULT jwb_jw2 by routes: 1 routes: 0.625 (1 cases)  2-3 routes: 0.102 (11 cases)  4+ routes: 0.359 (24 cases)
+RESULT CHANGE frames (real input changed): n 3326  joint 17.0%  buttons 68.9%  families 37.3%  main dir 65.9% (bucket 48.3%, ±1 57.0%)  c dir 96.1%  trigger 93.4%  jump 86.8%  attack 96.1%  special 97.0%  surprise 3.756  change recall 55.4%  false change %
+RESULT frames with a real press edge: n 533  joint 0.8%  buttons 14.3%  families 14.6%  main dir 88.0% (bucket 79.0%, ±1 86.7%)  c dir 100.0%  trigger 86.7%  jump 56.8%  attack 88.6%  special 90.2%  surprise 5.522  change recall 30.2%  false change %
+RESULT press calibration jump: AUC 0.728  mean P on press frames 0.047 vs no-press 0.024  press frames above the no-press median 81.1%  (n 222 / 14700)
+RESULT press calibration attack: AUC 0.893  mean P on press frames 0.046 vs no-press 0.009  press frames above the no-press median 95.1%  (n 61 / 15748)
+RESULT false press (model press edge on a frame with no real press): 0.0% of 15547
+RESULT STANDING change frames: n 93 change recall 29%  | press edges same-family: jump 0% attack 0% special 1.9% grab 0% trigger 56.9%
+RESULT jwb_jw2 walk-off origins: 146 trips in 16.0 env-min (9.13/min)
+RESULT jwb_jw2   jump_off      n  91  5.69/min  died 0.29  stick toward edge (10 f before) 0.32  full-out 0.15  jumps left 0.87  last ground action [["KNEE_BEND", 58], ["DASHING", 3], ["LANDING_SPECIAL", 1]]
+RESULT jwb_jw2   special_off   n   5  0.31/min  died 1.0  stick toward edge (10 f before) 0.66  full-out 0.2  jumps left 0.2  last ground action [["KNEE_BEND", 3]]
+jwb_jw5 val_loss=3.239979298909505
+RESULT jwb_jw5: frames=32394 change_recall=0.256 hold_agreement=0.524 repeat_prev=0.747 (expert 0.764) neutral=0.209 (expert 0.303)
+RESULT jwb_jw5 press edges/min model:expert  A 29.78:13.22  B 21.45:11.0  X 31.78:30.12  Y 38.34:19.89  Z 4.56:10.0  L 18.67:26.34  R 25.23:8.33
+RESULT jwb_jw5 jab1 episodes=4 A-edges/episode model=0.75 expert=0.25
+RESULT jwb_jw5 change events recall/precision  ±0: press 0.01/0.007 release 0.007/0.005 stick 0.018/0.017  |  ±2: press 0.063/0.045 release 0.055/0.039 stick 0.09/0.086  |  ±5: press 0.121/0.089 release 0.105/0.075 stick 0.172/0.177
+RESULT jwb_jw5 vs idle: 16.0 env-min  SD/min 0.688  deaths/min 0.688  kills/min 0.375  dmg dealt/taken per min 22.333/0.0
+RESULT jwb_jw5 deaths by verdict at the decision frame: kill 0 (0.0/min)  checkmate 0 (0.0/min)  forced 0 (0.0/min)  mixup 11 (0.688/min)
+RESULT jwb_jw5 offstage eps/min 6.438  recovery rate 0.891  neutral 0.289  repeat_prev 0.715  max frozen run 384 f  (20.3s wall)
+RESULT jwb_jw5: 36 cases x 8 trials  recovery 0.441  died 0.559  timeout 0.0  never 1/36  always 1/36
+RESULT jwb_jw5 by routes: 1 routes: 0.75 (1 cases)  2-3 routes: 0.227 (11 cases)  4+ routes: 0.526 (24 cases)
+RESULT CHANGE frames (real input changed): n 3326  joint 14.9%  buttons 68.8%  families 35.5%  main dir 63.4% (bucket 46.0%, ±1 54.5%)  c dir 96.2%  trigger 93.4%  jump 86.8%  attack 96.1%  special 96.9%  surprise 3.797  change recall 52.2%  false change %
+RESULT frames with a real press edge: n 533  joint 1.3%  buttons 15.0%  families 16.1%  main dir 87.4% (bucket 79.2%, ±1 86.5%)  c dir 100.0%  trigger 86.7%  jump 59.3%  attack 88.6%  special 90.1%  surprise 5.63  change recall 31.5%  false change %
+RESULT press calibration jump: AUC 0.677  mean P on press frames 0.098 vs no-press 0.039  press frames above the no-press median 70.3%  (n 222 / 14700)
+RESULT press calibration attack: AUC 0.889  mean P on press frames 0.048 vs no-press 0.01  press frames above the no-press median 93.4%  (n 61 / 15748)
+RESULT false press (model press edge on a frame with no real press): 0.7% of 15547
+RESULT STANDING change frames: n 93 change recall 29%  | press edges same-family: jump 7.2% attack 0% special 0% grab 0% trigger 56.3%
+RESULT jwb_jw5 walk-off origins: 122 trips in 16.0 env-min (7.63/min)
+RESULT jwb_jw5   jump_off      n  75  4.69/min  died 0.05  stick toward edge (10 f before) 0.21  full-out 0.05  jumps left 0.57  last ground action [["KNEE_BEND", 39], ["DASHING", 1]]
+RESULT jwb_jw5   special_off   n   6  0.38/min  died 1.0  stick toward edge (10 f before) 0.65  full-out 0.17  jumps left 0.0  last ground action [["KNEE_BEND", 2], ["NEUTRAL_B_FULL_CHARGE_AIR", 1]]
+== multi-arm done (15:06) — table: node scripts/pq_digest.js jwb_base jwb_base906 jwb_jw1 jwb_jw2 jwb_jw5 
+JW QUEUE 2 DONE (15:06)
+
+## READ 2 (Claude, 15:40) — within-queue floor + low doses (embed-once, same build)
+arm       val    fam%  joint  pressJ  AUCj   falseP  jump-off trips/min (died)
+base      3.221  37.1  16.7   0.0    0.752  0.1     5.9 (23 %)
+base906   3.236  36.6  16.8   0.0    0.757  0.1     2.9 (19 %)      <- within-queue floor: fam ±0.5, joint ±0.1, AUC ±0.005; closed-loop trips/SDs ±2x (useless at 16 env-min)
+jw1       3.227  37.3  16.6   0.0    0.766  0.0     2.4 (23 %)
+jw2       3.236  37.3  17.0   0.0    0.728  0.0     5.7 (29 %)
+jw5       3.239  35.5  14.9   7.2    0.677  0.7     4.7 (5 %)
+Doses 1-2 do nothing to jump; dose 5 commits (7.2 %) and costs 1.6 fam / 1.8 joint / 0.08 AUC — a threshold, not a
+dial: there is no dose that moves jump for free. VERDICT: park the jump-family loss term. The honest next step for jump
+commitment is an AUXILIARY head ("jump within the next K frames") that the engine reads, not the button heads, so it
+cannot disturb them — code, later. Closed-loop SD/min at 16 env-min swings 2x between seeds: it needs 4x the minutes
+before it can rank anything.
