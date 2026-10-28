@@ -65,6 +65,9 @@ defmodule ExPhil.Training.Pipeline do
     # from :file_chunks (so the marker stays an absolute epoch index).
     :progress_path,
     :chunk_offset,
+    # Multi-arm driver (2026-10-28): chunks embedded once by
+    # ChunkPipeline.materialize_chunks/2, shared by every arm of a queue
+    :prepared_chunks,
 
     # Augmentation
     :augment_fn,
@@ -1295,6 +1298,7 @@ defmodule ExPhil.Training.Pipeline do
             embed_config: pipeline.embed_config,
             progress_path: pipeline.progress_path,
             chunk_offset: pipeline.chunk_offset || 0,
+            prepared_chunks: pipeline.prepared_chunks,
             loss_weights_fn: rare_weights_fn
           ] ++ seq_batch_opts
         )

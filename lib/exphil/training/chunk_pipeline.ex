@@ -217,8 +217,30 @@ defmodule ExPhil.Training.ChunkPipeline do
     end
   end
 
+  @doc """
+  Embed every chunk ONCE and keep the prepared datasets in host memory
+  (2026-10-28, the multi-arm testbed driver): returns `[{dataset, idx, errors}]`
+  with `embedded_frames` moved to `Nx.BinaryBackend` so the GPU holds one
+  chunk at a time. `stream_batches(file_chunks, prepared_chunks: list, ...)`
+  then skips parse + embed. Options as `stream_prepared_chunks/2`.
+  Budget: ~1 GB of f32 embeddings + the raw frames per 64-game chunk.
+  """
+  def materialize_chunks(file_chunks, opts \\ []) do
+    file_chunks
+    |> stream_prepared_chunks(Keyword.put(opts, :progress_path, nil))
+    |> Enum.map(fn {dataset, idx, errors} ->
+      {%{dataset | embedded_frames: move_embeddings(dataset.embedded_frames, Nx.BinaryBackend)}, idx, errors}
+    end)
+  end
+
+  defp move_embeddings(nil, _backend), do: nil
+  defp move_embeddings(%Nx.Tensor{} = t, backend), do: Nx.backend_copy(t, backend)
+  defp move_embeddings(list, backend) when is_list(list), do: Enum.map(list, &move_embeddings(&1, backend))
+  defp move_embeddings(other, _backend), do: other
+
   def stream_batches(file_chunks, opts \\ []) do
     batch_size = Keyword.fetch!(opts, :batch_size)
+    prepared = Keyword.get(opts, :prepared_chunks)
     temporal = Keyword.get(opts, :temporal, false)
     shuffle = Keyword.get(opts, :shuffle, true)
     drop_last = Keyword.get(opts, :drop_last, false)
@@ -239,7 +261,8 @@ defmodule ExPhil.Training.ChunkPipeline do
         :cache_dir,
         :embed_config,
         :progress_path,
-        :chunk_offset
+        :chunk_offset,
+        :prepared_chunks
       ])
 
     # Additional batch options
@@ -255,14 +278,29 @@ defmodule ExPhil.Training.ChunkPipeline do
         :embed_config,
         :progress_path,
         :chunk_offset,
+        :prepared_chunks,
         :batch_size,
         :temporal,
         :loss_weights_fn
       ])
       |> Keyword.merge(batch_size: batch_size, shuffle: shuffle, drop_last: drop_last)
 
-    file_chunks
-    |> stream_prepared_chunks(pipeline_opts)
+    source =
+      if is_list(prepared) do
+        # prepared once (materialize_chunks/2): move each chunk's embeddings to the GPU as it is
+        # consumed and record the progress marker exactly as the parse+embed path does
+        p_opts = %{progress_path: Keyword.get(opts, :progress_path), chunk_offset: Keyword.get(opts, :chunk_offset, 0), total_absolute: Keyword.get(opts, :chunk_offset, 0) + length(prepared)}
+        prepared
+        |> Stream.with_index(1)
+        |> Stream.map(fn {{dataset, idx, errors}, local_idx} ->
+          record_progress(p_opts, local_idx)
+          {%{dataset | embedded_frames: move_embeddings(dataset.embedded_frames, EXLA.Backend)}, idx, errors}
+        end)
+      else
+        stream_prepared_chunks(file_chunks, pipeline_opts)
+      end
+
+    source
     |> Stream.flat_map(fn {dataset, _chunk_idx, _errors} ->
       if dataset.size == 0 do
         []

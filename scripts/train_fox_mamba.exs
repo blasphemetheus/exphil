@@ -6,9 +6,27 @@ alias ExPhil.Training.Callbacks.{GracefulShutdown, ProgressBar, Validation,
   EpochSummary, Checkpoint, PolicyExport, EarlyStopping, RollingCheckpoint}
 if Application.get_env(:exphil, :stick_rounding) == :nearest,
   do: Output.warning("EXPHIL_STICK_ROUNDING=nearest: stick targets round to the nearest bucket (experimental, testbed only)")
-{:ok, warnings} = Config.validate_args(System.argv())
+# --arms "name=--flag v --flag2 w;name2=..." (2026-10-28, the multi-arm testbed driver): parse the
+# shared flags once, EMBED THE CHUNKS ONCE (ChunkPipeline.materialize_chunks/2), then train each arm
+# from the same prepared chunks into checkpoints/coh_<name>/. Arm flags go FIRST (the parser takes a
+# flag's first occurrence) so they override shared ones; arms must not change the data/window/batch
+# flags (one split, one validation set). Each arm is one epoch, fresh, no resume.
+{arms_spec, argv} =
+  case Enum.split_while(System.argv(), &(&1 != "--arms")) do
+    {pre, ["--arms", spec | post]} -> {spec, pre ++ post}
+    _ -> {nil, System.argv()}
+  end
+
+arms =
+  if arms_spec do
+    arms_spec
+    |> String.split(";", trim: true)
+    |> Enum.map(fn a -> [name, flags] = String.split(a, "=", parts: 2); {String.trim(name), OptionParser.split(String.trim(flags))} end)
+  end
+
+{:ok, warnings} = Config.validate_args(argv)
 if warnings != [], do: raise(Enum.join(warnings, "\n"))
-opts = Config.parse_args(System.argv()) |> Config.validate!() |> Config.ensure_checkpoint_name()
+opts = Config.parse_args(argv) |> Config.validate!() |> Config.ensure_checkpoint_name()
 # Windowed streaming backbones this driver has been run with. :min_gru added
 # 2026-10-01 as the cheap testbed for the input-coherence experiments; :gru
 # 2026-10-02 as the windowed control for the carried-state BPTT pair
@@ -79,6 +97,57 @@ skip =
 if skip > 0, do: Output.puts("Resuming at chunk #{skip + 1}/#{length(all_chunks)} (#{skip} chunks already trained this epoch)")
 if resume_path, do: Output.puts("Resuming trainer state from #{resume_path}")
 
+callbacks_for = fn o ->
+  [
+    {RollingCheckpoint, [checkpoint_path: o[:checkpoint], every: 500]},
+    {GracefulShutdown, [checkpoint_path: o[:checkpoint]]},
+    {ProgressBar, [log_interval: o[:log_interval] || 100]},
+    {Validation, []}, {EpochSummary, []},
+    {Checkpoint, [checkpoint_path: o[:checkpoint], save_best: true,
+      save_every: 1, save_every_batches: o[:save_every_batches]]},
+    {PolicyExport, [checkpoint_path: o[:checkpoint]]},
+    {EarlyStopping, [patience: o[:patience] || 3]}
+  ]
+end
+
+if arms do
+  alias ExPhil.Training.ChunkPipeline
+  Output.puts("Multi-arm run: #{length(arms)} arms — embedding #{length(all_chunks)} chunks once")
+  t0 = System.monotonic_time(:millisecond)
+  prepared =
+    ChunkPipeline.materialize_chunks(all_chunks,
+      chunk_opts: pipeline.streaming_chunk_opts, dataset_opts: pipeline.streaming_dataset_opts,
+      embed_config: pipeline.embed_config, cache_embeddings: false, show_progress: true)
+  Output.puts("Chunks ready: #{length(prepared)} in #{div(System.monotonic_time(:millisecond) - t0, 1000)} s (#{Enum.sum(Enum.map(prepared, fn {d, _, _} -> d.size end))} frames)")
+
+  for {name, flags} <- arms do
+    arm_ckpt = "checkpoints/coh_#{name}/model.axon"
+    arm_argv = flags ++ ["--checkpoint", arm_ckpt, "--name", "coh-#{name}"] ++ argv
+    {:ok, w} = Config.validate_args(arm_argv)
+    if w != [], do: raise(Enum.join(w, "\n"))
+    arm_opts = Config.parse_args(arm_argv) |> Config.validate!() |> Config.ensure_checkpoint_name()
+    arm_dir = Path.dirname(arm_opts[:checkpoint])
+    File.mkdir_p!(arm_dir)
+    File.write!(Path.join(arm_dir, "split.json"), Jason.encode!(%{train: train_files, validation: val_files}, pretty: true))
+    arm_pipeline = Pipeline.setup!(arm_opts)
+    arm_pipeline = %{arm_pipeline | replay_files: train_files, file_chunks: all_chunks, prepared_chunks: prepared,
+      progress_path: nil, chunk_offset: 0, val_batches: val_batches,
+      estimated_batches: max(1, round(arm_pipeline.estimated_batches * length(train_files) / length(files)))}
+    Output.banner("ARM #{name}: #{Enum.join(flags, " ")}")
+    trainer = Trainer.new(arm_pipeline, arm_opts)
+    Output.puts("Parameters: #{Trainer.param_count(trainer)}")
+    t1 = System.monotonic_time(:millisecond)
+    {:ok, state} = Trainer.fit(trainer, arm_pipeline, callbacks: callbacks_for.(arm_opts))
+    File.write!(Path.join(arm_dir, "completed.json"), Jason.encode!(%{
+      finished_at: DateTime.to_iso8601(DateTime.utc_now()), epoch: state.epoch, steps: state.step,
+      train_loss: state.train_loss, val_loss: state.val_loss, best_val_loss: state.best_val_loss, arm: name, flags: flags}, pretty: true))
+    Output.success("ARM #{name} done in #{div(System.monotonic_time(:millisecond) - t1, 1000)} s: val_loss=#{state.best_val_loss}")
+  end
+
+  Output.success("Multi-arm run complete")
+  System.halt(0)
+end
+
 pipeline = %{pipeline | replay_files: train_files,
   file_chunks: Enum.drop(all_chunks, skip),
   progress_path: progress_path,
@@ -118,17 +187,7 @@ if System.get_env("CALIBRATE_ONLY") == "1" do
   Output.success("wrote #{out}")
   System.halt(0)
 end
-callbacks = [
-  {RollingCheckpoint, [checkpoint_path: opts[:checkpoint], every: 500]},
-  {GracefulShutdown, [checkpoint_path: opts[:checkpoint]]},
-  {ProgressBar, [log_interval: opts[:log_interval] || 100]},
-  {Validation, []}, {EpochSummary, []},
-  {Checkpoint, [checkpoint_path: opts[:checkpoint], save_best: true,
-    save_every: 1, save_every_batches: opts[:save_every_batches]]},
-  {PolicyExport, [checkpoint_path: opts[:checkpoint]]},
-  {EarlyStopping, [patience: opts[:patience] || 3]}
-]
-{:ok, state} = Trainer.fit(trainer, pipeline, callbacks: callbacks)
+{:ok, state} = Trainer.fit(trainer, pipeline, callbacks: callbacks_for.(opts))
 # The epoch is complete: a later --resume of this directory must not skip chunks.
 File.rm(progress_path)
 if !opts[:no_register] do
