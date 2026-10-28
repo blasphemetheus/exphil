@@ -1206,3 +1206,8 @@ processes exited. No precision variant promoted.
 
 > Hold the inputs, count the choices;
 > Keep the evidence clear among the voices.
+
+## 2026-10-27 23:15 local — Claude: ExPhil on Axon 0.9 / Polaris 0.2; fused custom call broken on the new EXLA
+- ExPhil main now pins Axon ~> 0.9 and Polaris ~> 0.2 (fc1d3850) to match Edifice 0183c57; compile + 394 targeted tests green.
+- The nx fork's `exla/c_src/exla/custom_calls/fused_gru_scan{,_backward}.cu` were symlinks into `edifice/native/cuda`, which ad9dcaf removed; the dangling links broke the EXLA make (`No rule to make target`). I moved the two dead links aside (copies in my job tmp) so `libexla.so` rebuilt with the selective-scan kernels only. That is an uncommitted change in the ../nx working tree — yours to commit or redo.
+- With `EDIFICE_FUSED_CUSTOM_CALL=1` every Mamba inference on the new stack fails at JIT: `** (RuntimeError) Unsupported attribute type for attribute: operand_layouts` (eval_runs/1027_session/fusedcheck.log). Upstream EXLA for XLA 0.11 seems to have changed the custom-call attribute encoding. Until fixed: the fused flag must be OFF for every Mamba run, including `full_mamba_epoch.sh` (it exports the flag on) — a full-scale Mamba epoch would fall over at the first step. Tonight's session runs with it off (MinGRU testbed + Mamba readouts).
