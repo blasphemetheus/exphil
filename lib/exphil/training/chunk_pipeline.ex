@@ -229,7 +229,12 @@ defmodule ExPhil.Training.ChunkPipeline do
     file_chunks
     |> stream_prepared_chunks(Keyword.put(opts, :progress_path, nil))
     |> Enum.map(fn {dataset, idx, errors} ->
-      {%{dataset | embedded_frames: move_embeddings(dataset.embedded_frames, Nx.BinaryBackend)}, idx, errors}
+      # the raw frames go OFF the BEAM heap as one compressed binary per chunk: 10 M frame maps on
+      # the heap made every major GC a multi-second pause (the trainer_state Agent timed out at
+      # step 1000 on the first full-slice run, 2026-10-28 12:09); rehydrated per chunk per arm
+      frames_bin = :erlang.term_to_binary(dataset.frames, [:compressed])
+      {%{dataset | embedded_frames: move_embeddings(dataset.embedded_frames, Nx.BinaryBackend), frames: nil,
+         metadata: Map.put(dataset.metadata || %{}, :frames_bin, frames_bin)}, idx, errors}
     end)
   end
 
@@ -294,7 +299,12 @@ defmodule ExPhil.Training.ChunkPipeline do
         |> Stream.with_index(1)
         |> Stream.map(fn {{dataset, idx, errors}, local_idx} ->
           record_progress(p_opts, local_idx)
-          {%{dataset | embedded_frames: move_embeddings(dataset.embedded_frames, EXLA.Backend)}, idx, errors}
+          {frames, meta} =
+            case dataset.metadata do
+              %{frames_bin: bin} = m -> {:erlang.binary_to_term(bin), Map.delete(m, :frames_bin)}
+              m -> {dataset.frames, m}
+            end
+          {%{dataset | embedded_frames: move_embeddings(dataset.embedded_frames, EXLA.Backend), frames: frames, frames_array: nil, metadata: meta}, idx, errors}
         end)
       else
         stream_prepared_chunks(file_chunks, pipeline_opts)

@@ -76,9 +76,10 @@ defmodule ExPhil.Training.Callbacks.GracefulShutdown do
     if cb.agent_pid do
       # Update metadata only (no GPU tensors) — cheap, every 1000 steps
       if state.step > 0 && rem(state.step, 1000) == 0 do
-        Agent.update(:trainer_state, fn meta ->
-          %{meta | epoch: state.epoch, step: state.step}
-        end)
+        # capture the two scalars, not `state` (the closure would copy the whole trainer state into
+        # the Agent's mailbox); 60 s timeout — a major GC pause on a large heap exceeded the 5 s default
+        {ep, st} = {state.epoch, state.step}
+        Agent.update(:trainer_state, fn meta -> %{meta | epoch: ep, step: st} end, 60_000)
       end
 
       # Check if interrupt was requested — save from MAIN process (has GPU access)
