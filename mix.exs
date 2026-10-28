@@ -200,7 +200,7 @@ defmodule ExPhil.MixProject do
         do: {:nx, path: "../nx/nx", override: true},
         else: {:nx, "~> 0.12"}
       ),
-      {:axon, "~> 0.8"},
+      {:axon, "~> 0.9"},
       if(local_nx?,
         # env: :dev keeps Mix.env() in sync with the Makefile's MIX_ENV check —
         # exla's test-only NIFs (e.g. write_to_pointer) are gated on both, and
@@ -209,7 +209,7 @@ defmodule ExPhil.MixProject do
         do: {:exla, path: "../nx/exla", override: true, env: :dev},
         else: {:exla, "~> 0.11"}
       ),
-      {:polaris, "~> 0.1"},
+      {:polaris, "~> 0.2"},
       # The local nx fork (integration branch, 10-07) requires complex ~> 1.0,
       # which is Bradley's ../complex fork (hex stops at 0.7).
       if(local_nx?,
