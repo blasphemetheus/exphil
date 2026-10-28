@@ -31,8 +31,8 @@ opts = Config.parse_args(argv) |> Config.validate!() |> Config.ensure_checkpoint
 # 2026-10-01 as the cheap testbed for the input-coherence experiments; :gru
 # 2026-10-02 as the windowed control for the carried-state BPTT pair
 # (`train.exs --bptt --bptt-holdout-split <this run's split.json>`).
-unless opts[:backbone] in [:mamba, :min_gru, :gru] and opts[:stream_chunk_size] && !opts[:bptt] && !opts[:learn_player_styles],
-  do: raise("requires windowed streaming (mamba, min_gru or gru) without style-vocabulary learning")
+unless opts[:backbone] in [:mamba, :mamba2_full, :min_gru, :gru] and opts[:stream_chunk_size] && !opts[:bptt] && !opts[:learn_player_styles],
+  do: raise("requires windowed streaming (mamba, mamba2_full, min_gru or gru) without style-vocabulary learning")
 ExPhil.Training.Inhibitor.hold("Fox Mamba imitation")
 Output.banner("Fox Mamba: windowed imitation with game holdout")
 Output.config([{"Checkpoint", opts[:checkpoint]}, {"Epochs", opts[:epochs]},

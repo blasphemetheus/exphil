@@ -374,6 +374,7 @@ defmodule ExPhil.Training.Imitation do
           window_size: config.window_size,
           num_heads: config.num_heads,
           head_dim: config.head_dim,
+          num_groups: Map.get(config, :num_groups, 1),
           hidden_size: config.hidden_size,
           num_layers: config.num_layers,
           hidden_sizes: config.hidden_sizes,
@@ -395,7 +396,7 @@ defmodule ExPhil.Training.Imitation do
           state_size: config.state_size,
           expand_factor: config.expand_factor,
           conv_size: config.conv_size,
-          chunk_size: Map.get(config, :chunk_size),
+          chunk_size: Map.get(config, :chunk_size) || 32,
           training_mode: Map.get(config, :training_mode),
           # Chunk-target auxiliary heads (training only; dropped at export)
           chunk_horizon: Map.get(config, :chunk_horizon)

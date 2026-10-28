@@ -337,6 +337,7 @@ defmodule ExPhil.Training.Config.Parser do
     {"--label-delay", :label_delay, :int},
     {"--num-heads", :num_heads, :int},
     {"--head-dim", :head_dim, :int},
+    {"--num-groups", :num_groups, :int},
     {"--log-file", :log_file, :string},
     {"--frame-delay-augment", :frame_delay_augment, :flag},
     {"--frame-delay-min", :frame_delay_min, :int},

@@ -404,6 +404,7 @@ defmodule ExPhil.Training.Imitation.Checkpointing do
         window_size: trainer.config[:window_size] || 60,
         num_heads: trainer.config[:num_heads] || 4,
         head_dim: trainer.config[:head_dim] || 64,
+        num_groups: trainer.config[:num_groups] || 1,
         hidden_size: trainer.config[:hidden_size] || 256,
         num_layers: trainer.config[:num_layers] || 2,
         # Mamba-specific config

@@ -81,6 +81,7 @@ defmodule ExPhil.Training.Config.FlagDocs do
     "--gradient-checkpoint" => "Trade memory for compute",
     "--head" => "Controller head: `independent` (six parallel heads) or `autoregressive` (residual-stream conditional head, buttons→main_x→main_y→c_x→c_y→shoulder; see AUTOREGRESSIVE_HEAD_PLAN.md). Temporal only",
     "--head-dim" => "Attention head width",
+    "--num-groups" => "Shared B/C groups for canonical Mamba-2 (default 1)",
     "--hidden" => "Hidden layer sizes",
     "--hide-errors" => "Hide individual file errors",
     "--integration-steps" => "ODE sub-steps per frame",

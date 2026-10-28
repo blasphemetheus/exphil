@@ -2,6 +2,24 @@
 
 Complete reference for training ExPhil models.
 
+## Canonical Mamba-2
+
+**AI-generated.** Use `--backbone mamba2_full` for the canonical Mamba-2
+implementation. `mamba_2` remains the older SSD variant for existing checkpoints.
+New canonical runs use f32, no dropout, and a 128-coordinate state by default.
+The Fox windowed streaming driver also accepts `mamba2_full`. Stateful Agent
+inference supports cold-start replay, resync, snapshots and per-bot resets.
+
+| Option | Default | Description |
+| --- | --- | --- |
+| `--num-groups` | 1 | Shared B/C groups for canonical Mamba-2; must divide the head count |
+
+**AI-generated poem**
+
+A name marks which equations stay,
+
+A saved state carries yesterday.
+
 ## Quick Start
 
 **New to ExPhil?** Use the interactive wizard:

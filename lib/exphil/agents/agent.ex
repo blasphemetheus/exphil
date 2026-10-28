@@ -2264,6 +2264,7 @@ defmodule ExPhil.Agents.Agent do
   # regime unless :stateful_resync bounds it or the policy was trained with
   # carried state.
   defp stateful_module(:mamba), do: Edifice.SSM.Mamba
+  defp stateful_module(:mamba2_full), do: Edifice.SSM.Mamba2
   defp stateful_module(backbone) when backbone in [:mamba_2, :mamba_ssd], do: Edifice.SSM.MambaSSD
   defp stateful_module(:min_gru), do: Edifice.Recurrent.MinGRU
   defp stateful_module(_recurrent), do: Edifice.Recurrent
@@ -2382,6 +2383,7 @@ defmodule ExPhil.Agents.Agent do
     {prefix, extras} =
       case cell_type do
         :mamba -> {"mamba_block_", ["input_projection"]}
+        :mamba2_full -> {"mamba2_", ["input_projection", "final_norm"]}
         kind when kind in [:mamba_2, :mamba_ssd] -> {"mamba_ssd_block_", ["input_projection"]}
         :min_gru -> {"min_gru_", ["input_projection", "final_norm"]}
         _ -> {"#{cell_type}_", ["input_ln"]}
@@ -2490,6 +2492,27 @@ defmodule ExPhil.Agents.Agent do
     )
   end
 
+  defp init_trunk_state(trunk_params, embed_config, :mamba2_full, batch_size) do
+    p = trunk_params["mamba2_1"]
+    inner = Nx.axis_size(p["out_kernel"], 0)
+    hidden = Nx.axis_size(p["out_kernel"], 1)
+    heads = Nx.axis_size(p["A_log"], 0)
+    state_size = embed_config[:state_size] || 128
+    groups = div(Nx.axis_size(p["conv_kernel"], 2) - inner, 2 * state_size)
+    layers = Enum.count(Map.keys(trunk_params), &Regex.match?(~r/^mamba2_\d+$/, &1))
+
+    Edifice.SSM.Mamba2.init_state(trunk_params,
+      batch_size: batch_size,
+      hidden_size: hidden,
+      num_layers: layers,
+      state_size: state_size,
+      expand_factor: div(inner, hidden),
+      head_dim: div(inner, heads),
+      num_groups: groups,
+      conv_size: Nx.axis_size(p["conv_kernel"], 0)
+    )
+  end
+
   defp init_trunk_state(trunk_params, embed_config, backbone, batch_size)
        when backbone in [:mamba, :mamba_2, :mamba_ssd] do
     prefix = if backbone == :mamba, do: "mamba_block", else: "mamba_ssd_block"
@@ -2520,7 +2543,7 @@ defmodule ExPhil.Agents.Agent do
   # shapes fixed by the checkpoint, so it is derived from the live state
   # (the SSM dims are not in state.embed_config).
   defp fresh_trunk_state(%{backbone: backbone, trunk_state: %{} = live}, n)
-       when backbone in [:mamba, :mamba_2, :mamba_ssd, :min_gru] do
+       when backbone in [:mamba, :mamba_2, :mamba_ssd, :mamba2_full, :min_gru] do
     Map.new(live, fn {k, v} ->
       shape = v |> Nx.shape() |> put_elem(0, n)
       {k, Nx.broadcast(Nx.tensor(0.0, type: Nx.type(v)), shape)}
@@ -3455,6 +3478,7 @@ defmodule ExPhil.Agents.Agent do
       window_size: window_size,
       num_heads: Map.get(config, :num_heads, 4),
       head_dim: Map.get(config, :head_dim, 64),
+      num_groups: Map.get(config, :num_groups, 1),
       hidden_size: Map.get(config, :hidden_size, 256),
       num_layers: Map.get(config, :num_layers, 2),
       state_size: Map.get(config, :state_size, 16),
@@ -3744,7 +3768,8 @@ defmodule ExPhil.Agents.Agent do
         not state.stateful_step ->
           {nil, nil, nil, params}
 
-        not (temporal and backbone in [:gru, :lstm, :mamba, :mamba_2, :mamba_ssd, :min_gru]) ->
+        not (temporal and
+                 backbone in [:gru, :lstm, :mamba, :mamba_2, :mamba_ssd, :mamba2_full, :min_gru]) ->
           Logger.warning(
             "[Agent] stateful_step requested but backbone #{inspect(backbone)} " <>
               "doesn't support the Edifice.Stateful step path (GRU/LSTM/Mamba/Mamba-2/MinGRU only) — " <>

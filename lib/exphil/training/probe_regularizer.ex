@@ -60,6 +60,7 @@ defmodule ExPhil.Training.ProbeRegularizer do
         window_size: config.window_size,
         num_heads: config.num_heads,
         head_dim: config.head_dim,
+        num_groups: Map.get(config, :num_groups, 1),
         hidden_size: config.hidden_size,
         num_layers: config.num_layers,
         state_size: config.state_size,

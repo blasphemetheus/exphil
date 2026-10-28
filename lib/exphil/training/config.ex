@@ -1331,6 +1331,32 @@ defmodule ExPhil.Training.Config do
       expand_factor: 2,
       conv_size: 4
     ],
+    mamba2_full: [
+      temporal: true,
+      precision: :f32,
+      dropout: 0.0,
+      window_size: 60,
+      num_layers: 2,
+      state_size: 128,
+      expand_factor: 2,
+      head_dim: 64,
+      num_groups: 1,
+      conv_size: 4,
+      build:
+        {Edifice.SSM.Mamba2, :embed_dim,
+         [
+           hidden_size: 256,
+           num_layers: 2,
+           state_size: 128,
+           expand_factor: 2,
+           head_dim: 64,
+           num_groups: 1,
+           conv_size: 4,
+           chunk_size: 32,
+           dropout: 0.0
+         ]},
+      output: {:hidden_size, 256}
+    ],
     mamba_2: [
       temporal: true,
       precision: :f32,
@@ -1664,6 +1690,7 @@ defmodule ExPhil.Training.Config do
       # 4/64 for every backbone without a backbone_defaults clause.
       num_heads: 4,
       head_dim: 64,
+      num_groups: 1,
       # --log-file PATH: tee Output to a file (train.exs consumes it)
       log_file: nil,
       # Higher = more focus on hard examples
@@ -2409,6 +2436,7 @@ defmodule ExPhil.Training.Config do
     conv_size: "--conv-size",
     num_heads: "--num-heads",
     head_dim: "--head-dim",
+    num_groups: "--num-groups",
     chunked_attention: "--chunked-attention"
   }
 
@@ -2681,6 +2709,7 @@ defmodule ExPhil.Training.Config do
       attention_every: opts[:attention_every],
       num_heads: opts[:num_heads],
       head_dim: opts[:head_dim],
+      num_groups: opts[:num_groups] || 1,
       epochs: opts[:epochs],
       batch_size: opts[:batch_size],
       precision: to_string(opts[:precision]),
