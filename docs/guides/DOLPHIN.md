@@ -341,3 +341,143 @@ ls -la ~/.config/Slippi\ Launcher/netplay/
 - Use async runner for slow models
 - Increase `--action-repeat` for sync runner
 - Check CPU usage with `htop`
+
+## slippi-ai head-to-head (ExPhil policy vs vladfi1's agent, one Dolphin)
+
+Added 2026-10-29. Plays an ExPhil policy on port 1 against a slippi-ai
+checkpoint (default `~/git/slippi-ai/models/medium-v2`) on port 2 in ONE
+local Dolphin, writes `.slp` replays plus a per-game results JSON. Built so
+the slippi-ai agent can later be registered as a league opponent.
+
+**Status: the Python worker is verified offline (protocol, model load,
+inference timing); the full Dolphin session has NOT been run yet** — it
+was written while a GPU training unit held the machine (no `mix`, no
+foreground Dolphin). Everything marked *unverified* below is exactly that.
+
+### Design
+
+- **Host = our native harness.** `scripts/play_vs_slippi_ai.exs` is
+  `play_dolphin_async.exs` plus an opponent: `MeleePort` (libmelee_ex)
+  owns the Dolphin and BOTH pipe controllers (port 2 via
+  `dummy_mode: "external"`, the same hook the checkpoint ladder's
+  `PolicyOpponent` rides). Every ExPhil deploy knob applies to our side
+  unchanged (DEPLOY_KNOBS.md).
+- **slippi-ai runs unmodified, in its own venv, as a subprocess.**
+  `priv/python/slippi_ai_worker.py` is spawned with
+  `~/git/slippi-ai/.venv/bin/python` (TF 2.21 CPU, their libmelee fork
+  0.47.3 — nothing shared with our env). Per in-game frame the runner's
+  `step_game/3` forwards our `ExPhil.Bridge.GameState` as JSON over an
+  Erlang `{:packet, 4}` port; the worker rebuilds a real `melee.GameState`
+  and calls their `eval_lib.Agent.step` (their Parser → observation
+  filter → async delayed inference → controller decode). A recorder
+  object stands in for `melee.Controller`, so their `send_controller`
+  writes land in a dict we hand back as the bridge input map.
+- Rejected alternative: hosting in THEIR `eval_two.py` with an "exphil"
+  player type. It would need a JSON→`GameState` decoder on our side (the
+  Python-era one is gone — `MeleePort` is native now), a second transport
+  for the beam, and would lose the LatencyProbe/rung machinery and the
+  async inference split. The loopback-netplay path (two Dolphins, second
+  Slippi login) stays available but was not needed.
+
+### Commands
+
+```bash
+cd ~/git/exphil && devenv shell            # worker inherits NIX_PYTHONPATH from this shell
+
+# ExPhil Fox (master ep7) vs medium-v2 Fox, 5 games on FD, windowed
+mix run scripts/play_vs_slippi_ai.exs \
+  --policy checkpoints/coh_fox_mamba_master_ep7_plain/model_best_policy.bin \
+  --character fox --stage final_destination \
+  --dolphin "$HOME/.config/Slippi Launcher/netplay-beta-nixos" \
+  --iso "$HOME/isos/melee.iso" \
+  --num-games 5 \
+  --replay-dir eval_runs/1029_vs_slippi_ai/ \
+  --results eval_runs/1029_vs_slippi_ai/results.json
+```
+
+Add our usual knobs as needed: `--reaction-delay k` (default = the
+checkpoint's smallest trained rung), `--deterministic`, `--temperature`,
+`--policy-server` (warm agents, see project_jit_warmup), `--headless
+--emulation-speed 0 --blocking-input` for the fast sync-equivalent recipe
+(the runner paces 60 Hz; *unverified* that the extra port-2 round trip
+stays inside the paced frame).
+
+Script-specific flags: `--slippi-ai-model PATH`, `--slippi-ai-python
+PATH`, `--slippi-ai-character fox|falco|marth|sheik|jigglypuff|cptfalcon|
+peach|yoshi|popo|luigi|pikachu|samus` (medium-v2's set), `--slippi-ai-
+temperature T` (their default 1.0), `--slippi-ai-delay N` (see below),
+`--num-games N`, `--results PATH`.
+
+Offline smoke of the worker alone (no Dolphin, ~10 s, safe while training
+runs): drive it over the packet protocol with synthetic frames — the
+2026-10-29 run gave init 2–3 s, mean 3.6 ms per frame round trip (max 5.4
+ms) on a machine with a training job active, agent acting on ~56% of
+synthetic frames, frame-regression (new game) handled.
+
+### Results JSON
+
+`{meta, summary, games[]}`. Per game: `winner` (`exphil` | `slippi_ai` |
+`draw`), `complete` (true when a stock count hit 0; false = left early by
+LRAS/timeout/session stop, then ranked by stocks then percent), final
+`stocks`/`percent` per side, `last_frame`, `duration_s`. `meta` records
+both sides' delays, ports, characters, temperatures and the replay dir.
+Replays are the canonical record — rescore from the `.slp` when in doubt.
+
+### Frame delay — who plays at what
+
+- **ExPhil side:** physical reaction delay `k` from `--reaction-delay`
+  (async runner: Dolphin frame delay `k-1`, floor `k=1`), measured by the
+  LatencyProbe at each game start. master ep7 plain's trained rung is what
+  it defaults to.
+- **slippi-ai side:** medium-v2 was trained and is released at
+  `policy.delay = 21` frames (their deliberate human-reaction handicap).
+  The script passes our Dolphin frame delay as their `console_delay`, so
+  their internal queue shrinks to `21 - knob` and their TOTAL
+  state→action delay stays 21 whatever rung we run — same arithmetic as
+  their own `eval_two.py`.
+- So a default match is **asymmetric: ours reacts in ~k+1 frames, theirs
+  in ~21.** Any win/loss claim carries that asterisk. Three ways to narrow
+  it, none verified live:
+  1. Slow OUR side: `--local-delay D` holds each of our actions D extra
+     frames in the bridge queue (total ≈ k+1+D; e.g. `--reaction-delay 4
+     --local-delay 16` ≈ 21). This is an UNTRAINED regime for every
+     current checkpoint (delay-id mismatch — pass
+     `--allow-latency-mismatch`, expect degraded play). The honest
+     symmetric comparison needs a checkpoint trained at that rung.
+  2. Speed THEIR side: `--slippi-ai-delay N` overrides
+     `state.config.policy.delay` in memory (the analogue of their
+     `scripts/update_delay.py`, minus the teacher rename). Also
+     off-distribution for their network — they only release d21 for
+     medium-v2.
+  3. Netplay-rung both: run ours at the netplay recipe (`--reaction-delay
+     4` class) and read theirs as "a 21-frame human-handicapped bot".
+     Report both numbers, don't average them.
+
+### Known limitations / unverified
+
+- Full session (CSS menuing with the external port-2 controller, replay
+  finalization, LRAS, `--num-games` stop at the CSS via `postgame_delay
+  5`) is untested end to end; each piece exists in `play_dolphin_async`
+  + `PolicyOpponent` runs, the combination does not yet.
+- `ExPhil.Bridge.Projectile` has no `spawn_id` (dropped in
+  `MeleePort.convert_projectile`), so their `ItemAssigner` gets list
+  indices as ids: item SLOT identity across frames is approximate when
+  several projectiles coexist (Fox lasers). Fix = plumb `spawn_id` through
+  `lib/exphil_bridge/types.ex` + `melee_port.ex` (not done — lib/ frozen
+  during the training run).
+- Nana (Ice Climbers) is rebuilt from ExPhil's compact Nana (no
+  jumps/shield/on_ground) — do not read popo results as faithful.
+- Their agent infers on CPU; a slow host could make their delay queue
+  drain and `step` block the frame loop (the worker logs `step_ms` every
+  30 s and warns above 12 ms). Observed 3.6 ms offline.
+- `melee.Stage`/`melee.Character` in their fork are INTERNAL ids; our
+  `GameState.stage` is EXTERNAL (converted with `to_internal_stage`),
+  our `Player.character` is already internal — both mapped in the worker.
+- The worker needs the devenv shell's `NIX_PYTHONPATH`/`PYTHONPATH`
+  (numpy etc. live in the devenv profile, not the venv); the script
+  passes them through. Launch from `devenv shell`.
+- Dropbox "released models" folder (README) is JS-rendered; the listing
+  could not be fetched without a browser (2026-10-29). Whether an
+  imitation-only (non-RL) checkpoint is published there is UNKNOWN; the
+  worker reports `agent_type` (`rl` when `rl_config`/`agent_config` is in
+  the pickle, else `imitation`) so any downloaded file self-identifies.
