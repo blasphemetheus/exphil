@@ -327,10 +327,28 @@ games =
     t_ponr = System.monotonic_time(:millisecond)
     deaths = Enum.map(deaths, fn d -> Map.put(d, :ponr, ponr_of.(d)) end)
     Output.puts("    point of no return: #{length(deaths)} deaths in #{System.monotonic_time(:millisecond) - t_ponr} ms")
+    # advantage / disadvantage episodes from the per-frame situation labels (ego = me): who held it,
+    # how long, damage dealt inside it, and whether the victim lost a stock within 90 f of its end
+    dmg_in = fn victim, f_a, f_b -> hits |> Enum.filter(&(&1.victim == victim and &1.frame >= f_a and &1.frame <= f_b)) |> Enum.map(& &1.damage) |> Enum.sum() |> Kernel.*(1.0) |> Float.round(1) end
+    situation_eps =
+      for {label, type, who, victim, min_len} <- [
+            {:ledge_trap, "ledge_trap", "me", "opp", 30}, {:juggle, "juggle", "me", "opp", 20}, {:tech_chase, "tech_chase", "me", "opp", 15},
+            {:shield_pressure_ours, "shield_pressure", "me", "opp", 15},
+            {:being_juggled, "juggle", "opp", "me", 20}, {:being_tech_chased, "tech_chase", "opp", "me", 15},
+            {:shield_pressure_theirs, "shield_pressure", "opp", "me", 15}
+          ],
+          {a, b} <- episodes.(label, 30), b - a >= min_len do
+        f_a = frame_of.(a); f_b = frame_of.(b)
+        died = died_within.(victim, f_b, 90)
+        %{type: type, who: who, victim: victim, frame: f_a, end_frame: f_b, frames: b - a,
+          damage: dmg_in.(victim, f_a, f_b + 30), outcome: (if died, do: "stock", else: "escaped"),
+          clip: [max(first, f_a - 60), min(first + n - 1, f_b + 60)]}
+      end
+
     sds = deaths |> Enum.filter(&(&1.killed_by == nil or (&1.ponr && &1.ponr.kind == "sd"))) |> Enum.map(&%{&1 | type: "sd"})
     deaths = Enum.reject(deaths, fn d -> d.killed_by == nil or (d.ponr && d.ponr.kind == "sd") end)
 
-    moments = (deaths ++ sds ++ combos ++ edgeguards ++ recoveries ++ missed_techs ++ openings) |> Enum.sort_by(& &1.frame)
+    moments = (deaths ++ sds ++ combos ++ edgeguards ++ recoveries ++ missed_techs ++ openings ++ situation_eps) |> Enum.sort_by(& &1.frame)
     last = elem(arr, n - 1)
     final = %{me: get.(n - 1, me.port) && get.(n - 1, me.port).stock, opp: get.(n - 1, opp.port) && get.(n - 1, opp.port).stock}
     winner = cond do (final.me || 0) > (final.opp || 0) -> "me"; (final.me || 0) < (final.opp || 0) -> "opp"; true -> "?" end

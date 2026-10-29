@@ -92,7 +92,7 @@
       const mmss = (f) => { const s = Math.max(0, Math.floor(f / 60)); return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`; };
       const BTN = ["A", "B", "X", "Y", "Z", "L", "R", "St", "D↑", "D↓", "D←", "D→"];
       const BCOL = ["#2e8b57", "#c0392b", "#777", "#777", "#6a3fb5", "#444", "#444", "#999", "#8a4b1f", "#8a4b1f", "#8a4b1f", "#8a4b1f"];
-      const TYPES = { stock_loss: "stocks", sd: "SDs", combo: "combos", edgeguard: "edgeguards", recovery: "recoveries", missed_tech: "missed techs", opening: "openings" };
+      const TYPES = { stock_loss: "stocks", sd: "SDs", combo: "combos", edgeguard: "edgeguards", recovery: "recoveries", missed_tech: "missed techs", opening: "openings", ledge_trap: "ledge traps", juggle: "juggles", tech_chase: "tech chases", shield_pressure: "shield pressure" };
       // default view = the important ones; the rest switch on by chip
       const on = new Set(["stock_loss", "sd", "combo", "edgeguard", "missed_tech"]);
       let manifest, game, gi = -1, mi = -1, frame = 0, playing = false, stripOpp = false, rows = null, ghosts = false, shown = [];
@@ -105,7 +105,8 @@
       function stageName(s) { return { 2: "FoD", 3: "PS", 8: "YS", 28: "DL", 31: "BF", 32: "FD" }[s] || `stage ${s}`; }
 
       // which moments matter by default: edgeguards only when a stock fell or ≥ 15 % was taken; openings only with ≥ 25 % follow-up
-      const important = (m) => m.type === "edgeguard" ? (m.outcome === "stock" || (m.damage || 0) >= 15) : m.type === "opening" ? (m.follow_up_damage || 0) >= 25 : m.type === "recovery" ? m.outcome === "stock" : true;
+      const important = (m) => m.type === "edgeguard" ? (m.outcome === "stock" || (m.damage || 0) >= 15) : m.type === "opening" ? (m.follow_up_damage || 0) >= 25 : m.type === "recovery" ? m.outcome === "stock"
+        : ["ledge_trap", "juggle", "tech_chase", "shield_pressure"].includes(m.type) ? (m.outcome === "stock" || (m.damage || 0) >= 20) : true;
 
       async function pickGame(k) {
         gi = k; const g = manifest.games[k];
@@ -146,6 +147,9 @@
           case "recovery": return { what: `<b>You</b> recovered from low: ${m.outcome === "stock" ? "did not make it" : "made it back"}`, how: `${(m.frames / 60).toFixed(1)} s below the ledge` };
           case "missed_tech": return { what: `<b>${you ? "You" : esc(oc)}</b> missed a tech at ${Math.round(m.percent)}%`, how: `${((m.end_frame - m.frame) / 60).toFixed(1)} s on the ground` };
           case "opening": return { what: `<b>${you ? "You" : esc(oc)}</b> won neutral with ${pretty(m.move)}`, how: `${m.damage}% on the hit, ${m.follow_up_damage}% in the next 4 s` };
+          case "ledge_trap": case "juggle": case "tech_chase": case "shield_pressure": {
+            const verb = { ledge_trap: "trapped at the ledge", juggle: "juggled", tech_chase: "tech-chased", shield_pressure: "pressured the shield of" }[m.type];
+            return { what: `<b>${you ? "You" : esc(oc)}</b> ${verb} ${you ? oc : "you"}: ${m.outcome === "stock" ? "took the stock" : (m.damage >= 20 ? `${m.damage}% taken` : "nothing came of it")}`, how: `${(m.frames / 60).toFixed(1)} s · ${m.damage}% dealt` }; }
         }
         return { what: m.type, how: "" };
       }
