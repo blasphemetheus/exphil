@@ -47,3 +47,28 @@ EPOCH 1 DONE light (01:18)
 
 ## epoch 1 read (Claude, 01:20): w768 ep1 val 3.141 / fam 51.6 / joint 24.2 / AUC 0.864 / STANDING 44.9  vs  512 ep1 val 3.140 / 50.8 / 23.8 / 0.854 / 47.0
 Within cross-run drift (~2 fam) after one epoch; 65 ms/it vs 48. The read is epoch 3 vs the 512 arm's plateau (53.4 / 26.4).
+val_loss=2.9792
+RESULT fox_mamba_master_w768_ep2: frames=30583 change_recall=0.29 hold_agreement=0.592 repeat_prev=0.746 (expert 0.665) neutral=0.235 (expert 0.275)
+RESULT fox_mamba_master_w768_ep2 press edges/min model:expert  A 21.89:19.19  B 22.6:18.72  X 25.43:30.96  Y 40.38:26.72  Z 5.65:4.36  L 28.49:33.31  R 15.54:7.89
+RESULT fox_mamba_master_w768_ep2 jab1 episodes=6 A-edges/episode model=0.333 expert=0.333
+RESULT fox_mamba_master_w768_ep2 change events recall/precision  ±0: press 0.043/0.038 release 0.046/0.04 stick 0.034/0.035  |  ±2: press 0.259/0.233 release 0.165/0.146 stick 0.158/0.166  |  ±5: press 0.347/0.309 release 0.277/0.246 stick 0.265/0.293
+RESULT fox_mamba_master_w768_ep2 vs idle: 16.0 env-min  SD/min 0.813  deaths/min 0.813  kills/min 2.0  dmg dealt/taken per min 108.674/0.0
+RESULT fox_mamba_master_w768_ep2 deaths by verdict at the decision frame: kill 0 (0.0/min)  checkmate 0 (0.0/min)  forced 0 (0.0/min)  mixup 13 (0.813/min)
+RESULT fox_mamba_master_w768_ep2 offstage eps/min 4.625  recovery rate 0.817  neutral 0.367  repeat_prev 0.752  max frozen run 892 f  (22.4s wall)
+RESULT fox_mamba_master_w768_ep2: 36 cases x 8 trials  recovery 0.747  died 0.253  timeout 0.0  never 0/36  always 6/36
+RESULT fox_mamba_master_w768_ep2 by routes: 1 routes: 1.0 (1 cases)  2-3 routes: 0.602 (11 cases)  4+ routes: 0.802 (24 cases)
+DONE fox_mamba_master_w768_ep2
+RESULT ALL frames: n 39430  joint 76.1%  buttons 93.5%  families 86.0%  main dir 92.8% (bucket 86.2%, ±1 89.6%)  c dir 99.2%  trigger 97.7%  jump 97.3%  attack 99.2%  special 98.9%  surprise 2.556  change recall 70.8%  false change 4.5%
+RESULT CHANGE frames (real input changed): n 11028  joint 26.0%  buttons 77.1%  families 52.6%  main dir 74.4% (bucket 51.1%, ±1 63.0%)  c dir 97.0%  trigger 93.7%  jump 90.6%  attack 97.1%  special 96.4%  surprise 3.211  change recall 70.8%  false change %
+RESULT frames with a real press edge: n 1314  joint 1.1%  buttons 19.6%  families 8.1%  main dir 89.3% (bucket 78.5%, ±1 85.4%)  c dir 99.5%  trigger 78.5%  jump 57.6%  attack 86.7%  special 84.6%  surprise 4.809  change recall 27.9%  false change %
+RESULT DECISION frames (stick head trained here): n 13176  joint 41.6%  buttons 80.8%  families 63.6%  main dir 78.4% (bucket 58.7%, ±1 68.7%)  c dir 99.2%  trigger 96.6%  jump 92.1%  attack 97.5%  special 97.0%  surprise 2.394  change recall 71.8%  false change 4.4%
+RESULT press calibration jump: AUC 0.875  mean P on press frames 0.08 vs no-press 0.023  press frames above the no-press median 97.1%  (n 523 / 35276)
+RESULT press calibration attack: AUC 0.932  mean P on press frames 0.1 vs no-press 0.009  press frames above the no-press median 98.8%  (n 165 / 38183)
+RESULT press calibration special: AUC 0.955  mean P on press frames 0.175 vs no-press 0.009  press frames above the no-press median 98.1%  (n 207 / 37830)
+RESULT press calibration trigger: AUC 0.902  mean P on press frames 0.349 vs no-press 0.033  press frames above the no-press median 96.1%  (n 387 / 32618)
+RESULT STANDING change frames: n 234 change recall 48.3% families 37.6%
+EPOCH 2 DONE light (04:51)
+
+## w768 epoch 3 (lr 0.0001) (04:51)
+
+## epoch 2 read (Claude, 07:55): w768 ep2 val 2.979 / fam 52.6 / joint 26.0 / AUC 0.875 / STANDING 48.3  vs  512 ep2 2.982 / 52.3 / 25.8 / 0.865 / 47.4 — level. 72 ms/it at lr 1e-4 on ep3.
