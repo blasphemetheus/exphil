@@ -42,7 +42,7 @@ prev=checkpoints/coh_${RUN}_ep$((N - 1))
 mkdir -p "$out" eval_runs/1011_full
 
 echo "== $name: epoch $N, lr $lr, seed $seed, mix '${MIX}' ($(date +%H:%M))"
-while pgrep -f '[b]eam.smp' > /dev/null; do echo "beam alive, waiting ($(date +%H:%M))"; sleep 60; done
+while scripts/beam_busy.sh; do echo "exphil/nx mix VM alive, waiting ($(date +%H:%M))"; sleep 60; done   # scripts/beam_busy.sh (10-28)
 newer=$(find ../nx/nx/lib ../nx/exla/lib ../nx/exla/c_src -newer ../nx/exla/cache/libexla.so \( -name '*.ex' -o -name '*.exs' -o -name '*.cc' -o -name '*.h' \) 2>/dev/null | head -3)
 [ -z "$newer" ] || { echo "NX_EDIT_IN_PROGRESS: $newer"; exit 1; }
 newest_beam=$(ls -t _build/dev/lib/exphil/ebin/*.beam 2>/dev/null | head -1)
