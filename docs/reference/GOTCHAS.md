@@ -4650,3 +4650,35 @@ The expert labeler's 256-query kNN over a 1.9 M-row index (`scripts/lib/expert_r
 3. **Running the kernel in a `Task` to get cheap buffer release evaluated it EAGERLY on the CPU.** `Nx.default_backend/1` and `Nx.Defn.default_options/1` are process-local; a fresh Task falls back to `Nx.Defn.Evaluator` + whatever global backend is set, and a 256 × 1.9 M kNN then takes hours at 1 % GPU (visible as `EXLA.Backend.multiply/3` on `{1904554, 36}` in the stack). And `Nx.Defn.jit`'s cache is not hit from the Task either (re-compiled every call, ~1 s).
 
 What works (10.3 ms per call, memory flat over 800 calls): compile each kernel ONCE with `Nx.Defn.compile(fun, templates, compiler: EXLA)` into `:persistent_term` keyed by `{kernel, k, index shape}`; run every call in a short-lived `Task.async` that first sets the parent's `Nx.default_backend` / `Nx.Defn.default_options`, pads to 256, calls the compiled fn and returns `Nx.backend_copy(_, Nx.BinaryBackend)` results — the Task's exit frees the device buffers, no GC. Rules: never GC a process with a giant heap per call; pin batch shapes; a Task is a new process for Nx too; `grep` on a pipe block-buffers a script's output (CLAUDE.md), so a "hung" run shows nothing — log to a file.
+
+## #144 — Netplay replays carry ROLLBACK DUPLICATE frames: the same frame number 2+ times (2026-10-24)
+
+A 3-minute ranked `.slp` had 73–188 repeated frame numbers (rollback re-sends). Any array indexed by position drifts off the frame index; the set-review page showed a player standing on stage at the frame he died. Dedupe by keeping the LAST copy per `frame_number` — both the raw Peppi frames and the `to_training_frames` output (`scripts/set_review_export.exs`).
+
+## #145 — `hitstun_frames_left` holds DENORMAL floats (≈3e-44) when idle (2026-10-24)
+
+`> 0` reads idle frames as hitstun; the point-of-no-return search skipped every frame a player was free to act and called a jumpable fall "unforced". Test `> 0.5`. Same for any float that should be an integer count coming out of the parser.
+
+## #146 — `ExPhil.Interp.ActionNames` is Marth-leaning for character-specific ids ≥ 341 (2026-10-24)
+
+For Fox: 347–349 = Illusion ground, 350–352 Illusion air, 353–359 Firefox, 360+ shine; the table says `SWORD_DANCE_*` for some of them. Helpless = 35 (FallSpecial), 36, 37. Use a per-character override (`fox_names` in `scripts/set_review_export.exs`) until the table is split by character.
+
+## #147 — A SIGTERM makes the trainer write `completed.json` (val null) and DELETE `progress.json` (2026-10-28)
+
+`systemctl stop` on a training unit ends with "Training complete" at 38 % of the epoch; the epoch script then treats the epoch as done or restarts it from scratch. To resume mid-epoch: rename `completed.json`, write `progress.json` as `{"chunk": k, "of": n}` from the log's last "Chunk k/n ready", relaunch (`--resume <dir>` picks the newest `.axon` by mtime; the in-progress chunk is redone).
+
+## #148 — EXLA's fused custom call on the post-#1824 EXLA: layouts belong in `mlir_attributes` (2026-10-27)
+
+After the nx fork merged upstream (EXLA #1824 splits `EXLA.CustomCall.Spec.attributes` = typed `backend_config` dictionary from `mlir_attributes` = string pairs on the op), Edifice's `FusedOp` spec with layout strings in `attributes` failed every Mamba JIT with `Unsupported attribute type for attribute: operand_layouts`. Before the merge the same build died at Agent warmup with `Unable to load crypto library (201)` whenever `EDIFICE_FUSED_CUSTOM_CALL=1`. Fixed in Edifice 5e98b54; rebuild the handler library with `mix edifice.cuda.build --arch sm_120`.
+
+## #149 — Rebuilding the EXLA NIF: the HEADERS come from the CONSUMER's locked `xla` package (2026-10-28)
+
+`extract_xla` in `exla/mix.exs` calls `XLA.archive_path!()` from the project that compiles it (exphil's `deps/xla`). Fork exla source for XLA 0.11 built with exphil locked to xla 0.10 (or the reverse) fails with `PjRtGlobalDeviceId` / `MaybeOwningMlirModule` type errors in both directions. Move the fork branch and exphil's `mix.lock` together; then `mix deps.compile xla --force`, `EXLA_FORCE_REBUILD=true mix deps.compile exla --force` (the Makefile reuses `.o` files across header versions), nx, exphil. XLA 0.11 needs `CXX=clang++` (devenv). A compile can print "Generated exla app" while reusing a stale `libexla.so` — check `exla/cache/xla_snapshot.txt` and run a 600-frame closed loop.
+
+## #150 — A worktree compile rewrites the SHARED `../nx/exla/cache/libexla.so`; queue guards must not wait on every BEAM (2026-10-25 / 10-28)
+
+(a) `mix compile` in a second checkout (`~/git/exphil-pq`) changed the shared EXLA cache under a running training unit — treat it like mix in the main checkout while any GPU job runs. (b) "wait while any `beam.smp` exists" blocked a queue for six hours behind the platfighter game's policy-server VM (cwd exphil) and an unrelated project's nix shell; `scripts/beam_busy.sh` waits only for VMs with cwd in exphil*/nx whose parent is mix/iex/elixir/devenv.
+
+## #151 — Holding ~10 M frame maps on the BEAM heap turns every major GC into a multi-second pause (2026-10-28)
+
+The embed-once testbed driver kept 18 chunks' raw frames as Elixir terms; the first arm died at step 1000 with `GenServer.call(:trainer_state, …) timed out` (the shutdown callback's 5 s Agent update, during a GC pause). Keep bulk per-chunk data OFF the heap: `:erlang.term_to_binary(frames, [:compressed])` per chunk, rehydrate on use (`ChunkPipeline.materialize_chunks/2`); tensors are already off-heap. Also never capture a large struct in an `Agent.update` closure — it is copied into the Agent's mailbox.
