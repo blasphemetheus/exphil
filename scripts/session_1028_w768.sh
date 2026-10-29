@@ -8,7 +8,7 @@ cd /home/blewf/git/exphil
 export EDIFICE_LOCAL_NX=1
 R=eval_runs/1028_w768/REPORT.md
 log() { echo "$*" | tee -a "$R"; }
-waitbeam() { while pgrep -f '[b-b]eam.smp' >/dev/null; do sleep 60; done; }
+waitbeam() { while scripts/beam_busy.sh; do sleep 60; done; }   # exphil/nx mix VMs only (scripts/beam_busy.sh)
 log ""; log "# width arm 768 on master data ($(date '+%F %H:%M'))"
 for N in 1 2 3; do
   lr=0.0002; [ "$N" -ge 3 ] && lr=0.0001
