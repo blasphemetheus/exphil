@@ -102,7 +102,7 @@ n =
   |> Task.async_stream(score_file, max_concurrency: workers, timeout: 120_000, ordered: false, on_timeout: :kill_task)
   |> Stream.with_index(1)
   |> Enum.reduce(0, fn {res, i}, acc ->
-    rows = case res do {:ok, rows} -> rows; _ -> [] end
+    rows = case res do {:ok, rows} -> List.flatten(rows); _ -> [] end   # score_file returns a list per Fox port
     Enum.each(rows, &IO.write(io, Jason.encode!(&1) <> "\n"))
     if rem(i, 2000) == 0, do: Output.puts("  #{i}/#{length(files)} files, #{acc + length(rows)} rows (#{div(System.monotonic_time(:millisecond) - t0, 1000)} s)")
     acc + length(rows)
