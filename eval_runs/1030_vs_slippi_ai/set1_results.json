@@ -1,0 +1,79 @@
+{
+  "meta": {
+    "started_at": "2026-10-30T07:55:11.226586Z",
+    "stage": "final_destination",
+    "slippi_ai_model": "/home/blewf/git/slippi-ai/models/fox_d18_imitation_v3",
+    "slippi_ai_character": "fox",
+    "slippi_ai_temperature": 1.0,
+    "replay_dir": "eval_runs/1030_vs_slippi_ai/set1/",
+    "exphil_port": 1,
+    "exphil_policy": "checkpoints/coh_fox_mamba_master_ep7_plain/model_best_policy.bin",
+    "exphil_character": "fox",
+    "exphil_reaction_delay": 1,
+    "exphil_expected_latency": 2,
+    "exphil_local_delay": 0,
+    "exphil_deterministic": false,
+    "exphil_temperature": 1.0,
+    "slippi_ai_port": 2,
+    "slippi_ai_agent_type": "imitation",
+    "slippi_ai_policy_delay": 18,
+    "slippi_ai_console_delay": 0,
+    "dolphin_frame_delay": 0
+  },
+  "games": [
+    {
+      "complete": true,
+      "index": 1,
+      "exphil": {
+        "stocks": 0,
+        "percent": 110.7300033569336
+      },
+      "winner": "slippi_ai",
+      "slippi_ai": {
+        "stocks": 3,
+        "percent": 8.0
+      },
+      "last_frame": 7718,
+      "duration_s": 128.6,
+      "recorded_at": "2026-10-30T07:57:29.978975Z"
+    },
+    {
+      "complete": true,
+      "index": 2,
+      "exphil": {
+        "stocks": 0,
+        "percent": 22.600000381469727
+      },
+      "winner": "slippi_ai",
+      "slippi_ai": {
+        "stocks": 3,
+        "percent": 81.739990234375
+      },
+      "last_frame": 8340,
+      "duration_s": 139.0,
+      "recorded_at": "2026-10-30T07:59:56.504378Z"
+    },
+    {
+      "complete": true,
+      "index": 3,
+      "exphil": {
+        "stocks": 0,
+        "percent": 19.310001373291016
+      },
+      "winner": "slippi_ai",
+      "slippi_ai": {
+        "stocks": 3,
+        "percent": 107.74000549316406
+      },
+      "last_frame": 8361,
+      "duration_s": 139.3,
+      "recorded_at": "2026-10-30T08:02:18.484652Z"
+    }
+  ],
+  "summary": {
+    "incomplete": 0,
+    "games": 3,
+    "exphil_wins": 0,
+    "slippi_ai_wins": 3
+  }
+}

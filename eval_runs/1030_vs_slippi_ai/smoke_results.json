@@ -1,0 +1,47 @@
+{
+  "meta": {
+    "started_at": "2026-10-30T07:52:31.051251Z",
+    "stage": "final_destination",
+    "slippi_ai_model": "/home/blewf/git/slippi-ai/models/fox_d18_imitation_v3",
+    "slippi_ai_character": "fox",
+    "slippi_ai_temperature": 1.0,
+    "replay_dir": "eval_runs/1030_vs_slippi_ai/",
+    "exphil_port": 1,
+    "exphil_policy": "checkpoints/coh_fox_mamba_master_ep7_plain/model_best_policy.bin",
+    "exphil_character": "fox",
+    "exphil_reaction_delay": 1,
+    "exphil_expected_latency": 2,
+    "exphil_local_delay": 0,
+    "exphil_deterministic": false,
+    "exphil_temperature": 1.0,
+    "slippi_ai_port": 2,
+    "slippi_ai_agent_type": "imitation",
+    "slippi_ai_policy_delay": 18,
+    "slippi_ai_console_delay": 0,
+    "dolphin_frame_delay": 0
+  },
+  "games": [
+    {
+      "complete": true,
+      "index": 1,
+      "exphil": {
+        "stocks": 0,
+        "percent": 135.66000366210938
+      },
+      "winner": "slippi_ai",
+      "slippi_ai": {
+        "stocks": 4,
+        "percent": 153.29000854492188
+      },
+      "last_frame": 8038,
+      "duration_s": 134.0,
+      "recorded_at": "2026-10-30T07:54:50.250380Z"
+    }
+  ],
+  "summary": {
+    "incomplete": 0,
+    "games": 1,
+    "exphil_wins": 0,
+    "slippi_ai_wins": 1
+  }
+}

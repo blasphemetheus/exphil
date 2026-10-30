@@ -26,9 +26,11 @@ fox_names = %{341 => "BLASTER_GROUND_START", 342 => "BLASTER_GROUND_LOOP", 343 =
   360 => "SHINE_GROUND_START", 361 => "SHINE_GROUND", 362 => "SHINE_GROUND_END", 363 => "SHINE_GROUND_TURN", 364 => "SHINE_GROUND_END2", 365 => "SHINE_AIR_START", 366 => "SHINE_AIR", 367 => "SHINE_AIR_END", 368 => "SHINE_AIR_TURN", 369 => "SHINE_AIR_END2"}
 name_for = fn id, character -> if String.downcase(character || "") == "fox" and Map.has_key?(fox_names, id), do: fox_names[id], else: ActionNames.name(id || 0) end
 
-{opts, _, bad} = OptionParser.parse(System.argv(), strict: [me: :string, slp: [:string, :keep], out: :string, label: :string])
+{opts, _, bad} = OptionParser.parse(System.argv(), strict: [me: :string, me_port: :integer, slp: [:string, :keep], out: :string, label: :string])
 if bad != [], do: raise("bad options: #{inspect(bad)}")
 me_name = opts[:me] || raise("--me NETPLAY_NAME required")
+# --me-port N (10-30): bot-vs-bot replays carry no netplay names; pick "me" by port and use --me as the display name
+me_port = opts[:me_port]
 paths = Keyword.get_values(opts, :slp)
 if paths == [], do: raise("--slp PATH (repeatable) required")
 out = opts[:out] || "eval_runs/#{Date.utc_today() |> Calendar.strftime("%m%d")}_set_review"
@@ -58,7 +60,7 @@ games =
   |> Enum.with_index()
   |> Enum.map(fn {path, gi} ->
     {:ok, meta} = Peppi.metadata(path)
-    me = Enum.find(meta.players, &(&1.netplay_name == me_name)) || raise("#{me_name} not in #{path}: #{inspect(Enum.map(meta.players, & &1.netplay_name))}")
+    me = Enum.find(meta.players, &(&1.netplay_name == me_name or (me_port != nil and &1.port == me_port))) || raise("#{me_name} not in #{path}: #{inspect(Enum.map(meta.players, & &1.netplay_name))}")
     opp = Enum.find(meta.players, &(&1.port != me.port))
     {:ok, replay} = Peppi.parse(path)
     # netplay replays carry ROLLBACK duplicates (the same frame number more than once); keep the last
@@ -86,7 +88,7 @@ games =
     id = Path.basename(path, ".slp")
     chars = [Trace.char_id(me.character_name), Trace.char_id(opp.character_name)]
     stage = states |> List.first() |> Map.get(:stage)
-    label = "#{id} — #{me_name} (#{me.character_name}, red) vs #{opp.netplay_name} (#{opp.character_name})"
+    label = "#{id} — #{me_name} (#{me.character_name}, red) vs #{opp.netplay_name || "port #{opp.port}"} (#{opp.character_name})"
     Trace.from_game_states(states, label: label, chars: chars, stage: stage) |> Trace.write!(Path.join(out, "#{id}.msltrace.json"))
     # ghosts: players 3/4 = 1/2 fifteen frames ago, drawn by the viewer in the port-3/4 colours
     Trace.from_game_states(states, label: label <> " + ghosts (15 f ago)", chars: chars, stage: stage, ghosts: 15) |> Trace.write!(Path.join(out, "#{id}.ghost.msltrace.json"))
