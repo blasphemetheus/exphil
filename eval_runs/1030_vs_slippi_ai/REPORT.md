@@ -40,3 +40,8 @@ Caveats: 6 games; headless; our bot one rung slower than trained (reaction 1 vs 
 4-stock one: the same checkpoints hold their own at this rung in our league); their bot at its own delay.
 Watch it: http://127.0.0.1:8012/review/?run=/runs/1030_vs_slippi_ai/review (six games, moments + ghosts + controllers).
 Next rung: `fox_d18_ditto_v4` (their RL Fox) for the RL-gain number; our ms_g19 line at d18-ish for a delay-matched read.
+
+## RL rung (03:10): vs `fox_d18_ditto_v4` (their RL-refined Fox ditto, d18) — 0–3
+Games lasted 67–79 s (vs 130–150 s against their imitation bot): 4 stocks each, they lost 0 stocks, took 7–58 %.
+RL gain on their side ≈ halving the game length against us. Both their bots beat us 4-0 per game; the imitation
+one is the right comparison (same training stage as ours), and it already shows the gap.
