@@ -45,3 +45,17 @@ Next rung: `fox_d18_ditto_v4` (their RL Fox) for the RL-gain number; our ms_g19 
 Games lasted 67–79 s (vs 130–150 s against their imitation bot): 4 stocks each, they lost 0 stocks, took 7–58 %.
 RL gain on their side ≈ halving the game length against us. Both their bots beat us 4-0 per game; the imitation
 one is the right comparison (same training stage as ours), and it already shows the gap.
+
+## 10-30 13:40 — Bradley's read, measured (6 games vs their imitation Fox)
+- **Neutral:** openings 10.0/game (ours) vs 19.8 (theirs) — they win neutral 2:1.
+- **Combos:** mean follow-up damage per opening 13.3 vs 17.5; openings converted to >=30 %: 3 % vs 13 %. Their
+  top opening moves: bair 23, UP-THROW 15, nair 14. Ours: shine 13, dair 10, bair 10, grab-pummel 4 (we grab and
+  pummel; we do not up-throw into the bread-and-butter).
+- **Offstage:** sd 1.44/min vs 0.33; return 0.82 vs 0.97 (above).
+- **Delay (isolated):** master_ep7 vs a STANDING dummy in Dolphin at reaction 1 (7 games): sd/min 0.60 — identical
+  to the NIF sim at reaction 0 (0.625). The one-rung mismatch is NOT the cause; opponent pressure doubles the
+  offstage death rate (0.60 -> 1.44). Delay cleared as the main issue.
+- **Data (the instinct):** we hold ONE of SIX master-master Fox parts (FOX_master-master_a1 = 7,911 games, 6.3 GB
+  of 40.8 GB). HF FOX slice: master-master 40.8 GB, master-diamond 51.6, master-platinum 41.7, diamond-diamond
+  20.0, diamond-platinum 61.9, platinum-platinum 85.3 (301 GB, 36 files). Extraction ratio ~4.6x. Disk: 16 GB
+  free on / and on /data — the blocker.
