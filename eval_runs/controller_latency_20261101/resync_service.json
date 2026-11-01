@@ -1,0 +1,613 @@
+{
+  "method": "Service times classified by validated replay schedule; response includes backlog and is not a causal attribution",
+  "results": [
+    {
+      "client": "cuda",
+      "contention": false,
+      "mode": "actors",
+      "ordinary": {
+        "samples": 4648,
+        "service_median_us": 11955,
+        "service_p99_us": 17739,
+        "missed_deadlines": 907
+      },
+      "replay": {
+        "samples": 152,
+        "service_median_us": 42060,
+        "service_p99_us": 45895,
+        "missed_deadlines": 152
+      },
+      "round": 1,
+      "schedule": "aligned"
+    },
+    {
+      "client": "cuda",
+      "contention": true,
+      "mode": "actors",
+      "ordinary": {
+        "samples": 4648,
+        "service_median_us": 18952,
+        "service_p99_us": 26137,
+        "missed_deadlines": 4648
+      },
+      "replay": {
+        "samples": 152,
+        "service_median_us": 50091,
+        "service_p99_us": 57001,
+        "missed_deadlines": 152
+      },
+      "round": 1,
+      "schedule": "aligned"
+    },
+    {
+      "client": "cuda",
+      "contention": false,
+      "mode": "batch",
+      "ordinary": {
+        "samples": 581,
+        "service_median_us": 2098,
+        "service_p99_us": 3090,
+        "missed_deadlines": 0
+      },
+      "replay": {
+        "samples": 19,
+        "service_median_us": 6627,
+        "service_p99_us": 7456,
+        "missed_deadlines": 0
+      },
+      "round": 1,
+      "schedule": "aligned"
+    },
+    {
+      "client": "cuda",
+      "contention": true,
+      "mode": "batch",
+      "ordinary": {
+        "samples": 581,
+        "service_median_us": 3018,
+        "service_p99_us": 3924,
+        "missed_deadlines": 0
+      },
+      "replay": {
+        "samples": 19,
+        "service_median_us": 8541,
+        "service_p99_us": 9240,
+        "missed_deadlines": 0
+      },
+      "round": 1,
+      "schedule": "aligned"
+    },
+    {
+      "client": "cuda",
+      "contention": false,
+      "mode": "actors",
+      "ordinary": {
+        "samples": 4646,
+        "service_median_us": 11936,
+        "service_p99_us": 18597,
+        "missed_deadlines": 455
+      },
+      "replay": {
+        "samples": 154,
+        "service_median_us": 15739,
+        "service_p99_us": 24120,
+        "missed_deadlines": 84
+      },
+      "round": 1,
+      "schedule": "spread"
+    },
+    {
+      "client": "cuda",
+      "contention": true,
+      "mode": "actors",
+      "ordinary": {
+        "samples": 4646,
+        "service_median_us": 19089,
+        "service_p99_us": 25290,
+        "missed_deadlines": 4646
+      },
+      "replay": {
+        "samples": 154,
+        "service_median_us": 25651,
+        "service_p99_us": 29444,
+        "missed_deadlines": 154
+      },
+      "round": 1,
+      "schedule": "spread"
+    },
+    {
+      "client": "cuda",
+      "contention": false,
+      "mode": "batch",
+      "ordinary": {
+        "samples": 446,
+        "service_median_us": 2035,
+        "service_p99_us": 2997,
+        "missed_deadlines": 0
+      },
+      "replay": {
+        "samples": 154,
+        "service_median_us": 5734,
+        "service_p99_us": 6968,
+        "missed_deadlines": 0
+      },
+      "round": 1,
+      "schedule": "spread"
+    },
+    {
+      "client": "cuda",
+      "contention": true,
+      "mode": "batch",
+      "ordinary": {
+        "samples": 446,
+        "service_median_us": 2929,
+        "service_p99_us": 3898,
+        "missed_deadlines": 0
+      },
+      "replay": {
+        "samples": 154,
+        "service_median_us": 7741,
+        "service_p99_us": 9231,
+        "missed_deadlines": 0
+      },
+      "round": 1,
+      "schedule": "spread"
+    },
+    {
+      "client": "cuda",
+      "contention": false,
+      "mode": "actors",
+      "ordinary": {
+        "samples": 4646,
+        "service_median_us": 12543,
+        "service_p99_us": 20172,
+        "missed_deadlines": 913
+      },
+      "replay": {
+        "samples": 154,
+        "service_median_us": 17276,
+        "service_p99_us": 23579,
+        "missed_deadlines": 127
+      },
+      "round": 2,
+      "schedule": "spread"
+    },
+    {
+      "client": "cuda",
+      "contention": true,
+      "mode": "actors",
+      "ordinary": {
+        "samples": 4646,
+        "service_median_us": 19223,
+        "service_p99_us": 25146,
+        "missed_deadlines": 4646
+      },
+      "replay": {
+        "samples": 154,
+        "service_median_us": 25456,
+        "service_p99_us": 30745,
+        "missed_deadlines": 154
+      },
+      "round": 2,
+      "schedule": "spread"
+    },
+    {
+      "client": "cuda",
+      "contention": false,
+      "mode": "batch",
+      "ordinary": {
+        "samples": 446,
+        "service_median_us": 2065,
+        "service_p99_us": 3110,
+        "missed_deadlines": 0
+      },
+      "replay": {
+        "samples": 154,
+        "service_median_us": 5903,
+        "service_p99_us": 6690,
+        "missed_deadlines": 0
+      },
+      "round": 2,
+      "schedule": "spread"
+    },
+    {
+      "client": "cuda",
+      "contention": true,
+      "mode": "batch",
+      "ordinary": {
+        "samples": 446,
+        "service_median_us": 3110,
+        "service_p99_us": 4015,
+        "missed_deadlines": 0
+      },
+      "replay": {
+        "samples": 154,
+        "service_median_us": 7733,
+        "service_p99_us": 8498,
+        "missed_deadlines": 0
+      },
+      "round": 2,
+      "schedule": "spread"
+    },
+    {
+      "client": "cuda",
+      "contention": false,
+      "mode": "actors",
+      "ordinary": {
+        "samples": 4648,
+        "service_median_us": 12306,
+        "service_p99_us": 16075,
+        "missed_deadlines": 922
+      },
+      "replay": {
+        "samples": 152,
+        "service_median_us": 41596,
+        "service_p99_us": 44921,
+        "missed_deadlines": 152
+      },
+      "round": 2,
+      "schedule": "aligned"
+    },
+    {
+      "client": "cuda",
+      "contention": true,
+      "mode": "actors",
+      "ordinary": {
+        "samples": 4648,
+        "service_median_us": 19007,
+        "service_p99_us": 25437,
+        "missed_deadlines": 4648
+      },
+      "replay": {
+        "samples": 152,
+        "service_median_us": 49192,
+        "service_p99_us": 51739,
+        "missed_deadlines": 152
+      },
+      "round": 2,
+      "schedule": "aligned"
+    },
+    {
+      "client": "cuda",
+      "contention": false,
+      "mode": "batch",
+      "ordinary": {
+        "samples": 581,
+        "service_median_us": 2103,
+        "service_p99_us": 3249,
+        "missed_deadlines": 0
+      },
+      "replay": {
+        "samples": 19,
+        "service_median_us": 6666,
+        "service_p99_us": 7748,
+        "missed_deadlines": 0
+      },
+      "round": 2,
+      "schedule": "aligned"
+    },
+    {
+      "client": "cuda",
+      "contention": true,
+      "mode": "batch",
+      "ordinary": {
+        "samples": 581,
+        "service_median_us": 2961,
+        "service_p99_us": 4089,
+        "missed_deadlines": 0
+      },
+      "replay": {
+        "samples": 19,
+        "service_median_us": 8757,
+        "service_p99_us": 9542,
+        "missed_deadlines": 0
+      },
+      "round": 2,
+      "schedule": "aligned"
+    },
+    {
+      "client": "host",
+      "contention": false,
+      "mode": "actors",
+      "ordinary": {
+        "samples": 4648,
+        "service_median_us": 6051,
+        "service_p99_us": 10452,
+        "missed_deadlines": 740
+      },
+      "replay": {
+        "samples": 152,
+        "service_median_us": 71333,
+        "service_p99_us": 81325,
+        "missed_deadlines": 152
+      },
+      "round": 1,
+      "schedule": "aligned"
+    },
+    {
+      "client": "host",
+      "contention": true,
+      "mode": "actors",
+      "ordinary": {
+        "samples": 4648,
+        "service_median_us": 6190,
+        "service_p99_us": 11499,
+        "missed_deadlines": 816
+      },
+      "replay": {
+        "samples": 152,
+        "service_median_us": 73826,
+        "service_p99_us": 87368,
+        "missed_deadlines": 152
+      },
+      "round": 1,
+      "schedule": "aligned"
+    },
+    {
+      "client": "host",
+      "contention": false,
+      "mode": "batch",
+      "ordinary": {
+        "samples": 581,
+        "service_median_us": 2616,
+        "service_p99_us": 5141,
+        "missed_deadlines": 57
+      },
+      "replay": {
+        "samples": 19,
+        "service_median_us": 67051,
+        "service_p99_us": 70891,
+        "missed_deadlines": 19
+      },
+      "round": 1,
+      "schedule": "aligned"
+    },
+    {
+      "client": "host",
+      "contention": true,
+      "mode": "batch",
+      "ordinary": {
+        "samples": 581,
+        "service_median_us": 2547,
+        "service_p99_us": 4571,
+        "missed_deadlines": 57
+      },
+      "replay": {
+        "samples": 19,
+        "service_median_us": 65336,
+        "service_p99_us": 71957,
+        "missed_deadlines": 19
+      },
+      "round": 1,
+      "schedule": "aligned"
+    },
+    {
+      "client": "host",
+      "contention": false,
+      "mode": "actors",
+      "ordinary": {
+        "samples": 4646,
+        "service_median_us": 6204,
+        "service_p99_us": 18408,
+        "missed_deadlines": 239
+      },
+      "replay": {
+        "samples": 154,
+        "service_median_us": 14849,
+        "service_p99_us": 22232,
+        "missed_deadlines": 38
+      },
+      "round": 1,
+      "schedule": "spread"
+    },
+    {
+      "client": "host",
+      "contention": true,
+      "mode": "actors",
+      "ordinary": {
+        "samples": 4646,
+        "service_median_us": 6403,
+        "service_p99_us": 18890,
+        "missed_deadlines": 472
+      },
+      "replay": {
+        "samples": 154,
+        "service_median_us": 15734,
+        "service_p99_us": 20840,
+        "missed_deadlines": 71
+      },
+      "round": 1,
+      "schedule": "spread"
+    },
+    {
+      "client": "host",
+      "contention": false,
+      "mode": "batch",
+      "ordinary": {
+        "samples": 446,
+        "service_median_us": 2622,
+        "service_p99_us": 4942,
+        "missed_deadlines": 0
+      },
+      "replay": {
+        "samples": 154,
+        "service_median_us": 12764,
+        "service_p99_us": 16855,
+        "missed_deadlines": 9
+      },
+      "round": 1,
+      "schedule": "spread"
+    },
+    {
+      "client": "host",
+      "contention": true,
+      "mode": "batch",
+      "ordinary": {
+        "samples": 446,
+        "service_median_us": 2543,
+        "service_p99_us": 4457,
+        "missed_deadlines": 0
+      },
+      "replay": {
+        "samples": 154,
+        "service_median_us": 11590,
+        "service_p99_us": 15600,
+        "missed_deadlines": 0
+      },
+      "round": 1,
+      "schedule": "spread"
+    },
+    {
+      "client": "host",
+      "contention": false,
+      "mode": "actors",
+      "ordinary": {
+        "samples": 4646,
+        "service_median_us": 6469,
+        "service_p99_us": 18459,
+        "missed_deadlines": 395
+      },
+      "replay": {
+        "samples": 154,
+        "service_median_us": 15138,
+        "service_p99_us": 21071,
+        "missed_deadlines": 57
+      },
+      "round": 2,
+      "schedule": "spread"
+    },
+    {
+      "client": "host",
+      "contention": true,
+      "mode": "actors",
+      "ordinary": {
+        "samples": 4646,
+        "service_median_us": 6915,
+        "service_p99_us": 19464,
+        "missed_deadlines": 694
+      },
+      "replay": {
+        "samples": 154,
+        "service_median_us": 17672,
+        "service_p99_us": 23022,
+        "missed_deadlines": 104
+      },
+      "round": 2,
+      "schedule": "spread"
+    },
+    {
+      "client": "host",
+      "contention": false,
+      "mode": "batch",
+      "ordinary": {
+        "samples": 446,
+        "service_median_us": 2730,
+        "service_p99_us": 5179,
+        "missed_deadlines": 0
+      },
+      "replay": {
+        "samples": 154,
+        "service_median_us": 13028,
+        "service_p99_us": 17260,
+        "missed_deadlines": 11
+      },
+      "round": 2,
+      "schedule": "spread"
+    },
+    {
+      "client": "host",
+      "contention": true,
+      "mode": "batch",
+      "ordinary": {
+        "samples": 446,
+        "service_median_us": 2525,
+        "service_p99_us": 4831,
+        "missed_deadlines": 0
+      },
+      "replay": {
+        "samples": 154,
+        "service_median_us": 12050,
+        "service_p99_us": 16246,
+        "missed_deadlines": 4
+      },
+      "round": 2,
+      "schedule": "spread"
+    },
+    {
+      "client": "host",
+      "contention": false,
+      "mode": "actors",
+      "ordinary": {
+        "samples": 4648,
+        "service_median_us": 6272,
+        "service_p99_us": 9244,
+        "missed_deadlines": 768
+      },
+      "replay": {
+        "samples": 152,
+        "service_median_us": 71818,
+        "service_p99_us": 80010,
+        "missed_deadlines": 152
+      },
+      "round": 2,
+      "schedule": "aligned"
+    },
+    {
+      "client": "host",
+      "contention": true,
+      "mode": "actors",
+      "ordinary": {
+        "samples": 4648,
+        "service_median_us": 6281,
+        "service_p99_us": 8537,
+        "missed_deadlines": 867
+      },
+      "replay": {
+        "samples": 152,
+        "service_median_us": 79669,
+        "service_p99_us": 88676,
+        "missed_deadlines": 152
+      },
+      "round": 2,
+      "schedule": "aligned"
+    },
+    {
+      "client": "host",
+      "contention": false,
+      "mode": "batch",
+      "ordinary": {
+        "samples": 581,
+        "service_median_us": 2657,
+        "service_p99_us": 4660,
+        "missed_deadlines": 57
+      },
+      "replay": {
+        "samples": 19,
+        "service_median_us": 63294,
+        "service_p99_us": 68916,
+        "missed_deadlines": 19
+      },
+      "round": 2,
+      "schedule": "aligned"
+    },
+    {
+      "client": "host",
+      "contention": true,
+      "mode": "batch",
+      "ordinary": {
+        "samples": 581,
+        "service_median_us": 2528,
+        "service_p99_us": 4289,
+        "missed_deadlines": 57
+      },
+      "replay": {
+        "samples": 19,
+        "service_median_us": 66596,
+        "service_p99_us": 71524,
+        "missed_deadlines": 19
+      },
+      "round": 2,
+      "schedule": "aligned"
+    }
+  ]
+}

@@ -175,7 +175,7 @@ defmodule ActorThroughputProfile do
             do: {group, :paced, contention, schedule, round}
       else
         for group <- groups,
-            rate <- [:saturated, :paced],
+            rate <- if(opts[:paced_only], do: [:paced], else: [:saturated, :paced]),
             contention <- [false, true],
             do: {group, rate, contention, nil, nil}
       end
@@ -254,6 +254,10 @@ defmodule ActorThroughputProfile do
       resync: if(bptt, do: nil, else: 30),
       seconds: duration,
       setup_us: setup_us,
+      backbone: export.config[:backbone],
+      window_size: export.config[:window_size],
+      scope:
+        "Agent game-state input through returned controller; includes encoding, carry/replay and stochastic heads; excludes Dolphin transport",
       competitor: "saturated 2048x2048 f32 CUDA matmul + sum, synchronized each iteration",
       samples_file: Path.basename(out <> ".samples.json.gz"),
       results: Enum.map(results, &Map.delete(&1, :streams))
@@ -273,6 +277,7 @@ end
       rows: :integer,
       seconds: :integer,
       resync_spread: :boolean,
+      paced_only: :boolean,
       out: :string
     ]
   )

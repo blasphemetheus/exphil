@@ -20,8 +20,26 @@ defmodule ExPhil.BenchmarkSweep do
   end
 
   def gpu_pids do
-    {output, 0} = System.cmd("nvidia-smi", ["--query-compute-apps=pid", "--format=csv,noheader"])
-    String.split(output, "\n", trim: true)
+    gpu_processes()
+    |> Enum.reject(&desktop_process?/1)
+    |> Enum.map(& &1.pid)
+  end
+
+  def gpu_processes do
+    {output, 0} =
+      System.cmd("nvidia-smi", ["--query-compute-apps=pid,process_name", "--format=csv,noheader"])
+
+    for line <- String.split(output, "\n", trim: true) do
+      [pid, name] = String.split(line, ",", parts: 2)
+      %{pid: String.trim(pid), name: String.trim(name)}
+    end
+  end
+
+  # Recent drivers list browser GPU processes as compute applications too.
+  # Keep them in the manifest, but do not wait forever for the desktop to exit.
+  def desktop_process?(%{name: name}) do
+    String.contains?(name, "--type=gpu-process") and
+      (String.contains?(name, "/chrome ") or String.contains?(name, "/chromium "))
   end
 
   def wait_for_gpu(quiet_seconds \\ 10, timeout_seconds \\ 600) do
