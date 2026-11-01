@@ -1,0 +1,1573 @@
+defmodule ExPhil.Training.Pipeline do
+  @moduledoc """
+  Data pipeline for training — from replay files to ready-to-train batches.
+
+  Encapsulates the full data flow: find replays → validate → parse → embed →
+  cache → split train/val → precompute val batches. The training loop only
+  interacts with `batch_stream/2` and the struct fields.
+
+  ## Usage
+
+      {:ok, pipeline} = Pipeline.setup(opts)
+      {batch_stream, num_batches} = Pipeline.batch_stream(pipeline, epoch: 1)
+
+  ## Streaming Mode
+
+  For datasets too large to fit in memory, pass `stream_chunk_size: N`.
+  Replays are parsed in chunks during training instead of upfront. No
+  validation set is available in streaming mode.
+  """
+
+  require Logger
+
+  alias ExPhil.Training.{Data, Output}
+  alias ExPhil.Training.{Streaming, CharacterBalance, PlayerRegistry}
+  alias ExPhil.Data.Peppi
+  alias ExPhil.Embeddings
+
+  defstruct [
+    # Datasets (nil in streaming mode)
+    :train_dataset,
+    :val_dataset,
+
+    # Precomputed validation batches (on CPU, transferred per-batch during eval)
+    :val_batches,
+
+    # Test dataset (held-out, only evaluated at end of training)
+    :test_dataset,
+
+    # Replay info
+    :replay_files,
+    :replay_stats,
+
+    # Embedding config
+    :embed_config,
+
+    # Resolved options (button_pos_weight tensor, character_weights, etc.)
+    :resolved_opts,
+
+    # Corpus mode state (pre-built MmapCorpus — no parse/embed at train time)
+    :corpus,
+    :corpus_train_ranges,
+
+    # Corpus-mode curriculum mixing (--mix-corpus): a second, small
+    # MmapCorpus (snippet mini-corpus) interleaved into the train stream
+    :mix_corpus,
+    :mix_corpus_ranges,
+
+    # Streaming mode state
+    :streaming,
+    :file_chunks,
+    :streaming_chunk_opts,
+    :streaming_dataset_opts,
+    # Stop/restart (2026-09-27): where ChunkPipeline writes the "chunk in
+    # progress" marker, and how many chunks a resuming driver already dropped
+    # from :file_chunks (so the marker stays an absolute epoch index).
+    :progress_path,
+    :chunk_offset,
+    # Multi-arm driver (2026-10-28): chunks embedded once by
+    # ChunkPipeline.materialize_chunks/2, shared by every arm of a queue
+    :prepared_chunks,
+
+    # Augmentation
+    :augment_fn,
+
+    # Character balancing weights
+    :character_weights,
+
+    # Player registry (for style-conditional training)
+    :player_registry,
+
+    # Batch count estimate (for progress display)
+    :estimated_batches
+  ]
+
+  @type t :: %__MODULE__{}
+
+  # Options Streaming.create_dataset needs, for the train chunks AND the
+  # bptt val holdout (one list: a hand-picked copy silently dropped the
+  # prev-action keys from the val set, GOTCHA #140). The prev-action keys
+  # (2026-09-30) go to Data.precompute_frame_embeddings, which fills the
+  # 13-dim slot from each frame's predecessor (nil at game boundaries).
+  @streaming_dataset_keys [
+    :temporal, :window_size, :stride, :precompute, :lazy_sequences,
+    :use_prev_action, :prev_action_dropout, :prev_action_dropout_block, :prev_action_quantize
+  ]
+
+  # ============================================================================
+  # Setup
+  # ============================================================================
+
+  @doc """
+  Set up the full data pipeline.
+
+  Finds, validates, and parses replay files. Creates train/val datasets with
+  precomputed embeddings. Resolves config options. Returns a ready-to-use
+  pipeline struct.
+
+  ## Options
+
+  All training config options are accepted. Key ones:
+  - `:replays` — Path to replay directory
+  - `:max_files` — Limit number of files
+  - `:temporal` — Enable temporal/sequence training
+  - `:backbone` — Architecture type
+  - `:batch_size` — Batch size
+  - `:val_split` — Fraction for validation (default: 0.1)
+  - `:stream_chunk_size` — Enable streaming mode with N files per chunk
+  - `:cache_embeddings` — Cache frame embeddings to disk (default: true)
+  - `:lazy_sequences` — Slice sequences on-the-fly (default: true for temporal)
+  """
+  @spec setup(keyword()) :: {:ok, t()} | {:error, term()}
+  def setup(opts) do
+    opts = ExPhil.Training.LabelDelay.resolve!(opts)
+    streaming = opts[:stream_chunk_size] != nil and opts[:stream_chunk_size] > 0
+
+    if opts[:frame_delay_augment] && (streaming || opts[:temporal] || opts[:corpus]) do
+      raise ArgumentError, "Frame-delay augmentation is supported only by the non-temporal standard loader; temporal/streaming loaders would ignore it"
+    end
+
+    if opts[:corpus] && opts[:label_delay] != 0 do
+      raise ArgumentError, "Precomputed corpus labels cannot be shifted by --label-delay; rebuild the corpus for the requested delay"
+    end
+
+    if opts[:corpus] do
+      build_pipeline_corpus(opts)
+    else
+      with {:ok, replay_files, replay_stats} <- find_and_validate_replays(opts),
+           {:ok, opts} <- resolve_character_ports(replay_files, streaming, opts),
+           {:ok, pipeline} <- build_pipeline(replay_files, replay_stats, streaming, opts) do
+        {:ok, pipeline}
+      end
+    end
+  end
+
+  @doc "Same as setup/1 but raises on error."
+  @spec setup!(keyword()) :: t()
+  def setup!(opts) do
+    case setup(opts) do
+      {:ok, pipeline} -> pipeline
+      {:error, reason} -> raise "Pipeline setup failed: #{inspect(reason)}"
+    end
+  end
+
+  # ============================================================================
+  # Batch Stream
+  # ============================================================================
+
+  @doc """
+  Create a lazy batch stream for one epoch of training.
+
+  Returns `{stream, num_batches}` where stream yields batch maps with
+  `:states` and `:actions` keys.
+
+  ## Options
+  - `:shuffle` — Shuffle batches (default: true)
+  - `:drop_last` — Drop incomplete final batch (default: true)
+  """
+  @spec batch_stream(t(), keyword()) :: {Enumerable.t(), non_neg_integer()}
+  def batch_stream(%{corpus: corpus} = pipeline, opts) when corpus != nil do
+    batch_stream_corpus(pipeline, opts)
+  end
+
+  def batch_stream(%{streaming: true} = pipeline, opts) do
+    batch_stream_streaming(pipeline, opts)
+  end
+
+  def batch_stream(%{streaming: false} = pipeline, opts) do
+    batch_stream_standard(pipeline, opts)
+  end
+
+  @doc """
+  Return the number of validation batches, or 0 if no validation set.
+  """
+  def val_batch_count(%{val_batches: nil}), do: 0
+  def val_batch_count(%{val_batches: batches}), do: length(batches)
+
+  @doc """
+  Check if pipeline has a validation set.
+  """
+  def has_validation?(%{val_batches: nil}), do: false
+  def has_validation?(%{val_batches: []}), do: false
+  def has_validation?(_), do: true
+
+  # ============================================================================
+  # Private — Setup
+  # ============================================================================
+
+  # External (CSS-order) character ids, as carried by ReplayMeta and the
+  # .slp Game Start block. Distinct from the in-game INTERNAL ids the
+  # frame stream uses (internal Fox=1 vs external Fox=2 — GOTCHA-grade
+  # trap; see the census/redress work of 2026-08-07/08).
+  defp external_character_id!(character) do
+    # Delegates to the SubjectResolver table (single source of truth for
+    # the external-CSS id space; scripts should use it too instead of
+    # copying the map).
+    case ExPhil.Data.SubjectResolver.external_character_id(character) do
+      {:ok, id} ->
+        id
+
+      {:error, _} ->
+        raise ArgumentError,
+              "unknown character #{inspect(character)} for --train-character " <>
+                "(known: #{Enum.join(ExPhil.Data.SubjectResolver.known_characters(), ", ")})"
+    end
+  end
+
+  # --select-character-port: fox_gen_v1 imitated "whoever sat on port 1" —
+  # ~43% non-fox demonstrations, because --train-character only FILTERS files
+  # and the streaming loader defaulted every file to port 1 (E1, 2026-08-30,
+  # eval_runs/0830_corpus_mix). With this flag the imitated port is resolved
+  # per file to the --train-character player: singles use that player's port,
+  # dittos fall back to port 1 (both-ports dittos = a v2 refinement; keeping
+  # one entry per file keeps the train/val split trivially straddle-safe).
+  # Streaming-only: the standard pipeline ignores :port_map, so refuse loudly
+  # rather than train the wrong player (guards fail loud and safe).
+  defp resolve_character_ports(files, streaming, opts) do
+    cond do
+      !opts[:select_character_port] ->
+        {:ok, opts}
+
+      !opts[:train_character] ->
+        {:error, "--select-character-port requires --train-character"}
+
+      !streaming ->
+        {:error,
+         "--select-character-port is wired into the streaming pipeline only — " <>
+           "add --stream-chunk-size (the standard path would silently imitate port 1)"}
+
+      true ->
+        want_id = external_character_id!(opts[:train_character])
+
+        # Role resolution goes through SubjectResolver (the port-vs-role
+        # law, V2_PREP.md): character rung, ditto tie-break :port1 KEPT for
+        # behavior compatibility but now explicit + provenance-marked
+        # (fingerprint 2-way assignment is the planned upgrade for dittos).
+        alias ExPhil.Data.SubjectResolver
+
+        {port_map, counts} =
+          Enum.reduce(files, {%{}, %{port1: 0, other_port: 0, ditto: 0, absent: 0}}, fn path,
+                                                                                       {pm, c} ->
+            case Peppi.metadata(path) do
+              {:ok, meta} ->
+                case SubjectResolver.resolve(meta.players,
+                       subject_character: want_id,
+                       ditto_tie_break: :port1
+                     ) do
+                  {:ok, %{subject_port: p, provenance: :character_tie_break}} ->
+                    {Map.put(pm, path, p), Map.update!(c, :ditto, &(&1 + 1))}
+
+                  {:ok, %{subject_port: 1}} ->
+                    {Map.put(pm, path, 1), Map.update!(c, :port1, &(&1 + 1))}
+
+                  {:ok, %{subject_port: p}} ->
+                    {Map.put(pm, path, p), Map.update!(c, :other_port, &(&1 + 1))}
+
+                  {:error, _} ->
+                    {pm, Map.update!(c, :absent, &(&1 + 1))}
+                end
+
+              _ ->
+                {pm, c}
+            end
+          end)
+
+        Output.puts(
+          "  Character-aware ports (#{opts[:train_character]}): " <>
+            "#{counts.port1} on port 1, #{counts.other_port} on other ports, " <>
+            "#{counts.ditto} dittos (port 1)" <>
+            if(counts.absent > 0, do: ", #{counts.absent} without the character (!)", else: "")
+        )
+
+        {:ok, Keyword.put(opts, :port_map, port_map)}
+    end
+  end
+
+  @doc false
+  # Pure per-file port resolution for --select-character-port (unit-tested):
+  # exactly one player of the wanted character -> that port; two -> :ditto;
+  # none -> :absent (should not happen after the --train-character filter).
+  def character_port(players, want_id) do
+    case Enum.filter(players, &(&1.character == want_id)) do
+      [%{port: p}] -> {:port, p}
+      [_, _ | _] -> :ditto
+      [] -> :absent
+    end
+  end
+
+  defp find_and_validate_replays(opts) do
+    replay_dir = Path.expand(opts[:replays] || "./replays")
+    Output.step(1, 4, "Finding replays")
+
+    files = Path.wildcard(Path.join(replay_dir, "**/*.slp"))
+
+    if files == [] do
+      {:error, "No .slp files found in #{replay_dir}"}
+    else
+      files = if opts[:max_files], do: Enum.take(files, opts[:max_files]), else: files
+
+      # Character filtering. ReplayMeta carries the raw EXTERNAL character
+      # id (CSS order: Fox=2, Mewtwo=10, ...), so a name must be resolved
+      # to an id before comparing — the old string compare matched nothing,
+      # ever ("2" != "fox"; fox_il_v1 launch 2026-08-08 dropped all 4,465
+      # files to zero). Accepts a name or a bare id.
+      files =
+        if character = opts[:train_character] do
+          Output.puts("  Filtering for character: #{character}")
+          want_id = external_character_id!(character)
+
+          Enum.filter(files, fn path ->
+            case Peppi.metadata(path) do
+              {:ok, meta} -> Enum.any?(meta.players, fn p -> p.character == want_id end)
+              _ -> false
+            end
+          end)
+        else
+          files
+        end
+
+      # Stage filtering
+      files =
+        if (stages = opts[:stages]) && stages != [] do
+          stage_list = if is_list(stages), do: stages, else: String.split(to_string(stages), ",")
+          Enum.filter(files, fn path ->
+            case Peppi.metadata(path) do
+              {:ok, meta} -> to_string(meta.stage) in stage_list
+              _ -> false
+            end
+          end)
+        else
+          files
+        end
+
+      # Quality filtering
+      files =
+        if min_quality = opts[:min_quality] do
+          alias ExPhil.Training.ReplayQuality
+          Enum.filter(files, fn path ->
+            try do
+              case Peppi.metadata(path) do
+                {:ok, meta} ->
+                  score = ReplayQuality.score(meta)
+                  is_number(score) and score >= min_quality
+                _ -> true
+              end
+            rescue
+              _ -> true
+            end
+          end)
+        else
+          files
+        end
+
+      Output.puts("  #{length(files)} replay files")
+
+      # Quick validation — filter obviously bad files
+      {valid_files, stats} = validate_files(files, opts)
+
+      {:ok, valid_files, stats}
+    end
+  end
+
+  defp validate_files(files, opts) do
+    if length(files) > 500 or (opts[:skip_validation] || false) do
+      Output.puts("  Skipping file validation")
+      {files, %{total: length(files), invalid: 0}}
+    else
+      # Quick metadata check
+      {valid, invalid} =
+        Enum.split_with(files, fn path ->
+          case Peppi.metadata(path) do
+            {:ok, _meta} -> true
+            _ -> false
+          end
+        end)
+
+      if length(invalid) > 0 and (opts[:show_errors] || false) do
+        Output.warning("#{length(invalid)} invalid replay files will be skipped")
+      end
+
+      {valid, %{total: length(files), invalid: length(invalid)}}
+    end
+  end
+
+  defp build_pipeline(replay_files, replay_stats, true = _streaming, opts) do
+    # Streaming mode — don't load data upfront
+    Output.step(2, 4, "Setting up streaming pipeline")
+
+    # --prev-action is wired into streaming since 2026-09-30 (the flag rides
+    # streaming_dataset_opts into Streaming.create_dataset). Before that the
+    # channel was silently zeros in streamed chunks: fox-mamba-v2-prevact's
+    # first launch trained 1000 updates with an empty slot before the
+    # warning was noticed.
+    if opts[:use_prev_action] do
+      Output.puts("  prev-action channel ON (dropout #{opts[:prev_action_dropout] || 0.0})")
+    end
+
+    chunk_size = opts[:stream_chunk_size]
+
+    # Val-under-carry holdout (BPTT_LOADER_DESIGN.md): in bptt mode, hold
+    # out N WHOLE files (game-level split — window/segment leakage is
+    # impossible) before chunking; they become a fixed, deterministic
+    # cursor-batch list evaluated with the carry threaded (see
+    # Validation.evaluate_bptt/3). Taken from the END of the (already
+    # ordered) file list so the train set is a prefix.
+    # `--bptt-holdout-split PATH` instead holds out the validation games of
+    # another run's split.json (a windowed train_fox_mamba.exs control), so a
+    # bptt/windowed pair is scored on the same games. The split is written
+    # beside the checkpoint either way, where the eval scripts look for it.
+    {replay_files, bptt_val_files} =
+      cond do
+        not opts[:bptt] ->
+          {replay_files, []}
+
+        path = opts[:bptt_holdout_split] ->
+          held = path |> File.read!() |> Jason.decode!() |> Map.fetch!("validation") |> MapSet.new()
+          {val, train} = Enum.split_with(replay_files, &MapSet.member?(held, &1))
+          if length(val) != MapSet.size(held),
+            do: raise("--bptt-holdout-split: #{MapSet.size(held) - length(val)} of #{MapSet.size(held)} validation games are not in this run's replay set")
+          {train, val}
+
+        true ->
+          n = opts[:bptt_val_files] || 16
+          {Enum.drop(replay_files, -n), Enum.take(replay_files, -n)}
+      end
+
+    if opts[:bptt] and opts[:checkpoint] do
+      dir = Path.dirname(opts[:checkpoint])
+      File.mkdir_p!(dir)
+      File.write!(Path.join(dir, "split.json"), Jason.encode!(%{train: replay_files, validation: bptt_val_files}, pretty: true))
+    end
+
+    file_chunks = Streaming.chunk_files(replay_files, chunk_size)
+    Output.puts("  #{length(file_chunks)} chunks of ~#{chunk_size} files")
+
+    # Pass the FULL resolved opts — Embeddings.config/1 whitelists internally.
+    # Hand-picked key lists here silently dropped newer flags (--stage-internals
+    # trained 288 wide while metadata claimed 296, 2026-08-25 pilot).
+    # INVARIANTS.md item 4: only channels the parser provides get dims.
+    embed_config = Embeddings.config_for_source(opts, ExPhil.Data.Peppi.provides())
+
+    # Name/style conditioning in STREAMING mode (v2 plank b): build the
+    # tag->id registry from TRAIN files only (the bptt val holdout was
+    # already split off above — a val-only player uses the anonymous bucket,
+    # not its own id). The registry rides in
+    # streaming_dataset_opts -> Data.from_frames stamps per-frame :name_id
+    # -> precompute fills the 112-dim name one-hot the embedding has always
+    # reserved (id 0 = unconditioned). Saved beside checkpoints for
+    # inference (`--style-tag`/`--style-id`, agent.ex:417).
+    # Identity source is the FILENAME (bracket tags), not in-file metadata —
+    # the corpus's netplay names are all the "Master Player" placeholder
+    # (FilenameTags moduledoc). Registry from TRAIN files only; id 0 stays
+    # the anonymous bucket (untagged/hashed/ditto files).
+    subject_character =
+      case opts[:train_character] do
+        nil -> nil
+        char -> ExPhil.Training.Config.character_name(char)
+      end
+
+    tag_map =
+      if path = opts[:player_tag_map] do
+        m = ExPhil.Training.PlayerTagMap.load!(path)
+        Output.puts("  player tag map: #{m.count} entries from #{path}")
+        m
+      end
+
+    player_registry =
+      if opts[:learn_player_styles] do
+        # Tags come from the SAME resolver the frames use (in-file first,
+        # filename fallback; dittos contribute NO tags — positional
+        # resolution measured 69.2% reliable, see streaming.ex). Ordered by
+        # game count so the registry cap keeps the most-represented players:
+        # the 09-17 inventory has 368 distinct Fox tags for 111 slots, and
+        # first-seen order kept singletons while dropping frequent ones.
+        port_map = opts[:port_map] || %{}
+
+        tag_counts =
+          replay_files
+          |> Enum.map(fn
+            {path, port} -> {path, port}
+            path -> {path, Map.get(port_map, path, opts[:player_port] || 1)}
+          end)
+          |> Enum.map(fn {path, port} -> Streaming.subject_tag(path, port, subject_character, tag_map: tag_map) end)
+          |> Enum.reject(&is_nil/1)
+          |> Enum.frequencies()
+          |> Enum.sort_by(fn {tag, n} -> {-n, tag} end)
+
+        tags = Enum.map(tag_counts, &elem(&1, 0))
+
+        if tags == [] do
+          Output.warning(
+            "--learn-player-styles: no filename tags found in the corpus — " <>
+              "all frames will train as the anonymous bucket (id 0)"
+          )
+
+          nil
+        else
+          reg = ExPhil.Training.PlayerRegistry.from_tags(tags, first_id: 1)
+          kept = ExPhil.Training.PlayerRegistry.size(reg)
+          games_total = Enum.sum(Enum.map(tag_counts, &elem(&1, 1)))
+          games_kept = tag_counts |> Enum.take(kept) |> Enum.map(&elem(&1, 1)) |> Enum.sum()
+
+          pseudo_games = tag_counts |> Enum.filter(fn {t, _} -> ExPhil.Training.PlayerTagMap.pseudo?(t) end) |> Enum.map(&elem(&1, 1)) |> Enum.sum()
+
+          Output.puts(
+            "  player registry: #{kept} of #{length(tags)} tags kept " <>
+              "(#{games_kept}/#{games_total} tagged games, #{pseudo_games} via pseudo-tags; #{length(replay_files) - games_total} anonymous)"
+          )
+
+          if opts[:checkpoint] do
+            reg_path = String.replace_suffix(opts[:checkpoint], ".axon", "_players.json")
+            ExPhil.Training.PlayerRegistry.to_json(reg, reg_path)
+            Output.puts("  player registry saved to #{reg_path}")
+          end
+
+          reg
+        end
+      else
+        nil
+      end
+
+    # Estimate batch count
+    estimated = estimate_streaming_batches(replay_files, opts)
+
+    # Materialize the bptt val batch list once (fixed seed -> identical
+    # batches every epoch; CPU tensors — EXLA transfers at eval time).
+    # Val rows use a small batch (8) so few held-out games still fill
+    # every cursor row; carry semantics are per-row and unaffected.
+    bptt_val_batches =
+      if opts[:bptt] and bptt_val_files != [] do
+        Output.puts("  bptt val: #{length(bptt_val_files)} held-out files")
+
+        chunk_opts =
+          Keyword.take(opts, [
+            :player_port, :dual_port, :label_delay, :skip_errors, :show_errors, :port_map
+          ]) ++ [subject_character: subject_character, tag_map: tag_map]
+
+        # Same keys as streaming_dataset_opts below: the #135 fix (09-30)
+        # added the prev-action keys there only, so a bptt val set was
+        # embedded with an EMPTY channel (val 11.6 vs train 0.96, 10-02).
+        dataset_opts =
+          Keyword.take(opts, @streaming_dataset_keys) ++
+            [embed_config: embed_config, player_registry: player_registry]
+
+        {:ok, val_frames, _errors} = Streaming.parse_chunk(bptt_val_files, chunk_opts)
+        val_dataset = Streaming.create_dataset(val_frames, dataset_opts)
+
+        ExPhil.Training.TrajectoryCursors.batch_stream(val_dataset,
+          batch_size: min(opts[:batch_size] || 32, 8),
+          unroll: opts[:unroll] || 80,
+          overlap: opts[:bptt_overlap] || 0,
+          seed: 7,
+          neutral_weight: Keyword.get(opts, :neutral_weight, 0.25),
+          transition_weight: opts[:transition_weight],
+          gpu: false
+        )
+        |> Enum.to_list()
+      else
+        nil
+      end
+
+    pipeline = %__MODULE__{
+      replay_files: replay_files,
+      replay_stats: replay_stats,
+      embed_config: embed_config,
+      streaming: true,
+      file_chunks: file_chunks,
+      streaming_chunk_opts: Keyword.take(opts, [
+        :player_port, :dual_port, :label_delay, :skip_errors, :show_errors, :port_map
+      ]) ++ [subject_character: subject_character, tag_map: tag_map],
+      streaming_dataset_opts: Keyword.take(opts, @streaming_dataset_keys) ++
+        [embed_config: embed_config, player_registry: player_registry],
+      val_batches: bptt_val_batches,
+      character_weights: nil,
+      augment_fn: nil,
+      estimated_batches: estimated,
+      resolved_opts: opts
+    }
+
+    {:ok, pipeline}
+  end
+
+  defp build_pipeline(replay_files, replay_stats, false = _streaming, opts) do
+    # Standard mode — load everything upfront
+    Output.step(2, 4, "Parsing and embedding replays")
+
+    # Parse all replays
+    frames = parse_replays(replay_files, opts)
+
+    if frames == [] do
+      {:error, "No frames parsed from #{length(replay_files)} files"}
+    else
+      Output.puts("  #{length(frames)} frames from #{length(replay_files)} files")
+      log_character_distribution(frames)
+
+      Output.puts("  Reaction label delay: #{opts[:label_delay]} frames")
+
+      # Curriculum mixing: drill .frames exports (already expert-labeled;
+      # shifted per source segment inside MixFrames with the same delay).
+      # Appended AFTER the corpus shift so no shift crosses the boundary.
+      frames =
+        case opts[:mix_frames] do
+          nil ->
+            frames
+
+          spec ->
+            {mixed, stats} =
+              ExPhil.Training.MixFrames.load(spec, label_delay: opts[:label_delay])
+
+            for %{path: path, expert: expert, frames: n} <- stats do
+              Output.puts("  Mix: #{Path.basename(path)} (#{expert}) +#{n} frames")
+            end
+
+            Output.puts("  Curriculum mix total: +#{length(mixed)} drill frames")
+            frames ++ mixed
+        end
+
+      # Build embed config from the FULL resolved opts (config/1 whitelists
+      # internally; see streaming branch note on the flag-drop bug class)
+      # INVARIANTS.md item 4: only channels the parser provides get dims.
+      embed_config = Embeddings.config_for_source(opts, ExPhil.Data.Peppi.provides())
+
+      # Create base dataset
+      dataset = Data.from_frames(frames, embed_config: embed_config)
+
+      # Player registry for style-conditional training
+      player_registry =
+        if opts[:learn_player_styles] do
+          case PlayerRegistry.from_replays(replay_files) do
+            {:ok, reg} -> reg
+            _ -> nil
+          end
+        else
+          nil
+        end
+
+      # Precompute embeddings on full dataset FIRST, then split.
+      # This ensures train/val get correctly sliced embedded_frames tensors.
+      Output.step(3, 4, "Computing embeddings")
+      embedded_dataset =
+        if opts[:cache_augmented] do
+          Data.precompute_augmented_frame_embeddings_cached(dataset,
+            cache: true,
+            cache_dir: opts[:cache_dir] || "cache/embeddings",
+            replay_files: replay_files,
+            num_noisy_variants: opts[:num_noisy_variants] || 3,
+            noise_scale: opts[:noise_scale] || 0.01,
+            show_progress: true
+          )
+        else
+          precompute_embeddings(dataset, replay_files, opts)
+        end
+
+      # Split AFTER embedding — each split gets the correct slice
+      # For lazy sequences, don't shuffle — sequential order is required for windowed slicing
+      split_opts = if opts[:lazy_sequences] != false, do: [shuffle: false], else: []
+      {train_ds, val_ds} = split_dataset(embedded_dataset, Keyword.merge(opts, split_opts))
+      Output.puts("  Train: #{train_ds.size} frames, Val: #{val_ds.size} frames")
+
+      # Optionally convert to memory-mapped embeddings for huge datasets
+      train_ds =
+        if opts[:mmap_embeddings] && train_ds.embedded_frames do
+          alias ExPhil.Training.MmapEmbeddings
+          mmap_path = opts[:mmap_path] || "cache/mmap_embeddings.bin"
+          Output.puts("  Saving embeddings to mmap file: #{mmap_path}")
+          MmapEmbeddings.save(train_ds.embedded_frames, mmap_path)
+          {:ok, handle} = MmapEmbeddings.open(mmap_path)
+          %{train_ds | embedded_frames: nil, metadata: Map.put(train_ds.metadata, :mmap_handle, handle)}
+        else
+          train_ds
+        end
+
+      # Resolve config (button_pos_weight, character_weights)
+      resolved_opts = resolve_opts(train_ds, opts)
+      character_weights = compute_character_weights(train_ds, opts)
+      augment_fn = build_augment_fn(opts)
+
+      # Compute batch count
+      estimated_batches = estimate_standard_batches(train_ds, opts)
+
+      # Precompute val batches (on CPU for lazy mode)
+      Output.step(4, 4, "Preparing validation")
+      val_batches = precompute_val_batches(val_ds, opts)
+
+      pipeline = %__MODULE__{
+        train_dataset: train_ds,
+        val_dataset: val_ds,
+        val_batches: val_batches,
+        replay_files: replay_files,
+        replay_stats: replay_stats,
+        embed_config: embed_config,
+        streaming: false,
+        character_weights: character_weights,
+        augment_fn: augment_fn,
+        player_registry: player_registry,
+        estimated_batches: estimated_batches,
+        resolved_opts: resolved_opts
+      }
+
+      {:ok, pipeline}
+    end
+  end
+
+  # ============================================================================
+  # Private — Corpus mode (pre-built MmapCorpus, see scripts/build_corpus.exs)
+  # ============================================================================
+
+  defp build_pipeline_corpus(opts) do
+    alias ExPhil.Training.MmapCorpus
+
+    if !opts[:temporal] do
+      raise ArgumentError,
+            "--corpus requires temporal training (the corpus stores frame " <>
+              "embeddings for windowed sequence batches; use a temporal backbone)"
+    end
+
+    dir = opts[:corpus]
+    Output.step(1, 3, "Opening corpus")
+    corpus = MmapCorpus.open!(dir)
+
+    Output.puts(
+      "  #{dir}: #{corpus.num_frames} frames from #{length(corpus.files)} files " <>
+        "(embed #{corpus.embed_size}, #{Float.round(corpus.num_frames * corpus.embed_size * 4 / 1.0e9, 1)}GB on disk)"
+    )
+
+    window = opts[:window_size] || 60
+    stride = opts[:stride] || 5
+    batch_size = opts[:batch_size] || 32
+
+    {train_ranges, val_ranges} = MmapCorpus.split_files(corpus, opts[:val_split] || 0.1)
+
+    n_train = length(MmapCorpus.sequence_starts(train_ranges, window, stride))
+
+    Output.puts(
+      "  Train: #{length(train_ranges)} files / #{n_train} sequences, " <>
+        "Val: #{length(val_ranges)} files (whole-game holdout)"
+    )
+
+    Output.step(2, 3, "Preparing validation")
+
+    {val_stream, n_val} =
+      MmapCorpus.batched_sequences(corpus, val_ranges,
+        window_size: window,
+        stride: stride,
+        batch_size: batch_size,
+        shuffle: false,
+        drop_last: false,
+        gpu: false,
+        neutral_weight: Keyword.get(opts, :neutral_weight, 0.25)
+      )
+
+    val_batches = if n_val > 0, do: Enum.to_list(val_stream), else: nil
+    Output.puts("  #{n_val} validation batches")
+
+    # Curriculum mixing: a snippet mini-corpus interleaved into training.
+    # Every mix file is train (no val split — val stays comparable to
+    # unmixed baselines); windows never cross snippet boundaries because
+    # sequence_starts is per-file.
+    {mix_corpus, mix_ranges, n_mix} =
+      case opts[:mix_corpus] do
+        nil ->
+          {nil, nil, 0}
+
+        mix_dir ->
+          mix = MmapCorpus.open!(mix_dir)
+
+          if mix.embed_size != corpus.embed_size do
+            raise ArgumentError,
+                  "--mix-corpus #{mix_dir} embed_size #{mix.embed_size} != " <>
+                    "main corpus #{corpus.embed_size}"
+          end
+
+          {ranges, []} = MmapCorpus.split_files(mix, 0.0)
+          oversample = opts[:mix_oversample] || 1
+          n_seq = length(MmapCorpus.sequence_starts(ranges, window, stride))
+
+          Output.puts(
+            "  Mix corpus #{mix_dir}: #{mix.num_frames} frames / #{length(mix.files)} snippets, " <>
+              "#{n_seq} sequences x#{oversample} oversample"
+          )
+
+          {mix, ranges, div(n_seq * oversample, batch_size)}
+      end
+
+    Output.step(3, 3, "Resolving config")
+
+    resolved_opts =
+      opts
+      |> Keyword.put(:embed_size, corpus.embed_size)
+      |> resolve_corpus_button_pos_weight(corpus)
+
+    pipeline = %__MODULE__{
+      corpus: corpus,
+      corpus_train_ranges: train_ranges,
+      mix_corpus: mix_corpus,
+      mix_corpus_ranges: mix_ranges,
+      val_batches: val_batches,
+      replay_files: Enum.map(corpus.files, & &1.path),
+      replay_stats: %{total: length(corpus.files), invalid: 0},
+      streaming: false,
+      estimated_batches: div(n_train, batch_size) + n_mix,
+      resolved_opts: resolved_opts
+    }
+
+    {:ok, pipeline}
+  end
+
+  defp resolve_corpus_button_pos_weight(opts, corpus) do
+    alias ExPhil.Training.MmapCorpus
+
+    case opts[:button_pos_weight] do
+      :auto ->
+        rates = MmapCorpus.button_rates(corpus)
+        button_order = [:a, :b, :x, :y, :z, :l, :r, :d_up]
+        rates_tensor =
+          button_order
+          |> Enum.map(&Map.get(rates, &1, 0.0))
+          |> Nx.tensor(type: :f32)
+          |> Nx.backend_copy(Nx.BinaryBackend)
+
+        pos_weight = ExPhil.Networks.Policy.Loss.compute_pos_weights_from_rates(rates_tensor)
+        Output.puts("  Per-button pos_weight: #{inspect(Nx.to_flat_list(pos_weight) |> Enum.map(&Float.round(&1, 1)))}")
+        Keyword.put(opts, :button_pos_weight, pos_weight)
+
+      _ ->
+        opts
+    end
+  end
+
+  defp batch_stream_corpus(pipeline, opts) do
+    alias ExPhil.Training.MmapCorpus
+    ropts = pipeline.resolved_opts
+
+    {stream, n_main} =
+      MmapCorpus.batched_sequences(pipeline.corpus, pipeline.corpus_train_ranges,
+        window_size: ropts[:window_size] || 60,
+        stride: ropts[:stride] || 5,
+        batch_size: ropts[:batch_size] || 32,
+        shuffle: Keyword.get(opts, :shuffle, true),
+        drop_last: Keyword.get(opts, :drop_last, true),
+        neutral_weight: Keyword.get(ropts, :neutral_weight, 0.25),
+        transition_weight: ropts[:transition_weight]
+      )
+
+    stream = inject_mix_corpus(stream, n_main, pipeline, ropts)
+
+    {stream, pipeline.estimated_batches}
+  end
+
+  # Interleave snippet mini-corpus batches (--mix-corpus) evenly through
+  # the main corpus stream. The mix is materialized once on CPU (it is
+  # small by construction — hundreds of snippets) and cycled
+  # :mix_oversample times; tensors are shared across cycles and only
+  # transferred to GPU at injection.
+  defp inject_mix_corpus(stream, _n_main, %__MODULE__{mix_corpus: nil}, _ropts), do: stream
+
+  defp inject_mix_corpus(stream, n_main, pipeline, ropts) do
+    alias ExPhil.Training.MmapCorpus
+
+    {mix_stream, _} =
+      MmapCorpus.batched_sequences(pipeline.mix_corpus, pipeline.mix_corpus_ranges,
+        window_size: ropts[:window_size] || 60,
+        stride: ropts[:stride] || 5,
+        batch_size: ropts[:batch_size] || 32,
+        shuffle: true,
+        drop_last: false,
+        gpu: false,
+        neutral_weight: Keyword.get(ropts, :neutral_weight, 0.25),
+        transition_weight: ropts[:transition_weight]
+      )
+
+    mix_batches = Enum.to_list(mix_stream)
+    oversample = ropts[:mix_oversample] || 1
+    n_mix = length(mix_batches) * oversample
+
+    if n_mix == 0 do
+      stream
+    else
+      inject_every = max(div(n_main, n_mix), 1)
+
+      queue =
+        mix_batches
+        |> List.duplicate(oversample)
+        |> List.flatten()
+
+      stream
+      |> Stream.with_index(1)
+      |> Stream.transform(queue, fn {batch, i}, q ->
+        case q do
+          [m | rest] when rem(i, inject_every) == 0 ->
+            # backend_copy, NOT backend_transfer: cycled batches share
+            # tensors — a transfer would deallocate the CPU source and
+            # crash the next cycle's injection of the same batch
+            gpu_m = %{
+              m
+              | states: Nx.backend_copy(m.states, EXLA.Backend),
+                actions: Map.new(m.actions, fn {k, v} -> {k, Nx.backend_copy(v, EXLA.Backend)} end),
+                frame_weights: Nx.backend_copy(m.frame_weights, EXLA.Backend)
+            }
+
+            {[batch, gpu_m], rest}
+
+          _ ->
+            {[batch], q}
+        end
+      end)
+    end
+  end
+
+  # ============================================================================
+  # Private — Parsing
+  # ============================================================================
+
+  defp parse_replays(files, opts) do
+    player_port = opts[:player_port] || 1
+    dual_port = opts[:dual_port] || false
+    skip_errors = opts[:skip_errors] != false
+    total = length(files)
+
+    files
+    |> Enum.with_index()
+    |> Enum.flat_map(fn {path, idx} ->
+      if rem(idx, max(div(total, 20), 1)) == 0 do
+        pct = round(idx / total * 100)
+        IO.write(:stderr, "\r  Parsing: #{pct}% (#{idx}/#{total})\e[K")
+      end
+
+      try do
+        if dual_port do
+          # Parse both ports — doubles training data
+          parse_both_ports(path, opts[:label_delay])
+        else
+          case Peppi.parse(path, player_port: player_port) do
+            {:ok, replay} ->
+              Peppi.to_training_frames(replay, player_port: player_port, frame_delay: opts[:label_delay])
+            _ -> []
+          end
+        end
+      rescue
+        e ->
+          if not skip_errors, do: raise(e)
+          []
+      end
+    end)
+    |> tap(fn _ -> IO.write(:stderr, "\r\e[K") end)
+  end
+
+  defp parse_both_ports(path, label_delay) do
+    case Peppi.metadata(path) do
+      {:ok, meta} ->
+        Enum.flat_map(meta.players, fn p ->
+          case Peppi.parse(path, player_port: p.port) do
+            {:ok, replay} -> Peppi.to_training_frames(replay, player_port: p.port, frame_delay: label_delay)
+            _ -> []
+          end
+        end)
+      _ -> []
+    end
+  end
+
+  # ============================================================================
+  # Private — Embeddings
+  # ============================================================================
+
+  defp precompute_embeddings(dataset, replay_files, opts) do
+    cache_enabled = opts[:cache_embeddings] != false
+
+    use_prev_action = opts[:use_prev_action] || false
+    prev_action_dropout = opts[:prev_action_dropout] || 0.0
+    prev_action_dropout_block = opts[:prev_action_dropout_block] || 1
+
+    if cache_enabled do
+      Data.precompute_frame_embeddings_cached(dataset,
+        cache: true,
+        cache_dir: opts[:cache_dir] || "cache/embeddings",
+        force_recompute: opts[:no_cache] || false,
+        replay_files: replay_files,
+        show_progress: true,
+        use_prev_action: use_prev_action,
+        prev_action_dropout: prev_action_dropout,
+        prev_action_dropout_block: prev_action_dropout_block,
+        prev_action_quantize: opts[:prev_action_quantize] || false,
+        # Mixed drill frames change the dataset without changing
+        # replay_files — must not share a cache key (GOTCHAS #51 family)
+        mix_frames: opts[:mix_frames]
+      )
+    else
+      Data.precompute_frame_embeddings(dataset,
+        show_progress: true,
+        use_prev_action: use_prev_action,
+        prev_action_dropout: prev_action_dropout,
+        prev_action_dropout_block: prev_action_dropout_block,
+        prev_action_quantize: opts[:prev_action_quantize] || false
+      )
+    end
+  end
+
+  # ============================================================================
+  # Private — Split & Validation
+  # ============================================================================
+
+  defp split_dataset(dataset, opts) do
+    val_split = opts[:val_split] || 0.1
+    shuffle = Keyword.get(opts, :shuffle, true)
+
+    if val_split > 0 and dataset.size > 0 do
+      Data.split(dataset, ratio: 1.0 - val_split, shuffle: shuffle)
+    else
+      {dataset, %{dataset | frames: [], size: 0, embedded_frames: nil}}
+    end
+  end
+
+  defp precompute_val_batches(val_ds, opts) do
+    if val_ds.size == 0 do
+      nil
+    else
+      IO.write(:stderr, "  Pre-computing validation batches...\e[K")
+      start = System.monotonic_time(:millisecond)
+
+      stream =
+        if opts[:temporal] do
+          Data.batched_sequences(val_ds,
+            batch_size: opts[:batch_size] || 32,
+            shuffle: false,
+            lazy: opts[:lazy_sequences] != false,
+            gpu: false,
+            window_size: opts[:window_size] || 60,
+            stride: opts[:stride] || 5,
+            # stick_duration: the val likelihood needs the chunk futures
+            chunk_horizon: if(opts[:stick_duration], do: opts[:chunk_horizon])
+          )
+        else
+          Data.batched(val_ds, batch_size: opts[:batch_size] || 32, shuffle: false)
+        end
+
+      batches =
+        stream
+        |> Stream.with_index()
+        |> Enum.map(fn {batch, idx} ->
+          if rem(idx, 50) == 0 do
+            IO.write(:stderr, "\r  Pre-computing validation batches... #{idx}\e[K")
+          end
+          batch
+        end)
+
+      elapsed = System.monotonic_time(:millisecond) - start
+      IO.write(:stderr, "\r  Pre-computing validation batches... done (#{length(batches)} batches, #{div(elapsed, 1000)}s)\e[K\n")
+
+      batches
+    end
+  end
+
+  # ============================================================================
+  # Private — Config Resolution
+  # ============================================================================
+
+  defp resolve_opts(train_ds, opts) do
+    opts
+    |> resolve_button_pos_weight(train_ds)
+  end
+
+  defp resolve_button_pos_weight(opts, train_ds) do
+    case opts[:button_pos_weight] do
+      :auto ->
+        stats = Data.stats(train_ds)
+        button_order = [:a, :b, :x, :y, :z, :l, :r, :d_up]
+        rates = Enum.map(button_order, fn btn -> Map.get(stats.button_rates, btn, 0.0) end)
+        rates_tensor = Nx.tensor(rates, type: :f32) |> Nx.backend_copy(Nx.BinaryBackend)
+        pos_weight = ExPhil.Networks.Policy.Loss.compute_pos_weights_from_rates(rates_tensor)
+        Output.puts("  Per-button pos_weight: #{inspect(Nx.to_flat_list(pos_weight) |> Enum.map(&Float.round(&1, 1)))}")
+        Keyword.put(opts, :button_pos_weight, pos_weight)
+
+      weights when is_list(weights) ->
+        Keyword.put(opts, :button_pos_weight, Nx.tensor(weights, type: :f32) |> Nx.backend_copy(Nx.BinaryBackend))
+
+      _ ->
+        opts
+    end
+  end
+
+  defp compute_character_weights(train_ds, opts) do
+    if opts[:balance_characters] do
+      CharacterBalance.compute_weights(train_ds.frames)
+    else
+      nil
+    end
+  end
+
+  defp build_augment_fn(opts) do
+    if opts[:augment] do
+      alias ExPhil.Training.Augmentation
+
+      mirror_prob = opts[:mirror_prob] || 0.5
+      noise_prob = opts[:noise_prob] || 0.3
+      noise_scale = opts[:noise_scale] || 0.01
+
+      fn frame ->
+        frame
+        |> Augmentation.maybe_mirror(probability: mirror_prob)
+        |> Augmentation.maybe_add_noise(probability: noise_prob, scale: noise_scale)
+      end
+    else
+      nil
+    end
+  end
+
+  # ============================================================================
+  # Private — Batch Streams
+  # ============================================================================
+
+  defp batch_stream_standard(pipeline, opts) do
+    ropts = pipeline.resolved_opts
+
+    stream =
+      if ropts[:temporal] do
+        Data.batched_sequences(pipeline.train_dataset,
+          batch_size: ropts[:batch_size] || 32,
+          shuffle: Keyword.get(opts, :shuffle, true),
+          drop_last: Keyword.get(opts, :drop_last, true),
+          character_weights: pipeline.character_weights,
+          action_oversample: ropts[:action_oversample],
+          lazy: ropts[:lazy_sequences] != false,
+          use_batch: ropts[:use_batch] || false,
+          window_size: ropts[:window_size] || 60,
+          stride: ropts[:stride] || 5,
+          neutral_weight: Keyword.get(ropts, :neutral_weight, 0.25)
+        )
+      else
+        Data.batched(pipeline.train_dataset,
+          batch_size: ropts[:batch_size] || 32,
+          shuffle: Keyword.get(opts, :shuffle, true),
+          drop_last: Keyword.get(opts, :drop_last, true),
+          augment_fn: pipeline.augment_fn,
+          character_weights: pipeline.character_weights,
+          frame_delay: 0,
+          frame_delay_augment: ropts[:frame_delay_augment] || false,
+          frame_delay_min: ropts[:frame_delay_min] || 0,
+          frame_delay_max: ropts[:frame_delay_max] || 3
+        )
+      end
+
+    {stream, pipeline.estimated_batches}
+  end
+
+  defp batch_stream_streaming(pipeline, _opts) do
+    ropts = pipeline.resolved_opts
+    chunk_opts = pipeline.streaming_chunk_opts
+    dataset_opts = pipeline.streaming_dataset_opts
+    awbc? = ropts[:awbc]
+
+    # Temporal chunks come back in the LAZY layout (flat frames + flat
+    # embedded tensor + window/stride metadata) — batch with lazy: true so
+    # windows are sliced on the fly, matching the standard pipeline.
+    seq_batch_opts = [
+      batch_size: ropts[:batch_size] || 32,
+      seed: ropts[:seed] || 42,
+      shuffle: true,
+      drop_last: true,
+      lazy: ropts[:lazy_sequences] != false,
+      use_batch: ropts[:use_batch] || false,
+      window_size: ropts[:window_size] || 60,
+      stride: ropts[:stride] || 5,
+      neutral_weight: Keyword.get(ropts, :neutral_weight, 0.25),
+      # chunk targets: t+1..t+K controllers ride in the actions map
+      chunk_horizon: ropts[:chunk_horizon]
+    ]
+
+    # Windowed-path offstage / silent-fall LOSS weights (2026-10-05): a
+    # per-chunk fn over the prepared frames, nil when neither knob is set.
+    # (--offstage-weight on the bptt path is applied by TrajectoryCursors.)
+    rare_weights_fn =
+      if ropts[:offstage_weight] || ropts[:silent_fall_weight] || ropts[:onset_weight] || ropts[:veto_weight] || ropts[:neutral_grounded_weight] do
+        fn frames ->
+          ExPhil.Training.SilentFallWeighting.frame_weights(frames,
+            offstage_weight: ropts[:offstage_weight],
+            silent_fall_weight: ropts[:silent_fall_weight],
+            silent_fall_min: ropts[:silent_fall_min] || 13,
+            onset_weight: ropts[:onset_weight],
+            onset_buttons_only: ropts[:onset_buttons_only] || false,
+            onset_edge_window: ropts[:onset_edge_window],
+            veto_weight: ropts[:veto_weight],
+            neutral_grounded_weight: ropts[:neutral_grounded_weight]
+          )
+        end
+      end
+
+    stream =
+      if ropts[:bptt] do
+        # Contiguous-BPTT (BPTT_LOADER_DESIGN.md plank B wiring): per chunk,
+        # cursors walk each replay in order and emit per-timestep batches;
+        # the trainer threads the GRU carry across them (chunk boundaries
+        # reset every row via is_resetting — those are real game starts).
+        # Partial chunks and short segments use masked rows; each real frame
+        # is scored once even when the final file chunk cannot fill a batch.
+        cursor_opts = [
+          batch_size: ropts[:batch_size] || 32,
+          unroll: ropts[:unroll] || 80,
+          overlap: ropts[:bptt_overlap] || 0,
+          seed: ropts[:seed] || 42,
+          neutral_weight: Keyword.get(ropts, :neutral_weight, 0.25),
+          transition_weight: ropts[:transition_weight],
+          offstage_weight: ropts[:offstage_weight],
+          gpu: true
+        ]
+
+        main_stream =
+        if ropts[:pipeline_chunks] and not awbc? do
+          # Overlap parse+embed of chunk k+1 with training on chunk k
+          # (V2_PREP item 1b — post-throughput-fix the epoch wall is
+          # per-chunk prep, ~110s vs ~6s of steps per chunk). Reuses the
+          # windowed path's ChunkPipeline; stream_prepared_chunks yields
+          # datasets in order, so cursor/carry semantics are unchanged.
+          alias ExPhil.Training.ChunkPipeline
+
+          # cache_embeddings is FORCED OFF here (not inherited from
+          # cache_streaming, whose default is true for the windowed
+          # path): bptt runs full-corpus scale, and the chunk cache
+          # measured 2.1GB per 200-file chunk — ~300GB per full-corpus
+          # epoch, which filled / to 100% and nearly killed the v2
+          # launch (2026-09-05). The serial bptt branch never cached;
+          # this preserves that. Re-enable only behind an explicit
+          # opt-in flag once there is a disk budget for it.
+          ChunkPipeline.stream_prepared_chunks(
+            pipeline.file_chunks,
+            chunk_opts: chunk_opts,
+            dataset_opts: dataset_opts,
+            cache_embeddings: false,
+            embed_config: pipeline.embed_config,
+            progress_path: pipeline.progress_path,
+            chunk_offset: pipeline.chunk_offset || 0
+          )
+          |> Stream.flat_map(fn {chunk_dataset, _idx, _errors} ->
+            ExPhil.Training.TrajectoryCursors.batch_stream(chunk_dataset, cursor_opts)
+          end)
+        else
+          pipeline.file_chunks
+          |> Stream.flat_map(fn chunk ->
+            {:ok, chunk_frames, _errors} = Streaming.parse_chunk(chunk, chunk_opts)
+            chunk_dataset = Streaming.create_dataset(chunk_frames, dataset_opts)
+            ExPhil.Training.TrajectoryCursors.batch_stream(chunk_dataset, cursor_opts)
+          end)
+        end
+
+        # --mix-frames in BPTT mode (SIM_INTEGRATION.md step 8, 2026-09-21): the
+        # windowed mix path further down builds Data.batched_sequences batches,
+        # which train_step_bptt cannot consume (no carry / is_resetting). Here the
+        # mix (search-oracle episodes) is ITS OWN cursor stream — segments split
+        # at frame-counter jumps, so each episode is a segment — appended
+        # x mix_oversample after the main corpus each epoch.
+        case ropts[:mix_frames] do
+          nil ->
+            main_stream
+
+          spec ->
+            {mixed, mstats} = ExPhil.Training.MixFrames.load(spec, label_delay: ropts[:label_delay])
+            oversample = ropts[:mix_oversample] || 1
+
+            Logger.info(
+              "[Streaming] bptt curriculum mix: #{length(mixed)} frames from " <>
+                "#{length(mstats)} export(s), oversample #{oversample}"
+            )
+
+            if mixed == [] do
+              main_stream
+            else
+              mix_dataset = Streaming.create_dataset(mixed, dataset_opts)
+
+              Stream.concat(
+                main_stream,
+                Stream.flat_map(1..oversample, fn _ ->
+                  ExPhil.Training.TrajectoryCursors.batch_stream(mix_dataset, cursor_opts)
+                end)
+              )
+            end
+        end
+      else
+      if ropts[:pipeline_chunks] and not awbc? do
+        # Pipelined: parse chunk N+1 while training on chunk N.
+        # stream_batches (NOT stream_prepared_chunks, which yields
+        # {dataset, idx, errors} tuples straight into the batch loop).
+        alias ExPhil.Training.ChunkPipeline
+
+        ChunkPipeline.stream_batches(
+          pipeline.file_chunks,
+          [
+            chunk_opts: chunk_opts,
+            dataset_opts: dataset_opts,
+            temporal: ropts[:temporal],
+            cache_embeddings: ropts[:cache_streaming] || false,
+            embed_config: pipeline.embed_config,
+            progress_path: pipeline.progress_path,
+            chunk_offset: pipeline.chunk_offset || 0,
+            prepared_chunks: pipeline.prepared_chunks,
+            loss_weights_fn: rare_weights_fn
+          ] ++ seq_batch_opts
+        )
+      else
+        pipeline.file_chunks
+        |> Stream.flat_map(fn chunk ->
+          {:ok, chunk_frames, _errors} = Streaming.parse_chunk(chunk, chunk_opts)
+          chunk_dataset = Streaming.create_dataset(chunk_frames, dataset_opts)
+
+          # AWBC: outcome-weighted per-frame loss weights (return-to-go within
+          # each replay). Force the non-pipelined path when enabled (weights are
+          # chunk-local, and the pipelined ChunkPipeline has no seam for them).
+          batch_opts =
+            if awbc? do
+              lists = ExPhil.Training.AdvantageWeighting.split_by_replay(chunk_frames)
+
+              {ws, _} =
+                ExPhil.Training.AdvantageWeighting.frame_weights(lists,
+                  reward: ropts[:awbc_reward] || :shine,
+                  beta: ropts[:awbc_beta],
+                  shuffle: ropts[:awbc_shuffle] || false
+                )
+
+              seq_batch_opts ++ [loss_weights: ws]
+            else
+              case rare_weights_fn && rare_weights_fn.(chunk_dataset.frames) do
+                nil -> seq_batch_opts
+                ws -> seq_batch_opts ++ [loss_weights: ws]
+              end
+            end
+
+          if ropts[:temporal] do
+            Data.batched_sequences(chunk_dataset, batch_opts)
+          else
+            Data.batched(chunk_dataset,
+              batch_size: ropts[:batch_size] || 32,
+              shuffle: true,
+              drop_last: true
+            )
+          end
+        end)
+      end
+      end
+
+    # Curriculum mix in STREAMING mode (09-02, the drill-AWBC arm): the
+    # standard path's --mix-frames never reached this branch, and corpus
+    # mode wants --mix-corpus — so drill windows get appended here as
+    # extra batches per epoch (x mix_oversample). AWBC weights apply per
+    # window: sliced exports (scripts/drill_slice.exs) order windows so
+    # split_by_replay sees each as its own segment. The mix embeds
+    # in-memory (no chunk-cache key change — GOTCHA #106 disk budget).
+    stream =
+      case (if ropts[:bptt], do: nil, else: ropts[:mix_frames]) do
+        nil ->
+          stream
+
+        spec ->
+          # lists, not a flat list (2026-10-05): the export's frame lists are
+          # episode boundaries — lazy windows must not straddle two trips, and
+          # input-only prefixes need them (Data.from_frame_lists).
+          {mix_lists, mstats} =
+            ExPhil.Training.MixFrames.load_lists(spec, label_delay: ropts[:label_delay])
+
+          mixed = List.flatten(mix_lists)
+          oversample = ropts[:mix_oversample] || 1
+
+          Logger.info(
+            "[Streaming] curriculum mix: #{length(mixed)} frames in #{length(mix_lists)} lists from " <>
+              "#{length(mstats)} export(s), oversample #{oversample}"
+          )
+
+          if mixed == [] do
+            stream
+          else
+            mix_dataset = Streaming.create_dataset(mixed, dataset_opts ++ [frame_lists: mix_lists])
+
+            # Keep the mix's embeddings OFF the GPU (2026-10-15, r9o OOM at
+            # step 2.4k): create_dataset parks the whole embedded set on
+            # EXLA for the epoch — 5.25M frames x 288 = 6 GB beside the
+            # training buffers — while the lazy temporal slicer copies it
+            # back to BinaryBackend and slices on the CPU anyway. The main
+            # path holds one chunk at a time; the mix must not hold more.
+            mix_dataset =
+              case mix_dataset.embedded_frames do
+                %Nx.Tensor{} = t -> %{mix_dataset | embedded_frames: Nx.backend_transfer(t, Nx.BinaryBackend)}
+                _ -> mix_dataset
+              end
+
+            mix_batch_opts =
+              if awbc? do
+                lists = ExPhil.Training.AdvantageWeighting.split_by_replay(mixed)
+
+                {ws, _} =
+                  ExPhil.Training.AdvantageWeighting.frame_weights(lists,
+                    reward: ropts[:awbc_reward] || :shine,
+                    beta: ropts[:awbc_beta],
+                    shuffle: ropts[:awbc_shuffle] || false
+                  )
+
+                seq_batch_opts ++ [loss_weights: ws]
+              else
+                seq_batch_opts
+              end
+
+            # One lazy batch STREAM per oversample cycle, each cycle with its
+            # own shuffle seed (2026-10-15): the old `|> Enum.to_list()` +
+            # `Enum.shuffle` materialized every mix batch up front — r9o's
+            # 1.4k batches x 12 MB (128 x 80 x 288 f32) = 16 GB on the device
+            # before the first main batch (OOM at step 2.4k). The lazy
+            # batcher builds one batch when pulled; nothing else is resident.
+            mix_batch_size = ropts[:batch_size] || 32
+            mix_seed = (ropts[:seed] || 0) * 1000
+
+            mix_cycle = fn k ->
+              if ropts[:temporal] do
+                Data.batched_sequences(mix_dataset, Keyword.put(mix_batch_opts, :seed, mix_seed + k))
+              else
+                Data.batched(mix_dataset, batch_size: mix_batch_size, shuffle: true, drop_last: true)
+              end
+            end
+
+            n_mix =
+              if ropts[:temporal] do
+                ws = Keyword.get(mix_batch_opts, :window_size) || get_in(mix_dataset.metadata, [:window_size]) || 30
+                st = Keyword.get(mix_batch_opts, :stride) || get_in(mix_dataset.metadata, [:stride]) || 1
+                div(Data.num_sequences(mix_dataset, ws, st), max(Keyword.get(mix_batch_opts, :batch_size, mix_batch_size), 1))
+              else
+                div(mix_dataset.size, mix_batch_size)
+              end * oversample
+
+            mix_all = Stream.flat_map(1..oversample, mix_cycle)
+
+            # INTERLEAVED, not appended (2026-10-05): a 470-batch recovery-only
+            # block at the end of the epoch sent held-out val loss 1.06 -> 4.92
+            # (catastrophic forgetting from ordering; queue 16 dag4). Spread the
+            # mix evenly through the main stream by credit: every main batch
+            # earns `ratio` mix batches, pulled from the mix stream whenever
+            # the credit reaches 1 (a suspended Enumerable.reduce continuation,
+            # the Stream.zip mechanism). Leftover mix batches (estimate short)
+            # follow at the end.
+            main_est = max(pipeline.estimated_batches || 0, 1)
+            ratio = n_mix / main_est
+
+            Logger.info("[Streaming] curriculum mix interleaved: #{n_mix} mix batches over ~#{main_est} main batches (1 per #{Float.round(1 / max(ratio, 1.0e-9), 1)})")
+
+            pull = fn
+              nil -> {nil, nil}
+              cont ->
+                case cont.({:cont, nil}) do
+                  {:suspended, b, next} -> {b, next}
+                  _ -> {nil, nil}
+                end
+            end
+
+            pull_n = fn cont, n ->
+              Enum.reduce_while(1..n//1, {[], cont}, fn _, {acc, c} ->
+                case pull.(c) do
+                  {nil, _} -> {:halt, {acc, nil}}
+                  {b, next} -> {:cont, {[b | acc], next}}
+                end
+              end)
+              |> then(fn {acc, c} -> {Enum.reverse(acc), c} end)
+            end
+
+            drain = fn cont -> Stream.unfold(cont, fn c -> case pull.(c) do {nil, _} -> nil; {b, next} -> {b, next} end end) end
+
+            interleaved =
+              Stream.transform(
+                stream,
+                fn -> {&Enumerable.reduce(mix_all, &1, fn b, _ -> {:suspend, b} end), 0.0} end,
+                fn batch, {cont, credit} ->
+                  credit = credit + ratio
+                  {emit, cont} = pull_n.(cont, trunc(credit))
+                  {[batch | emit], {cont, credit - length(emit)}}
+                end,
+                fn {cont, _} -> {if(cont, do: drain.(cont), else: []), nil} end,
+                fn _ -> :ok end
+              )
+
+            interleaved
+          end
+      end
+
+    {stream, pipeline.estimated_batches}
+  end
+
+  # ============================================================================
+  # Private — Batch Count Estimation
+  # ============================================================================
+
+  defp estimate_standard_batches(train_ds, opts) do
+    batch_size = opts[:batch_size] || 32
+
+    num_items =
+      if opts[:temporal] and opts[:lazy_sequences] != false and train_ds.embedded_frames != nil do
+        {num_frames, _} = Nx.shape(train_ds.embedded_frames)
+        window = opts[:window_size] || 60
+        stride = opts[:stride] || 5
+        div(num_frames - window, stride) + 1
+      else
+        train_ds.size
+      end
+
+    div(num_items, batch_size)
+  end
+
+  # Temporal streaming samples one window per `stride` frames, so the batch
+  # count is frames/stride/batch — not frames/batch. Until 2026-08-29 this
+  # counted stride-1 windows: the AWBC arms printed "298,986 batches" and
+  # finished at 67,401 (22%), with ETAs 4-5x too long (HANDOFF_2026-08-29 §4).
+  defp estimate_streaming_batches(files, opts) do
+    batch_size = opts[:batch_size] || 32
+
+    if opts[:bptt] do
+      # BPTT: every batch advances batch_size cursors by (unroll - overlap)
+      # frames, so steps ~= total_frames / (batch * (unroll - overlap)).
+      # The windowed stride formula overstates by ~12x (misleading ETAs on
+      # the first v15 launch, 09-04).
+      advance = max((opts[:unroll] || 80) - (opts[:bptt_overlap] || 0), 1)
+
+      case Streaming.estimate_total_examples(files, opts) do
+        {:ok, total} -> div(total, advance * batch_size)
+        _ -> div(length(files) * 3000, advance * batch_size)
+      end
+    else
+      stride = if opts[:temporal], do: max(opts[:stride] || 5, 1), else: 1
+
+      case Streaming.estimate_total_examples(files, opts) do
+        {:ok, total} -> div(div(total, stride), batch_size)
+        _ -> div(div(length(files) * 3000, stride), batch_size)
+      end
+    end
+  end
+
+  # Data visibility: what the model actually trains on. The July-2026 sweeps
+  # were run without knowing the character mix ("did it even train on Fox?" —
+  # nobody could answer). Logs the trained player's character distribution
+  # and the opponent mix, sorted by share.
+  defp log_character_distribution(frames) do
+    alias ExPhil.Training.CharacterBalance
+
+    total = length(frames)
+    self_counts = CharacterBalance.count_characters(frames)
+
+    opp_counts =
+      frames
+      |> Enum.map(fn frame ->
+        players = (frame[:game_state] && frame.game_state.players) || %{}
+        # extract_character reads port 0/1 (self); the opponent is the other
+        opp = Map.get(players, 2) || Map.get(players, 1)
+        CharacterBalance.extract_character(%{game_state: %{players: %{1 => opp}}})
+      end)
+      |> Enum.reject(&is_nil/1)
+      |> Enum.frequencies()
+
+    fmt = fn counts ->
+      counts
+      |> Enum.sort_by(fn {_, n} -> -n end)
+      |> Enum.take(8)
+      |> Enum.map_join(", ", fn {char, n} ->
+        "#{char} #{Float.round(n / max(total, 1) * 100, 1)}%"
+      end)
+    end
+
+    Output.puts("  Trained player: #{fmt.(self_counts)}")
+    Output.puts("  Opponents:      #{fmt.(opp_counts)}")
+  rescue
+    # Diagnostics must never kill training
+    e -> Output.puts("  (character distribution unavailable: #{Exception.message(e)})")
+  end
+end

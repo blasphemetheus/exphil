@@ -1,0 +1,38 @@
+{
+  "train": [
+    "/home/blewf/git/exphil/replays/erickfm_master/master-master-009d2e776296da34a9d52ecc.slp",
+    "/home/blewf/git/exphil/replays/erickfm_master/master-master-0030a31a4e0a76ee8ce5c5d9.slp",
+    "/home/blewf/git/exphil/replays/erickfm_master/master-master-003cbe23c7c607f2a57e44cc.slp",
+    "/home/blewf/git/exphil/replays/erickfm_master/master-master-005c53b7f0a964bc56f427ed.slp",
+    "/home/blewf/git/exphil/replays/erickfm_master/master-master-00236828aa259d8f663145f9.slp",
+    "/home/blewf/git/exphil/replays/erickfm_master/master-master-007faaf6882fc5b40cedf2f1.slp",
+    "/home/blewf/git/exphil/replays/erickfm_master/master-master-010fe5d264c8027c5d81bd38.slp",
+    "/home/blewf/git/exphil/replays/erickfm_master/master-master-00f66200bf8ec186fe2ecf1b.slp",
+    "/home/blewf/git/exphil/replays/erickfm_master/master-master-01251ac20b42e49b2d603591.slp",
+    "/home/blewf/git/exphil/replays/erickfm_master/master-master-00094c6af8f0e3bdcd0922d5.slp",
+    "/home/blewf/git/exphil/replays/erickfm_master/master-master-0017a0f73db54e536f2deb67.slp",
+    "/home/blewf/git/exphil/replays/erickfm_master/master-master-0069a0712b68749826e16b88.slp",
+    "/home/blewf/git/exphil/replays/erickfm_master/master-master-000e5da486186fb944925507.slp",
+    "/home/blewf/git/exphil/replays/erickfm_master/master-master-003fd7fbc9569cca5ab58b2d.slp",
+    "/home/blewf/git/exphil/replays/erickfm_master/master-master-0082476f2c8f72c124158f9a.slp",
+    "/home/blewf/git/exphil/replays/erickfm_master/master-master-01159e480b481948ab2f9389.slp",
+    "/home/blewf/git/exphil/replays/erickfm_master/master-master-00d28e4bbd3dc2d00ed94be3.slp",
+    "/home/blewf/git/exphil/replays/erickfm_master/master-master-0076c8fd1abe049d18b0881f.slp",
+    "/home/blewf/git/exphil/replays/erickfm_master/master-master-005f0794108f4da707c1f3d8.slp",
+    "/home/blewf/git/exphil/replays/erickfm_master/master-master-00d83507bb431ff02165c41b.slp",
+    "/home/blewf/git/exphil/replays/erickfm_master/master-master-0131bcbc21ce1f6b241668dd.slp",
+    "/home/blewf/git/exphil/replays/erickfm_master/master-master-003d3df7cc32b83e9e8414ef.slp",
+    "/home/blewf/git/exphil/replays/erickfm_master/master-master-007790b840fa923d481d82ca.slp",
+    "/home/blewf/git/exphil/replays/erickfm_master/master-master-00e74854cf863e145841959b.slp",
+    "/home/blewf/git/exphil/replays/erickfm_master/master-master-0131988b3835da14aa4b00ba.slp",
+    "/home/blewf/git/exphil/replays/erickfm_master/master-master-003fb16c1a6c194ae5bba5a8.slp",
+    "/home/blewf/git/exphil/replays/erickfm_master/master-master-005a2fadb617873d866a3415.slp",
+    "/home/blewf/git/exphil/replays/erickfm_master/master-master-001a584a656426c3c40402db.slp",
+    "/home/blewf/git/exphil/replays/erickfm_master/master-master-00055ee1cb8707a00971753d.slp"
+  ],
+  "validation": [
+    "/home/blewf/git/exphil/replays/erickfm_master/master-master-00c74eb7221c46f7be52bbb1.slp",
+    "/home/blewf/git/exphil/replays/erickfm_master/master-master-000551fbfa951d4cce5f3f7a.slp",
+    "/home/blewf/git/exphil/replays/erickfm_master/master-master-00172961d0788b64b1045532.slp"
+  ]
+}

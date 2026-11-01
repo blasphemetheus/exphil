@@ -1,0 +1,14 @@
+[
+  {
+    "line": "learning pilot",
+    "name": "mamba2_full_n128_s906_equal_steps",
+    "character": "fox",
+    "policy": "eval_runs/mamba_learning_20261101/pilot/mamba2_full_n128_s906/equal_steps_policy.bin"
+  },
+  {
+    "line": "frozen opponent",
+    "name": "master_ep3",
+    "character": "fox",
+    "policy": "checkpoints/coh_fox_mamba_master_ep3/model_best_policy.bin"
+  }
+]

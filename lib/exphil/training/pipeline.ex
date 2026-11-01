@@ -90,8 +90,15 @@ defmodule ExPhil.Training.Pipeline do
   # (2026-09-30) go to Data.precompute_frame_embeddings, which fills the
   # 13-dim slot from each frame's predecessor (nil at game boundaries).
   @streaming_dataset_keys [
-    :temporal, :window_size, :stride, :precompute, :lazy_sequences,
-    :use_prev_action, :prev_action_dropout, :prev_action_dropout_block, :prev_action_quantize
+    :temporal,
+    :window_size,
+    :stride,
+    :precompute,
+    :lazy_sequences,
+    :use_prev_action,
+    :prev_action_dropout,
+    :prev_action_dropout_block,
+    :prev_action_quantize
   ]
 
   # ============================================================================
@@ -124,11 +131,13 @@ defmodule ExPhil.Training.Pipeline do
     streaming = opts[:stream_chunk_size] != nil and opts[:stream_chunk_size] > 0
 
     if opts[:frame_delay_augment] && (streaming || opts[:temporal] || opts[:corpus]) do
-      raise ArgumentError, "Frame-delay augmentation is supported only by the non-temporal standard loader; temporal/streaming loaders would ignore it"
+      raise ArgumentError,
+            "Frame-delay augmentation is supported only by the non-temporal standard loader; temporal/streaming loaders would ignore it"
     end
 
     if opts[:corpus] && opts[:label_delay] != 0 do
-      raise ArgumentError, "Precomputed corpus labels cannot be shifted by --label-delay; rebuild the corpus for the requested delay"
+      raise ArgumentError,
+            "Precomputed corpus labels cannot be shifted by --label-delay; rebuild the corpus for the requested delay"
     end
 
     if opts[:corpus] do
@@ -247,7 +256,7 @@ defmodule ExPhil.Training.Pipeline do
 
         {port_map, counts} =
           Enum.reduce(files, {%{}, %{port1: 0, other_port: 0, ditto: 0, absent: 0}}, fn path,
-                                                                                       {pm, c} ->
+                                                                                        {pm, c} ->
             case Peppi.metadata(path) do
               {:ok, meta} ->
                 case SubjectResolver.resolve(meta.players,
@@ -330,6 +339,7 @@ defmodule ExPhil.Training.Pipeline do
       files =
         if (stages = opts[:stages]) && stages != [] do
           stage_list = if is_list(stages), do: stages, else: String.split(to_string(stages), ",")
+
           Enum.filter(files, fn path ->
             case Peppi.metadata(path) do
               {:ok, meta} -> to_string(meta.stage) in stage_list
@@ -344,13 +354,16 @@ defmodule ExPhil.Training.Pipeline do
       files =
         if min_quality = opts[:min_quality] do
           alias ExPhil.Training.ReplayQuality
+
           Enum.filter(files, fn path ->
             try do
               case Peppi.metadata(path) do
                 {:ok, meta} ->
                   score = ReplayQuality.score(meta)
                   is_number(score) and score >= min_quality
-                _ -> true
+
+                _ ->
+                  true
               end
             rescue
               _ -> true
@@ -422,10 +435,17 @@ defmodule ExPhil.Training.Pipeline do
           {replay_files, []}
 
         path = opts[:bptt_holdout_split] ->
-          held = path |> File.read!() |> Jason.decode!() |> Map.fetch!("validation") |> MapSet.new()
+          held =
+            path |> File.read!() |> Jason.decode!() |> Map.fetch!("validation") |> MapSet.new()
+
           {val, train} = Enum.split_with(replay_files, &MapSet.member?(held, &1))
+
           if length(val) != MapSet.size(held),
-            do: raise("--bptt-holdout-split: #{MapSet.size(held) - length(val)} of #{MapSet.size(held)} validation games are not in this run's replay set")
+            do:
+              raise(
+                "--bptt-holdout-split: #{MapSet.size(held) - length(val)} of #{MapSet.size(held)} validation games are not in this run's replay set"
+              )
+
           {train, val}
 
         true ->
@@ -436,7 +456,11 @@ defmodule ExPhil.Training.Pipeline do
     if opts[:bptt] and opts[:checkpoint] do
       dir = Path.dirname(opts[:checkpoint])
       File.mkdir_p!(dir)
-      File.write!(Path.join(dir, "split.json"), Jason.encode!(%{train: replay_files, validation: bptt_val_files}, pretty: true))
+
+      File.write!(
+        Path.join(dir, "split.json"),
+        Jason.encode!(%{train: replay_files, validation: bptt_val_files}, pretty: true)
+      )
     end
 
     file_chunks = Streaming.chunk_files(replay_files, chunk_size)
@@ -489,7 +513,9 @@ defmodule ExPhil.Training.Pipeline do
             {path, port} -> {path, port}
             path -> {path, Map.get(port_map, path, opts[:player_port] || 1)}
           end)
-          |> Enum.map(fn {path, port} -> Streaming.subject_tag(path, port, subject_character, tag_map: tag_map) end)
+          |> Enum.map(fn {path, port} ->
+            Streaming.subject_tag(path, port, subject_character, tag_map: tag_map)
+          end)
           |> Enum.reject(&is_nil/1)
           |> Enum.frequencies()
           |> Enum.sort_by(fn {tag, n} -> {-n, tag} end)
@@ -509,7 +535,11 @@ defmodule ExPhil.Training.Pipeline do
           games_total = Enum.sum(Enum.map(tag_counts, &elem(&1, 1)))
           games_kept = tag_counts |> Enum.take(kept) |> Enum.map(&elem(&1, 1)) |> Enum.sum()
 
-          pseudo_games = tag_counts |> Enum.filter(fn {t, _} -> ExPhil.Training.PlayerTagMap.pseudo?(t) end) |> Enum.map(&elem(&1, 1)) |> Enum.sum()
+          pseudo_games =
+            tag_counts
+            |> Enum.filter(fn {t, _} -> ExPhil.Training.PlayerTagMap.pseudo?(t) end)
+            |> Enum.map(&elem(&1, 1))
+            |> Enum.sum()
 
           Output.puts(
             "  player registry: #{kept} of #{length(tags)} tags kept " <>
@@ -541,7 +571,12 @@ defmodule ExPhil.Training.Pipeline do
 
         chunk_opts =
           Keyword.take(opts, [
-            :player_port, :dual_port, :label_delay, :skip_errors, :show_errors, :port_map
+            :player_port,
+            :dual_port,
+            :label_delay,
+            :skip_errors,
+            :show_errors,
+            :port_map
           ]) ++ [subject_character: subject_character, tag_map: tag_map]
 
         # Same keys as streaming_dataset_opts below: the #135 fix (09-30)
@@ -574,11 +609,18 @@ defmodule ExPhil.Training.Pipeline do
       embed_config: embed_config,
       streaming: true,
       file_chunks: file_chunks,
-      streaming_chunk_opts: Keyword.take(opts, [
-        :player_port, :dual_port, :label_delay, :skip_errors, :show_errors, :port_map
-      ]) ++ [subject_character: subject_character, tag_map: tag_map],
-      streaming_dataset_opts: Keyword.take(opts, @streaming_dataset_keys) ++
-        [embed_config: embed_config, player_registry: player_registry],
+      streaming_chunk_opts:
+        Keyword.take(opts, [
+          :player_port,
+          :dual_port,
+          :label_delay,
+          :skip_errors,
+          :show_errors,
+          :port_map
+        ]) ++ [subject_character: subject_character, tag_map: tag_map],
+      streaming_dataset_opts:
+        Keyword.take(opts, @streaming_dataset_keys) ++
+          [embed_config: embed_config, player_registry: player_registry],
       val_batches: bptt_val_batches,
       character_weights: nil,
       augment_fn: nil,
@@ -646,6 +688,7 @@ defmodule ExPhil.Training.Pipeline do
       # Precompute embeddings on full dataset FIRST, then split.
       # This ensures train/val get correctly sliced embedded_frames tensors.
       Output.step(3, 4, "Computing embeddings")
+
       embedded_dataset =
         if opts[:cache_augmented] do
           Data.precompute_augmented_frame_embeddings_cached(dataset,
@@ -674,7 +717,12 @@ defmodule ExPhil.Training.Pipeline do
           Output.puts("  Saving embeddings to mmap file: #{mmap_path}")
           MmapEmbeddings.save(train_ds.embedded_frames, mmap_path)
           {:ok, handle} = MmapEmbeddings.open(mmap_path)
-          %{train_ds | embedded_frames: nil, metadata: Map.put(train_ds.metadata, :mmap_handle, handle)}
+
+          %{
+            train_ds
+            | embedded_frames: nil,
+              metadata: Map.put(train_ds.metadata, :mmap_handle, handle)
+          }
         else
           train_ds
         end
@@ -821,6 +869,7 @@ defmodule ExPhil.Training.Pipeline do
       :auto ->
         rates = MmapCorpus.button_rates(corpus)
         button_order = [:a, :b, :x, :y, :z, :l, :r, :d_up]
+
         rates_tensor =
           button_order
           |> Enum.map(&Map.get(rates, &1, 0.0))
@@ -828,7 +877,11 @@ defmodule ExPhil.Training.Pipeline do
           |> Nx.backend_copy(Nx.BinaryBackend)
 
         pos_weight = ExPhil.Networks.Policy.Loss.compute_pos_weights_from_rates(rates_tensor)
-        Output.puts("  Per-button pos_weight: #{inspect(Nx.to_flat_list(pos_weight) |> Enum.map(&Float.round(&1, 1)))}")
+
+        Output.puts(
+          "  Per-button pos_weight: #{inspect(Nx.to_flat_list(pos_weight) |> Enum.map(&Float.round(&1, 1)))}"
+        )
+
         Keyword.put(opts, :button_pos_weight, pos_weight)
 
       _ ->
@@ -903,7 +956,8 @@ defmodule ExPhil.Training.Pipeline do
             gpu_m = %{
               m
               | states: Nx.backend_copy(m.states, EXLA.Backend),
-                actions: Map.new(m.actions, fn {k, v} -> {k, Nx.backend_copy(v, EXLA.Backend)} end),
+                actions:
+                  Map.new(m.actions, fn {k, v} -> {k, Nx.backend_copy(v, EXLA.Backend)} end),
                 frame_weights: Nx.backend_copy(m.frame_weights, EXLA.Backend)
             }
 
@@ -941,8 +995,13 @@ defmodule ExPhil.Training.Pipeline do
         else
           case Peppi.parse(path, player_port: player_port) do
             {:ok, replay} ->
-              Peppi.to_training_frames(replay, player_port: player_port, frame_delay: opts[:label_delay])
-            _ -> []
+              Peppi.to_training_frames(replay,
+                player_port: player_port,
+                frame_delay: opts[:label_delay]
+              )
+
+            _ ->
+              []
           end
         end
       rescue
@@ -959,11 +1018,16 @@ defmodule ExPhil.Training.Pipeline do
       {:ok, meta} ->
         Enum.flat_map(meta.players, fn p ->
           case Peppi.parse(path, player_port: p.port) do
-            {:ok, replay} -> Peppi.to_training_frames(replay, player_port: p.port, frame_delay: label_delay)
-            _ -> []
+            {:ok, replay} ->
+              Peppi.to_training_frames(replay, player_port: p.port, frame_delay: label_delay)
+
+            _ ->
+              []
           end
         end)
-      _ -> []
+
+      _ ->
+        []
     end
   end
 
@@ -1049,11 +1113,16 @@ defmodule ExPhil.Training.Pipeline do
           if rem(idx, 50) == 0 do
             IO.write(:stderr, "\r  Pre-computing validation batches... #{idx}\e[K")
           end
+
           batch
         end)
 
       elapsed = System.monotonic_time(:millisecond) - start
-      IO.write(:stderr, "\r  Pre-computing validation batches... done (#{length(batches)} batches, #{div(elapsed, 1000)}s)\e[K\n")
+
+      IO.write(
+        :stderr,
+        "\r  Pre-computing validation batches... done (#{length(batches)} batches, #{div(elapsed, 1000)}s)\e[K\n"
+      )
 
       batches
     end
@@ -1076,11 +1145,19 @@ defmodule ExPhil.Training.Pipeline do
         rates = Enum.map(button_order, fn btn -> Map.get(stats.button_rates, btn, 0.0) end)
         rates_tensor = Nx.tensor(rates, type: :f32) |> Nx.backend_copy(Nx.BinaryBackend)
         pos_weight = ExPhil.Networks.Policy.Loss.compute_pos_weights_from_rates(rates_tensor)
-        Output.puts("  Per-button pos_weight: #{inspect(Nx.to_flat_list(pos_weight) |> Enum.map(&Float.round(&1, 1)))}")
+
+        Output.puts(
+          "  Per-button pos_weight: #{inspect(Nx.to_flat_list(pos_weight) |> Enum.map(&Float.round(&1, 1)))}"
+        )
+
         Keyword.put(opts, :button_pos_weight, pos_weight)
 
       weights when is_list(weights) ->
-        Keyword.put(opts, :button_pos_weight, Nx.tensor(weights, type: :f32) |> Nx.backend_copy(Nx.BinaryBackend))
+        Keyword.put(
+          opts,
+          :button_pos_weight,
+          Nx.tensor(weights, type: :f32) |> Nx.backend_copy(Nx.BinaryBackend)
+        )
 
       _ ->
         opts
@@ -1162,6 +1239,7 @@ defmodule ExPhil.Training.Pipeline do
     # windows are sliced on the fly, matching the standard pipeline.
     seq_batch_opts = [
       batch_size: ropts[:batch_size] || 32,
+      seed: ropts[:seed] || 42,
       shuffle: true,
       drop_last: true,
       lazy: ropts[:lazy_sequences] != false,
@@ -1177,7 +1255,8 @@ defmodule ExPhil.Training.Pipeline do
     # per-chunk fn over the prepared frames, nil when neither knob is set.
     # (--offstage-weight on the bptt path is applied by TrajectoryCursors.)
     rare_weights_fn =
-      if ropts[:offstage_weight] || ropts[:silent_fall_weight] || ropts[:onset_weight] || ropts[:veto_weight] || ropts[:neutral_grounded_weight] do
+      if ropts[:offstage_weight] || ropts[:silent_fall_weight] || ropts[:onset_weight] ||
+           ropts[:veto_weight] || ropts[:neutral_grounded_weight] do
         fn frames ->
           ExPhil.Training.SilentFallWeighting.frame_weights(frames,
             offstage_weight: ropts[:offstage_weight],
@@ -1212,42 +1291,42 @@ defmodule ExPhil.Training.Pipeline do
         ]
 
         main_stream =
-        if ropts[:pipeline_chunks] and not awbc? do
-          # Overlap parse+embed of chunk k+1 with training on chunk k
-          # (V2_PREP item 1b — post-throughput-fix the epoch wall is
-          # per-chunk prep, ~110s vs ~6s of steps per chunk). Reuses the
-          # windowed path's ChunkPipeline; stream_prepared_chunks yields
-          # datasets in order, so cursor/carry semantics are unchanged.
-          alias ExPhil.Training.ChunkPipeline
+          if ropts[:pipeline_chunks] and not awbc? do
+            # Overlap parse+embed of chunk k+1 with training on chunk k
+            # (V2_PREP item 1b — post-throughput-fix the epoch wall is
+            # per-chunk prep, ~110s vs ~6s of steps per chunk). Reuses the
+            # windowed path's ChunkPipeline; stream_prepared_chunks yields
+            # datasets in order, so cursor/carry semantics are unchanged.
+            alias ExPhil.Training.ChunkPipeline
 
-          # cache_embeddings is FORCED OFF here (not inherited from
-          # cache_streaming, whose default is true for the windowed
-          # path): bptt runs full-corpus scale, and the chunk cache
-          # measured 2.1GB per 200-file chunk — ~300GB per full-corpus
-          # epoch, which filled / to 100% and nearly killed the v2
-          # launch (2026-09-05). The serial bptt branch never cached;
-          # this preserves that. Re-enable only behind an explicit
-          # opt-in flag once there is a disk budget for it.
-          ChunkPipeline.stream_prepared_chunks(
-            pipeline.file_chunks,
-            chunk_opts: chunk_opts,
-            dataset_opts: dataset_opts,
-            cache_embeddings: false,
-            embed_config: pipeline.embed_config,
-            progress_path: pipeline.progress_path,
-            chunk_offset: pipeline.chunk_offset || 0
-          )
-          |> Stream.flat_map(fn {chunk_dataset, _idx, _errors} ->
-            ExPhil.Training.TrajectoryCursors.batch_stream(chunk_dataset, cursor_opts)
-          end)
-        else
-          pipeline.file_chunks
-          |> Stream.flat_map(fn chunk ->
-            {:ok, chunk_frames, _errors} = Streaming.parse_chunk(chunk, chunk_opts)
-            chunk_dataset = Streaming.create_dataset(chunk_frames, dataset_opts)
-            ExPhil.Training.TrajectoryCursors.batch_stream(chunk_dataset, cursor_opts)
-          end)
-        end
+            # cache_embeddings is FORCED OFF here (not inherited from
+            # cache_streaming, whose default is true for the windowed
+            # path): bptt runs full-corpus scale, and the chunk cache
+            # measured 2.1GB per 200-file chunk — ~300GB per full-corpus
+            # epoch, which filled / to 100% and nearly killed the v2
+            # launch (2026-09-05). The serial bptt branch never cached;
+            # this preserves that. Re-enable only behind an explicit
+            # opt-in flag once there is a disk budget for it.
+            ChunkPipeline.stream_prepared_chunks(
+              pipeline.file_chunks,
+              chunk_opts: chunk_opts,
+              dataset_opts: dataset_opts,
+              cache_embeddings: false,
+              embed_config: pipeline.embed_config,
+              progress_path: pipeline.progress_path,
+              chunk_offset: pipeline.chunk_offset || 0
+            )
+            |> Stream.flat_map(fn {chunk_dataset, _idx, _errors} ->
+              ExPhil.Training.TrajectoryCursors.batch_stream(chunk_dataset, cursor_opts)
+            end)
+          else
+            pipeline.file_chunks
+            |> Stream.flat_map(fn chunk ->
+              {:ok, chunk_frames, _errors} = Streaming.parse_chunk(chunk, chunk_opts)
+              chunk_dataset = Streaming.create_dataset(chunk_frames, dataset_opts)
+              ExPhil.Training.TrajectoryCursors.batch_stream(chunk_dataset, cursor_opts)
+            end)
+          end
 
         # --mix-frames in BPTT mode (SIM_INTEGRATION.md step 8, 2026-09-21): the
         # windowed mix path further down builds Data.batched_sequences batches,
@@ -1260,7 +1339,9 @@ defmodule ExPhil.Training.Pipeline do
             main_stream
 
           spec ->
-            {mixed, mstats} = ExPhil.Training.MixFrames.load(spec, label_delay: ropts[:label_delay])
+            {mixed, mstats} =
+              ExPhil.Training.MixFrames.load(spec, label_delay: ropts[:label_delay])
+
             oversample = ropts[:mix_oversample] || 1
 
             Logger.info(
@@ -1282,65 +1363,65 @@ defmodule ExPhil.Training.Pipeline do
             end
         end
       else
-      if ropts[:pipeline_chunks] and not awbc? do
-        # Pipelined: parse chunk N+1 while training on chunk N.
-        # stream_batches (NOT stream_prepared_chunks, which yields
-        # {dataset, idx, errors} tuples straight into the batch loop).
-        alias ExPhil.Training.ChunkPipeline
+        if ropts[:pipeline_chunks] and not awbc? do
+          # Pipelined: parse chunk N+1 while training on chunk N.
+          # stream_batches (NOT stream_prepared_chunks, which yields
+          # {dataset, idx, errors} tuples straight into the batch loop).
+          alias ExPhil.Training.ChunkPipeline
 
-        ChunkPipeline.stream_batches(
-          pipeline.file_chunks,
-          [
-            chunk_opts: chunk_opts,
-            dataset_opts: dataset_opts,
-            temporal: ropts[:temporal],
-            cache_embeddings: ropts[:cache_streaming] || false,
-            embed_config: pipeline.embed_config,
-            progress_path: pipeline.progress_path,
-            chunk_offset: pipeline.chunk_offset || 0,
-            prepared_chunks: pipeline.prepared_chunks,
-            loss_weights_fn: rare_weights_fn
-          ] ++ seq_batch_opts
-        )
-      else
-        pipeline.file_chunks
-        |> Stream.flat_map(fn chunk ->
-          {:ok, chunk_frames, _errors} = Streaming.parse_chunk(chunk, chunk_opts)
-          chunk_dataset = Streaming.create_dataset(chunk_frames, dataset_opts)
+          ChunkPipeline.stream_batches(
+            pipeline.file_chunks,
+            [
+              chunk_opts: chunk_opts,
+              dataset_opts: dataset_opts,
+              temporal: ropts[:temporal],
+              cache_embeddings: ropts[:cache_streaming] || false,
+              embed_config: pipeline.embed_config,
+              progress_path: pipeline.progress_path,
+              chunk_offset: pipeline.chunk_offset || 0,
+              prepared_chunks: pipeline.prepared_chunks,
+              loss_weights_fn: rare_weights_fn
+            ] ++ seq_batch_opts
+          )
+        else
+          pipeline.file_chunks
+          |> Stream.flat_map(fn chunk ->
+            {:ok, chunk_frames, _errors} = Streaming.parse_chunk(chunk, chunk_opts)
+            chunk_dataset = Streaming.create_dataset(chunk_frames, dataset_opts)
 
-          # AWBC: outcome-weighted per-frame loss weights (return-to-go within
-          # each replay). Force the non-pipelined path when enabled (weights are
-          # chunk-local, and the pipelined ChunkPipeline has no seam for them).
-          batch_opts =
-            if awbc? do
-              lists = ExPhil.Training.AdvantageWeighting.split_by_replay(chunk_frames)
+            # AWBC: outcome-weighted per-frame loss weights (return-to-go within
+            # each replay). Force the non-pipelined path when enabled (weights are
+            # chunk-local, and the pipelined ChunkPipeline has no seam for them).
+            batch_opts =
+              if awbc? do
+                lists = ExPhil.Training.AdvantageWeighting.split_by_replay(chunk_frames)
 
-              {ws, _} =
-                ExPhil.Training.AdvantageWeighting.frame_weights(lists,
-                  reward: ropts[:awbc_reward] || :shine,
-                  beta: ropts[:awbc_beta],
-                  shuffle: ropts[:awbc_shuffle] || false
-                )
+                {ws, _} =
+                  ExPhil.Training.AdvantageWeighting.frame_weights(lists,
+                    reward: ropts[:awbc_reward] || :shine,
+                    beta: ropts[:awbc_beta],
+                    shuffle: ropts[:awbc_shuffle] || false
+                  )
 
-              seq_batch_opts ++ [loss_weights: ws]
-            else
-              case rare_weights_fn && rare_weights_fn.(chunk_dataset.frames) do
-                nil -> seq_batch_opts
-                ws -> seq_batch_opts ++ [loss_weights: ws]
+                seq_batch_opts ++ [loss_weights: ws]
+              else
+                case rare_weights_fn && rare_weights_fn.(chunk_dataset.frames) do
+                  nil -> seq_batch_opts
+                  ws -> seq_batch_opts ++ [loss_weights: ws]
+                end
               end
-            end
 
-          if ropts[:temporal] do
-            Data.batched_sequences(chunk_dataset, batch_opts)
-          else
-            Data.batched(chunk_dataset,
-              batch_size: ropts[:batch_size] || 32,
-              shuffle: true,
-              drop_last: true
-            )
-          end
-        end)
-      end
+            if ropts[:temporal] do
+              Data.batched_sequences(chunk_dataset, batch_opts)
+            else
+              Data.batched(chunk_dataset,
+                batch_size: ropts[:batch_size] || 32,
+                shuffle: true,
+                drop_last: true
+              )
+            end
+          end)
+        end
       end
 
     # Curriculum mix in STREAMING mode (09-02, the drill-AWBC arm): the
@@ -1351,7 +1432,7 @@ defmodule ExPhil.Training.Pipeline do
     # split_by_replay sees each as its own segment. The mix embeds
     # in-memory (no chunk-cache key change — GOTCHA #106 disk budget).
     stream =
-      case (if ropts[:bptt], do: nil, else: ropts[:mix_frames]) do
+      case if ropts[:bptt], do: nil, else: ropts[:mix_frames] do
         nil ->
           stream
 
@@ -1373,7 +1454,8 @@ defmodule ExPhil.Training.Pipeline do
           if mixed == [] do
             stream
           else
-            mix_dataset = Streaming.create_dataset(mixed, dataset_opts ++ [frame_lists: mix_lists])
+            mix_dataset =
+              Streaming.create_dataset(mixed, dataset_opts ++ [frame_lists: mix_lists])
 
             # Keep the mix's embeddings OFF the GPU (2026-10-15, r9o OOM at
             # step 2.4k): create_dataset parks the whole embedded set on
@@ -1383,8 +1465,11 @@ defmodule ExPhil.Training.Pipeline do
             # path holds one chunk at a time; the mix must not hold more.
             mix_dataset =
               case mix_dataset.embedded_frames do
-                %Nx.Tensor{} = t -> %{mix_dataset | embedded_frames: Nx.backend_transfer(t, Nx.BinaryBackend)}
-                _ -> mix_dataset
+                %Nx.Tensor{} = t ->
+                  %{mix_dataset | embedded_frames: Nx.backend_transfer(t, Nx.BinaryBackend)}
+
+                _ ->
+                  mix_dataset
               end
 
             mix_batch_opts =
@@ -1414,17 +1499,33 @@ defmodule ExPhil.Training.Pipeline do
 
             mix_cycle = fn k ->
               if ropts[:temporal] do
-                Data.batched_sequences(mix_dataset, Keyword.put(mix_batch_opts, :seed, mix_seed + k))
+                Data.batched_sequences(
+                  mix_dataset,
+                  Keyword.put(mix_batch_opts, :seed, mix_seed + k)
+                )
               else
-                Data.batched(mix_dataset, batch_size: mix_batch_size, shuffle: true, drop_last: true)
+                Data.batched(mix_dataset,
+                  batch_size: mix_batch_size,
+                  shuffle: true,
+                  drop_last: true
+                )
               end
             end
 
             n_mix =
               if ropts[:temporal] do
-                ws = Keyword.get(mix_batch_opts, :window_size) || get_in(mix_dataset.metadata, [:window_size]) || 30
-                st = Keyword.get(mix_batch_opts, :stride) || get_in(mix_dataset.metadata, [:stride]) || 1
-                div(Data.num_sequences(mix_dataset, ws, st), max(Keyword.get(mix_batch_opts, :batch_size, mix_batch_size), 1))
+                ws =
+                  Keyword.get(mix_batch_opts, :window_size) ||
+                    get_in(mix_dataset.metadata, [:window_size]) || 30
+
+                st =
+                  Keyword.get(mix_batch_opts, :stride) || get_in(mix_dataset.metadata, [:stride]) ||
+                    1
+
+                div(
+                  Data.num_sequences(mix_dataset, ws, st),
+                  max(Keyword.get(mix_batch_opts, :batch_size, mix_batch_size), 1)
+                )
               else
                 div(mix_dataset.size, mix_batch_size)
               end * oversample
@@ -1442,10 +1543,14 @@ defmodule ExPhil.Training.Pipeline do
             main_est = max(pipeline.estimated_batches || 0, 1)
             ratio = n_mix / main_est
 
-            Logger.info("[Streaming] curriculum mix interleaved: #{n_mix} mix batches over ~#{main_est} main batches (1 per #{Float.round(1 / max(ratio, 1.0e-9), 1)})")
+            Logger.info(
+              "[Streaming] curriculum mix interleaved: #{n_mix} mix batches over ~#{main_est} main batches (1 per #{Float.round(1 / max(ratio, 1.0e-9), 1)})"
+            )
 
             pull = fn
-              nil -> {nil, nil}
+              nil ->
+                {nil, nil}
+
               cont ->
                 case cont.({:cont, nil}) do
                   {:suspended, b, next} -> {b, next}
@@ -1463,7 +1568,14 @@ defmodule ExPhil.Training.Pipeline do
               |> then(fn {acc, c} -> {Enum.reverse(acc), c} end)
             end
 
-            drain = fn cont -> Stream.unfold(cont, fn c -> case pull.(c) do {nil, _} -> nil; {b, next} -> {b, next} end end) end
+            drain = fn cont ->
+              Stream.unfold(cont, fn c ->
+                case pull.(c) do
+                  {nil, _} -> nil
+                  {b, next} -> {b, next}
+                end
+              end)
+            end
 
             interleaved =
               Stream.transform(

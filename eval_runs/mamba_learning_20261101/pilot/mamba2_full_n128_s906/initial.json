@@ -1,0 +1,10 @@
+{
+  "label": "initial",
+  "steps": 0,
+  "training_seconds": 0.0,
+  "first_step_seconds": 0.0,
+  "gpu_process_memory": "1955649, 180 MiB\n2760533, 1712 MiB\n",
+  "validation_loss": 12.716236114501953,
+  "train_loss": null,
+  "parameters": 5212749
+}

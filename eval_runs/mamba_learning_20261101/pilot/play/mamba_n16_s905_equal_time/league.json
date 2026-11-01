@@ -1,0 +1,151 @@
+{
+  "unsupported": [],
+  "seed": 71,
+  "stage": "final_destination",
+  "temperature": 1.0,
+  "frames": 1800,
+  "roster": [
+    {
+      "line": "learning pilot",
+      "name": "mamba_n16_s905_equal_time",
+      "character": "fox",
+      "policy": "eval_runs/mamba_learning_20261101/pilot/mamba_n16_s905/equal_time_policy.bin"
+    },
+    {
+      "line": "frozen opponent",
+      "name": "master_ep3",
+      "character": "fox",
+      "policy": "checkpoints/coh_fox_mamba_master_ep3/model_best_policy.bin"
+    }
+  ],
+  "envs": 4,
+  "pairs": [
+    {
+      "a": "mamba_n16_s905_equal_time",
+      "b": "master_ep3",
+      "wins": 2,
+      "games": [
+        {
+          "env": 0,
+          "finished": false,
+          "frames": 1800,
+          "p1_stocks": 3,
+          "p2_stocks": 3,
+          "p1_pct": 0.0,
+          "p2_pct": 9.0,
+          "a_score": 1.0,
+          "a_port": 1
+        },
+        {
+          "env": 1,
+          "finished": false,
+          "frames": 1800,
+          "p1_stocks": 3,
+          "p2_stocks": 4,
+          "p1_pct": 0.0,
+          "p2_pct": 7.0,
+          "a_score": 0.0,
+          "a_port": 1
+        },
+        {
+          "env": 2,
+          "finished": false,
+          "frames": 1800,
+          "p1_stocks": 4,
+          "p2_stocks": 4,
+          "p1_pct": 36.29999923706055,
+          "p2_pct": 48.33000183105469,
+          "a_score": 1.0,
+          "a_port": 1
+        },
+        {
+          "env": 3,
+          "finished": false,
+          "frames": 1800,
+          "p1_stocks": 3,
+          "p2_stocks": 4,
+          "p1_pct": 9.680000305175781,
+          "p2_pct": 7.0,
+          "a_score": 0.0,
+          "a_port": 1
+        },
+        {
+          "env": 0,
+          "finished": false,
+          "frames": 1800,
+          "p1_stocks": 4,
+          "p2_stocks": 3,
+          "p1_pct": 0.0,
+          "p2_pct": 0.0,
+          "a_score": 0.0,
+          "a_port": 2
+        },
+        {
+          "env": 1,
+          "finished": false,
+          "frames": 1800,
+          "p1_stocks": 4,
+          "p2_stocks": 3,
+          "p1_pct": 21.459999084472656,
+          "p2_pct": 39.279998779296875,
+          "a_score": 0.0,
+          "a_port": 2
+        },
+        {
+          "env": 2,
+          "finished": false,
+          "frames": 1800,
+          "p1_stocks": 3,
+          "p2_stocks": 3,
+          "p1_pct": 0.0,
+          "p2_pct": 14.0,
+          "a_score": 0.0,
+          "a_port": 2
+        },
+        {
+          "env": 3,
+          "finished": false,
+          "frames": 1800,
+          "p1_stocks": 4,
+          "p2_stocks": 3,
+          "p1_pct": 16.829999923706055,
+          "p2_pct": 0.0,
+          "a_score": 0.0,
+          "a_port": 2
+        }
+      ],
+      "losses": 6,
+      "draws": 0
+    }
+  ],
+  "created": "2026-11-01T21:44:48.968999Z",
+  "standings": [
+    {
+      "line": "frozen opponent",
+      "name": "master_ep3",
+      "character": "fox",
+      "games": 8,
+      "elo": 1595,
+      "win_rate": 0.75
+    },
+    {
+      "line": "learning pilot",
+      "name": "mamba_n16_s905_equal_time",
+      "character": "fox",
+      "games": 8,
+      "elo": 1405,
+      "win_rate": 0.25
+    }
+  ],
+  "win_matrix": {
+    "mamba_n16_s905_equal_time": {
+      "mamba_n16_s905_equal_time": null,
+      "master_ep3": 0.25
+    },
+    "master_ep3": {
+      "mamba_n16_s905_equal_time": 0.75,
+      "master_ep3": null
+    }
+  },
+  "note": "fighting strength in the parity sim (FD, batched path, T=1.0); not imitation fidelity — see the agreement eval"
+}
