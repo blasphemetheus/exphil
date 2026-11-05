@@ -2,6 +2,8 @@
 [directory] = System.argv()
 manifest = File.read!(Path.join(directory, "manifest.json")) |> Jason.decode!()
 rows = manifest["runs"]
+first = hd(rows)
+split = File.read!(Path.join([directory, first["label"], "split.json"])) |> Jason.decode!()
 
 Enum.each(rows, fn row ->
   true = row["equal_steps"]["steps"] == manifest["settings"]["steps"]
@@ -30,7 +32,7 @@ report = """
 **AI-generated.** Read `../README.md` for the method and limits.
 
 Status: #{manifest["status"] || "in progress"}; #{length(rows)} completed runs.
-All models start fresh on the same 29 training games and three held-out games.
+All models start fresh on the same #{length(split["train"])} training games and #{length(split["validation"])} held-out games.
 Two seeds are a pilot, not a reliable estimate of uncertainty.
 
 | Model and seed | Budget | Updates | Training seconds | Held-out loss | Warm ms/update |
@@ -72,20 +74,20 @@ if play != [] do
         "#{wins}/#{losses}/#{length(games) - wins - losses}"
       end
 
-      "| #{pair["a"]} | #{counts.(finished)} | #{counts.(open)} |"
+      "| #{pair["a"]} | #{pair["b"]} | #{data["frames"] / 60}s | #{counts.(finished)} | #{counts.(open)} |"
     end)
 
   text = """
 
-  ## Short simulator readout
+  ## Simulator readout
 
-  Each snapshot faces the same frozen master-ep3 Fox, both ports, four environments,
-  30 seconds per session, Final Destination, zero delay. Policy sampling remains
-  stochastic. Simulator seeds are 71/72. This is a small compatibility/gameplay
-  pilot. A lead at the time limit is not a completed-match win.
+  Both player ports are used on Final Destination with zero delay. Policy
+  sampling remains stochastic. Per-pair settings and simulator seeds are saved
+  in the league JSON. Direct comparisons are separate from the frozen-opponent
+  comparisons. A lead at the time limit is not a completed-match win.
 
-  | Snapshot | Completed wins/losses/draws | Time-limit leads/trails/ties |
-  | --- | ---: | ---: |
+  | Snapshot | Opponent | Session length | Completed wins/losses/draws | Time-limit leads/trails/ties |
+  | --- | --- | ---: | ---: | ---: |
   #{Enum.join(lines, "\n")}
   """
 

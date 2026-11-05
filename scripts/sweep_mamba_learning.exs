@@ -5,7 +5,16 @@ alias ExPhil.Training.Output
 
 {opts, [], []} =
   OptionParser.parse(System.argv(),
-    strict: [out: :string, seeds: :string, files: :integer, steps: :integer, seconds: :integer]
+    strict: [
+      out: :string,
+      seeds: :string,
+      files: :integer,
+      steps: :integer,
+      seconds: :integer,
+      holdout: :integer,
+      prepared_cache: :string,
+      models: :string
+    ]
   )
 
 out = opts[:out] || "eval_runs/mamba_learning_20261101/pilot"
@@ -15,11 +24,14 @@ seeds = String.split(opts[:seeds] || "905,906", ",")
 settings = %{
   files: opts[:files] || 32,
   steps: opts[:steps] || 300,
-  seconds: opts[:seconds] || 120
+  seconds: opts[:seconds] || 120,
+  holdout: opts[:holdout] || min(16, max(1, div(opts[:files] || 32, 10))),
+  models: opts[:models] || "mamba:16,mamba2_full:16,mamba2_full:128",
+  prepared_cache: opts[:prepared_cache]
 }
 
 sources =
-  ["scripts/compare_mamba_learning.exs", __ENV__.file] ++
+  ["scripts/compare_mamba_learning.exs", "scripts/lib/learning_data_cache.exs", __ENV__.file] ++
     Path.wildcard("lib/exphil/training/**/*.ex") ++
     Path.wildcard("_build/dev/lib/{nx,exla,axon,edifice,exphil}/ebin/*.{beam,app}")
 
@@ -45,7 +57,13 @@ manifest =
 true = manifest["hashes"] == hashes and manifest["seeds"] == seeds
 true = manifest["settings"] == Map.new(settings, fn {k, v} -> {to_string(k), v} end)
 Sweep.write(path, manifest)
-cases = [{"mamba", 16}, {"mamba2_full", 16}, {"mamba2_full", 128}]
+
+cases =
+  Enum.map(String.split(settings.models, ","), fn model ->
+    [backbone, size] = String.split(model, ":")
+    true = backbone in ["mamba", "mamba2_full"]
+    {backbone, String.to_integer(size)}
+  end)
 
 manifest =
   Enum.reduce(Enum.with_index(seeds), manifest, fn {seed, i}, manifest ->
@@ -58,6 +76,15 @@ manifest =
         manifest
       else
         Sweep.wait_for_gpu(3)
+        {disk, 0} = System.cmd("df", ["-Pk", out])
+
+        [_fs, _blocks, _used, available | _] =
+          disk |> String.split("\n", trim: true) |> List.last() |> String.split()
+
+        if String.to_integer(available) < 1_048_576,
+          do:
+            raise("Less than 1 GiB free; preserve completed runs and free space before resuming")
+
         dir = Path.join(out, label)
         Output.puts("Starting #{label}; progress in #{dir}.log")
 
@@ -78,8 +105,15 @@ manifest =
           "--steps",
           to_string(settings.steps),
           "--seconds",
-          to_string(settings.seconds)
+          to_string(settings.seconds),
+          "--holdout",
+          to_string(settings.holdout)
         ]
+
+        argv =
+          if settings.prepared_cache,
+            do: argv ++ ["--prepared-cache", settings.prepared_cache],
+            else: argv
 
         started = System.monotonic_time(:millisecond)
         conflicts = Sweep.run(argv, [{"EDIFICE_FUSED_CUSTOM_CALL", "1"}], dir <> ".log")

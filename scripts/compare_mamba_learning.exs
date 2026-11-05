@@ -3,6 +3,8 @@
 Application.ensure_all_started(:crypto)
 Application.ensure_all_started(:exphil)
 Code.compile_file("lib/exphil/training/pipeline.ex")
+Code.require_file("lib/learning_data_cache.exs", __DIR__)
+Code.require_file("lib/benchmark_sweep.exs", __DIR__)
 
 Application.put_env(:exla, :clients,
   host: [platform: :host],
@@ -93,7 +95,9 @@ alias ExPhil.Training.{Config, Pipeline, Trainer, Streaming, Data, Output, Chunk
       replays: :string,
       steps: :integer,
       seconds: :integer,
-      files: :integer
+      files: :integer,
+      holdout: :integer,
+      prepared_cache: :string
     ]
   )
 
@@ -136,8 +140,22 @@ opts = Config.parse_args(argv) |> Config.validate!()
 Output.banner("Controlled Mamba learning pilot")
 pipeline = Pipeline.setup!(opts)
 files = Enum.sort_by(pipeline.replay_files, &:crypto.hash(:sha256, &1))
-{val_files, train_files} = Enum.split(files, min(16, max(1, div(length(files), 10))))
+holdout = args[:holdout] || min(16, max(1, div(length(files), 10)))
+true = holdout > 0 and holdout < length(files)
+{val_files, train_files} = Enum.split(files, holdout)
 true = train_files != []
+replay_hashes = ExPhil.BenchmarkSweep.hashes(files)
+train_hashes = MapSet.new(train_files, &Map.fetch!(replay_hashes, &1))
+val_hashes = MapSet.new(val_files, &Map.fetch!(replay_hashes, &1))
+true = MapSet.disjoint?(train_hashes, val_hashes)
+
+signature =
+  {replay_hashes, train_files, val_files, pipeline.streaming_chunk_opts,
+   pipeline.streaming_dataset_opts, pipeline.embed_config,
+   ExPhil.BenchmarkSweep.hashes(
+     Path.wildcard("lib/exphil/{training,embeddings}/**/*.ex") ++
+       [__ENV__.file, "scripts/lib/learning_data_cache.exs"]
+   )}
 
 File.write!(
   Path.join(out, "split.json"),
@@ -145,34 +163,43 @@ File.write!(
 )
 
 File.write!(Path.join(out, "arguments.json"), Jason.encode!(argv, pretty: true))
-{:ok, frames, []} = Streaming.parse_chunk(val_files, pipeline.streaming_chunk_opts)
-dataset = Streaming.create_dataset(frames, pipeline.streaming_dataset_opts)
 
-val_batches =
-  Data.batched_sequences(dataset,
-    batch_size: opts[:batch_size],
-    window_size: opts[:window_size],
-    stride: opts[:window_size],
-    lazy: true,
-    shuffle: false,
-    drop_last: false,
-    gpu: false,
-    neutral_weight: 1.0,
-    chunk_horizon: opts[:chunk_horizon]
-  )
-  |> Enum.to_list()
+{prepared, val_batches} =
+  ExPhil.LearningDataCache.fetch(args[:prepared_cache], signature, fn ->
+    {:ok, frames, []} = Streaming.parse_chunk(val_files, pipeline.streaming_chunk_opts)
+    dataset = Streaming.create_dataset(frames, pipeline.streaming_dataset_opts)
 
-true = val_batches != []
+    val_batches =
+      Data.batched_sequences(dataset,
+        batch_size: opts[:batch_size],
+        window_size: opts[:window_size],
+        stride: opts[:window_size],
+        lazy: true,
+        shuffle: false,
+        drop_last: false,
+        gpu: false,
+        neutral_weight: 1.0,
+        chunk_horizon: opts[:chunk_horizon]
+      )
+      |> Enum.to_list()
+
+    true = val_batches != []
+    chunks = Streaming.chunk_files(train_files, opts[:stream_chunk_size])
+
+    prepared =
+      ChunkPipeline.materialize_chunks(chunks,
+        chunk_opts: pipeline.streaming_chunk_opts,
+        dataset_opts: pipeline.streaming_dataset_opts,
+        embed_config: pipeline.embed_config,
+        cache_embeddings: false,
+        show_progress: true
+      )
+
+    true = Enum.all?(prepared, fn {_data, _idx, errors} -> errors == [] end)
+    {prepared, val_batches}
+  end)
+
 chunks = Streaming.chunk_files(train_files, opts[:stream_chunk_size])
-
-prepared =
-  ChunkPipeline.materialize_chunks(chunks,
-    chunk_opts: pipeline.streaming_chunk_opts,
-    dataset_opts: pipeline.streaming_dataset_opts,
-    embed_config: pipeline.embed_config,
-    cache_embeddings: false,
-    show_progress: true
-  )
 
 pipeline = %{
   pipeline

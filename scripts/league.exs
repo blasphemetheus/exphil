@@ -29,35 +29,115 @@ alias ExPhil.Training.{Checkpoint, Output}
 
 {opts, _, bad} =
   OptionParser.parse(System.argv(),
-    strict: [roster: :string, only: :string, envs: :integer, frames: :integer, seed: :integer, out: :string, stage: :string, temperature: :float])
+    strict: [
+      roster: :string,
+      only: :string,
+      envs: :integer,
+      frames: :integer,
+      seed: :integer,
+      out: :string,
+      stage: :string,
+      temperature: :float
+    ]
+  )
 
 if bad != [], do: raise("invalid options: #{inspect(bad)}")
 
 default_roster = [
-  %{name: "convC2", policy: "checkpoints/fox_il_v2_convC2_20260811_222129_best_policy.bin", character: "fox", line: "generalist (pre-corpus, 08-11)"},
-  %{name: "V3.1_ep3", policy: "checkpoints/fox_v3_1_20260919_022008_ep3/model_best_policy.bin", character: "fox", line: "generalist V3.1 (crowned 09-20, the frozen prior)"},
-  %{name: "mix4", policy: "checkpoints/fox_v3_1_step8_mix4/model_best_policy.bin", character: "fox", line: "V3.1 + sim DAgger mix4 (PPO prior)"},
-  %{name: "fox_PPO_i200", policy: "eval_runs/0923_ppo/eval_candidate/candidate_policy.bin", character: "fox", line: "RL on the prior (GRU PPO v1_fixed, iter 200)"},
-  %{name: "mamba_v1", policy: "checkpoints/fox_mamba_v1_20260925_ep2/model_best_policy.bin", character: "fox", line: "Fox Mamba v1 (09-27)"},
-  %{name: "mamba_v2_prevact", policy: "checkpoints/fox_mamba_v2_prevact_20260930/model_best_policy.bin", character: "fox", line: "Mamba + prev-action channel (10-01, froze live)"},
-  %{name: "coh_v3_ep3", policy: "checkpoints/coh_fox_mamba_v3_ep3/model_best_policy.bin", character: "fox", line: "coherence recipe, seed 905 ep3"},
-  %{name: "s906_ep2", policy: "checkpoints/coh_fox_mamba_v3s906_ep2/model_best_policy.bin", character: "fox", line: "CANDIDATE (coherence recipe, seed 906 ep2)"},
-  %{name: "s906_dag9o", policy: "checkpoints/coh_fox_mamba_v3s906_ep3_dag9o/model_best_policy.bin", character: "fox", line: "candidate + expert-labelled DAgger epoch (failed arm)"},
-  %{name: "ms_g19_ep4", policy: "checkpoints/ms_g19_ep4.bin", character: "fox", line: "multishine specialist (production 08-24) — control"},
-  %{name: "mewtwo_il_v1", policy: "checkpoints/mewtwo_il_v1_20260924/model_best_policy.bin", character: "mewtwo", line: "Mewtwo imitation prior"},
-  %{name: "mewtwo_PPO_pool", policy: "checkpoints/mewtwo_ppo_pool_v2_policy.bin", character: "mewtwo", line: "Mewtwo PPO (pool v2)"}
+  %{
+    name: "convC2",
+    policy: "checkpoints/fox_il_v2_convC2_20260811_222129_best_policy.bin",
+    character: "fox",
+    line: "generalist (pre-corpus, 08-11)"
+  },
+  %{
+    name: "V3.1_ep3",
+    policy: "checkpoints/fox_v3_1_20260919_022008_ep3/model_best_policy.bin",
+    character: "fox",
+    line: "generalist V3.1 (crowned 09-20, the frozen prior)"
+  },
+  %{
+    name: "mix4",
+    policy: "checkpoints/fox_v3_1_step8_mix4/model_best_policy.bin",
+    character: "fox",
+    line: "V3.1 + sim DAgger mix4 (PPO prior)"
+  },
+  %{
+    name: "fox_PPO_i200",
+    policy: "eval_runs/0923_ppo/eval_candidate/candidate_policy.bin",
+    character: "fox",
+    line: "RL on the prior (GRU PPO v1_fixed, iter 200)"
+  },
+  %{
+    name: "mamba_v1",
+    policy: "checkpoints/fox_mamba_v1_20260925_ep2/model_best_policy.bin",
+    character: "fox",
+    line: "Fox Mamba v1 (09-27)"
+  },
+  %{
+    name: "mamba_v2_prevact",
+    policy: "checkpoints/fox_mamba_v2_prevact_20260930/model_best_policy.bin",
+    character: "fox",
+    line: "Mamba + prev-action channel (10-01, froze live)"
+  },
+  %{
+    name: "coh_v3_ep3",
+    policy: "checkpoints/coh_fox_mamba_v3_ep3/model_best_policy.bin",
+    character: "fox",
+    line: "coherence recipe, seed 905 ep3"
+  },
+  %{
+    name: "s906_ep2",
+    policy: "checkpoints/coh_fox_mamba_v3s906_ep2/model_best_policy.bin",
+    character: "fox",
+    line: "CANDIDATE (coherence recipe, seed 906 ep2)"
+  },
+  %{
+    name: "s906_dag9o",
+    policy: "checkpoints/coh_fox_mamba_v3s906_ep3_dag9o/model_best_policy.bin",
+    character: "fox",
+    line: "candidate + expert-labelled DAgger epoch (failed arm)"
+  },
+  %{
+    name: "ms_g19_ep4",
+    policy: "checkpoints/ms_g19_ep4.bin",
+    character: "fox",
+    line: "multishine specialist (production 08-24) — control"
+  },
+  %{
+    name: "mewtwo_il_v1",
+    policy: "checkpoints/mewtwo_il_v1_20260924/model_best_policy.bin",
+    character: "mewtwo",
+    line: "Mewtwo imitation prior"
+  },
+  %{
+    name: "mewtwo_PPO_pool",
+    policy: "checkpoints/mewtwo_ppo_pool_v2_policy.bin",
+    character: "mewtwo",
+    line: "Mewtwo PPO (pool v2)"
+  }
 ]
 
 roster =
   case opts[:roster] do
-    nil -> default_roster
-    f -> f |> File.read!() |> Jason.decode!() |> Enum.map(fn m -> Map.new(m, fn {k, v} -> {String.to_atom(k), v} end) end)
+    nil ->
+      default_roster
+
+    f ->
+      f
+      |> File.read!()
+      |> Jason.decode!()
+      |> Enum.map(fn m -> Map.new(m, fn {k, v} -> {String.to_atom(k), v} end) end)
   end
 
 roster =
   case opts[:only] do
-    nil -> roster
-    s -> names = String.split(s, ","); Enum.filter(roster, &(&1.name in names))
+    nil ->
+      roster
+
+    s ->
+      names = String.split(s, ",")
+      Enum.filter(roster, &(&1.name in names))
   end
 
 n = opts[:envs] || 16
@@ -69,7 +149,9 @@ out = opts[:out] || "eval_runs/league/#{Date.utc_today() |> Date.to_iso8601(:bas
 File.mkdir_p!(out)
 neutral = Drill.neutral()
 
-Output.banner("League: #{length(roster)} bots, #{n} envs x #{frames} f per session, 2 sessions per pair")
+Output.banner(
+  "League: #{length(roster)} bots, #{n} envs x #{frames} f per session, 2 sessions per pair"
+)
 
 # ---- start every agent once (batched sim contract) ------------------------------
 start_agent = fn bot ->
@@ -80,8 +162,13 @@ start_agent = fn bot ->
 
     {:ok, agent} =
       Agent.start_link(
-        policy_path: bot.policy, deterministic: false, temperature: temperature, af_convention: :parsed,
-        frame_delay: 0, reaction_delay: 0, harness: :sync_runner,
+        policy_path: bot.policy,
+        deterministic: false,
+        temperature: temperature,
+        af_convention: :parsed,
+        frame_delay: 0,
+        reaction_delay: 0,
+        harness: :sync_runner,
         stateful_step: contract.recurrent_state == :carried_zero
       )
 
@@ -119,15 +206,44 @@ session = fn a, b, seed ->
   {:ok, sim} = Env.start(:nif, stage: stage, players: players, batch_size: n, seed: seed)
   {:ok, _, _} = Env.observe(sim)
   {:ok, gs0} = Env.frames(sim)
-  starts = for i <- rows, into: %{}, do: ({:ok, blob} = Env.save(sim, i); {i, blob})
+
+  starts =
+    for i <- rows,
+        into: %{},
+        do:
+          (
+            {:ok, blob} = Env.save(sim, i)
+            {i, blob}
+          )
+
   t0 = System.monotonic_time(:millisecond)
 
   {games, states, started} =
     Enum.reduce(1..frames, {[], gs0, List.duplicate(0, n)}, fn t, {games, states, started} ->
-      {:ok, c1s} = Agent.batch_get_controllers(a.agent, Enum.map(states, &%{&1 | own_port: 1}), player_port: 1)
-      {:ok, c2s} = Agent.batch_get_controllers(b.agent, Enum.map(states, &%{&1 | own_port: 2}), player_port: 2)
-      {:ok, nexts, terms} = Env.step(sim, Enum.zip_with(c1s, c2s, fn x, y -> [x || neutral, y || neutral] end))
-      finished = terms |> Enum.with_index() |> Enum.filter(fn {term, _} -> (term["done"] || 0) == 1 end) |> Enum.map(&elem(&1, 1))
+      if rem(t, 1800) == 0 do
+        Output.puts(
+          "#{a.name} vs #{b.name}, simulator seed #{seed}: frame #{t}/#{frames}, #{length(games)} completed games"
+        )
+      end
+
+      {:ok, c1s} =
+        Agent.batch_get_controllers(a.agent, Enum.map(states, &%{&1 | own_port: 1}),
+          player_port: 1
+        )
+
+      {:ok, c2s} =
+        Agent.batch_get_controllers(b.agent, Enum.map(states, &%{&1 | own_port: 2}),
+          player_port: 2
+        )
+
+      {:ok, nexts, terms} =
+        Env.step(sim, Enum.zip_with(c1s, c2s, fn x, y -> [x || neutral, y || neutral] end))
+
+      finished =
+        terms
+        |> Enum.with_index()
+        |> Enum.filter(fn {term, _} -> (term["done"] || 0) == 1 end)
+        |> Enum.map(&elem(&1, 1))
 
       if finished == [] do
         {games, nexts, started}
@@ -137,14 +253,28 @@ session = fn a, b, seed ->
             s = Enum.at(nexts, i)
             s1 = s.players[1].stock || 0
             s2 = s.players[2].stock || 0
-            %{env: i, frames: t - Enum.at(started, i), finished: true, p1_stocks: s1, p2_stocks: s2, p1_pct: s.players[1].percent, p2_pct: s.players[2].percent}
+
+            %{
+              env: i,
+              frames: t - Enum.at(started, i),
+              finished: true,
+              p1_stocks: s1,
+              p2_stocks: s2,
+              p1_pct: s.players[1].percent,
+              p2_pct: s.players[2].percent
+            }
           end)
 
         for i <- finished, do: {:ok, _} = Env.restore(sim, i, starts[i])
         :ok = Agent.batch_reset_rows(a.agent, finished)
         :ok = Agent.batch_reset_rows(b.agent, finished)
         {:ok, reset} = Env.frames(sim)
-        started = started |> Enum.with_index() |> Enum.map(fn {v, i} -> if i in finished, do: t, else: v end)
+
+        started =
+          started
+          |> Enum.with_index()
+          |> Enum.map(fn {v, i} -> if i in finished, do: t, else: v end)
+
         {done ++ games, reset, started}
       end
     end)
@@ -154,7 +284,15 @@ session = fn a, b, seed ->
     states
     |> Enum.with_index()
     |> Enum.map(fn {s, i} ->
-      %{env: i, frames: frames - Enum.at(started, i), finished: false, p1_stocks: s.players[1].stock || 0, p2_stocks: s.players[2].stock || 0, p1_pct: s.players[1].percent, p2_pct: s.players[2].percent}
+      %{
+        env: i,
+        frames: frames - Enum.at(started, i),
+        finished: false,
+        p1_stocks: s.players[1].stock || 0,
+        p2_stocks: s.players[2].stock || 0,
+        p1_pct: s.players[1].percent,
+        p2_pct: s.players[2].percent
+      }
     end)
 
   Env.stop(sim)
@@ -189,7 +327,11 @@ Output.puts("#{length(pairs)} pairs, #{2 * length(pairs)} sessions")
     draws = length(games) - wins - losses
     fin = Enum.count(games, & &1.finished)
     fps = round(2 * n * frames / max(ms1 + ms2, 1) * 1000)
-    Output.puts("RESULT pair #{k + 1}/#{length(pairs)} #{a.name} vs #{b.name}: #{wins}-#{losses}-#{draws} (#{fin}/#{length(games)} finished)  #{div(ms1 + ms2, 1000)} s  #{fps} game-frames/s")
+
+    Output.puts(
+      "RESULT pair #{k + 1}/#{length(pairs)} #{a.name} vs #{b.name}: #{wins}-#{losses}-#{draws} (#{fin}/#{length(games)} finished)  #{div(ms1 + ms2, 1000)} s  #{fps} game-frames/s"
+    )
+
     {%{a: a.name, b: b.name, wins: wins, losses: losses, draws: draws, games: games}, seed + 2}
   end)
 
@@ -220,23 +362,72 @@ matrix =
          {b, nil}
        else
          gs = Enum.filter(game_list, fn {x, y, _} -> {x, y} == {a, b} or {x, y} == {b, a} end)
-         {b, if(gs == [], do: nil, else: Float.round(Enum.sum(Enum.map(gs, fn {x, _, s} -> if x == a, do: s, else: 1.0 - s end)) / length(gs), 3))}
+
+         {b,
+          if(gs == [],
+            do: nil,
+            else:
+              Float.round(
+                Enum.sum(Enum.map(gs, fn {x, _, s} -> if x == a, do: s, else: 1.0 - s end)) /
+                  length(gs),
+                3
+              )
+          )}
        end
      end)}
   end)
 
-table = bots |> Enum.map(fn b -> %{name: b.name, line: b.line, character: b.character, elo: elo[b.name],
-  games: Enum.count(game_list, fn {x, y, _} -> x == b.name or y == b.name end),
-  win_rate: (gs = Enum.filter(game_list, fn {x, y, _} -> x == b.name or y == b.name end);
-             if gs == [], do: nil, else: Float.round(Enum.sum(Enum.map(gs, fn {x, _, s} -> if x == b.name, do: s, else: 1.0 - s end)) / length(gs), 3))} end)
+table =
+  bots
+  |> Enum.map(fn b ->
+    %{
+      name: b.name,
+      line: b.line,
+      character: b.character,
+      elo: elo[b.name],
+      games: Enum.count(game_list, fn {x, y, _} -> x == b.name or y == b.name end),
+      win_rate:
+        (
+          gs = Enum.filter(game_list, fn {x, y, _} -> x == b.name or y == b.name end)
+
+          if gs == [],
+            do: nil,
+            else:
+              Float.round(
+                Enum.sum(Enum.map(gs, fn {x, _, s} -> if x == b.name, do: s, else: 1.0 - s end)) /
+                  length(gs),
+                3
+              )
+        )
+    }
+  end)
   |> Enum.sort_by(&(-&1.elo))
 
-report = %{created: DateTime.utc_now() |> DateTime.to_iso8601(), envs: n, frames: frames, stage: stage, temperature: temperature, seed: seed0,
-  roster: Enum.map(bots, &Map.drop(&1, [:agent])), unsupported: unsupported, standings: table, win_matrix: matrix, pairs: results,
-  note: "fighting strength in the parity sim (FD, batched path, T=#{temperature}); not imitation fidelity — see the agreement eval"}
+report = %{
+  created: DateTime.utc_now() |> DateTime.to_iso8601(),
+  envs: n,
+  frames: frames,
+  stage: stage,
+  temperature: temperature,
+  seed: seed0,
+  roster: Enum.map(bots, &Map.drop(&1, [:agent])),
+  unsupported: unsupported,
+  standings: table,
+  win_matrix: matrix,
+  pairs: results,
+  note:
+    "fighting strength in the parity sim (FD, batched path, T=#{temperature}); not imitation fidelity — see the agreement eval"
+}
+
 File.write!(Path.join(out, "league.json"), Jason.encode!(report, pretty: true))
 
 Output.puts("RESULT standings (Elo, Bradley–Terry over #{length(game_list)} games):")
-Enum.each(table, fn r -> Output.puts("  #{String.pad_trailing(r.name, 18)} #{r.elo}  win rate #{r.win_rate}  games #{r.games}  — #{r.line}") end)
+
+Enum.each(table, fn r ->
+  Output.puts(
+    "  #{String.pad_trailing(r.name, 18)} #{r.elo}  win rate #{r.win_rate}  games #{r.games}  — #{r.line}"
+  )
+end)
+
 Enum.each(unsupported, fn u -> Output.puts("  (unsupported) #{u.name}: #{u.why}") end)
 Output.puts("RESULT league -> #{out}/league.json")
