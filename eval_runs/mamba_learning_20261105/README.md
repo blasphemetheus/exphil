@@ -4,6 +4,58 @@
 automatic. Scripts, settings and results belong to this experiment; the earlier
 pilot remains unchanged.
 
+## Result
+
+All four training runs and six gameplay pairings completed on November 5.
+Canonical Mamba-2/state 16 is the stronger candidate for the next training
+experiment. These short-trained policies do not justify replacing the deployed
+policy. The full measurements are in [comparison/RESULTS.md](comparison/RESULTS.md).
+
+Means over the two training seeds:
+
+| Measurement | Existing Mamba-1/state 16 | Canonical Mamba-2/state 16 |
+| --- | ---: | ---: |
+| Held-out loss after 3,000 updates | 4.632 | 4.184 |
+| Updates in 600 training seconds | 10,902.5 | 16,122.5 |
+| Held-out loss after 600 training seconds | 3.823 | 3.591 |
+| Parameters | 5,133,933 | 4,981,133 |
+
+Mamba-2 performs about 48% more updates in the same time. Its held-out loss is
+about 10% lower at equal updates and 6% lower at equal training time. This is a
+comparison of the existing ExPhil configurations, not identical parameter counts
+or a claim about all Mamba implementations.
+
+In direct play, Mamba-2 won completed games 11–6 for seed 905 and 5–2 for seed
+906: 16–8 combined. The unfinished sessions were mixed: Mamba-2 led/trailed/tied
+5/1/2 for seed 905, but 2/6/0 for seed 906. Games restart within a session, so
+these are repeated games from eight environment/port slots per pairing, not 24
+independent trained models. Policy sampling was not seeded. This is encouraging
+evidence, not a precise win-rate estimate.
+
+Against frozen master-ep3, neither architecture won a completed game. Mamba-1
+lost 27 and Mamba-2 lost 17 across their two seeds. Fewer losses in a fixed
+session can reflect longer survival; it is not itself a match-win comparison.
+Both are still far below the established opponent in this test. All matches
+used the Rust parity simulator, Final Destination, zero delay and windowed
+inference. Dolphin, deployment delay, other stages and carried-state inference
+remain outside this experiment.
+
+The next useful test is a longer canonical Mamba-2 training run on broader data,
+with saved intermediate policies and the frozen opponent as a continuing check.
+If it starts winning those games, verify the gain in Dolphin at the intended
+deployment delay before considering a policy change. More kernel work is not
+needed to establish the training-speed advantage measured here.
+
+Validation: matching starting batch fingerprints across architectures for each
+seed; disjoint training/validation replay contents; finite exported snapshots;
+four completed training arms; six supported gameplay pairings; no recorded
+competing GPU compute process. The cache has three passing targeted tests and
+passed a separate two-process GPU smoke run. Source and compiled-module hashes
+are recorded with the measurements. Desktop GPU use was present. Local policy
+exports are retained; model binaries and logs are not committed.
+
+## Method and reproduction
+
 Compare existing Mamba-1/state 16 with canonical Mamba-2/state 16, fresh weights,
 seeds 905 and 906, 256 existing master-corpus replay files. Hold out 24 whole
 games by the existing path-hash split; train on the other 232. Reject overlapping

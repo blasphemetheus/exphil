@@ -1,0 +1,20 @@
+{
+  "scope": "batched parity simulator; zero delay; FD; both ports",
+  "hashes": {
+    "../edifice/lib/edifice/stateful.ex": "a4f7b197ca0256eab5519e0a1578d7a81aab891416e377f521dbbe1951c80bdc",
+    "../edifice/lib/edifice/stateful/replay.ex": "8a87ac117d50b4b7eb61c80f57e3ed94c99f7c1b6a481898afb9d91d1f0e60ca",
+    "../edifice/lib/edifice/utils/sampling_random.ex": "429bd9734746dd1a13ddd9465829d0bf481f6ae23b1219407f7a5859098ad00a",
+    "/home/blewf/git/exphil/scripts/readout_mamba_learning.exs": "7d86c2d5f7f4133c05c7c5c85790f650d64f431bf5cb504c4f19c2c970aeab30",
+    "checkpoints/coh_fox_mamba_master_ep3/model_best_policy.bin": "422002d4ebf8eee2f175037384e3e62565f2778924c2f153c1349a92e93a9709",
+    "eval_runs/mamba_learning_20261105/comparison/mamba2_full_n16_s905/equal_time_policy.bin": "0648f2a42dc31909ece5d752f4d2bfcfb5d275e97731088bb66160a7a1dd8bee",
+    "lib/exphil/agents/agent.ex": "929d68709f98d0181a59f82882d5f39a783cb66f7b770cdc591d1b783b60137f",
+    "lib/exphil/networks/policy/sampling.ex": "9153a58d3e5902db8328b8fda7cfca5355616671e401322dd3d640ebfe299a60",
+    "scripts/league.exs": "45d456fe5df43ff427aa6d566292e4062bf22eb7d84599ab05a66a888cdbadd0",
+    "scripts/run_recurrent_validation.exs": "b71033d0166b1c29e928127d972c2a397525982dde5669e09bedce7ddf66cf91"
+  },
+  "settings": {
+    "envs": 4,
+    "frames": 10800,
+    "seed": 71
+  }
+}

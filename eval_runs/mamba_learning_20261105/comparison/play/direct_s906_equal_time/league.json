@@ -1,0 +1,228 @@
+{
+  "unsupported": [],
+  "seed": 71,
+  "stage": "final_destination",
+  "temperature": 1.0,
+  "frames": 10800,
+  "roster": [
+    {
+      "line": "controlled training comparison",
+      "name": "mamba_n16_s906_equal_time",
+      "character": "fox",
+      "policy": "eval_runs/mamba_learning_20261105/comparison/mamba_n16_s906/equal_time_policy.bin"
+    },
+    {
+      "line": "controlled training comparison",
+      "name": "mamba2_full_n16_s906_equal_time",
+      "character": "fox",
+      "policy": "eval_runs/mamba_learning_20261105/comparison/mamba2_full_n16_s906/equal_time_policy.bin"
+    }
+  ],
+  "envs": 4,
+  "pairs": [
+    {
+      "a": "mamba_n16_s906_equal_time",
+      "b": "mamba2_full_n16_s906_equal_time",
+      "wins": 8,
+      "games": [
+        {
+          "env": 0,
+          "finished": true,
+          "frames": 5270,
+          "p1_stocks": 1,
+          "p2_stocks": 0,
+          "p1_pct": 3.0,
+          "p2_pct": 0.0,
+          "a_score": 1.0,
+          "a_port": 1
+        },
+        {
+          "env": 2,
+          "finished": true,
+          "frames": 8645,
+          "p1_stocks": 1,
+          "p2_stocks": 0,
+          "p1_pct": 18.0,
+          "p2_pct": 53.459999084472656,
+          "a_score": 1.0,
+          "a_port": 1
+        },
+        {
+          "env": 0,
+          "finished": true,
+          "frames": 3633,
+          "p1_stocks": 0,
+          "p2_stocks": 4,
+          "p1_pct": 0.0,
+          "p2_pct": 25.0,
+          "a_score": 0.0,
+          "a_port": 1
+        },
+        {
+          "env": 1,
+          "finished": true,
+          "frames": 10136,
+          "p1_stocks": 0,
+          "p2_stocks": 1,
+          "p1_pct": 113.74999237060547,
+          "p2_pct": 32.0,
+          "a_score": 0.0,
+          "a_port": 1
+        },
+        {
+          "env": 0,
+          "finished": false,
+          "frames": 1897,
+          "p1_stocks": 4,
+          "p2_stocks": 3,
+          "p1_pct": 53.0,
+          "p2_pct": 0.0,
+          "a_score": 1.0,
+          "a_port": 1
+        },
+        {
+          "env": 1,
+          "finished": false,
+          "frames": 664,
+          "p1_stocks": 3,
+          "p2_stocks": 4,
+          "p1_pct": 0.0,
+          "p2_pct": 9.279999732971191,
+          "a_score": 0.0,
+          "a_port": 1
+        },
+        {
+          "env": 2,
+          "finished": false,
+          "frames": 2155,
+          "p1_stocks": 3,
+          "p2_stocks": 4,
+          "p1_pct": 23.600000381469727,
+          "p2_pct": 15.0,
+          "a_score": 0.0,
+          "a_port": 1
+        },
+        {
+          "env": 3,
+          "finished": false,
+          "frames": 10800,
+          "p1_stocks": 1,
+          "p2_stocks": 1,
+          "p1_pct": 23.279998779296875,
+          "p2_pct": 33.41999816894531,
+          "a_score": 1.0,
+          "a_port": 1
+        },
+        {
+          "env": 0,
+          "finished": true,
+          "frames": 6390,
+          "p1_stocks": 1,
+          "p2_stocks": 0,
+          "p1_pct": 24.0,
+          "p2_pct": 31.275325775146484,
+          "a_score": 0.0,
+          "a_port": 2
+        },
+        {
+          "env": 1,
+          "finished": true,
+          "frames": 7325,
+          "p1_stocks": 2,
+          "p2_stocks": 0,
+          "p1_pct": 0.0,
+          "p2_pct": 43.09000015258789,
+          "a_score": 0.0,
+          "a_port": 2
+        },
+        {
+          "env": 2,
+          "finished": true,
+          "frames": 9859,
+          "p1_stocks": 2,
+          "p2_stocks": 0,
+          "p1_pct": 55.70177459716797,
+          "p2_pct": 6.0,
+          "a_score": 0.0,
+          "a_port": 2
+        },
+        {
+          "env": 0,
+          "finished": false,
+          "frames": 4410,
+          "p1_stocks": 3,
+          "p2_stocks": 4,
+          "p1_pct": 28.189998626708984,
+          "p2_pct": 59.19999694824219,
+          "a_score": 1.0,
+          "a_port": 2
+        },
+        {
+          "env": 1,
+          "finished": false,
+          "frames": 3475,
+          "p1_stocks": 2,
+          "p2_stocks": 4,
+          "p1_pct": 0.0,
+          "p2_pct": 73.55999755859375,
+          "a_score": 1.0,
+          "a_port": 2
+        },
+        {
+          "env": 2,
+          "finished": false,
+          "frames": 941,
+          "p1_stocks": 4,
+          "p2_stocks": 4,
+          "p1_pct": 30.82597541809082,
+          "p2_pct": 21.0,
+          "a_score": 1.0,
+          "a_port": 2
+        },
+        {
+          "env": 3,
+          "finished": false,
+          "frames": 10800,
+          "p1_stocks": 1,
+          "p2_stocks": 2,
+          "p1_pct": 5.0,
+          "p2_pct": 14.0,
+          "a_score": 1.0,
+          "a_port": 2
+        }
+      ],
+      "losses": 7,
+      "draws": 0
+    }
+  ],
+  "created": "2026-11-05T16:57:21.692783Z",
+  "standings": [
+    {
+      "line": "controlled training comparison",
+      "name": "mamba_n16_s906_equal_time",
+      "character": "fox",
+      "games": 15,
+      "elo": 1512,
+      "win_rate": 0.533
+    },
+    {
+      "line": "controlled training comparison",
+      "name": "mamba2_full_n16_s906_equal_time",
+      "character": "fox",
+      "games": 15,
+      "elo": 1488,
+      "win_rate": 0.467
+    }
+  ],
+  "win_matrix": {
+    "mamba2_full_n16_s906_equal_time": {
+      "mamba2_full_n16_s906_equal_time": null,
+      "mamba_n16_s906_equal_time": 0.467
+    },
+    "mamba_n16_s906_equal_time": {
+      "mamba2_full_n16_s906_equal_time": 0.533,
+      "mamba_n16_s906_equal_time": null
+    }
+  },
+  "note": "fighting strength in the parity sim (FD, batched path, T=1.0); not imitation fidelity — see the agreement eval"
+}

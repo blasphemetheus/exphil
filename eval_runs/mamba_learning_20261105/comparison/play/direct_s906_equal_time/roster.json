@@ -1,0 +1,14 @@
+[
+  {
+    "line": "controlled training comparison",
+    "name": "mamba_n16_s906_equal_time",
+    "character": "fox",
+    "policy": "eval_runs/mamba_learning_20261105/comparison/mamba_n16_s906/equal_time_policy.bin"
+  },
+  {
+    "line": "controlled training comparison",
+    "name": "mamba2_full_n16_s906_equal_time",
+    "character": "fox",
+    "policy": "eval_runs/mamba_learning_20261105/comparison/mamba2_full_n16_s906/equal_time_policy.bin"
+  }
+]

@@ -1,0 +1,338 @@
+{
+  "unsupported": [],
+  "seed": 71,
+  "stage": "final_destination",
+  "temperature": 1.0,
+  "frames": 10800,
+  "roster": [
+    {
+      "line": "controlled training comparison",
+      "name": "mamba_n16_s905_equal_time",
+      "character": "fox",
+      "policy": "eval_runs/mamba_learning_20261105/comparison/mamba_n16_s905/equal_time_policy.bin"
+    },
+    {
+      "line": "controlled training comparison",
+      "name": "mamba2_full_n16_s905_equal_time",
+      "character": "fox",
+      "policy": "eval_runs/mamba_learning_20261105/comparison/mamba2_full_n16_s905/equal_time_policy.bin"
+    }
+  ],
+  "envs": 4,
+  "pairs": [
+    {
+      "b": "mamba2_full_n16_s905_equal_time",
+      "a": "mamba_n16_s905_equal_time",
+      "wins": 7,
+      "games": [
+        {
+          "env": 0,
+          "finished": true,
+          "frames": 3502,
+          "p1_stocks": 2,
+          "p2_stocks": 0,
+          "p1_pct": 0.0,
+          "p2_pct": 10.0,
+          "a_score": 1.0,
+          "a_port": 1
+        },
+        {
+          "env": 1,
+          "finished": true,
+          "frames": 3706,
+          "p1_stocks": 0,
+          "p2_stocks": 2,
+          "p1_pct": 0.0,
+          "p2_pct": 9.0,
+          "a_score": 0.0,
+          "a_port": 1
+        },
+        {
+          "env": 2,
+          "finished": true,
+          "frames": 4340,
+          "p1_stocks": 2,
+          "p2_stocks": 0,
+          "p1_pct": 0.0,
+          "p2_pct": 0.0,
+          "a_score": 1.0,
+          "a_port": 1
+        },
+        {
+          "env": 1,
+          "finished": true,
+          "frames": 1993,
+          "p1_stocks": 4,
+          "p2_stocks": 0,
+          "p1_pct": 29.549999237060547,
+          "p2_pct": 0.0,
+          "a_score": 1.0,
+          "a_port": 1
+        },
+        {
+          "env": 3,
+          "finished": true,
+          "frames": 6203,
+          "p1_stocks": 0,
+          "p2_stocks": 1,
+          "p1_pct": 0.0,
+          "p2_pct": 3.0,
+          "a_score": 0.0,
+          "a_port": 1
+        },
+        {
+          "env": 1,
+          "finished": true,
+          "frames": 2166,
+          "p1_stocks": 0,
+          "p2_stocks": 3,
+          "p1_pct": 0.0,
+          "p2_pct": 10.0,
+          "a_score": 0.0,
+          "a_port": 1
+        },
+        {
+          "env": 2,
+          "finished": true,
+          "frames": 4609,
+          "p1_stocks": 0,
+          "p2_stocks": 1,
+          "p1_pct": 9.0,
+          "p2_pct": 17.0,
+          "a_score": 0.0,
+          "a_port": 1
+        },
+        {
+          "env": 0,
+          "finished": true,
+          "frames": 6373,
+          "p1_stocks": 0,
+          "p2_stocks": 2,
+          "p1_pct": 0.0,
+          "p2_pct": 7.0,
+          "a_score": 0.0,
+          "a_port": 1
+        },
+        {
+          "env": 0,
+          "finished": false,
+          "frames": 925,
+          "p1_stocks": 3,
+          "p2_stocks": 3,
+          "p1_pct": 0.0,
+          "p2_pct": 0.0,
+          "a_score": 0.5,
+          "a_port": 1
+        },
+        {
+          "env": 1,
+          "finished": false,
+          "frames": 2935,
+          "p1_stocks": 3,
+          "p2_stocks": 1,
+          "p1_pct": 0.0,
+          "p2_pct": 23.0,
+          "a_score": 1.0,
+          "a_port": 1
+        },
+        {
+          "env": 2,
+          "finished": false,
+          "frames": 1851,
+          "p1_stocks": 2,
+          "p2_stocks": 3,
+          "p1_pct": 0.0,
+          "p2_pct": 0.0,
+          "a_score": 0.0,
+          "a_port": 1
+        },
+        {
+          "env": 3,
+          "finished": false,
+          "frames": 4597,
+          "p1_stocks": 1,
+          "p2_stocks": 2,
+          "p1_pct": 0.0,
+          "p2_pct": 23.299999237060547,
+          "a_score": 0.0,
+          "a_port": 1
+        },
+        {
+          "env": 0,
+          "finished": true,
+          "frames": 2342,
+          "p1_stocks": 2,
+          "p2_stocks": 0,
+          "p1_pct": 0.0,
+          "p2_pct": 0.0,
+          "a_score": 0.0,
+          "a_port": 2
+        },
+        {
+          "env": 1,
+          "finished": true,
+          "frames": 3873,
+          "p1_stocks": 1,
+          "p2_stocks": 0,
+          "p1_pct": 16.0,
+          "p2_pct": 12.279999732971191,
+          "a_score": 0.0,
+          "a_port": 2
+        },
+        {
+          "env": 3,
+          "finished": true,
+          "frames": 4473,
+          "p1_stocks": 0,
+          "p2_stocks": 2,
+          "p1_pct": 14.729999542236328,
+          "p2_pct": 18.0,
+          "a_score": 1.0,
+          "a_port": 2
+        },
+        {
+          "env": 2,
+          "finished": true,
+          "frames": 5971,
+          "p1_stocks": 0,
+          "p2_stocks": 1,
+          "p1_pct": 9.729999542236328,
+          "p2_pct": 9.0,
+          "a_score": 1.0,
+          "a_port": 2
+        },
+        {
+          "env": 0,
+          "finished": true,
+          "frames": 4333,
+          "p1_stocks": 2,
+          "p2_stocks": 0,
+          "p1_pct": 20.0,
+          "p2_pct": 15.680000305175781,
+          "a_score": 0.0,
+          "a_port": 2
+        },
+        {
+          "env": 1,
+          "finished": true,
+          "frames": 3167,
+          "p1_stocks": 4,
+          "p2_stocks": 0,
+          "p1_pct": 26.099998474121094,
+          "p2_pct": 0.0,
+          "a_score": 0.0,
+          "a_port": 2
+        },
+        {
+          "env": 3,
+          "finished": true,
+          "frames": 3381,
+          "p1_stocks": 2,
+          "p2_stocks": 0,
+          "p1_pct": 0.0,
+          "p2_pct": 5.0,
+          "a_score": 0.0,
+          "a_port": 2
+        },
+        {
+          "env": 2,
+          "finished": true,
+          "frames": 3712,
+          "p1_stocks": 0,
+          "p2_stocks": 1,
+          "p1_pct": 0.0,
+          "p2_pct": 0.0,
+          "a_score": 1.0,
+          "a_port": 2
+        },
+        {
+          "env": 0,
+          "finished": true,
+          "frames": 3479,
+          "p1_stocks": 2,
+          "p2_stocks": 0,
+          "p1_pct": 0.0,
+          "p2_pct": 9.0,
+          "a_score": 0.0,
+          "a_port": 2
+        },
+        {
+          "env": 0,
+          "finished": false,
+          "frames": 646,
+          "p1_stocks": 4,
+          "p2_stocks": 4,
+          "p1_pct": 0.0,
+          "p2_pct": 0.0,
+          "a_score": 0.5,
+          "a_port": 2
+        },
+        {
+          "env": 1,
+          "finished": false,
+          "frames": 3760,
+          "p1_stocks": 3,
+          "p2_stocks": 0,
+          "p1_pct": 20.0,
+          "p2_pct": 23.18000030517578,
+          "a_score": 0.0,
+          "a_port": 2
+        },
+        {
+          "env": 2,
+          "finished": false,
+          "frames": 1117,
+          "p1_stocks": 3,
+          "p2_stocks": 3,
+          "p1_pct": 0.0,
+          "p2_pct": 14.0,
+          "a_score": 0.0,
+          "a_port": 2
+        },
+        {
+          "env": 3,
+          "finished": false,
+          "frames": 2946,
+          "p1_stocks": 2,
+          "p2_stocks": 1,
+          "p1_pct": 10.279999732971191,
+          "p2_pct": 0.0,
+          "a_score": 0.0,
+          "a_port": 2
+        }
+      ],
+      "losses": 16,
+      "draws": 2
+    }
+  ],
+  "created": "2026-11-05T16:55:04.387267Z",
+  "standings": [
+    {
+      "line": "controlled training comparison",
+      "name": "mamba2_full_n16_s905_equal_time",
+      "character": "fox",
+      "games": 25,
+      "elo": 1565,
+      "win_rate": 0.68
+    },
+    {
+      "line": "controlled training comparison",
+      "name": "mamba_n16_s905_equal_time",
+      "character": "fox",
+      "games": 25,
+      "elo": 1435,
+      "win_rate": 0.32
+    }
+  ],
+  "win_matrix": {
+    "mamba2_full_n16_s905_equal_time": {
+      "mamba2_full_n16_s905_equal_time": null,
+      "mamba_n16_s905_equal_time": 0.68
+    },
+    "mamba_n16_s905_equal_time": {
+      "mamba2_full_n16_s905_equal_time": 0.32,
+      "mamba_n16_s905_equal_time": null
+    }
+  },
+  "note": "fighting strength in the parity sim (FD, batched path, T=1.0); not imitation fidelity — see the agreement eval"
+}

@@ -1,0 +1,10 @@
+{
+  "label": "equal_time",
+  "steps": 10755,
+  "training_seconds": 600.006,
+  "first_step_seconds": 25.046,
+  "gpu_process_memory": "1955649, 436 MiB\n703232, 17898 MiB\n",
+  "validation_loss": 3.7908770751953127,
+  "train_loss": 7.1161065101623535,
+  "parameters": 5133933
+}

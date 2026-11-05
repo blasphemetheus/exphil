@@ -1,0 +1,14 @@
+[
+  {
+    "line": "controlled training comparison",
+    "name": "mamba2_full_n16_s905_equal_time",
+    "character": "fox",
+    "policy": "eval_runs/mamba_learning_20261105/comparison/mamba2_full_n16_s905/equal_time_policy.bin"
+  },
+  {
+    "line": "frozen opponent",
+    "name": "master_ep3",
+    "character": "fox",
+    "policy": "checkpoints/coh_fox_mamba_master_ep3/model_best_policy.bin"
+  }
+]
