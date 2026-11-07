@@ -67,12 +67,16 @@ defmodule ExPhil.Training.ImitationTest do
       assert trainer.mixed_precision_state != nil
 
       # Master params should be FP32
-      master_params = ExPhil.Training.MixedPrecision.get_master_params(trainer.mixed_precision_state)
+      master_params =
+        ExPhil.Training.MixedPrecision.get_master_params(trainer.mixed_precision_state)
+
       first_tensor = get_first_tensor(master_params)
       assert Nx.type(first_tensor) == {:f, 32}
 
       # Compute params should be BF16
-      compute_params = ExPhil.Training.MixedPrecision.get_compute_params(trainer.mixed_precision_state)
+      compute_params =
+        ExPhil.Training.MixedPrecision.get_compute_params(trainer.mixed_precision_state)
+
       first_compute_tensor = get_first_tensor(compute_params)
       assert Nx.type(first_compute_tensor) == {:bf, 16}
     end
@@ -120,6 +124,53 @@ defmodule ExPhil.Training.ImitationTest do
   end
 
   describe "train_step/3" do
+    for backbone <- [:mamba, :mamba2_full] do
+      @tag :nx_upgrade
+      test "complete f32 optimizer update stays finite for #{backbone}" do
+        trainer =
+          Imitation.new(
+            embed_size: 32,
+            temporal: true,
+            backbone: unquote(backbone),
+            head: :autoregressive,
+            hidden_size: 16,
+            hidden_sizes: [16],
+            num_layers: 1,
+            state_size: 4,
+            head_dim: 4,
+            window_size: 5,
+            batch_size: 2,
+            precision: :f32,
+            dropout: 0.0,
+            event_context: false,
+            stick_release: false,
+            warmup_steps: 0,
+            lr_schedule: :constant,
+            learning_rate: 0.001,
+            seed: 905
+          )
+
+        batch = %{mock_batch(2, 32) | states: Nx.broadcast(0.5, {2, 5, 32})}
+        {updated, metrics} = Imitation.train_step(trainer, batch, nil)
+        assert updated.step == 1
+        loss = Nx.to_number(metrics.loss)
+        assert is_number(loss) and loss > 0
+
+        before = Nx.Defn.Composite.flatten_list([trainer.policy_params])
+        after_update = Nx.Defn.Composite.flatten_list([updated.policy_params])
+
+        assert Enum.any?(Enum.zip(before, after_update), fn {a, b} ->
+                 Nx.to_number(Nx.any(Nx.not_equal(a, b))) == 1
+               end)
+
+        for tensor <-
+              Nx.Defn.Composite.flatten_list([updated.policy_params, updated.optimizer_state]) do
+          invalid = Nx.logical_or(Nx.is_nan(tensor), Nx.is_infinity(tensor))
+          assert Nx.to_number(Nx.any(invalid)) == 0
+        end
+      end
+    end
+
     @tag :slow
     test "performs single training step" do
       trainer = Imitation.new(embed_size: 64, hidden_sizes: [32])
@@ -164,7 +215,9 @@ defmodule ExPhil.Training.ImitationTest do
       assert new_trainer.mixed_precision_state != nil
 
       # Master weights should still be FP32
-      master_params = ExPhil.Training.MixedPrecision.get_master_params(new_trainer.mixed_precision_state)
+      master_params =
+        ExPhil.Training.MixedPrecision.get_master_params(new_trainer.mixed_precision_state)
+
       first_tensor = get_first_tensor(master_params)
       assert Nx.type(first_tensor) == {:f, 32}
     end

@@ -1,0 +1,40 @@
+{
+  "result": {
+    "total": 9,
+    "failures": 0,
+    "skipped": 0,
+    "excluded": 0
+  },
+  "client": "host",
+  "beams": {
+    "EXLA": {
+      "path": "/home/blewf/git/edifice-nx-current/_build/test/lib/exla/ebin/Elixir.EXLA.beam",
+      "sha256": "9183f7a10d33d477627ca20b39e54252fcd54a2c29934220918311e8aa89fa44"
+    },
+    "EXLA.Defn": {
+      "path": "/home/blewf/git/edifice-nx-current/_build/test/lib/exla/ebin/Elixir.EXLA.Defn.beam",
+      "sha256": "c5486acdeee824cb1823e7aa3e5e8266e7d9bc3191a12a4b34959871c06c37d0"
+    },
+    "Edifice.SSM.Mamba2": {
+      "path": "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.SSM.Mamba2.beam",
+      "sha256": "5475004c4dddb412fe258afebc8cc94752cad532571482dfae57dffe47619f6b"
+    },
+    "ExPhil.Training.Imitation": {
+      "path": "/home/blewf/git/exphil/_build/dev/lib/exphil/ebin/Elixir.ExPhil.Training.Imitation.beam",
+      "sha256": "6ca892744622d0f47a30626a4d719d38404ed2254223dd91f1c1ed4d60becfcd"
+    },
+    "ExPhil.Training.Imitation.TrainLoop": {
+      "path": "/home/blewf/git/exphil/_build/dev/lib/exphil/ebin/Elixir.ExPhil.Training.Imitation.TrainLoop.beam",
+      "sha256": "eb33d0f331ea48accaafb2797171f523358922a30627392fc6a7c7f2aa62e488"
+    },
+    "Nx": {
+      "path": "/home/blewf/git/exphil/_build/dev/lib/nx/ebin/Elixir.Nx.beam",
+      "sha256": "cee6145e94c5050ee07834b50483286c3ec1b1647cb412318087d2966fd67717"
+    },
+    "Nx.Random": {
+      "path": "/home/blewf/git/edifice-nx-current/_build/test/lib/nx/ebin/Elixir.Nx.Random.beam",
+      "sha256": "a9d69f0e54ac0db29ccd23bda45091c002588ed335290e9aaaae0247b866f44a"
+    }
+  },
+  "candidate_build": "/home/blewf/git/edifice-nx-current/_build/test"
+}

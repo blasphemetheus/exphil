@@ -1,0 +1,1239 @@
+{
+  "source_hashes": {
+    "../edifice/lib/edifice/stateful.ex": "a4f7b197ca0256eab5519e0a1578d7a81aab891416e377f521dbbe1951c80bdc",
+    "../edifice/lib/edifice/stateful/replay.ex": "8a87ac117d50b4b7eb61c80f57e3ed94c99f7c1b6a481898afb9d91d1f0e60ca",
+    "../edifice/lib/edifice/utils/sampling_random.ex": "429bd9734746dd1a13ddd9465829d0bf481f6ae23b1219407f7a5859098ad00a",
+    "/home/blewf/Slippi/2026-10-Mainline/Game_20261022T170737.slp": "98a1d4a3fe94f7f2147c60c4d99c289d1de79368ee9868aa2e9c5cbda54cd28e",
+    "/home/blewf/git/exphil-nx-current/scripts/validate_nx_sampling.exs": "e9630f1808d6df983f54b33f0b1c96db11535a7d3b0efb19273278d6c5b8ea4d",
+    "checkpoints/coh_fullscale_mamba_v1/model_best_policy.bin": "3eeb7556fe9c5d1f3fc7c3c29f993e50c9e257620615afcd702217af1d268da6",
+    "checkpoints/coh_prev_q_ck4/model_best_policy.bin": "c6f6de79098b4d28a0133300163ed12c62de7cb2ae346703d911f7c04c99160d",
+    "checkpoints/fox_v3_20260917_050901_resume3/model_policy.bin": "7a7cce48ad31583d171ed9d6fb32026e8be38ab1a080d0d266c1f203a0ca6382",
+    "checkpoints/mewtwo_combo_newera_mamba2_screen_best_policy.bin": "3145eb447d2d214edd2003798835dd93cfbcc93b96d51071e9f3932a78a7c029",
+    "lib/exphil/agents/agent.ex": "929d68709f98d0181a59f82882d5f39a783cb66f7b770cdc591d1b783b60137f",
+    "lib/exphil/networks/policy/sampling.ex": "9153a58d3e5902db8328b8fda7cfca5355616671e401322dd3d640ebfe299a60",
+    "replays/greg/mewtwo/Game_20240222T222930.slp": "189724f6e3a95462eedb159321da78ea9e75b7705f4dcf83754b4ea8aababf8b",
+    "scripts/run_recurrent_validation.exs": "b71033d0166b1c29e928127d972c2a397525982dde5669e09bedce7ddf66cf91"
+  },
+  "candidate_beam_hashes": {
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Generative.MAR.beam": "2599688080aca18a7dea90138cdc204c67db47bc5d8da4d39ac059c7da9eeda3",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/nx/ebin/Elixir.Nx.Type.beam": "5ff5ded9ae22172c2438215644b71aceee11ded8f7f36da688bb22c01cbd2ce7",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Recurrent.SLSTM.beam": "84e4f198045a69bee04e7e8389dad61ac76afd5e3ac201a6b1943088ebec2525",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Attention.Mega.beam": "8a96ce5173ab5f417efae84e5f7ded5bdac6eff554be6138c12fa4bb4f6a5657",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Attention.Conformer.beam": "7ef88d8cb14a6d20eb0d17f0bbc68087007a7ca776bfbed320da21f45b2f757c",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.CUDA.Library.beam": "7297271159184291f6c7dbc15d33ff790b3d6031980517edb5ed380c31bc74be",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Attention.MLA.beam": "ba83bd516ad3d0fb27b0a5f7f0dc381d3f05a2a71081f9d814131ef835195964",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/nx/ebin/Elixir.Nx.LazyContainer.Nx.Tensor.beam": "b121cd9af044f343a49f5204ab31068ebc4cbc4132bf364304d79e6b28558264",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.SSM.GatedSSM.beam": "55ae0da6999418db61aa24ca0054e641f76dad8469f1198354c50a609bd9257d",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Vision.DeiT.beam": "ea6bc0b54430f3ccc2cd9bb62ba14e707931f5bb97bac7adcc642fc7c4b9337e",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Attention.RetNetV2.beam": "2a1a7b214f6095f946593c52d28f78c2e55e87d63ef0e1f52678728c2a59efa0",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/nx/ebin/Elixir.Nx.Serving.Default.beam": "afcad29c3331fdfd627c087b187958cd3ac23432916612c0e1185239207998b1",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Convolutional.TCN.beam": "55bbff7742e9cd52a54d02b8b88f8318b07850b8f4a75c719e38690b1326b09c",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Attention.InfiniAttention.beam": "98ca0d4077c21ee54adf7078ef85057590cd6c2da29fdd414d5f5d08fd3b6d4c",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Attention.InfLLMV2.beam": "b5f75511101e92e6c3e0649c28a2490362e063773222f35d5beed8791dcb896f",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Tokenizers.beam": "0f0a2c2338502521afb8c1c4f73719ed5796720f93f14c629b8d3ed399d4ad6b",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Utils.FusedOps.beam": "f8964b3ed3cb2fe955b5df1735fedf36933672fefaed2d78eda59f101be3a14e",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Graph.GraphTransformer.beam": "0fd4a5b4e8559ee1ee859c99103086c8838542d087f132636455e8fcf7f2f32a",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Pretrained.KeyMaps.ResNet.beam": "0108fef041276bfa5bbe3b8ea6920451e05572fbd4467e6496a88f16d0e79815",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Attention.RLA.beam": "50d70a966027be1c523045bb79d7a9ec852b08d2800d31506e84ceea5b5f44be",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/nx/ebin/Elixir.Nx.LazyContainer.Complex.beam": "9a39ea727c48fe49a92515cc53ebddea394b8ae90d9f6515826e447e2c041080",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Serving.Batch.beam": "3fa8817d77eece68de4f16e803bbf43d9fea525420ea4a046a8bd6e282299624",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Meta.DistillationHead.beam": "daaa4591e4217cc49d53c5d950f7a1424e2313ac4eab4f2b9f5b5064cf86fb31",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Blocks.SinusoidalPE2D.beam": "d49ea2291d37f1e957247be564e95df402806615233c30e8aacec6b1e0a0f7a0",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Memory.MemoryLayer.beam": "78760f92b7039d5bd657cfbd97126240cb8be3b423400c75047f887fa8e75ed0",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Feedforward.KAN.beam": "116d24f78ff9d6618d78289418beb9fa3808c7baa5ea2b48c351f97a2ac47e6e",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Pretrained.KeyMaps.ViT.beam": "6bb285fc554a12017e1cb82ae473fb9ea2395be5b7bf1cc54d2fc71ef5082c0d",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/exla/ebin/Elixir.EXLA.Defn.Outfeed.beam": "f2980a6fd0bc06372ffe2195905011d96eaab6cc0df30fd88967228c6cbd695f",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/exla/ebin/Elixir.EXLA.Defn.beam": "c5486acdeee824cb1823e7aa3e5e8266e7d9bc3191a12a4b34959871c06c37d0",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Generative.ShowO.beam": "ddfd0dd9fb712a65b73ef20e078d5bda0c3b4461c191c781b82b821d36e6cd02",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Training.Adaptive.beam": "9287e34c41244930600fe44d873ef7f550969868c7d5df2a4b29d9a3a134acef",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Convolutional.EfficientNet.beam": "61e5d75c98fb09100c6720d54bd55854e5ecd87c78b1ab5037a4b91edc8d8cba",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Recurrent.beam": "9d26ef7d9aab8133f3b3d1edb5b672212301b83ec6a223344d94bf02685664bf",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Utils.SpectralRadius.beam": "1e9e023332cfa4db36335447a8ccde41274d1993cd36184c6c9febd973e9fd30",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Vision.UNet.beam": "83527b377790f50cd4a47b35cf0798a5974f60934d24b1d5ee94617d974d104a",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Display.beam": "9ac645e7ff416f4eeb0546d90b7eea71a723cd4f0b93e650e4cb13956dd3c83b",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Meta.ReMoE.beam": "ec5ddd0f1f280bc59276f2fd932afd924a253b411928c4edf020a6ad32ad2005",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Meta.DoRA.beam": "841e74b054cdf1a7fda868ecb14ea0cc569bd3e0efe10c4177e1f620a41fac76",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Memory.MemoryNetwork.beam": "f3e057b208fba9709855272192ae1f98e8cd09e83ced2a14b13921663993ecc7",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Vision.MetaFormer.beam": "1c61f602d7f5332bb56b0bc8f8fba6bf4cd6b541678cff2d5eb6033313d34dac",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Attention.FNet.beam": "853053799e00cd3bd74111e30ebf388aeb459682898d5e6085fddac3e5253ae1",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Interpretability.MatryoshkaSAE.beam": "b7e446c8e5a96d00badb1ea67cc6d238b33e5c7f207ed285545fe2efdf02faac",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.SSM.MambaHillisSteele.beam": "ab6aa01993fe8b748c9923d076f57939dfa51bb289cda500e6c1c2c957ee0d5c",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Display.Heatmap.beam": "5c58c7fc774bbd41ac887e5239f894018919ab48c4dc7ced82e2602428a44cd6",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/nx/ebin/Elixir.Nx.LazyContainer.beam": "82c1b0bbb5868a48ec3850c821aee808f0e2fcac33374239b443a059b0f91e2d",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Interpretability.JumpReluSAE.beam": "5fde4507f47b9a55f6e938027c199e8d5a32fac44df1035fc5081edbdd45bac1",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/nx/ebin/Elixir.Nx.Block.Phase.beam": "63fbaf1fb9c55ed75b8ecd3da8ae203ef9cd3017d6490f8f8f19e77db107c0f1",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Spec.beam": "a4eed806d0c8fd308782cc9d0983a1d6cbed15a8d4cecfaca7b4fd4c7575291b",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Interpretability.SSMAnalysis.beam": "7812dd319870897c97c332d7c4adf66baf1e198a16bd1dd6aa6e899d2f96387b",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/exla/ebin/Elixir.EXLA.Defn.Lock.beam": "7f58d0e23ef0f7672b33e8c38e72cc8bab6fc82d3bf01d0a0419ab359221ce63",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Attention.SparseAttention.beam": "28ca5a3bd98a948ad621a9acbe9cf878afea0e4df170a6be70b8502a697665dc",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Attention.Megalodon.beam": "93c94b10bfc0fb0e0ba4288554c609111ceeb9777e4cceff887051819991d744",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.SSM.GSS.beam": "cad2adc1c2fe9a85203773a09509b1531ee8944fe79fd991b4c5ffae814010ef",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Contrastive.MAE.beam": "b42aa5e66b03096a6f429033a0cd6d548d0d5d46986dbefacc81955bc7709d43",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/nx/ebin/Elixir.Nx.Shape.beam": "d51effe7cd3d3aca40c259d50cd818e916ace1e53c505a150adcd647fd9d5e2d",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Meta.TestTimeCompute.beam": "a7404e300b2789bebf5b6b4a0ea8f04420cf9bbeba2a1269d96ba52c912265c4",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Blocks.FFN.beam": "ebd614053f62297e67d429e63685870b64557a7ec1847ebc1f006a65608768f6",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Recurrent.TransformerLike.beam": "c55533c71764296ad8beae1994cc1eeba0367faa10e349f8d8010b872dd60412",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Generative.LatentDiffusion.beam": "4a6d49f384deb908c9df9226ea8845938871b5d868cccbc91b98f03230fe001a",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Serving.GenerateFused.beam": "c7f7afd7f571525c4bf88fb135ea0cc87217e177e9c7adf20b1708368465fa2b",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Meta.Hypernetwork.beam": "e9b0c44cc2af0cb628fd5e92001ddcf3f2a24d25a8c0af1c3a8919930d361698",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Meta.MessagePassingAgents.beam": "6c8a64293dcf8f5a87773cbbab94300c102cbcf1a813877327c75581d98ee118",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Vision.MambaVision.beam": "528d33ad37d5ed3d8d88b99f569877904b6b3adf3d1315ecc49c54eac8408b21",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Interpretability.Crosscoder.beam": "80b7bc76bff4c3cfb82df6e9eac8098e8a6c605557941514ce5c70046e6613f0",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Attention.RetNet.beam": "db8a0ba2c301f9be7b1769376c4cf5e3b67bebccb96abbab8e7bbc66c8a54107",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Generative.TRELLIS.beam": "b0cd329e7a6969d4e3657905ec9f781a0ae3ad3237835cdf12208e78a6ce123e",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Attention.FoX.beam": "19e2a1520b7cbc5925f4e1503ec427a4e279ed3068a0d980bdabb2708fd70ab7",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Generative.CaDDi.beam": "dd87d48ae657af0575d189e837fbb99f56fbe6f0688092dc04281ce5319bd93a",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Attention.LogLinear.beam": "aa9f571ca176240235dbc1a1c008cb897132b9e4a79267d2972fee871f760282",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/nx/ebin/Elixir.Nx.Container.Nx.Tensor.beam": "bf6ad2d8e59b402698bd9de3f90fbe50cfa3a47921a023c2acb13ffcc2ec06ce",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/nx/ebin/Elixir.Nx.Defn.Evaluator.beam": "58bb5359c916c5cea2d5a575342994744a98413518e09d889bc0136ef6730c0c",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Probabilistic.EvidentialNN.beam": "33e0e259e5021c1bae7db662243e5d16cdead4bc204ca19ad1fe70df797466d3",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/nx/ebin/Elixir.Nx.LinAlg.beam": "3cd307c16e65c9e8fe9f894e8cdc7aaba9c9cc172dcc1d61eb57aa1baa7e6873",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Recurrent.MIRAS.beam": "d5b23f45e232732fbbac070182cc6bb0c3aa81b2c3ac47e4f7a701ef4e0fa9d4",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/exla/ebin/Elixir.EXLA.Typespec.beam": "549cd9ba560122c0968083b8e8125987f46f966874bf24c9c2a6213464f1c8a5",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/nx/ebin/Elixir.Nx.LazyContainer.Atom.beam": "1c5bb031ecf17f2651aff2c26ebec8ab515f2a9af575589c30045c6b3e4c20d4",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Generative.DiTv2.beam": "2928884746afe41bd24a5802c2815b962688e536c7f1d48f9b5ada92f6899560",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/nx/ebin/Elixir.Inspect.Nx.Tensor.beam": "acc09a17b3e7db5bbcbee4cf091dcc22e65b2b60bac3a39c582ce469647ca93d",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Graph.KAGNN.beam": "a6f846999ec3983ae6a264e5733c3791bdf7e7c8640c3455d3fd9654397a8d46",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/nx/ebin/Elixir.Nx.Application.beam": "08043a1bc3338a7bc8abaddee0be1bf46379155007f6074b530007f587cc1f5e",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Feedforward.KAT.beam": "c5d96e5527abed7f3e27adf2c2a6145b35c40ae8ae968df3737f3205da50912f",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/nx/ebin/Elixir.Nx.Ryu.beam": "336b7a9390d5b15e0936f33737eb89db44a55f66d4083bec7595b0e56914ac03",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Meta.SwitchMoE.beam": "989a12b3fa08c2d4f9af9e044c096c05cae2a29932d27e5a9ebe460ff5054f05",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Meta.AgentSwarm.beam": "abd7c4a2853396d86e4d33936268e8135ee10757e96b69d316505158f7c33a76",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/nx/ebin/Elixir.Nx.BinaryBackend.Matrix.beam": "51ac2c0718039b32f47112817ce8beb81a09bf1d55be3ac066b1b5b5ef0b9172",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/exla/ebin/Elixir.EXLA.MLIR.Module.beam": "3fe9d3ecd2f3f4c57df91fbb46c5287d84556feee64c32463986f15fca520def",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Meta.Capsule.beam": "fb03597c6ba6fef79a3d584dd764caf88151032902c2594ecc7f157aa998df0e",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Blocks.PatchEmbed.beam": "a2dde164d6f08fdd82d05c1bc0f4dabc716f03af053b32eaaa892b5ca3e529cc",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.RL.GAE.beam": "00d9171b57a881615c4dbd73494f877b86cf651e4b1d4d05878714acf58cc0ec",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Quantization.FP8.beam": "5a7750f740d857f302d14c5491e31755c008b3d46a60640ec1708073c5aae2a5",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Generative.VAR.beam": "c2cd02d635e97cb99949aace290978124cf056d29c39e3e0facf316c2ee0d9b2",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Pretrained.KeyMaps.ConvNeXt.beam": "dd29a9cc28e825c5c69e70d33a24214ff271d117b484edada0e8e8cf38b24bd8",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Contrastive.SimCLR.beam": "29e3fd60d30ec79d96a78945a33bb3332f9fba621414f46932df3e1fc4d9bf69",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Attention.Griffin.beam": "86517ec099c952dd5dca36e1ca589343455a1805e857ce15e9512ef8ca3485b5",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Scientific.DeepONet.beam": "5ee8ad81b440c6f837d16fbf696fc33d0d8edfdc856d8b4b3b85d227373af289",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/nx/ebin/Elixir.Nx.Mesh.beam": "3523d6057b978f8f7d354cd2ad1e1bba4ff6280a5df7c573fb07cc9c9ab95794",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.SSM.H3.beam": "ecab31eb9e359fbe345e33036d5259f8ede795d7f71cd147c3be30bb69954e62",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Attention.MTA.beam": "c4d43879e7d0c14d6d07928fc963991bdef6d7ba97a0db9553c12c49a42b2c01",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.RL.DecisionTransformer.beam": "0a04bc37e9b7ba03a117dd5255d890e66e506101cd63cf2d78d4cc022f7a4540",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Vision.ViT.beam": "aa3b63a59431949f9261313221bd6eaa0f7788e0b0fbac66475a89b874409193",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Attention.Performer.beam": "fe23c75296fa09ffe7e0f3b5a20d7f87c8f7fc30bc0a402d13b99e4ecb6a1d2c",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Vision.DINOv3.beam": "9f86ebbfe5559c0a6dcdbd64334ee58fd7afd9a49dbfd98053d8b7996dc7b7a7",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/exla/ebin/Elixir.EXLA.Defn.Disk.beam": "f4bb3a45e82082a5f1eb11cffdd5f1298bc9f620f8253af946f405b3d131187b",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Interpretability.GatedSAE.beam": "06bc9d80d8f0d6d15e0037102d4cdc54d93db5c0f67ec1276b4a983825af384c",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Vision.DINOv2.beam": "dded10ee10390f412b08e9433d68bde9cbfb0aadb2199afbdedfed82dc38aab9",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Vision.VisionKAN.beam": "b4138d0fb0c4010990053d92cd69fb826e32b27e4706dae61cda36c21a5de72a",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Pretrained.KeyMap.beam": "9eddf43efa9818a5846b4c0a3604012f9c2b6ec9e7cd52cc8989578bc1f45f76",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/nx/ebin/Elixir.Nx.LazyContainer.Nx.Batch.beam": "f7432299e2a94536863041935bbb67819d71e634b38855f89be0a4340ccbd5e5",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Contrastive.JEPA.beam": "8b2b040deb9cdd979e622a0523620f36cd89c053b49c6c77c91b2cb137cdd3a3",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Block.beam": "e908ff0693f53d9f17473949d7c75e7763d537a0e70a4a1dec64defd5bb1b204",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Vision.ConvNeXt.beam": "ed03d0ac9fe81f30bde4bd762e8184d68b55a582f0581970e3dd7ccf1b95ff8e",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/nx/ebin/Elixir.Nx.Constants.beam": "b132223f8049e8164ea5fd7a5778241573bc1b4bfbca0c58ff678a1b0698a33f",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Interpretability.LinearProbe.beam": "b88c2f0d70dcb52d45445a3b2798d0db014c9f97169fffa19cbd80cd4e276e92",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Serving.Generate.beam": "66ac5f9e40b9247fc7e6aa514cfdaf4f1c7aa858873ee0b4043990929335d1ae",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Graph.GCN.beam": "0b6420995b1124225d1fff9eb3d22ba1384e41eb8813d207f210fcb7becc9fa6",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/nx/ebin/Elixir.Nx.Block.CumulativeMin.beam": "17b6f9ae2ab270542e7841257e996ff9bcacaa3c456db0097aaa5fee1f41459e",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Contrastive.VJEPA2.beam": "0f484aa8cfc7181ef9ba2971e6a19d86a8df7587f526d792aa919bb2f27a6fd1",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Meta.HybridBuilder.beam": "5f14ccd65f661991bb649f4effc36a7fe991b03da6b95eea3b686793ee4f5ac2",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Graph.MessagePassing.beam": "3877cc13a5495a81df18f1ad6b63b753ef1afd3a4e6ae5277b2a45a0f355cf28",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Meta.KTO.beam": "ea9ee254cc4402fabf0ae91319b7b00c28376bc8242c3a3cbdf3f8963b79cec1",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/exla/ebin/Elixir.EXLA.Lib.beam": "1ff4a8387f43d7d3869fe2015442f76cdbf81d004d32c912fefe005e38ca451c",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Interpretability.SAETrainer.beam": "3104a8816ce7bb06af9969ae850e5029cc0e0de254c124a160465bf98bc1c38c",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Recurrent.MinGRU.beam": "422c418dadffdff566f8fc76c7d9443deda96f7df0698459f0dfa7dd0cc442ee",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Blocks.CrossAttention.beam": "18cf7c23ced01646b79f5725240b83183bc4c95d9f246bc8462313043dec6a5c",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Recurrent.GatedDeltaNet.beam": "af970772abc56039926b5207ddcc63221c53997a8ba4d0432f0f501379384e33",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Generative.STARFlow.beam": "39a1a2922b4d7eb0c4cf2e87521e7cb612fab01a0f7b6d376e3d3d277efa6465",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Interpretability.Diffing.beam": "95a7c68440f5acd0b79b28a380c05e60eba4f019e31383a1273c2a6d71acb2a1",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Meta.MoE.beam": "9b93c5592ed63f1a9f3bde4febd9ab636800fc0c04c4c718790968643461e513",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Mix.Tasks.Edifice.Cuda.Build.beam": "f39988576c44ae805495823fbe34dd88db56204fd63898a84be73db34072e6f1",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Generative.Transfusion.beam": "34f634c613571a7f79c6adfedda175f4f3dd004b476bc58fdefc8e30bc697b47",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Recurrent.TTT.beam": "f8962a6507c40b2bc3c349a981321b9e8abe80c6b1fdb5e231d8592407aea900",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Feedforward.MLP.beam": "5651e117c539999f4a05ad5dbb5f340ccf5f630984de8409eb8438c246b58734",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Generative.DDIM.beam": "76f53cf5c144a7fd96182abc5fc18fa05a285b17f5b92a11e20261e0ef5668aa",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Transformer.DecoderOnly.Cache.beam": "29e23c2b1368077fee7202f37024ee59768336d886b8d183bea8ab9ed8fcf71e",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Probabilistic.Bayesian.beam": "4549cd8932b5b7a4f48f2223d7965bea1e7c18c6bf074a2f102800c191fde56f",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Recurrent.XLSTM.beam": "a61d74879a62ade81664fea186dcc080d250f07c4be55ee14b7ea6413c548a5d",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Interpretability.SparseAutoencoder.beam": "d5bed415b52fc6461e7b738d6add3b220e67979c72b2f73e89c9e7d85d9ded8c",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Contrastive.BYOL.beam": "29c8daf003e7848195155a2278ac065f8fef1a2cc175fef95a7d126184e0a449",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/nx/ebin/Elixir.Nx.Defn.Compiler.beam": "1e6501e181d8065be171f0ef581a20a2f566ab8caab69dc5b4f0f93aef349d57",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.NumericalFixtureHelper.beam": "95e1e86b08668a62417037cff5dd0e4410df79e723d73019b4cf4f23230f39c7",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Attention.RNoPESWA.beam": "af7ccd9d2b96088c092b8ae04e5872442601150207c2d47862fb220468bac314",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Blocks.RoPE.beam": "e6611690a03dbc84f977228a3de84ca7b2e0bd0c54375cdbe4c9a59ae03de3ce",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/nx/ebin/Elixir.Nx.Container.beam": "9e5852897257f0fc575ed56a3b912b41b9f814caa54b2d1d9411ee4c844fd2bb",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/nx/ebin/Elixir.Nx.Batch.beam": "b48a5817912ed5192abef1066932eb1e42f67c09ba018bc1733bb85fa3da1f9a",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Attention.DualChunk.beam": "4196e4e580939405f030e8d42036310595b27bbe873dcaae65c363c85b736360",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Blocks.SwiGLU.beam": "54835b1f6e3a7d4b32269718647366d76b1bd3d606ffb4d806b34d54d7e60d0f",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Attention.SPLA.beam": "fab68142d2e259017839c13e70c069218a38b93d50c1fd45da2ff78d464d3a75",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Detection.DETR.beam": "6b23207c6df53cd58a3d164342dfaf2396c8efdb46433076bb00a9f2b3afd9b3",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Memory.Engram.beam": "cdaa04acd0a2388d91c3bf42066da0b7d9d33a948015e07a6412e7fb4f027ea8",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Transformer.DecoderOnly.beam": "4908f1029018fe629558a224dfedc49539c9535e90057b1c04c4ba7b23148941",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Stateful.Ops.beam": "c391b3837b350a29cee4e813707d7ee4d4c58388ffffd1859ac33a3367e080b5",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Serving.InferenceServer.beam": "97185adf9563a1874c80716c048548da15d864258d7a42894b91ce80987a40a2",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Meta.ManifoldHC.beam": "5a757da7e2213ce87047082aacc609b8b25bedb331a85aad66effd7a778390de",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Recurrent.MinLSTM.beam": "e75274d623a5960390e3eea41b6c6dbc2ce52e61a62f9d8bdc88c3e14518782a",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Memory.NTM.beam": "9d1aa9326111a0f6aabb67651568ba118e9d45f3b67421701f438b85e7129452",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.beam": "eded7ba66e85849336952dcca134ef5c0aaa0fea7dc2523fe666616b4be768f2",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Interpretability.Attribution.beam": "69a16a777314d9958ef321697c54b765237d90fdffacc944848e53f8749e91be",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/exla/ebin/Elixir.EXLA.Defn.Runner.beam": "a24fbe18bfbce335c62a9f02389c853b0fa91ba0ab9d8f963d0d2235b8ccbc9a",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Generative.DeepFlow.beam": "8664e7a3e6014154330d011c8043ef8d561600e042692fa5f43aa452f38bc5a7",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/nx/ebin/Elixir.Nx.LazyContainer.Map.beam": "80c1590757eb0534072431451b137996e5a3147515c962bd952b76947714bd6a",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/nx/ebin/Elixir.Nx.LinAlg.BlockEigh.beam": "f9a10356c06d3883b1ebbdb4560cde136be8a2a487ab1f9c08bb92ad2dcafbeb",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Serving.Sampling.beam": "84059e670c8679cbe5e5502cc5266654d27165e20febfde3bf4b8800e77a3242",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/nx/ebin/Elixir.Nx.LazyContainer.Integer.beam": "e680f40cbede7e43639b8540dcad9b67518a00dce5bd58a179a4ee77ee2216d7",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/nx/ebin/Elixir.Nx.Block.RFFT.beam": "a4691cbbba4a55f679787c260709f8bb8f764e8944e80b412ff566d700884c6f",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Meta.MixtureOfTransformers.beam": "2eac14a68c87ec2a4fc2009ea019d215fee787c8151b1bf1cd6adf28b5987004",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Contrastive.TemporalJEPA.beam": "f4f5f8793946f44a758214a375a577a0d8c8c62f53100b052fa8b1ad45461785",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Attention.YARN.beam": "2dde81d29823b581b3e2ae01f95f3610ccf53ad09fc9e47e7849c2e313a2b9a2",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Generative.VAE.beam": "9a32e870194f182df066951c850058dccdcbdb8e5ae1eb86e0490fcfb4a5f2b2",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Attention.FlashLinearAttention.beam": "d59095fad276e9733a392a3581dffcd22fbb5ba00ecc8a15cec6cd076c2d0af9",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Energy.Hopfield.beam": "81ac5121cbb96af35fa65839a1d0acc4c79a436e3f1ec9783b6a09ab279b68ae",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Stateful.Replay.beam": "fd89c2f1d24ae1c8ed7be6075a0d01ff8cd2ddaab6310def03658378f96f81f1",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Meta.Coconut.beam": "bc457f1b1170747e8f2c3a1349d3aef9c316282351898447805a1356f60425a5",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Meta.SpeculativeDecoding.beam": "b2ce06736b78de32fb3a822832ce9fa60e8644643a8cec1b07f8cac14f70fe9a",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Audio.VALLE.beam": "edbb9dd573d598d8e4352934951e916935fa1bf12c89b7c381d899a7302d3f65",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/nx/ebin/Elixir.Nx.Block.IRFFT.beam": "5fd7bf4ef78b0984318b0277677cc6316bb2e758b24d559365393812cc3615c8",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/nx/ebin/Elixir.Nx.Block.TakeAlongAxis.beam": "52093e6c29ab46ffac3c5c5081ca1a65328e1aad49d4039de827e795972ca53e",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/exla/ebin/Elixir.EXLA.Application.beam": "9ac84230de30bf129dc86bb938fd75bc01ef1d25826050248cb0776d8ed0e95c",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/nx/ebin/Elixir.Nx.Container.Map.beam": "33e3ff4f72584e3978d152d054958a67c06955dab9c636070d5a3be6767cec19",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Meta.MoEv2.beam": "3a96a682d84c9b83703d2175f88bf7c5d329668dd1f5cca4b9976dc5d9930494",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Interpretability.Transcoder.beam": "8832c8569511c7063a598b9a1d84db82d58e54e4830a90e972226cb9b8a012b9",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.MixedPrecision.beam": "184610646b2afb210def688252de08edd3bdcb830528050885c5972fb97d3af9",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Meta.Adapter.beam": "7b552e7eae18a43776b134ad5ad25849bce76dd038e0d92363b823316706371a",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/nx/ebin/Elixir.Nx.BinaryBackend.beam": "891c7a6532bed17550ee0f2cd167494f1d4df410ab6f7b97a2ae5a2631025dfa",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Graph.GPS.beam": "2df3e961b2ddae77014091e4761bff58141339dad2e94a40e5fd94e67b0f3364",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Meta.Eagle3.beam": "1f3e7cfcacae40fa3f24f26e67e1988faeddf5b2ae898184b53f146901ef8647",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/exla/ebin/Elixir.EXLA.beam": "9183f7a10d33d477627ca20b39e54252fcd54a2c29934220918311e8aa89fa44",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Meta.KronLoRA.beam": "79bf0898bdc0f45eef18c37264431135396057438b59dd4c4536b18cf46917cb",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/nx/ebin/Elixir.Nx.Block.LogicalNot.beam": "1ef45039cd0325375c0db62f553713d6c9caebe5430c4d72d7e0714cd268b373",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Neuromorphic.SNN.beam": "e91d485c9ea8233c730a6d8a4089acc35261181ba1a46bb7e7d2e8ed3d279274",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.TestHelpers.beam": "91fb246b96b9cb0dcddfb901c10dbb51965191ec02d094d747ecff72663a45d2",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.SSM.StripedHyena.beam": "0a52ac3107c7cd51bf0cf6f92da3b016382cadc29475c1d61a7172ecd7d01c24",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/nx/ebin/Elixir.Nx.Defn.Expr.beam": "bf3cced73d89dea080afbf91ac4f40a666e822ebf924dccf631bc51805dff247",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Meta.MixtureOfAgents.beam": "7efd18393d3e17e2eb389b1d420f4566a09a008b0d522857c08b5a7c807dcdcf",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/nx/ebin/Elixir.Nx.Block.LinAlg.Cholesky.beam": "0c15b68ba54e5bf6cda8739ca5daafebc9071cb88d8c3a40dc7f89de22f9ff81",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Generative.RectifiedFlow.beam": "698d5a84c9e3f3ab2d3db4b7a06e92297fd19ad0e633d5bc4d3812a978749062",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Generative.VQVAE.beam": "ea2c6e8cd2091ea73afb4895b49fa93c59c09c524ac081b253bb1428f47c71f8",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Meta.GRPO.beam": "f545e255db810c83b521e39e833396f8b5225440bbeb1080b3a21ce2425dd391",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Training.beam": "1c76f31a9e738eacee2eff217bc2472c180e08a54c715fe0b1a9ad694727c9c2",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/nx/ebin/Elixir.Nx.Defn.Graph.beam": "0d233c206831ce48e1b3752c148a88286e5b2dbcc1af9af27bddaede3bbc49eb",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Display.TrainingPlot.beam": "2258fa2b49e306b4e2688ca3a17c94795a69d443e7dc27bec6406cfa89bd66a9",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.EXLA.CustomCall.Edifice.Block.FusedOp.beam": "9fb66e2a918417c904fe4cb3c107ed4427d94dbdb0be84f0e9e8d13b350a7fad",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Generative.LLaDA.beam": "51836aa61f1482ef4cc6e5945a9aff33ab3a4fdf504b477300f531633dc4426f",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Audio.F5TTS.beam": "1ad7b7267346b7ed377d87e7a0797d352e05b9e85fbd6d1b26c941bf6f072a24",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Attention.MultiHead.beam": "3f9d61dd4926c180ba884a707399238f6c497302e3d11487a33350b40a50fb02",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Feedforward.TabNet.beam": "2a266318b2e129450e13dd88d2ec88dbfe696daa493c6e598f774079045cf563",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/nx/ebin/Elixir.Inspect.Nx.Batch.beam": "3be59a3b42f5feda99f9cd393c6d1c1a8ec871d75e0be9627e62235d8ec6a123",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/nx/ebin/Elixir.Nx.Tensor.beam": "0596673993bd0e2a72fabf926d43e48ef7c4d7dd6171a563de5310ec81c29d86",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/nx/ebin/Elixir.Nx.Container.Integer.beam": "0666120097b0b6ae7ef05dd4b4e000e3a5465a998d025a6d804735d651fc28b6",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/nx/ebin/Elixir.Nx.Defn.Kernel.beam": "beca68ff25a8abc3e05a441c263047b00b18b151b92741e2e22029f547bf68be",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/nx/ebin/Elixir.Nx.Container.Complex.beam": "990b09ee6413600fcc27674a35dd402f00bc14b155a780505288e99c8b879234",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Interpretability.BatchTopKSAE.beam": "cc45b3832b1bef38643b4b1b9d3da5c29cfdd6f8cb0b46922bb2e88dbaadc189",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Training.Monitor.beam": "a5daa56557d616139271961a62bbe15e2805da3235fb0d83161229bd1a9df449",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Generative.Diffusion.beam": "e5200db5d93d8690908ae635fa4e0c51f1a84e53a613d0136f0c51fd7fd9a054",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Meta.DPO.beam": "5c3d6cb6dc065aba70548f42398898eab30d4e600683efd8dee2de4a517b2dbb",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/exla/ebin/Elixir.EXLA.CustomCall.Any.beam": "d8a5ef4d9b8a1d4e4723435cb2417e8a161def031e4eb41ba5f913214c16e9a5",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.SSM.Mamba2SSD.beam": "d611880203bb099b2a299264195fa9d5008d67abd9da3fd115020b195887db38",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/nx/ebin/Elixir.Nx.Testing.beam": "8788cadf4f7d9dfff35ea49d520b4d9ef6fcd6c9210e0752b3c91d9d26ca0bab",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Generative.MMDiT.beam": "699623a475537686759a0fcf0fb13cd8ae817055364042f1bda57010c6d1b942",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.SSM.Hymba.beam": "6d88b9c6901e8312d3a94cb12794116cefa6141faf8f3707c01261101d9c1806",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Attention.Based.beam": "780e068590d3e077cb8fc86ddfb10d1f071e9d56990d096bda12f8a5abc02db3",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Blocks.SSMax.beam": "de5e8453af6760f4a990f18cd329e3b9205705058879b635db5431fed3335acf",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.SSM.Mamba2.beam": "5475004c4dddb412fe258afebc8cc94752cad532571482dfae57dffe47619f6b",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/nx/ebin/Elixir.Nx.Floating.beam": "d5e1dc99e9496dd000adbbfdb5042000ea913c87e5389ea9109edf61408c749d",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Mix.Tasks.Edifice.ExportGguf.beam": "a5f72c9fc76487c5c02ca11d5f47424d3362d790932bd4524bf1c99fb32e1b6f",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Generative.DiT.beam": "8eaa4c76ab847ad1fa77da7d5de6e494887db2a03e43755ec67e7455d1e9e811",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Attention.RingAttention.beam": "a1a95039d97af21b4ae16ac5d81cf4c619c29613e65e7952c92032212d779325",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/nx/ebin/Elixir.Nx.Shared.beam": "a698e937a918a529ac9eee30433706b3006964d095765d0a285b82d151e742b3",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Pretrained.beam": "0204f2b69d318c1361d06f2ddf59e5be62761f15fecf62433bba7ebd54ac9664",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/nx/ebin/Elixir.Nx.Block.CumulativeProduct.beam": "a823cdb1868fe45453601ce81a8b0c16c7034f518a6788ab67281cd077be3baa",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/exla/ebin/Elixir.EXLA.MLIR.Function.beam": "357ff5bd3c8f26ef10c2f28bc1d25fcefc5465d77a6aef88e3e75cbdc4dd5ba5",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/exla/ebin/Elixir.EXLA.Defn.LockedCache.beam": "0140ec180c971c2582e4306242b26016ec7ea81d111a79d9215b1b826b51bf53",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Attention.SigmoidAttention.beam": "9ffb3f4807a50622d74beb4ed947b0b9d42548586b8707b810f3ba63b52950ec",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Vision.GaussianSplat.beam": "146040b519af59760b197ff048055011d3dab8d0e909147a8fda3ac84af09521",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/nx/ebin/Elixir.Nx.Block.LinAlg.LU.beam": "dec4863d6d61e6aa922fc0bb0bc836cbd9bc49dfc4d846493ab13cb746fe003a",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Meta.SoftMoE.beam": "c0a0b1ebdbf7e69dd9821f0de876ecc4f52c583fa330f0f1b37ee8bd8cd0954c",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.WorldModel.WorldModel.beam": "b4c9caddd1166de7ea6e1464eac7838e8b9960bed27dc390c45c1f6835396dfa",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.SSM.HybridBuilder.beam": "d46bc5c6871df7cf9e7f6531770d4a2ced87a66f3a3fbf6b4d7173779ca749d5",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.SSM.S5.beam": "9c7b3c2370c835206c10c1251be4af781fc86edcb9fe1056ca8fc87e463263f6",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Generative.ScoreSDE.beam": "56d4d8a68abce89bef55bcc5023dbfddae2345dc3c2380d478e1a1629a58a4cf",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Vision.MLPMixer.beam": "228c01aec117fa98600c768c89b81b65a696e1a9e37e2b296f790a79d49f3860",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Attention.DiffTransformer.beam": "5cf437f5e8bcb1b603ba3b0f6160fec8445ebb4939196502d29c10fb38db6d6e",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Blocks.Softpick.beam": "a90edceacb9deb138fb2da807271a256d45e7183ffdecfae60c6dd6d14c11e82",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.SSM.S4.beam": "95af59f0621b17262a41822db30d1cc22715814d69d93fec62fe6ef939ac20d3",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Vision.NeRF.beam": "04cfd6c5900cdcee1f151738279b3c905298d58cf81dc6a0405f85c0e66df5a3",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Meta.PiSSA.beam": "fcbcac826dce2a46b7f50ac8655713138918b45fc782e44d937203efa47722de",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Robotics.OpenVLA.beam": "f3396362afc9bc2b488fc004a484b0f076a970db66c36c659727ba09a713976c",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Blocks.SDPA.beam": "da86b005f6f91cb5eac058e570cc2efcc5aaa3fba98a98e86fa35e6d20f8975e",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Sets.EntityEncoder.beam": "418425d71eb0b999a06e36032b1e30bd0f041ddbc0b3a931aa483e0cd6cced89",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Blocks.DepthwiseConv.beam": "ef37824e2b179df37570fd282e8ac1bb17b354519b22af55601c4b3d43cf5159",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Utils.ODESolver.beam": "004e2e5b731dfabdc0a43544af322296314315b7c16d28a288d85cfb466e01fa",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Attention.GLAv2.beam": "4fb5ebc781c84f616f00ade21951a2422ec11873f65dff104f2becfe74f5e8d7",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Robotics.ACT.beam": "abb17d724ec59089a6f811d199991f10001866c4fc144adb9e9dd2cc6609bcf1",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Audio.Whisper.beam": "3d8899f4b7893f67a4f2b2927241e3b0fb5dce86b57d16101c8a2ec5b2b79004",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Recurrent.Huginn.beam": "51a321554a78dc472ed491908a6b2cd04ee4d27cfb379559f0e58225e25355d9",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Attention.TMRoPE.beam": "de64ac52a25cc5b752dac4e9a1b312001df17b429624f1b7728097043213d074",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Vision.Backbone.beam": "448ad03a6cb3d99dd0a006ee557700546af0af9f4038236785080efdb84c4824",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Vision.FocalNet.beam": "2941704839ea7464ccf6eb7ef344e90ae6b8a0c1a6f3d8b7fcda6724537e0ff8",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Meta.MixtureOfExpertDepths.beam": "719762a11a415706d9e3b37146d44d0d66444187594cb905867258ff21666b76",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Meta.LoRA.beam": "f16020d44f514c2878d8e631649d5bb560a9e2633372866d50aec51b160bc562",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/nx/ebin/Elixir.Nx.LinAlg.LU.beam": "a0db8e25789bc70ffe3c67ec2fe88fd91962cec040046daf7fb045f8ace62c2b",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/nx/ebin/Elixir.Nx.Block.LinAlg.QR.beam": "9465227d92d3006ec23a4227e5b39e18034c2c1dbd7843bf505c487df33331dd",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Recurrent.XLSTMv2.beam": "c38aa568d87ba9a986486b0de215d572eaaa965e640a6c984205d25ed9e0b432",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.SSM.S4D.beam": "d9dc659aead068dfa22af7a87a6f67d53065066d06f4981b39db0fcac36935fc",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/exla/ebin/Elixir.EXLA.Logger.beam": "115f7dbc677e747a96cd90b2fb8bed73e550f720cc5a6e1b4581d4a5866b3072",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/nx/ebin/Elixir.Nx.LinAlg.QR.beam": "fbb7737261ecfc153b7bf7c50020cc0f3072ce76132f51eab36566f463187ba3",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Block.FusedOp.beam": "0d39d0eec0711cad726ceea3f8b5ef0d6d934583ac24ccd5f1c80677ba999bff",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/exla/ebin/Elixir.EXLA.MLIR.Region.beam": "9f23c51d7be6bfdc227b0784bf6cf3032f1b65c70c996e9ef856448aff109c18",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Detection.RTDETR.beam": "8dc4c6799982a93ea1a039e6a595296f91e2798262c129ebcb576696f1097643",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Attention.TNN.beam": "c645c5d2521fd60439e96ddcbcdd67d33eca8db4d245db445844655bc9d34f9e",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Contrastive.VICReg.beam": "7a975ed259d31f827a6ea75bc1d66c1dc2ca17ad76f9d25f56508b440e5e123b",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Pretrained.Config.beam": "a5df916516182f205b47cd81a32a06a994f61f69b86d85b55f2ab8c5bb544365",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Interpretability.LEACE.beam": "273577e7dafdc935e586f4320b55c55a5a57d38b1e7bd191a89840154225a6db",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.RL.PolicyValue.beam": "2cca5460d5ff68635f6fdfe289566aa1541110c1afd811286c08497fe2ba3283",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.CUDA.AutoTuneProfiler.beam": "ecc587b3b2230f347b7b9bcb034ad7fee3eefda527e5beb2c02fc66dd9a6873d",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Recurrent.DeepResLSTM.beam": "817762a51e6a1f6b8051acae7d2b1d724b708538e364a4ad4c67b4fe4765d490",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Meta.SpeculativeHead.beam": "9ae20b7f855bece4afa5c08b6b7f4287d9106bbd9da84980a27d51fb8566cfc0",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/nx/ebin/Elixir.Nx.Heatmap.beam": "82ec4c25693dc86b7597219161556d50a6d389cc1a1b471c9df639b60d42359a",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.SSM.Hybrid.beam": "17a8f9f9bc820fcd4529e06a8e341ebb972e7cafbdbceff51c20119564ee74c0",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/exla/ebin/Elixir.EXLA.Defn.Buffers.beam": "d0c8a1dbd0ec414266f4a6d732a1ce158c454166b8ea8b761ce5c82667b4023f",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.SSM.Samba.beam": "50f37a3ecaab08e5c865fcb0e91c57fa4c4e5249a16f1427b7b8898c7e74d60c",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Blocks.SinusoidalPE.beam": "abeda9ae9675a167a3922b8465e92b688c561051d84611651a7d4f06ca29ace3",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Generative.FlowMatching.beam": "2ffbfa3c6344a20a37bfe6820370b3d47e7460990565612515d2c21addff92d5",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Blocks.TransformerBlock.beam": "9cd1b5a79772321ca1f7bdcbc8cb46e6e8f42185be4d7da17d3faf2dc39e536e",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Compiler.beam": "ac3a4ef70583ffc006cf09ae4638ab38d64f686417d4562c9847ae0de209c23a",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/nx/ebin/Elixir.Nx.LinAlg.SVD.beam": "b6cb8682ebea33ca4f2825e94b7f55b68c96f7b1114c88d6aefa917b99593a39",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Sets.PointNetPP.beam": "4b5d54f302c39ef7e2ec75d1b4fbff49e7a7c6d33d129809c1bfab088a9dcfac",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Convolutional.Conv.beam": "865337938a7691122e6a7a055bd9a7aceef548e1bca481ea52f661108c696124",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Blocks.BBoxHead.beam": "6eda528f7d4cfb9c85e78c8283de39a0846276da09bfb4bd9f573e8d28136941",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/exla/ebin/Elixir.EXLA.Executable.beam": "9e07103fb79f662a28e91cf67448f707043dd5053fd0042e98144c54b57e9687",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/nx/ebin/Elixir.Nx.TemplateBackend.beam": "1e6431d3a7d164ad0c96376a278bb1a9a67e1072fb67f400ea3ae4ee52c5c732",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Interpretability.DASProbe.beam": "1db8b3a2812f4329672645f061bd63753290bc622c887cf6954d8e4d5a413eaa",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.SSM.MambaCumsum.beam": "860632ded5766459eada87960d3ec6067679e2bf3604e6856d37126532d2734c",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Attention.LinearTransformer.beam": "8bb306f07d471417ab2173ee71a1c4c397d73e7bd5fa5f6c83b683fa3260c5c4",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Stateful.beam": "7b05c3e1911382c5797e4c1120a9a3077e75660ede4e37a865ca37d2b30cb3d5",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Graph.GINv2.beam": "732f624fd7a95a7d7066c9fb6b0d137c0165682edbf23379c98c99f5763c139a",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Blocks.RMSNorm.beam": "0b1ae62a6abccfbe871fe2d35a9ae26f5ca68fa95aa727fb619497547150b221",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Convolutional.MobileNet.beam": "00f315f644a0436d8085c5af3b444579af4785075f8b458964a715c003a8b3ae",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Vision.EfficientViT.beam": "5a6a8c1002a33614c9d4ca4c28591a834b6804fdc3331e721906c70e009248bd",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Generative.GAN.beam": "df48042c8e9b08784f8423233214366dbaebb12631cb8e8ed65721538dd96c42",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/nx/ebin/Elixir.Nx.LinAlg.Cholesky.beam": "fdc896d3a84170baeaf1b8cbb3d4f6f713f43b6e32d89d9c117e26d4f7d95501",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Graph.GAT.beam": "16aab61f9afdd1c06a47d6d5d238bdf96834181e9caefb6984ab31e457b011b4",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Interpretability.CrossLayerTranscoder.beam": "6a33a84439a55c3c701b5c7b094d135fd0816eb676683f05b19be9ae398a19dc",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.SSM.MixtureOfMamba.beam": "be54d11c981b4d1f0271a2d0b9610df0e18687ae236c9d8dfa8f201f23d41b83",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Graph.PNA.beam": "169f3ac1b7b7e527d14c1f77d92e726252bcc863c4a90fbe613bf8c8a9910ccd",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Energy.NeuralODE.beam": "1405c5295a275e40221bb1bbb2f3844925a5872b27ec5a988008bc3f245e279b",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Graph.EGNN.beam": "18adaf185db1b0a1f43f923f79353799c2137cfaf23bfd5a4a58f31f3f9e2d9d",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Blocks.KVCache.beam": "ef435edb630afaf9691c40c3aa27a56f48b435883b9af6eca214ac285dd0069a",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Recurrent.NativeRecurrence.beam": "4150f09a4adce606062e7769e57a83864e3324a599f4f8dd4411b44c5f68e07a",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Attention.GQA.beam": "4cdb4e21d722e2d6d93fd7857b1a4ce19347b1bcfe623c91f71b5bcb91f50d68",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Generative.ConsistencyModel.beam": "2b3cef5cde4ef7bf61dcf6b8e07c3b9b144881672e4559a9b898603dcac0e081",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Vision.PoolFormer.beam": "7ffa6cf2e6f5e37b4af5af8e4e20a9dd3fa2c15c6a101f990fd1225c26509fe7",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Meta.QAT.beam": "d7cfd334d5c79b143ce3157e9bbdc69114824123e6747d2844e679f3c3783685",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Blocks.ALiBi.beam": "215818caa8c6a9e7ee44b143993a43a44ca09f188f3054a4e9bd22b79fb3dd9c",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/nx/ebin/Elixir.Nx.Block.FFT2.beam": "2c7061590757bbfc2a177cf134fe087cbe6036a4e6f0c403fb30e0541eaef5b2",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/nx/ebin/Elixir.Nx.beam": "79b19ba63d5af6ed07eb9c14e49257abaa691c275cb794e8f0361e5362a0ee22",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/nx/ebin/Elixir.Nx.Container.Float.beam": "93f7ae77fba815d2d4b1a957359f6cfe180ba15e182bbb57b9294bd90e376245",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Attention.RWKV.beam": "9225b60c330784863848d41a5912026a3042c588a81550e51e2a015cd4901150",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/nx/ebin/Elixir.Nx.Random.beam": "b3a13321268361951a55f92aa64e84f8c45c739712c62dd967576b88089deb69",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Meta.MixtureOfTokenizers.beam": "79ab0a6732ccec5140e395b7ff94cdd4e2fecb6b086b039f0b1104bfe7fbb3f0",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/nx/ebin/Elixir.Nx.Defn.IncompatibleBackendsError.beam": "37566953c6f86c39de9a9beabe098c78681bc22f05ab21dd3964eea75973c95d",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Meta.StatefulAgent.beam": "3bf5e372c6c2aeed14555a5f43188359a6f3f7832c7a4229c2bd5a3accb72bef",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.RL.Environments.GridWorld.beam": "9363659ba84b9e8a0863653e591e4723a49758e88fb5d2aab2779a01551ca10a",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.SSM.MambaSSD.beam": "a888b727ab38ff9df5b2a20277133af82070cd12251c1358e970e3ec3633791f",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Sets.DeepSets.beam": "8600d69e98a52ebf0287fd8692fb02fdd9bbc3375080b2bc5d0320c3199641d9",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Attention.NSA.beam": "511a7df3a718819a6226df051c4ff8ab3cbe28f162476cdb28b5e27f6f684f2c",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.CUDA.FusedScan.beam": "c169967fe24a6ed015a70167bef52e314334afdbe4f0be377a105a0881fd638b",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Multimodal.Fusion.beam": "983880624eb059956fd71c863bb5b550ff30aee90aad9e57abbd2339f4d00184",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Interpretability.Probe.beam": "b199c17035de67b89a3968dcb58f94c4e552e58c5b92fc810205fb5968b3db80",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/nx/ebin/Elixir.Nx.Block.LinAlg.Eigh.beam": "c61c049d86ccac2a0d6cdfc61d4e0050a97d12575db4e561aae10191a95db0f1",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.SSM.Zamba.beam": "d74a8279b9bd4a2ee716a6aa5b74d0b002c167e18d652347524abdf71b7a5539",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Probabilistic.MCDropout.beam": "cfa0c79e537d5bec5e8afae0bdde8f2dde95120069929adcf20c5380a68d5e18",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Generative.Meissonic.beam": "3b323845a90cb1c252910ea61d632bc625f7f611c62dbe4b6cd3f6a6291bf58e",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Attention.KDA.beam": "99c0ca937171fc330fc4e22ff7827e3d525f9c60c06ea5e00508d8ac7ddfb8c5",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Energy.EBM.beam": "11be1c85d6d057f739e7c9aae7bb241bfbe03e294da49b62f6b354e21fd6cce8",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Serving.Speculative.beam": "8c1a967bd2af7602834d905263838c8b6967bc8e94f565f57cec4a1ded5b5b8e",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.RL.PointerNetwork.beam": "83f86fa268ba93356e817f8a26598c5532587056de4fc90ad1068c23784e7ef7",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Blocks.CausalMask.beam": "064c6848a5eb0806ffaa7b26a402a8cb461637d9717a87a5b478dba8359dae56",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Attention.LightningAttention.beam": "19009b94a300d8ce285a61efcef61eaf0fab299600ffdb6d16d4442407441d52",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.RL.PPOTrainer.beam": "2da2c9e0fe9f9338d465fd9776b4f50c82c2b1b35a37681444209c2ab09f076e",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.SSM.Hyena.beam": "ffb255d3f764e4413933e03ff3802bec98a1d9da61ad8807e864892279644ab3",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Meta.RLHFHead.beam": "5049ed5b20d789ae8a3198222034eb61c6cf2c0c73e051b944e545e127d4d7a4",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/nx/ebin/Elixir.Nx.Block.CumulativeSum.beam": "ee9c12e1d7eee1d549b3e56b461bfb7431ff2d6303b9f66775cb4d880249f025",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Utils.SamplingRandom.beam": "cd0783c40b32bb28f4f6ccd0e4e2f3563c577a1c5984841bc4110f15181e0bb4",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Vision.SwinTransformer.beam": "2603eca74edb1716178264bb73bb86e07237b959c9ceed9434e0aec2365077a4",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/nx/ebin/Elixir.Nx.LazyContainer.Tuple.beam": "096a645347ebe392079f0367d1f5cc02baf42d893f7dbb0f79f04e84b552131a",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Attention.NHA.beam": "5d7b356f14ddbad4e52a949e7f2d27d4f24d55465d54589f3e18c225477c5bc1",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.SSM.SSTransformer.beam": "6044a8e5923ff7fc59104919a0682f2c430918612ffa25dd92dc38ea68f44ad3",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Recurrent.Titans.beam": "67553f3b95e57704b5b2d398c6decb0b792a4b0dc6c41266ab69725995e9f1c2",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Attention.GLA.beam": "2d6d9688f65cfd619f74c99375e38d3e4869bda432974ecc44648d11eb2f8525",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/nx/ebin/Elixir.Nx.Block.CumulativeMax.beam": "cdc54654110b3440d7ca8a670465014376c6bec45da1c38ea47e8b84e5544239",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/exla/ebin/Elixir.EXLA.NIF.beam": "6ab5ac54ea239e0ef09fae48a03f171d592366556db8d2b3a8113f0b06bb7299",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Attention.HGRNv2.beam": "ffa6711a25123e9a55abfeccb6c3c2918674a1526402e03f5c289cb3f1faa7e0",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Inference.Medusa.beam": "d4b9a0f408483705d5c30524b646d62c9c2e2343f73ca8f8c216f36fb237631a",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/exla/ebin/Elixir.EXLA.Defn.CallbackError.beam": "e3c68a270f9a95e28f9275976a6d17bd7618daec58cea11566dfe8f2904e81a5",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Sets.PointNet.beam": "9d043d28b0889a63f677ccf12c152c2767252f855c5740188a198d639cc4c750",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Recipes.beam": "ad3c3a93f47cff0255f66a1e700a51207769907d02a1f2809e64e0476438ffd6",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Audio.SoundStorm.beam": "cb4be013d777779e5e2d1323041debc206d83785b669196d6f3c032789b71f84",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Graph.SchNet.beam": "b33506e51713bd59ae86464f85be310fbc4a7ad8ba3cc49465e6fe374bf72c85",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Transformer.ByteLatentTransformer.beam": "30afb08a18d14ae44017063174c96efb33b47c6f1db6ee0688fbbac8941cff0f",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Transformer.FreeTransformer.beam": "76a800f734b67dfb5926ce66ad7777ca7773ccc69d4da72781d6b31bc9b01388",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/nx/ebin/Elixir.Nx.Pointer.beam": "15b25e3229f747f4ae72c421f95cd4fe6ecf4e9e911d9d6d7cd5c1d9b43d0a64",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/exla/ebin/Elixir.EXLA.MLIR.Value.beam": "e788e19a3fa0b59db08f2d1dd60829f406061e0331aed2dd1fc94f46e42a1014",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Metrics.beam": "bec719163816e7a4379b12ed0f78df05439c6a9414036d4c2a2e8965e2a41e58",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Attention.LASER.beam": "fc63387a73967bfe71a4a500fcf56776f6ee54a9d5ce49c22398d4f83057d934",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Meta.RouterNetwork.beam": "699da50eb87e2799fc6d57aba3b4fbe5e47be08b5f57b706235480953a5487a5",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/nx/ebin/Elixir.Nx.Block.TopK.beam": "2a67e7ec2faf3a356e72e8954d979bce1aaf6754e329abd6177b245a87dab214",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Attention.GSA.beam": "4252902acb7a8f31b084f867d0971fb3d540cffa470081e78eb29ebc8c80c8ac",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/nx/ebin/Elixir.Nx.LazyContainer.List.beam": "1b3abdc2cb539c06b204b06ad9590c6c5b402ab1174c69d48111d2b99fd3ca6b",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/nx/ebin/Elixir.Nx.Block.AllClose.beam": "827180145e98a2fd9d9d45e513b52fc87d0e2bf5c839b0ad11ed95b3ec91b8f4",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.SSM.BiMamba.beam": "feca6a3aaa9c8737e815e218e9da7a40942dee096cc2f4255f58c88419a4dbae",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Checkpoint.beam": "e5124dbaa2f84c3ced4ca7e9d07fb728f5ecde9bbfdec32bcea07e59485ba2eb",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Attention.Hawk.beam": "fcb5fa406430020998006dfa7ad4fec4ca7c9a6263fdc391f71c61521bfdc05b",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Scientific.FNO.beam": "865941d5d1d617628a0ba1a188af573f7b47c8e45aca7f026154d270d00d3baf",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Contrastive.BarlowTwins.beam": "787f03b6c3736253d9a06c1aa20a4a780dbd1536a9210c730f4f7711ad7fb079",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.CUDA.AutoTune.beam": "9ea0279f649ccc8254ce718950c44c6eb667acb591f639e92c83b38ab85d05b9",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Generative.NormalizingFlow.beam": "cb4752f8b6c7f25684b9f178a245ade849b2f9df87bf8e72d7b738a92ac28191",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Vision.Janus.beam": "b429a8c86c0251cd8990b8e565f1979ea9b4a0078c873b4c6918781b62924a46",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Convolutional.ResNet.beam": "f6f0443d5af48ae2fd25c75cfd3735199c822825060a020ff2d2f4d355c6a409",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/nx/ebin/Elixir.Inspect.Nx.Heatmap.beam": "a1893ddf4f9669916c5129cc5a269e364c5fb3840ccb2575f38e3f4439d337e7",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Transformer.NemotronH.beam": "6229f076d29aeeaa230d9193d9a30c7e91d91ef195410c009333568fa79c7790",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Serving.MedusaGenerate.beam": "951ad1e379bd7be7ef43ac18ac44ed61771303b98bb682dd0011525ee7256ad8",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Scientific.TNO.beam": "7b208880eee913e7b250177be2294690cf3adc59c07f1faa1ab71f5faefb6f57",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Interpretability.ConceptBottleneck.beam": "b7c847c3aa36cc0a56b580621d2f206875cc06fea1c06b394556a26fe606c72b",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/nx/ebin/Elixir.Nx.Defn.Graph.Stage.beam": "a9b5d72c480fe9ece2886af767a108cff93fc6ea754a6f34ef51c87120673546",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Recurrent.DeltaNet.beam": "170cfea26dd9cad0564ad7997f9960bd680c22a3aef203aff4f7d1c280128539",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Generative.CogVideoX.beam": "fdb2983dba8032ca4b1d2ec2a169ba9a953426b671f3852a9d3534440c3a3963",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Recurrent.MultiTimescaleRecurrence.beam": "6fa2956da2932e3b6b7351a3c437b2203537006d1b7db9d704a2a4d9a48044df",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/nx/ebin/Elixir.Nx.Defn.beam": "e21fab8d5e1c7389d236df30615e40e92c3df190e83c1c59ef64950b15191648",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/nx/ebin/Elixir.Nx.Block.LinAlg.Determinant.beam": "b99be53f3c36278e3a7f4ed27651312b92866794938da133b94d573459d0babc",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Convolutional.DenseNet.beam": "45a482d7bc31b4d87cb69d6f1d95701e9e581c9e89563186f9652ec08e9f51ea",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Pretrained.KeyMaps.Whisper.beam": "787d20c479280c8a6adbbfd32f257d5ba59091929a818405fbc2cd399bc7736c",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Graph.GIN.beam": "a01621184f037fa113e8ec0ee38c4cf3808d317b64284bd6fdcd471895ed90ca",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.SSM.Longhorn.beam": "dc36ab992c05c2bbfed43096b26cc6c88948db0c002fd38c3981ccb7b51281ff",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Sharding.beam": "af757192e645c43930694e6cd42fbbd28140bd6a325c092015a5ff5860688f72",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Generative.MAGVIT2.beam": "dbb5b60d717c208403067c9a2ac3a2f09bb4ee235e0cac18d64114134ad8b11d",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/exla/ebin/Elixir.EXLA.CustomCall.Spec.beam": "fa76ac3ff47fe8f9f1576fb94cdf77fb78b0a6e981037760d493e2f9afcd29e0",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/nx/ebin/Elixir.Nx.HiddenServing.beam": "b66942f8eb11cfa62520af0b0070c81207256b1bea6b603a06a4739175a35929",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Audio.Wav2Vec2.beam": "d536efc5417f6e12dc4a9df663dea63e7056acc3d3a052cb09ac395d668ea541",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Meta.VeRA.beam": "da85af2b341b5d060a53784cae938c5999dca6c4ac59c49d2e3b59a24398de11",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Graph.SE3Transformer.beam": "cb9267995054c9c69178a267a4b3afd87f897dab64175c19470039be066e62ce",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Recurrent.DeltaProduct.beam": "62fdeaac43cfadb59403123b65836d0aee4aa4cd87599123f0b1e4e2b46e644d",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Blocks.ModelBuilder.beam": "90139627b8ed62a478f9234969cb64e84b0bdd8048cee8475373be76ad432f89",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Contrastive.SigLIP.beam": "85bef048170af4f726be8d07caf69ef4e436edb0902036eac731aa46d041720a",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Neuromorphic.ANN2SNN.beam": "6f53bafac73bb3c89673c867d071fbeb0cc5a78b1e865f87dc05fb733d12937a",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Attention.HGRN.beam": "dc7dbc071eac7ce4e9291b414bd2703ef6bb72bc05a6537e1ae6cc6d29e25df4",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/nx/ebin/Elixir.Nx.Container.Any.beam": "f39dc68b24c2e3bbb87274c8714e1f3a1fe8dde477e5c9d692e00490127d7793",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.RL.AutoregressiveHead.beam": "fbadebbe14cfcdc3c5a229ad1f55e0a3ff452c72920a9a46cfda704b384813a9",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Generative.SoFlow.beam": "60a7b27f950ebdaa9b05e2b96390d2d8e8198e12fc8bfd4959cd76b61e30a4a6",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Graph.GraphSAGE.beam": "0669e9be561f2f5b2dd779c5cf8f75384fc030b6cfe4a547026963a4242f217f",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/exla/ebin/Elixir.EXLA.BinaryBuffer.beam": "f0a564f2cc1adde19c28bbc2a0bb332569c7fe2b38ec3aaa9a4268893d031f73",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Graph.DimeNet.beam": "d2caf13e42b4250925aeccc337b516463be5c6656a5486b31f177cebd12b6114",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/exla/ebin/Elixir.EXLA.DeviceBuffer.beam": "15ca3daeb2b0cdb0af8b2e11d86e7e7873c323f3205f14984d6fe416f32d10cd",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Liquid.beam": "e1725b7c32bda34075dfa10e6a73a05d822d13a1184d10d5ce5168c83f6ffdb3",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.SSM.Common.beam": "00b1edf0ae64e08ce0b6ff138ce50303b262cfa3907fb4f0a079784bd37130de",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/nx/ebin/Elixir.Inspect.Nx.Defn.TemplateDiff.beam": "27d148ae7774bc86258bc4ef5ac589a90770eeb5a497d37b04ffdf720e7ba850",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Attention.Nystromformer.beam": "04db531033f76cf100a41365163cd30eb1eee4ea475b494a3dd6f83cba38729b",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.StatefulCase.beam": "f6a9cc56a26a4821834ce3aa91518f3edc97f7a7a36680320e546b7346d26940",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Generative.LinearDiT.beam": "37eb68cae731198cff5eb702f6f10915a71322c80823b1cb2a11dc7ed6e08d50",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Utils.Quantization.beam": "cf930d9d8c01100d6c6f780132e075eee156a5f587c5a4d3014330289893b178",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.RL.Environment.beam": "a514ed40a1f6a3dc4eef4bbd618463feaa2e649bdc84454a60d7241f21da60a9",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Recurrent.Reservoir.beam": "5d0a2d25d5a42cb97dead8fa402691cdaeba849447ac06ac6bbd9ff8e3b23124",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.SSM.HyenaV2.beam": "5663e766025c6878a0e52f275732c199a3bd1e8c695712bbb33a59e1ca7ccc25",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/nx/ebin/Elixir.Nx.Block.IFFT2.beam": "067eca7aaeeb18ab0a89e23c47b6e18d7c6a64b5fbcb32684f1f7866362c4730",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Pretrained.Transform.beam": "353d71336e5a8005bb55147535d6859bcf658123033c00331bffb8ae77d56518",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/nx/ebin/Elixir.Nx.LazyContainer.Float.beam": "6efd531c98eb37c3845ef0c61cc74fb4e940e50a9e1543b80b6f5857ea43fa34",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/nx/ebin/Elixir.Nx.Backend.beam": "f951f151ce5cc70ea53cbe8da799344b016decddc128d63bedeaacea2854aba7",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Meta.MixtureOfRecursions.beam": "c9651891f9b4e4f0447615110325c3b2b0476e4846824c5ed77ce746b8b05b0f",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/nx/ebin/Elixir.Nx.Block.LinAlg.SVD.beam": "bf3fa624e880daafb869dcaa443779a8d11fa79fde0361ebbe6a175db94285aa",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Blocks.Upsample2x.beam": "87d4c98f60ff31d9fb0569e48205d6593610c25ef5344145a877f9074dfe8121",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Pretrained.KeyMaps.DETR.beam": "7286db86449dbd7337009e8f2c08ffadd8069613e347a84a854e7e55afb99c89",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/nx/ebin/Elixir.Nx.Container.Tuple.beam": "860f8b96157b0a6f0bac2a36346d7fc875c230f1b4b7f4946b0078a2a14ba2de",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Generative.TarFlow.beam": "6a0be7c9ff2926c4396909adffbd9fa09f9617cefe51b7c3271371b74d6510f9",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Mix.Tasks.Edifice.Viz.beam": "3c7b50d13428d1a058074e9af29a3ab555adf20b3623da6bd88e66f50e241677",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.SSM.Mamba.beam": "72b3539954fabadb02f4fd9261945b87eb9863deb1f7a4f7f91ba42217fa0d77",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Recurrent.TTTE2E.beam": "ba0b77cb610218d8ab623800e45470690627066b74f355b89ec15e914b345b6a",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Attention.Primitives.beam": "aa67ae3a046ca5a6fee6ef162190b5134f832a5bf34dee6b72eb4ee5871ec93f",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Export.GGUF.beam": "31340ef67647a257e702e90f80647e015125751554c236712d6f94bcedfb9ea0",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/exla/ebin/Elixir.EXLA.CustomCall.beam": "cf6a79dea02be02026d5248193a6898e9551c91159c095d0669b5d1e25f86901",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Training.MemoryTracker.beam": "fc6b72edad8fc66fea9dad05933a8bb1ced97370a8f0eb070bce9985c2b1fe72",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/nx/ebin/Elixir.Nx.Serving.beam": "2e383d8b0008c2ed7fbd74fdce4cf75bfa756d799366365e999b9e5b7904fe68",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/exla/ebin/Elixir.EXLA.MLIR.ContextPool.beam": "0b538b66da74b566058bf66cf7231c40706e6564f472e346d66422b358509b1c",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Generative.SiT.beam": "7fbd90155de780344f9ed7e27492db143d336cdf1bd3ad47534dff790f140dfa",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/nx/ebin/Elixir.Nx.Block.LinAlg.Solve.beam": "4809ff9332be97113ee30da5ad08c34964a3bfc7ab8afad70e650d3cce7747a4",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Attention.MoBA.beam": "27bb913760faa5ac123b3093a37b82e73528c86714f322a2bbbfeb2e62b19313",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Generative.JanusFlow.beam": "3e8ca44939eebc1ec82a144517440363babcce018c0678a12db659da56be2b87",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.SSM.Mamba3.beam": "371b30961157c48b9562067f106a58c7094e6c0c44f2e850a769b11a941e903d",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Profile.beam": "bf6dad1a55434fb46ee21a2e291662cb9b8667f3b3c6989a726d12239eaea29a",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/nx/ebin/Elixir.Nx.Defn.TemplateDiff.beam": "ab1482b0b4120ae194f0dda09d5d640c3d7d4425ddb81fa2bd7fd4caf3316a5c",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/exla/ebin/Elixir.EXLA.Client.beam": "361aabc8dfbf25ca407e2944563a084ab8bb466ba967c4e27958eb5d2cf3b6b4",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Transformer.MultiTokenPrediction.beam": "4c08ed4a3db1c6061f7d713e32e6c55befd4995863d8b129eb4c1117f1178448",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Meta.MixtureOfDepths.beam": "426de712dd122f2fbfa557f553e92bd17653c17e2b3159be5edfab09b699ffcd",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Blocks.HeadNorm.beam": "13fed0953b2b9d4b9aa8362e3bd5340b796b6695498b2255ec32e21b2973f951",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Interpretability.Capture.beam": "6f3ddaf06964fa9d7788f5f09c2106dd3b1c5e2e471f8d1413333e9c35956011",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Utils.Common.beam": "70619def7a13fd199945b3d66adff9d6fc8a5b7062e206c607799041b6d66a74",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Robotics.DiffusionPolicy.beam": "5f3301993cd0f60ba0f63c68d90951944ae4f30231b7a14a230d9152dd00cf0d",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/nx/ebin/Elixir.Nx.Block.Take.beam": "1a6329f5fe4aaace6dd81d4073dbad9bb779d553976245672ae508c141a76c48",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Detection.SAM2.beam": "5a88e689e42fe4912d115939934c34bfabd8b4bdad94acee29850ac853cdd094",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/nx/ebin/Elixir.Nx.Defn.Tree.beam": "4077034e6deba3df38cb3e95ea0049961f44af128f36915ff66c16dd66c83995",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Pretrained.Hub.beam": "97d2e85061e9939598ac0407fffea4a27e2612244fe5aa4f02621166602500ac",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Audio.EnCodec.beam": "b286ffa077b8836f271032c618b49b86c6107f966ba6d5aa6181aad1854f2bc9",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Blocks.AdaptiveNorm.beam": "d26c1cbda28424db4778bbf2e77e1df0f067904bbdec1903e9c0c40a1980458b",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Attention.GatedAttention.beam": "99d51c147a8ab07569852dc8b5895e746473168a34d1c8cf3531b637c3d78de5",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Generative.MDLM.beam": "d594066fe97906c68db3aadd576997ff4a84275793bc9296f6a657c0b5762c5b",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.RL.Environments.CartPole.beam": "6aa96d7def6382eb3c5e66dc1d4b0f2a6fcd50a6f43d7ab7d54e643387a15e75",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/nx/ebin/Elixir.Nx.Defn.Composite.beam": "708b4290a7b97383ececaa157da876e469834587204e3fb75b4005e8f0bf83c9",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/nx/ebin/Elixir.Nx.LazyContainer.Any.beam": "4c8f01f29f767e340ee2a96864876667e02cb1e8d89879e3ed03ea53372d2b62",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/exla/ebin/Elixir.EXLA.Backend.beam": "a1ae82f950421a6e5e978b23a30665f558c18b6f4e6c829a6549fd95d5bde19a",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/nx/ebin/Elixir.Nx.Defn.Grad.beam": "890066e138bc17f08cac0e4688906423b43da4c3c12082234c41e3a65b342796",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Attention.Perceiver.beam": "b8b635ba911f965bec54770a1ff46e526d52d9751f657355ff05a42112539df8",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/nx/ebin/Elixir.Nx.Defn.Debug.beam": "89bbb626f2bfb1e89bdfe88a1de9adcf6de4160a54b540653ff6d84f50deecce",
+    "/home/blewf/git/edifice-nx-current/_build/test/lib/edifice/ebin/Elixir.Edifice.Feedforward.BitNet.beam": "eacb4dea55900e9f2fb0e8a5072943db7c09fa8c47c60f22ad8b7509378ac236"
+  },
+  "candidate_build": "/home/blewf/git/edifice-nx-current/_build/test",
+  "desktop": [
+    {
+      "name": "/nix/store/an2j5q2ns3cp7yq8hwnpirs879asddac-google-chrome-155.0.8059.79/share/google/chrome/chrome --type=gpu-process --gpu-recent-crash-count=0 --ozone-platform=wayland --render-node-override=/dev/dri/renderD128 --crashpad-handler-pid=1955610 --enable-crash-reporter=? --change-stack-guard-on-fork=enable --gpu-preferences=YAAAAAAAAAAgAQAEAAAAAAAAAAAAAGAASAAAAAAAAAABAAAAAAAAAEAAAAAAAAAAAAAAAAAAAAACAAAAAAAAAAAAAAAAAAAAMAAAAAAAAAAwAAAAAAAAAAAAAAAAAAAACAAAAAAAAAAMAAAAAQAAAAAAAAAAAAAACAAAAAAAAAAIAAAAAAAAAA== --shared-files --metrics-shmem-handle=4?i?12314624763869194171?3160489901295320652?262144 --field-trial-handle=3?i?16912355043525627127?8925753092446944905?262144 --variations-seed-version=20261031-030032.506000-production --pseudonymization-salt-handle=7?i?10376136111378301745?16568873832943924614?4 --trace-process-track-uuid=3190708988185955192",
+      "pid": "1955649"
+    },
+    {
+      "name": "/nix/store/xaaviz84rjj4pm3k6rq1rvz5pja1a77q-chromium-unwrapped-155.0.8059.79/libexec/chromium/chromium --type=gpu-process --gpu-recent-crash-count=0 --ozone-platform=wayland --render-node-override=/dev/dri/renderD128 --crashpad-handler-pid=2106875 --enable-crash-reporter=? --change-stack-guard-on-fork=enable --gpu-preferences=YAAAAAAAAAAgAQAEAAAAAAAAAAAAAGAASAAAAAAAAAABAAAAAAAAAEAAAAAAAAAAAAAAAAAAAAACAAAAAAAAAAAAAAAAAAAAMAAAAAAAAAAwAAAAAAAAAAAAAAAAAAAACAAAAAAAAAAMAAAAAQAAAAAAAAAAAAAACAAAAAAAAAAIAAAAAAAAAA== --shared-files --metrics-shmem-handle=4?i?6599843631159573127?9171891246277120548?262144 --field-trial-handle=3?i?13421680236376136846?2346590969299336671?262144 --enable-features=SingleAxisScrollContainers --variations-seed-version --pseudonymization-salt-handle=7?i?13929680112595019936?13074333942525053993?4 --trace-process-track-uuid=3190708988185955192",
+      "pid": "2106910"
+    }
+  ],
+  "runs": [
+    {
+      "round": 1,
+      "file": "/tmp/exphil-nx-sampling-final/mamba_b1_r1_nx.json",
+      "rows": 1,
+      "arch": "mamba",
+      "implementation": "nx",
+      "controller_sha256": "7de415ac67e9b8bdac0e23b506575713359981dfec1ac4518597dea5c03d9725",
+      "results": [
+        {
+          "kind": "ordinary",
+          "median_us": 1496,
+          "p95_us": 2082,
+          "samples": 100
+        },
+        {
+          "kind": "cold_reset",
+          "median_us": 4927,
+          "p95_us": 5378,
+          "samples": 100
+        },
+        {
+          "kind": "resync",
+          "median_us": 5331,
+          "p95_us": 5847,
+          "samples": 100
+        },
+        {
+          "kind": "windowed",
+          "median_us": 4179,
+          "p95_us": 5512,
+          "samples": 100
+        }
+      ]
+    },
+    {
+      "round": 1,
+      "file": "/tmp/exphil-nx-sampling-final/mamba_b1_r1_helper.json",
+      "rows": 1,
+      "arch": "mamba",
+      "implementation": "helper",
+      "controller_sha256": "7de415ac67e9b8bdac0e23b506575713359981dfec1ac4518597dea5c03d9725",
+      "results": [
+        {
+          "kind": "ordinary",
+          "median_us": 1328,
+          "p95_us": 1650,
+          "samples": 100
+        },
+        {
+          "kind": "cold_reset",
+          "median_us": 4790,
+          "p95_us": 5270,
+          "samples": 100
+        },
+        {
+          "kind": "resync",
+          "median_us": 5108,
+          "p95_us": 5745,
+          "samples": 100
+        },
+        {
+          "kind": "windowed",
+          "median_us": 4372,
+          "p95_us": 5773,
+          "samples": 100
+        }
+      ]
+    },
+    {
+      "round": 1,
+      "file": "/tmp/exphil-nx-sampling-final/mamba_b8_r1_nx.json",
+      "rows": 8,
+      "arch": "mamba",
+      "implementation": "nx",
+      "controller_sha256": "de65927f0746a72b425952b3aabc84fa69178ca4515ce97fa8207a65dfb4fc1e",
+      "results": [
+        {
+          "kind": "ordinary",
+          "median_us": 1333,
+          "p95_us": 1563,
+          "samples": 100
+        },
+        {
+          "kind": "cold_reset",
+          "median_us": 4723,
+          "p95_us": 5062,
+          "samples": 100
+        },
+        {
+          "kind": "cold_reset",
+          "median_us": 5959,
+          "p95_us": 6368,
+          "samples": 100
+        },
+        {
+          "kind": "cold_reset",
+          "median_us": 5935,
+          "p95_us": 6378,
+          "samples": 100
+        },
+        {
+          "kind": "resync",
+          "median_us": 5036,
+          "p95_us": 5560,
+          "samples": 100
+        },
+        {
+          "kind": "resync",
+          "median_us": 6165,
+          "p95_us": 6737,
+          "samples": 100
+        },
+        {
+          "kind": "resync",
+          "median_us": 6163,
+          "p95_us": 6633,
+          "samples": 100
+        },
+        {
+          "kind": "windowed",
+          "median_us": 3025,
+          "p95_us": 3297,
+          "samples": 100
+        }
+      ]
+    },
+    {
+      "round": 1,
+      "file": "/tmp/exphil-nx-sampling-final/mamba_b8_r1_helper.json",
+      "rows": 8,
+      "arch": "mamba",
+      "implementation": "helper",
+      "controller_sha256": "de65927f0746a72b425952b3aabc84fa69178ca4515ce97fa8207a65dfb4fc1e",
+      "results": [
+        {
+          "kind": "ordinary",
+          "median_us": 1153,
+          "p95_us": 1417,
+          "samples": 100
+        },
+        {
+          "kind": "cold_reset",
+          "median_us": 4614,
+          "p95_us": 4954,
+          "samples": 100
+        },
+        {
+          "kind": "cold_reset",
+          "median_us": 5905,
+          "p95_us": 6527,
+          "samples": 100
+        },
+        {
+          "kind": "cold_reset",
+          "median_us": 5970,
+          "p95_us": 6574,
+          "samples": 100
+        },
+        {
+          "kind": "resync",
+          "median_us": 4829,
+          "p95_us": 5216,
+          "samples": 100
+        },
+        {
+          "kind": "resync",
+          "median_us": 5959,
+          "p95_us": 6321,
+          "samples": 100
+        },
+        {
+          "kind": "resync",
+          "median_us": 5882,
+          "p95_us": 6938,
+          "samples": 100
+        },
+        {
+          "kind": "windowed",
+          "median_us": 3058,
+          "p95_us": 3600,
+          "samples": 100
+        }
+      ]
+    },
+    {
+      "round": 1,
+      "file": "/tmp/exphil-nx-sampling-final/mamba2_b1_r1_nx.json",
+      "rows": 1,
+      "arch": "mamba2",
+      "implementation": "nx",
+      "controller_sha256": "5cdd24c2ecc53920d40f287c3a739ca4451a6dccdcc322d9082c800057eddd6b",
+      "results": [
+        {
+          "kind": "ordinary",
+          "median_us": 2412,
+          "p95_us": 3180,
+          "samples": 100
+        },
+        {
+          "kind": "cold_reset",
+          "median_us": 4319,
+          "p95_us": 5036,
+          "samples": 100
+        },
+        {
+          "kind": "resync",
+          "median_us": 4594,
+          "p95_us": 5448,
+          "samples": 100
+        },
+        {
+          "kind": "windowed",
+          "median_us": 4438,
+          "p95_us": 5566,
+          "samples": 100
+        }
+      ]
+    },
+    {
+      "round": 1,
+      "file": "/tmp/exphil-nx-sampling-final/mamba2_b1_r1_helper.json",
+      "rows": 1,
+      "arch": "mamba2",
+      "implementation": "helper",
+      "controller_sha256": "5cdd24c2ecc53920d40f287c3a739ca4451a6dccdcc322d9082c800057eddd6b",
+      "results": [
+        {
+          "kind": "ordinary",
+          "median_us": 2595,
+          "p95_us": 3879,
+          "samples": 100
+        },
+        {
+          "kind": "cold_reset",
+          "median_us": 4588,
+          "p95_us": 5433,
+          "samples": 100
+        },
+        {
+          "kind": "resync",
+          "median_us": 4583,
+          "p95_us": 5208,
+          "samples": 100
+        },
+        {
+          "kind": "windowed",
+          "median_us": 3682,
+          "p95_us": 5408,
+          "samples": 100
+        }
+      ]
+    },
+    {
+      "round": 1,
+      "file": "/tmp/exphil-nx-sampling-final/mamba2_b8_r1_nx.json",
+      "rows": 8,
+      "arch": "mamba2",
+      "implementation": "nx",
+      "controller_sha256": "d5df784622b2f80dd3e776f3966405a98b7c2a718b9106641511622734b72bb5",
+      "results": [
+        {
+          "kind": "ordinary",
+          "median_us": 1707,
+          "p95_us": 2052,
+          "samples": 100
+        },
+        {
+          "kind": "cold_reset",
+          "median_us": 3843,
+          "p95_us": 4416,
+          "samples": 100
+        },
+        {
+          "kind": "cold_reset",
+          "median_us": 4055,
+          "p95_us": 4513,
+          "samples": 100
+        },
+        {
+          "kind": "cold_reset",
+          "median_us": 4071,
+          "p95_us": 4506,
+          "samples": 100
+        },
+        {
+          "kind": "resync",
+          "median_us": 4000,
+          "p95_us": 4391,
+          "samples": 100
+        },
+        {
+          "kind": "resync",
+          "median_us": 4203,
+          "p95_us": 4677,
+          "samples": 100
+        },
+        {
+          "kind": "resync",
+          "median_us": 4072,
+          "p95_us": 4535,
+          "samples": 100
+        },
+        {
+          "kind": "windowed",
+          "median_us": 2093,
+          "p95_us": 2791,
+          "samples": 100
+        }
+      ]
+    },
+    {
+      "round": 1,
+      "file": "/tmp/exphil-nx-sampling-final/mamba2_b8_r1_helper.json",
+      "rows": 8,
+      "arch": "mamba2",
+      "implementation": "helper",
+      "controller_sha256": "d5df784622b2f80dd3e776f3966405a98b7c2a718b9106641511622734b72bb5",
+      "results": [
+        {
+          "kind": "ordinary",
+          "median_us": 1619,
+          "p95_us": 1938,
+          "samples": 100
+        },
+        {
+          "kind": "cold_reset",
+          "median_us": 3820,
+          "p95_us": 4277,
+          "samples": 100
+        },
+        {
+          "kind": "cold_reset",
+          "median_us": 4337,
+          "p95_us": 4778,
+          "samples": 100
+        },
+        {
+          "kind": "cold_reset",
+          "median_us": 4139,
+          "p95_us": 4541,
+          "samples": 100
+        },
+        {
+          "kind": "resync",
+          "median_us": 3827,
+          "p95_us": 4273,
+          "samples": 100
+        },
+        {
+          "kind": "resync",
+          "median_us": 4470,
+          "p95_us": 4921,
+          "samples": 100
+        },
+        {
+          "kind": "resync",
+          "median_us": 4416,
+          "p95_us": 4865,
+          "samples": 100
+        },
+        {
+          "kind": "windowed",
+          "median_us": 2102,
+          "p95_us": 2753,
+          "samples": 100
+        }
+      ]
+    },
+    {
+      "round": 2,
+      "file": "/tmp/exphil-nx-sampling-final/mamba_b1_r2_helper.json",
+      "rows": 1,
+      "arch": "mamba",
+      "implementation": "helper",
+      "controller_sha256": "7de415ac67e9b8bdac0e23b506575713359981dfec1ac4518597dea5c03d9725",
+      "results": [
+        {
+          "kind": "ordinary",
+          "median_us": 1854,
+          "p95_us": 2659,
+          "samples": 100
+        },
+        {
+          "kind": "cold_reset",
+          "median_us": 5343,
+          "p95_us": 5790,
+          "samples": 100
+        },
+        {
+          "kind": "resync",
+          "median_us": 5373,
+          "p95_us": 6010,
+          "samples": 100
+        },
+        {
+          "kind": "windowed",
+          "median_us": 6732,
+          "p95_us": 9502,
+          "samples": 100
+        }
+      ]
+    },
+    {
+      "round": 2,
+      "file": "/tmp/exphil-nx-sampling-final/mamba_b1_r2_nx.json",
+      "rows": 1,
+      "arch": "mamba",
+      "implementation": "nx",
+      "controller_sha256": "7de415ac67e9b8bdac0e23b506575713359981dfec1ac4518597dea5c03d9725",
+      "results": [
+        {
+          "kind": "ordinary",
+          "median_us": 1727,
+          "p95_us": 3544,
+          "samples": 100
+        },
+        {
+          "kind": "cold_reset",
+          "median_us": 5758,
+          "p95_us": 7217,
+          "samples": 100
+        },
+        {
+          "kind": "resync",
+          "median_us": 6079,
+          "p95_us": 8494,
+          "samples": 100
+        },
+        {
+          "kind": "windowed",
+          "median_us": 6785,
+          "p95_us": 9851,
+          "samples": 100
+        }
+      ]
+    },
+    {
+      "round": 2,
+      "file": "/tmp/exphil-nx-sampling-final/mamba_b8_r2_helper.json",
+      "rows": 8,
+      "arch": "mamba",
+      "implementation": "helper",
+      "controller_sha256": "de65927f0746a72b425952b3aabc84fa69178ca4515ce97fa8207a65dfb4fc1e",
+      "results": [
+        {
+          "kind": "ordinary",
+          "median_us": 1781,
+          "p95_us": 3756,
+          "samples": 100
+        },
+        {
+          "kind": "cold_reset",
+          "median_us": 5755,
+          "p95_us": 7646,
+          "samples": 100
+        },
+        {
+          "kind": "cold_reset",
+          "median_us": 6578,
+          "p95_us": 8655,
+          "samples": 100
+        },
+        {
+          "kind": "cold_reset",
+          "median_us": 6417,
+          "p95_us": 7908,
+          "samples": 100
+        },
+        {
+          "kind": "resync",
+          "median_us": 5820,
+          "p95_us": 7464,
+          "samples": 100
+        },
+        {
+          "kind": "resync",
+          "median_us": 6839,
+          "p95_us": 8677,
+          "samples": 100
+        },
+        {
+          "kind": "resync",
+          "median_us": 7113,
+          "p95_us": 9050,
+          "samples": 100
+        },
+        {
+          "kind": "windowed",
+          "median_us": 4083,
+          "p95_us": 6304,
+          "samples": 100
+        }
+      ]
+    },
+    {
+      "round": 2,
+      "file": "/tmp/exphil-nx-sampling-final/mamba_b8_r2_nx.json",
+      "rows": 8,
+      "arch": "mamba",
+      "implementation": "nx",
+      "controller_sha256": "de65927f0746a72b425952b3aabc84fa69178ca4515ce97fa8207a65dfb4fc1e",
+      "results": [
+        {
+          "kind": "ordinary",
+          "median_us": 1750,
+          "p95_us": 3306,
+          "samples": 100
+        },
+        {
+          "kind": "cold_reset",
+          "median_us": 5594,
+          "p95_us": 7257,
+          "samples": 100
+        },
+        {
+          "kind": "cold_reset",
+          "median_us": 6906,
+          "p95_us": 8541,
+          "samples": 100
+        },
+        {
+          "kind": "cold_reset",
+          "median_us": 6800,
+          "p95_us": 8163,
+          "samples": 100
+        },
+        {
+          "kind": "resync",
+          "median_us": 5762,
+          "p95_us": 7080,
+          "samples": 100
+        },
+        {
+          "kind": "resync",
+          "median_us": 7420,
+          "p95_us": 9351,
+          "samples": 100
+        },
+        {
+          "kind": "resync",
+          "median_us": 6652,
+          "p95_us": 8307,
+          "samples": 100
+        },
+        {
+          "kind": "windowed",
+          "median_us": 4212,
+          "p95_us": 6516,
+          "samples": 100
+        }
+      ]
+    },
+    {
+      "round": 2,
+      "file": "/tmp/exphil-nx-sampling-final/mamba2_b1_r2_helper.json",
+      "rows": 1,
+      "arch": "mamba2",
+      "implementation": "helper",
+      "controller_sha256": "5cdd24c2ecc53920d40f287c3a739ca4451a6dccdcc322d9082c800057eddd6b",
+      "results": [
+        {
+          "kind": "ordinary",
+          "median_us": 3296,
+          "p95_us": 5255,
+          "samples": 100
+        },
+        {
+          "kind": "cold_reset",
+          "median_us": 5758,
+          "p95_us": 8767,
+          "samples": 100
+        },
+        {
+          "kind": "resync",
+          "median_us": 6003,
+          "p95_us": 7853,
+          "samples": 100
+        },
+        {
+          "kind": "windowed",
+          "median_us": 3702,
+          "p95_us": 4613,
+          "samples": 100
+        }
+      ]
+    },
+    {
+      "round": 2,
+      "file": "/tmp/exphil-nx-sampling-final/mamba2_b1_r2_nx.json",
+      "rows": 1,
+      "arch": "mamba2",
+      "implementation": "nx",
+      "controller_sha256": "5cdd24c2ecc53920d40f287c3a739ca4451a6dccdcc322d9082c800057eddd6b",
+      "results": [
+        {
+          "kind": "ordinary",
+          "median_us": 2166,
+          "p95_us": 2935,
+          "samples": 100
+        },
+        {
+          "kind": "cold_reset",
+          "median_us": 4635,
+          "p95_us": 5377,
+          "samples": 100
+        },
+        {
+          "kind": "resync",
+          "median_us": 4505,
+          "p95_us": 5266,
+          "samples": 100
+        },
+        {
+          "kind": "windowed",
+          "median_us": 4714,
+          "p95_us": 5626,
+          "samples": 100
+        }
+      ]
+    },
+    {
+      "round": 2,
+      "file": "/tmp/exphil-nx-sampling-final/mamba2_b8_r2_helper.json",
+      "rows": 8,
+      "arch": "mamba2",
+      "implementation": "helper",
+      "controller_sha256": "d5df784622b2f80dd3e776f3966405a98b7c2a718b9106641511622734b72bb5",
+      "results": [
+        {
+          "kind": "ordinary",
+          "median_us": 1433,
+          "p95_us": 1760,
+          "samples": 100
+        },
+        {
+          "kind": "cold_reset",
+          "median_us": 3875,
+          "p95_us": 4245,
+          "samples": 100
+        },
+        {
+          "kind": "cold_reset",
+          "median_us": 3858,
+          "p95_us": 4343,
+          "samples": 100
+        },
+        {
+          "kind": "cold_reset",
+          "median_us": 4044,
+          "p95_us": 4512,
+          "samples": 100
+        },
+        {
+          "kind": "resync",
+          "median_us": 3728,
+          "p95_us": 4001,
+          "samples": 100
+        },
+        {
+          "kind": "resync",
+          "median_us": 3918,
+          "p95_us": 4340,
+          "samples": 100
+        },
+        {
+          "kind": "resync",
+          "median_us": 4302,
+          "p95_us": 4661,
+          "samples": 100
+        },
+        {
+          "kind": "windowed",
+          "median_us": 2137,
+          "p95_us": 2613,
+          "samples": 100
+        }
+      ]
+    },
+    {
+      "round": 2,
+      "file": "/tmp/exphil-nx-sampling-final/mamba2_b8_r2_nx.json",
+      "rows": 8,
+      "arch": "mamba2",
+      "implementation": "nx",
+      "controller_sha256": "d5df784622b2f80dd3e776f3966405a98b7c2a718b9106641511622734b72bb5",
+      "results": [
+        {
+          "kind": "ordinary",
+          "median_us": 1554,
+          "p95_us": 1935,
+          "samples": 100
+        },
+        {
+          "kind": "cold_reset",
+          "median_us": 3807,
+          "p95_us": 4296,
+          "samples": 100
+        },
+        {
+          "kind": "cold_reset",
+          "median_us": 3896,
+          "p95_us": 4251,
+          "samples": 100
+        },
+        {
+          "kind": "cold_reset",
+          "median_us": 3772,
+          "p95_us": 4133,
+          "samples": 100
+        },
+        {
+          "kind": "resync",
+          "median_us": 3962,
+          "p95_us": 4555,
+          "samples": 100
+        },
+        {
+          "kind": "resync",
+          "median_us": 4104,
+          "p95_us": 4499,
+          "samples": 100
+        },
+        {
+          "kind": "resync",
+          "median_us": 4044,
+          "p95_us": 4478,
+          "samples": 100
+        },
+        {
+          "kind": "windowed",
+          "median_us": 2255,
+          "p95_us": 2752,
+          "samples": 100
+        }
+      ]
+    }
+  ]
+}

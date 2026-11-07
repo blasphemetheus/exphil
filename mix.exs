@@ -198,8 +198,13 @@ defmodule ExPhil.MixProject do
       # ML Core
       if(local_nx?,
         do: {:nx, path: "../nx/nx", override: true},
-        # non-local fallback = the upstream revision Edifice pins (XLA 0.11, #1878); hex exla still wants xla 0.10
-        else: {:nx, github: "elixir-nx/nx", ref: "171dcad658ae06f726aaacf785df2989eca047e0", sparse: "nx", override: true}
+        # Keep the upstream Nx/EXLA revision aligned with Edifice's upstream profile.
+        else:
+          {:nx,
+           github: "elixir-nx/nx",
+           ref: "ebe2b9fad5e4eba64004342ebf78607e057ffab8",
+           sparse: "nx",
+           override: true}
       ),
       {:axon, "~> 0.9"},
       if(local_nx?,
@@ -208,14 +213,18 @@ defmodule ExPhil.MixProject do
         # deps default to env: :prod while make sees the (empty) shell MIX_ENV,
         # which desyncs the .so from the beam and fails NIF load.
         do: {:exla, path: "../nx/exla", override: true, env: :dev},
-        else: {:exla, github: "elixir-nx/nx", ref: "171dcad658ae06f726aaacf785df2989eca047e0", sparse: "exla", override: true}
+        else:
+          {:exla,
+           github: "elixir-nx/nx",
+           ref: "ebe2b9fad5e4eba64004342ebf78607e057ffab8",
+           sparse: "exla",
+           override: true}
       ),
       {:polaris, "~> 0.2"},
-      # The local nx fork (integration branch, 10-07) requires complex ~> 1.0,
-      # which is Bradley's ../complex fork (hex stops at 0.7).
+      # Both current upstream Nx and the local fork require complex 1.0.
       if(local_nx?,
         do: {:complex, path: "../complex", override: true},
-        else: {:complex, "~> 0.6"}
+        else: {:complex, "~> 1.0"}
       ),
 
       # ML Architecture Library (extracted generic architectures)
