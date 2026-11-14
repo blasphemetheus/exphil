@@ -6,6 +6,42 @@ This document tracks identified issues and planned improvements from the January
 
 - **GPU Kernel Language Exploration** — Evaluating Julia, Futhark, Mojo, and Bend as alternatives to CUDA C for scan kernels. See [KERNEL_LANGUAGE_COMPARISON.md](../research/KERNEL_LANGUAGE_COMPARISON.md) for findings and [individual exploration docs](../research/) for per-language details.
 
+## Recently Added (2026-11-14 — found on the stomped.dev arena)
+
+- **The PPO Fox never selects the top stick bucket [P1, OPEN — investigate]**:
+  `eval_runs/0923_ppo/eval_candidate/candidate_policy.bin` (GRU, AR head,
+  `axis_buckets: 16` = 17 classes 0..16) emits main-stick buckets 0..5, 8
+  and 10..15 only. Bucket 16 (full right / full up, raw +80) never appears;
+  bucket 0 (full left, raw -80) is among the most used. Seen on both axes
+  and on the c-stick, in a live arena game (match `HwdopZeJ`: raw x reaches
+  -80 on 636 frames but tops out at +70 on 829) and offline over 3,000
+  frames of `test/fixtures/replays/stomped_yoshis_ENGaSd1l.slp` (x bucket
+  15: 603, bucket 16: 0). The shoulder head shows the same shape: values
+  0, 0.25, 0.5, 0.75 and never 1.0 (`shoulder_buckets: 4` = 5 classes).
+  The human/bot inputs recorded in that same replay DO reach bucket 16.
+  - **Not the output path:** `ExPhil.Stomped.Pad.from_controller/1` and the
+    sim (`SimBatch` `axis/2`: `round(v * 160 - 80)`) use the same formula,
+    so bucket 15 was raw +70 while PPO tuned this policy too.
+  - **What it costs:** rightward stick is 0.875 of full where leftward is
+    1.0. Past the dash threshold (0.8) but not symmetric; run speed and
+    drift scale with stick magnitude.
+  - **The pattern to explain:** negatives and centre sit exactly on the
+    buckets valid labels produce (0..5, 8); positives sit ONE LOWER
+    (10..15 where labels give 11..16). That is what `floor(v * 16)` clipped
+    to 15 would produce, against the current
+    `ControllerEmbed.discretize_axis/2` (`trunc(v * buckets + 0.5)`,
+    clipped to `buckets`). Suspects, none checked: a head or label one-hot
+    sized `buckets` instead of `buckets + 1` somewhere in this checkpoint's
+    lineage (`fox_v3_1_step8_mix4` + `head_iter200`), a different
+    discretizer at the time it was trained, or the top class clipped in
+    the loss.
+  - **First checks:** the head's output sizes in the checkpoint params;
+    the label histogram of a training shard for this lineage (is class 16
+    present?); the same output histogram on a current imitation checkpoint
+    (`coh_fox_mamba_master_ep7_plain`) to see whether this is one lineage
+    or every policy. Reproduce with the histogram in
+    `scripts/stomped_replay_bench.exs`'s setup (decoder -> `Agent.get_controller`).
+
 ## Recently Added (2026-09-09 late — found by the v16f twin)
 
 - **Policy metadata lacked the item-4 stamps + the canary was fingerprinted
