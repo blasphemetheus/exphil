@@ -20,3 +20,9 @@ fox_mamba_v3s906_ep3_dag9o               3.186   263   193      0.689  31       
 == lr 0.0001 seed 906 mix 'data/silent_fall/sim_dagger_expert_r9o_2091_split_lean.frames,data/silent_fall/sim_dagger_expert_r9o_2094_split_lean.frames,data/silent_fall/sim_dagger_expert_r9o_2097_split_lean.frames,data/silent_fall/sim_dagger_expert_r9o_2100_split_lean.frames,data/silent_fall/slp_dagger_expert_live1014_split_lean.frames'
 fox_mamba_v3s906_ep3_dag9o_r             3.186   238   162      0.636  36       0.667   12       0.361  0.0199 [403] ret✗ sideB✗ cdied✗  
 == re-readout of fox_mamba_v3s906_ep3_dag9o (same policy, second roll)
+fox_mamba_v3s906_ep3_null9o              (no recovery_means.json)
+== lr 0.0001 seed 906 mix 'data/silent_fall/sim_dagger_expert_r9o_2091_null_lean.frames,data/silent_fall/sim_dagger_expert_r9o_2094_null_lean.frames,data/silent_fall/sim_dagger_expert_r9o_2097_null_lean.frames,data/silent_fall/sim_dagger_expert_r9o_2100_null_lean.frames,data/silent_fall/slp_dagger_expert_live1014_null_lean.frames'
+fox_mamba_master_ep6                     (no recovery_means.json)
+fox_mamba_v3s906_ep3_null9o              (no recovery_means.json)
+fox_mamba_master_ep6                     2.977   280   214      0.743  29       0.655   8        0.279  -            ret✗ sideB✗ cdied✗  
+fox_mamba_v3s906_ep3_null9o              3.0826  318   227      0.718  38       0.474   7        0.261  -            ret✗ sideB✗ cdied✓  
