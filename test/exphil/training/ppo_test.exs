@@ -44,7 +44,7 @@ defmodule ExPhil.Training.PPOTest do
     end
   end
 
-  describe "create_optimizer/1" do
+  describe "create_optimizer/2" do
     test "returns init and update functions" do
       config = %{learning_rate: 1.0e-3}
 
@@ -52,6 +52,36 @@ defmodule ExPhil.Training.PPOTest do
 
       assert is_function(init_fn, 1)
       assert is_function(update_fn, 3)
+    end
+
+    test "weight decay reaches kernels only, and the default of 0.0 is plain Adam" do
+      params = %{
+        "d" => %{"kernel" => Nx.broadcast(0.5, {2, 2}), "bias" => Nx.broadcast(0.5, {2})}
+      }
+
+      zero = Nx.Defn.Composite.traverse(params, &Nx.multiply(&1, 0.0))
+
+      step = fn config ->
+        {init_fn, update_fn} = PPO.create_optimizer(config)
+        {updates, _} = update_fn.(zero, init_fn.(params), params)
+        updates
+      end
+
+      decayed = step.(%{learning_rate: 0.1, weight_decay: 0.01})
+      assert_in_delta Nx.to_number(decayed["d"]["kernel"][0][0]), -5.0e-4, 1.0e-7
+      assert Nx.to_number(Nx.reduce_max(Nx.abs(decayed["d"]["bias"]))) == 0.0
+
+      plain = step.(%{learning_rate: 0.1})
+      assert Nx.to_number(Nx.reduce_max(Nx.abs(plain["d"]["kernel"]))) == 0.0
+    end
+
+    test "new/1 records the optimizer's parameter groups in the config" do
+      trainer = PPO.new(embed_size: 64, hidden_sizes: [32], weight_decay: 0.01)
+      groups = trainer.config.optimizer_groups
+
+      assert groups.source == ":generic" and groups.weight_decay == 0.01
+      assert groups.decay_count > 0 and groups.no_decay_count > 0
+      assert Enum.all?(groups.no_decay, &String.ends_with?(&1, ".bias"))
     end
   end
 

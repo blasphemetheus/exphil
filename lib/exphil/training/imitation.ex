@@ -62,7 +62,15 @@ defmodule ExPhil.Training.Imitation do
 
   alias ExPhil.Networks.Policy
   alias ExPhil.Embeddings
-  alias ExPhil.Training.{MixedPrecision, ProbeRegularizer, ScheduledSampling, Utils}
+
+  alias ExPhil.Training.{
+    MixedPrecision,
+    ProbeRegularizer,
+    ScheduledSampling,
+    TrainingProfile,
+    Utils
+  }
+
   alias ExPhil.Training.Imitation.{Checkpointing, Loss, Optimizer, TrainLoop, Validation}
 
   require Logger
@@ -226,7 +234,14 @@ defmodule ExPhil.Training.Imitation do
       Keyword.get_lazy(opts, :embed_config, fn ->
         # INVARIANTS.md item 4: only channels the parser provides get dims.
         Embeddings.config_for_source(
-          Keyword.take(opts, [:with_speeds, :with_nana, :with_projectiles, :stage_internals, :with_port, :action_frame_buckets]),
+          Keyword.take(opts, [
+            :with_speeds,
+            :with_nana,
+            :with_projectiles,
+            :stage_internals,
+            :with_port,
+            :action_frame_buckets
+          ]),
           ExPhil.Data.Peppi.provides()
         )
       end)
@@ -263,7 +278,11 @@ defmodule ExPhil.Training.Imitation do
       unless config.temporal, do: raise(ArgumentError, "bptt requires temporal: true")
 
       if config.backbone != :gru,
-        do: raise(ArgumentError, "bptt supports backbone: :gru only (got #{inspect(config.backbone)})")
+        do:
+          raise(
+            ArgumentError,
+            "bptt supports backbone: :gru only (got #{inspect(config.backbone)})"
+          )
 
       if config[:mixed_precision],
         do: raise(ArgumentError, "bptt does not support mixed_precision")
@@ -275,7 +294,11 @@ defmodule ExPhil.Training.Imitation do
         do: raise(ArgumentError, "bptt does not support probe_reg_weight")
 
       if (config[:accumulation_steps] || 1) != 1,
-        do: raise(ArgumentError, "bptt does not support gradient accumulation; use accumulation_steps: 1")
+        do:
+          raise(
+            ArgumentError,
+            "bptt does not support gradient accumulation; use accumulation_steps: 1"
+          )
     end
 
     # Press/release event button head (2026-10-02): the head reads the
@@ -312,13 +335,18 @@ defmodule ExPhil.Training.Imitation do
       if config[:danger_context] do
         cond do
           not config.temporal or head != :autoregressive ->
-            raise ArgumentError, "danger_context requires temporal: true and head: :autoregressive"
+            raise ArgumentError,
+                  "danger_context requires temporal: true and head: :autoregressive"
 
           config[:bptt] ->
             raise ArgumentError, "danger_context is not implemented on the BPTT path"
 
           true ->
-            Map.put(config, :danger_columns, Embeddings.Player.danger_columns(embed_config.player))
+            Map.put(
+              config,
+              :danger_columns,
+              Embeddings.Player.danger_columns(embed_config.player)
+            )
         end
       else
         config
@@ -329,11 +357,18 @@ defmodule ExPhil.Training.Imitation do
     # the chunk horizon must reach C - 1 frames ahead.
     if c = config[:stick_duration] do
       cond do
-        not config[:stick_events] -> raise ArgumentError, "stick_duration requires stick_events: true"
-        config[:bptt] -> raise ArgumentError, "stick_duration is not implemented on the BPTT path"
+        not config[:stick_events] ->
+          raise ArgumentError, "stick_duration requires stick_events: true"
+
+        config[:bptt] ->
+          raise ArgumentError, "stick_duration is not implemented on the BPTT path"
+
         (Map.get(config, :chunk_horizon) || 0) < c - 1 ->
-          raise ArgumentError, "stick_duration #{c} needs chunk_horizon >= #{c - 1} (got #{inspect(Map.get(config, :chunk_horizon))})"
-        true -> :ok
+          raise ArgumentError,
+                "stick_duration #{c} needs chunk_horizon >= #{c - 1} (got #{inspect(Map.get(config, :chunk_horizon))})"
+
+        true ->
+          :ok
       end
     end
 
@@ -358,59 +393,59 @@ defmodule ExPhil.Training.Imitation do
           chunk_horizon: Map.get(config, :chunk_horizon)
         )
       else
-      if config.temporal do
-        Policy.build_temporal(
-          recurrent_state: Map.get(config, :recurrent_state, :legacy_random),
-          head: head,
-          button_events: config[:button_events] || false,
-          stick_events: config[:stick_events] || false,
-          event_context: config[:event_context] || false,
-          stick_release: config[:stick_release] || false,
-          stick_duration: config[:stick_duration],
-          danger_columns: config[:danger_columns],
-          prev_action_offset: config[:prev_action_offset],
-          embed_size: embed_size,
-          backbone: config.backbone,
-          window_size: config.window_size,
-          num_heads: config.num_heads,
-          head_dim: config.head_dim,
-          num_groups: Map.get(config, :num_groups, 1),
-          hidden_size: config.hidden_size,
-          num_layers: config.num_layers,
-          hidden_sizes: config.hidden_sizes,
-          dropout: config.dropout,
-          axis_buckets: config.axis_buckets,
-          shoulder_buckets: config.shoulder_buckets,
-          truncate_bptt: config.truncate_bptt,
-          layer_norm: config.layer_norm,
-          # Jamba-specific
-          attention_every: config.attention_every,
-          # Jamba stability options (Pre-LN + QK LayerNorm prevent NaN)
-          pre_norm: Map.get(config, :pre_norm, true),
-          qk_layernorm: Map.get(config, :qk_layernorm, true),
-          # Gradient checkpointing for memory efficiency
-          gradient_checkpoint: Map.get(config, :gradient_checkpoint, false),
-          checkpoint_every: Map.get(config, :checkpoint_every, 1),
-          # Mamba-family shape/scan options (nil entries are skipped by
-          # the backbone builders' Keyword.get defaults)
-          state_size: config.state_size,
-          expand_factor: config.expand_factor,
-          conv_size: config.conv_size,
-          chunk_size: Map.get(config, :chunk_size) || 32,
-          training_mode: Map.get(config, :training_mode),
-          # Chunk-target auxiliary heads (training only; dropped at export)
-          chunk_horizon: Map.get(config, :chunk_horizon)
-        )
-      else
-        Policy.build(
-          embed_size: embed_size,
-          hidden_sizes: config.hidden_sizes,
-          dropout: config.dropout,
-          axis_buckets: config.axis_buckets,
-          shoulder_buckets: config.shoulder_buckets,
-          layer_norm: config.layer_norm
-        )
-      end
+        if config.temporal do
+          Policy.build_temporal(
+            recurrent_state: Map.get(config, :recurrent_state, :legacy_random),
+            head: head,
+            button_events: config[:button_events] || false,
+            stick_events: config[:stick_events] || false,
+            event_context: config[:event_context] || false,
+            stick_release: config[:stick_release] || false,
+            stick_duration: config[:stick_duration],
+            danger_columns: config[:danger_columns],
+            prev_action_offset: config[:prev_action_offset],
+            embed_size: embed_size,
+            backbone: config.backbone,
+            window_size: config.window_size,
+            num_heads: config.num_heads,
+            head_dim: config.head_dim,
+            num_groups: Map.get(config, :num_groups, 1),
+            hidden_size: config.hidden_size,
+            num_layers: config.num_layers,
+            hidden_sizes: config.hidden_sizes,
+            dropout: config.dropout,
+            axis_buckets: config.axis_buckets,
+            shoulder_buckets: config.shoulder_buckets,
+            truncate_bptt: config.truncate_bptt,
+            layer_norm: config.layer_norm,
+            # Jamba-specific
+            attention_every: config.attention_every,
+            # Jamba stability options (Pre-LN + QK LayerNorm prevent NaN)
+            pre_norm: Map.get(config, :pre_norm, true),
+            qk_layernorm: Map.get(config, :qk_layernorm, true),
+            # Gradient checkpointing for memory efficiency
+            gradient_checkpoint: Map.get(config, :gradient_checkpoint, false),
+            checkpoint_every: Map.get(config, :checkpoint_every, 1),
+            # Mamba-family shape/scan options (nil entries are skipped by
+            # the backbone builders' Keyword.get defaults)
+            state_size: config.state_size,
+            expand_factor: config.expand_factor,
+            conv_size: config.conv_size,
+            chunk_size: Map.get(config, :chunk_size) || 32,
+            training_mode: Map.get(config, :training_mode),
+            # Chunk-target auxiliary heads (training only; dropped at export)
+            chunk_horizon: Map.get(config, :chunk_horizon)
+          )
+        else
+          Policy.build(
+            embed_size: embed_size,
+            hidden_sizes: config.hidden_sizes,
+            dropout: config.dropout,
+            axis_buckets: config.axis_buckets,
+            shoulder_buckets: config.shoulder_buckets,
+            layer_norm: config.layer_norm
+          )
+        end
       end
 
     # Apply mixed precision policy if precision is bf16
@@ -419,11 +454,13 @@ defmodule ExPhil.Training.Imitation do
     # internally to avoid XLA's depthwise conv gradient SIGBUS with bf16
     policy_model =
       if config.precision == :bf16 do
-        mp_policy = Axon.MixedPrecision.create_policy(
-          params: {:f, 32},
-          compute: {:bf, 16},
-          output: {:f, 32}
-        )
+        mp_policy =
+          Axon.MixedPrecision.create_policy(
+            params: {:f, 32},
+            compute: {:bf, 16},
+            output: {:f, 32}
+          )
+
         Axon.MixedPrecision.apply_policy(policy_model, mp_policy,
           except: [:batch_norm, :layer_norm, :group_norm]
         )
@@ -480,7 +517,9 @@ defmodule ExPhil.Training.Imitation do
                 else: t
             end)
             |> then(fn t ->
-              if config[:stick_events], do: Map.put(t, "prev_sticks", Nx.template({1, unroll, 4}, :s64)), else: t
+              if config[:stick_events],
+                do: Map.put(t, "prev_sticks", Nx.template({1, unroll, 4}, :s64)),
+                else: t
             end)
           else
             base
@@ -495,10 +534,14 @@ defmodule ExPhil.Training.Imitation do
               else: t
           end)
           |> then(fn t ->
-            if config[:stick_events], do: Map.put(t, "prev_sticks", Nx.template({1, 4}, :s64)), else: t
+            if config[:stick_events],
+              do: Map.put(t, "prev_sticks", Nx.template({1, 4}, :s64)),
+              else: t
           end)
           |> then(fn t ->
-            if config[:stick_duration], do: Map.put(t, "prev_age", Nx.template({1}, :s64)), else: t
+            if config[:stick_duration],
+              do: Map.put(t, "prev_age", Nx.template({1}, :s64)),
+              else: t
           end)
 
         true ->
@@ -517,8 +560,10 @@ defmodule ExPhil.Training.Imitation do
         nil
       end
 
-    # Create optimizer with gradient clipping
-    {optimizer_init, optimizer_update} = Optimizer.create_optimizer(config)
+    # Create optimizer with gradient clipping. The backbone's Edifice
+    # training profile decides which parameters weight decay reaches.
+    profile = TrainingProfile.for_config(config)
+    {optimizer_init, optimizer_update} = Optimizer.create_optimizer(config, profile)
 
     # Initialize optimizer state with just the parameter data (not full ModelState)
     # For mixed precision, use FP32 master weights; otherwise use policy_params
@@ -531,6 +576,13 @@ defmodule ExPhil.Training.Imitation do
 
     optimizer_state = optimizer_init.(params_data)
 
+    # Record the parameter groups the optimizer will use (checkpoints carry
+    # config, so a saved run says what its decay touched).
+    config =
+      TrainingProfile.record_groups(config, profile, params_data,
+        decay: Optimizer.weight_decay(config)
+      )
+
     # Pre-build cached functions for performance
     # These are reused every training step instead of being rebuilt
     {_init_fn, predict_fn} = Utils.build_compiled(policy_model, mode: :inference)
@@ -538,7 +590,9 @@ defmodule ExPhil.Training.Imitation do
     # JIT compile optimizer and update functions with EXLA for GPU execution
     # Without compiler: EXLA, these default to CPU which causes 0% GPU utilization
     optimizer_fn = Nx.Defn.jit(optimizer_update, compiler: EXLA, on_conflict: :reuse)
-    apply_updates_fn = Nx.Defn.jit(&Polaris.Updates.apply_updates/2, compiler: EXLA, on_conflict: :reuse)
+
+    apply_updates_fn =
+      Nx.Defn.jit(&Polaris.Updates.apply_updates/2, compiler: EXLA, on_conflict: :reuse)
 
     # Probe-as-regularizer (r15): build the trunk-only forward once; the
     # trunk fn rides into the loss builder via a TRANSIENT config key (not
@@ -609,7 +663,8 @@ defmodule ExPhil.Training.Imitation do
 
         if head == :autoregressive do
           if config[:button_events] || config[:stick_events] do
-            raise ArgumentError, "scheduled_sampling is not combined with event heads (the trunk sees no prev-action there)"
+            raise ArgumentError,
+                  "scheduled_sampling is not combined with event heads (the trunk sees no prev-action there)"
           end
 
           ScheduledSampling.build_autoregressive(ProbeRegularizer.build_trunk_fn(config), config)
@@ -710,7 +765,8 @@ defmodule ExPhil.Training.Imitation do
 
     timings =
       Enum.reduce(targets, %{}, fn target, acc ->
-        {time_ms, _result} = :timer.tc(fn -> warmup_target(trainer, sample_batch, target) end, :millisecond)
+        {time_ms, _result} =
+          :timer.tc(fn -> warmup_target(trainer, sample_batch, target) end, :millisecond)
 
         if show_progress do
           IO.write(:stderr, "    ✓ #{target} JIT compiled (#{Float.round(time_ms / 1000, 1)}s)\n")
@@ -730,7 +786,8 @@ defmodule ExPhil.Training.Imitation do
   Equivalent to `warmup(trainer, sample_batch, only: [:validation])`.
   """
   @spec warmup_validation(t(), list(), keyword()) :: {:ok, map()} | {:error, term()}
-  def warmup_validation(trainer, validation_batches, opts \\ []) when is_list(validation_batches) do
+  def warmup_validation(trainer, validation_batches, opts \\ [])
+      when is_list(validation_batches) do
     # Use same max_concurrency as actual validation to warm up the right code path
     # Default to 4 which matches evaluate/3 default
     max_concurrency = Keyword.get(opts, :max_concurrency, 4)
@@ -748,9 +805,16 @@ defmodule ExPhil.Training.Imitation do
         Enum.take(validation_batches, max(2, max_concurrency))
       end
 
-    {time_ms, _result} = :timer.tc(fn ->
-      evaluate(trainer, warmup_batches, show_progress: false, max_concurrency: max_concurrency)
-    end, :millisecond)
+    {time_ms, _result} =
+      :timer.tc(
+        fn ->
+          evaluate(trainer, warmup_batches,
+            show_progress: false,
+            max_concurrency: max_concurrency
+          )
+        end,
+        :millisecond
+      )
 
     {:ok, %{validation: time_ms}}
   end
@@ -759,7 +823,9 @@ defmodule ExPhil.Training.Imitation do
   defp warmup_target(trainer, batch, :training) do
     %{states: states, actions: actions} = batch
     batch_size = elem(Nx.shape(states), 0)
-    frame_weights = Map.get(batch, :frame_weights) || Nx.broadcast(Nx.tensor(1.0, type: :f32), {batch_size})
+
+    frame_weights =
+      Map.get(batch, :frame_weights) || Nx.broadcast(Nx.tensor(1.0, type: :f32), {batch_size})
 
     if trainer.loss_and_grad_fn do
       policy_type = trainer.config[:policy_type] || :autoregressive
@@ -840,8 +906,10 @@ defmodule ExPhil.Training.Imitation do
   # ============================================================================
 
   defdelegate save_checkpoint(trainer, path, opts \\ []), to: Checkpointing
+
   def save_checkpoint_async(trainer, path, opts \\ []),
     do: Checkpointing.save_checkpoint_async(trainer, path, opts)
+
   defdelegate get_optimizer_step(optimizer_state), to: Checkpointing
   defdelegate load_checkpoint(trainer, path, opts \\ []), to: Checkpointing
   defdelegate export_policy(trainer, path), to: Checkpointing

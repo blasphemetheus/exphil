@@ -1620,7 +1620,7 @@ Regenerate: `mix run -e 'ExPhil.Training.Config.FlagDocs.write!()'`.
 | `--restart-period` | int | `1000` | Cosine annealing restart period (T_0) |
 | `--restart-mult` | float | `2` | Restart period multiplier (T_mult) |
 | `--max-grad-norm` | float | `1.0` | Gradient clipping norm (0 = disabled) |
-| `--weight-decay` | float | `1.0e-5` | AdamW decoupled weight decay (default 1e-5 ≈ none); V3.1 uses 0.05 to stop GRU hidden-kernel norm growth |
+| `--weight-decay` | float | `1.0e-5` | AdamW decoupled weight decay (default 1e-5 ≈ none); V3.1 uses 0.05 to stop GRU hidden-kernel norm growth. Since 2026-11-14 the decay follows the backbone's Edifice training profile (`ExPhil.Training.TrainingProfile`): kernels decay, biases, norm gains and Mamba-2's `A_log`/`dt_bias`/`D` never do. The trainer records the groups in `config.optimizer_groups`, so a checkpoint says what its decay touched |
 | `--resume` | string | `nil` | Resume from checkpoint. If the checkpoint's controller head differs from `--head`, the TRUNK is transplanted: matching non-head params load, head + optimizer start fresh, config/step keep the trainer's |
 | `--reinit-head` | flag | `false` | With `--resume`: re-initialise the controller head from scratch while loading the trunk (the "new head params" control, AUTOREGRESSIVE_HEAD_PLAN item 9) |
 | `--name` | string | `nil` | Custom checkpoint name |

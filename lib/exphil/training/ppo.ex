@@ -100,6 +100,8 @@ defmodule ExPhil.Training.PPO do
     rollout_length: 2048,
 
     # Regularization
+    # Weight decay on the profile's decay group (0.0 = plain Adam)
+    weight_decay: 0.0,
     # KL penalty to stay close to teacher policy
     teacher_kl_coef: 0.0,
     value_clip: true,
@@ -167,10 +169,18 @@ defmodule ExPhil.Training.PPO do
         path -> load_pretrained(initial_params, path)
       end
 
-    # Create optimizer - initialize with just the parameter data (not full ModelState)
-    {optimizer_init, optimizer_update} = create_optimizer(config)
+    # Create optimizer - initialize with just the parameter data (not full ModelState).
+    # The actor-critic is built in ExPhil (MLP trunk), so the profile is the
+    # generic one: rank <= 1 parameters (biases, norm gains) never decay.
+    profile = ExPhil.Training.TrainingProfile.for_config(config)
+    {optimizer_init, optimizer_update} = create_optimizer(config, profile)
     params_data = get_params_data(params)
     optimizer_state = optimizer_init.(params_data)
+
+    config =
+      ExPhil.Training.TrainingProfile.record_groups(config, profile, params_data,
+        decay: config.weight_decay
+      )
 
     %__MODULE__{
       model: model,
@@ -263,13 +273,17 @@ defmodule ExPhil.Training.PPO do
   defp put_params_data(_original, data), do: data
 
   @doc """
-  Create optimizer with learning rate schedule.
+  Create the optimizer: Adam(W) through the training profile, so
+  `config.weight_decay` (default `0.0`, which is plain Adam) reaches only the
+  parameters the profile allows.
 
   Returns `{init_fn, update_fn}` tuple.
   """
-  @spec create_optimizer(map()) :: {function(), function()}
-  def create_optimizer(config) do
-    Polaris.Optimizers.adam(learning_rate: config.learning_rate)
+  @spec create_optimizer(map(), Edifice.Training.Profile.t()) :: {function(), function()}
+  def create_optimizer(config, profile \\ Edifice.Training.Profile.generic()) do
+    ExPhil.Training.TrainingProfile.adamw(profile, config.learning_rate,
+      decay: Map.get(config, :weight_decay, 0.0)
+    )
   end
 
   @doc """
@@ -369,7 +383,10 @@ defmodule ExPhil.Training.PPO do
             mb_actions = gather_actions(actions, mb_indices)
             mb_advantages = ExPhil.NxSafe.take(advantages, mb_indices, label: "PPO advantages")
             mb_returns = ExPhil.NxSafe.take(returns, mb_indices, label: "PPO returns")
-            mb_old_log_probs = ExPhil.NxSafe.take(old_log_probs, mb_indices, label: "PPO log_probs")
+
+            mb_old_log_probs =
+              ExPhil.NxSafe.take(old_log_probs, mb_indices, label: "PPO log_probs")
+
             mb_old_values = ExPhil.NxSafe.take(old_values, mb_indices, label: "PPO values")
 
             # Single minibatch update
@@ -415,7 +432,13 @@ defmodule ExPhil.Training.PPO do
     optimizer_update = trainer.optimizer
 
     Nx.Defn.jit(
-      fn params_data, optimizer_state, states, actions, advantages, returns, old_log_probs,
+      fn params_data,
+         optimizer_state,
+         states,
+         actions,
+         advantages,
+         returns,
+         old_log_probs,
          old_values ->
         # Loss for the gradient (scalar)
         loss_fn = fn params ->
@@ -497,7 +520,9 @@ defmodule ExPhil.Training.PPO do
   end
 
   defp ensure_update_step_fn(%{update_step_fn: f} = trainer) when is_function(f), do: trainer
-  defp ensure_update_step_fn(trainer), do: %{trainer | update_step_fn: build_update_step_fn(trainer)}
+
+  defp ensure_update_step_fn(trainer),
+    do: %{trainer | update_step_fn: build_update_step_fn(trainer)}
 
   defp minibatch_update(trainer, states, actions, advantages, returns, old_log_probs, old_values) do
     trainer = ensure_update_step_fn(trainer)

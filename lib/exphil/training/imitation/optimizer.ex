@@ -50,17 +50,38 @@ defmodule ExPhil.Training.Imitation.Optimizer do
     - `:restart_period` - SGDR initial period (default: 1000)
     - `:restart_mult` - SGDR period multiplier (default: 2)
 
+  ## Training profile
+
+  With an `Edifice.Training.Profile` as the second argument, `:adamw` is built
+  through `ExPhil.Training.TrainingProfile.adamw/3`: weight decay reaches only
+  the parameters the architecture says it should (kernels), never biases, norm
+  gains or Mamba-2's `A_log`/`dt_bias`/`D`. The other optimizer types ignore
+  the profile. Without a profile the plain Polaris optimizer is built, which
+  decays every parameter.
+
   ## Returns
     `{init_fn, update_fn}` tuple compatible with Polaris.
   """
-  @spec create_optimizer(map()) :: {function(), function()}
-  def create_optimizer(config) do
+  @spec create_optimizer(map(), Edifice.Training.Profile.t() | nil) :: {function(), function()}
+  def create_optimizer(config, profile \\ nil) do
     lr_schedule = build_lr_schedule(config)
     max_grad_norm = config[:max_grad_norm] || 1.0
     optimizer_type = config[:optimizer] || :adamw
 
     # Build the base optimizer
-    base_optimizer = build_base_optimizer(optimizer_type, lr_schedule, config)
+    base_optimizer =
+      case {optimizer_type, profile} do
+        {:adamw, %Edifice.Training.Profile{}} ->
+          ExPhil.Training.TrainingProfile.adamw(profile, lr_schedule,
+            b1: 0.9,
+            b2: 0.999,
+            eps: 1.0e-8,
+            decay: weight_decay(config)
+          )
+
+        _ ->
+          build_base_optimizer(optimizer_type, lr_schedule, config)
+      end
 
     # Optionally compose with gradient clipping
     if max_grad_norm > 0 do
@@ -69,6 +90,17 @@ defmodule ExPhil.Training.Imitation.Optimizer do
     else
       base_optimizer
     end
+  end
+
+  @doc """
+  The weight decay the configured optimizer applies: `config[:weight_decay]`
+  (default `1.0e-5`) for `:adamw` and `:lamb`, `0.0` for the others.
+  """
+  @spec weight_decay(map()) :: float()
+  def weight_decay(config) do
+    if (config[:optimizer] || :adamw) in [:adamw, :lamb],
+      do: config[:weight_decay] || 1.0e-5,
+      else: 0.0
   end
 
   @doc """
