@@ -222,8 +222,13 @@ mix run scripts/stomped_serve.exs --path-secret <secret> --url https://<host>/<s
 # single-frame GRU step than the GPU, and it leaves the GPU to training)
 env EXLA_TARGET=host mix run scripts/stomped_serve.exs \
   --path-secret <secret> --url https://<host>/<secret> \
-  --policy eval_runs/0923_ppo/eval_candidate/candidate_policy.bin --lead-extra 0
+  --policy eval_runs/0923_ppo/eval_candidate/candidate_policy.bin
 ```
+
+The server times the arena's `ping` each match and aims just far enough ahead
+for the measured round trip (`--lead-extra auto`, the default; a number pins
+it). When a match closes it logs the lead it used, the round trip, and how
+many pads landed or arrived late.
 
 Measured per-frame compute for the PPO Fox (512-wide GRU, stateful step) on
 one real arena game: 0.59 ms mean / 1.22 ms p99 on CPU, 1.80 ms mean / 3.02 ms

@@ -25,6 +25,17 @@ defmodule ExPhil.Stomped.Match do
   # `game.frame` before the engine has finished any frame.
   @no_frame_yet -124
 
+  @frame_ms 1000 / 60
+  # The engine's share of a frame: the arena's budget is one frame minus this.
+  @engine_ms 5.67
+  # Allowance for our own decision and for jitter in the round trip.
+  @compute_ms 2
+  @margin_ms 3
+  # The arena accepts one ping a second.
+  @ping_gap_ms 1_100
+  @ping_every_frames 120
+  @rtt_window 5
+
   defstruct bot: nil,
             bot_state: nil,
             lead_extra: 0,
@@ -41,7 +52,16 @@ defmodule ExPhil.Stomped.Match do
             result: nil,
             frames: 0,
             compute_us_total: 0,
-            compute_us_max: 0
+            compute_us_max: 0,
+            input_delay: 1,
+            game_on?: false,
+            # round-trip measurement (the `ping` step)
+            ping_at: nil,
+            ping_step: nil,
+            last_ping_at: nil,
+            frames_since_ping: 0,
+            rtt_recent: [],
+            rtt_all: []
 
   @type reply :: {:text, iodata()} | {:binary, binary()}
   @type t :: %__MODULE__{}
@@ -53,7 +73,8 @@ defmodule ExPhil.Stomped.Match do
 
     * `:bot` — `{module, opts}` implementing `ExPhil.Stomped.Bot` (required)
     * `:lead_extra` — extra frames to aim ahead, for round trips over the
-      frame budget (default 0)
+      frame budget (default 0), or `:auto` to set the lead from the
+      measured round trip (see `lead_for/2`)
     * `:hold_ahead` — also send each pad for this many following frames
       (default 0). The arena keeps the last pad received before a poll, so
       if the next decision is late the game repeats this input instead of
@@ -82,7 +103,7 @@ defmodule ExPhil.Stomped.Match do
           Logger.warning("[stomped #{match.match_id}] step #{step} rejected: #{reason}")
         end
 
-        match |> absorb(frame) |> step(step, frame)
+        match |> sample_ping(step) |> absorb(frame) |> step(step, frame)
 
       other ->
         Logger.warning("[stomped #{match.match_id}] unreadable text frame: #{inspect(other)}")
@@ -135,7 +156,8 @@ defmodule ExPhil.Stomped.Match do
                   do: {:binary, Pad.encode(f, inputs)}
           end
 
-        {replies, record_compute(match, frames, started)}
+        {ping, match} = game_ping(match, frames)
+        {replies ++ ping, record_compute(match, frames, started)}
     end
   end
 
@@ -150,6 +172,7 @@ defmodule ExPhil.Stomped.Match do
       compute_ms_mean:
         if(match.frames > 0, do: match.compute_us_total / match.frames / 1000, else: 0.0),
       compute_ms_max: match.compute_us_max / 1000,
+      rtt_ms: rtt_summary(match.rtt_all),
       result: match.result
     }
   end
@@ -162,9 +185,10 @@ defmodule ExPhil.Stomped.Match do
       match
       | port: frame["port"] || match.port,
         match_id: frame["matchId"] || match.match_id,
-        lead: if(is_integer(delay), do: 1 + delay + match.lead_extra, else: match.lead),
+        input_delay: if(is_integer(delay), do: delay, else: match.input_delay),
         step: frame["step"]
     }
+    |> set_lead()
   end
 
   # The step is sent again after a rejected reply and in answer to a `ping`;
@@ -181,7 +205,8 @@ defmodule ExPhil.Stomped.Match do
       end
 
     reply = %{step: "character", character: pick.character, costume: Map.get(pick, :costume, 0)}
-    {[{:text, Jason.encode!(reply)}], match}
+    {ping, match} = ping(match)
+    {[{:text, Jason.encode!(reply)} | ping], match}
   end
 
   defp step(match, "ready", frame) do
@@ -192,10 +217,18 @@ defmodule ExPhil.Stomped.Match do
         match
       end
 
-    {[{:text, Jason.encode!(%{step: "ready"})}], %{match | readied?: true}}
+    {ping, match} = ping(match)
+    {[{:text, Jason.encode!(%{step: "ready"})} | ping], %{match | readied?: true}}
   end
 
+  # A `game` frame also comes back in answer to every in-game ping. Only the
+  # first one opens the game: sending the neutral cover again would overwrite
+  # real pads that are already waiting for their frame.
+  defp step(%{game_on?: true} = match, "game", _frame), do: {[], match}
+
   defp step(match, "game", %{"frame" => frame}) when is_integer(frame) do
+    # First in-game ping after half a second, then every two seconds.
+    match = %{match | game_on?: true, frames_since_ping: @ping_every_frames - 30}
     # Cover every frame that is already open; one pad per bookend follows.
     last = frame + match.lead
     pads = for f <- (frame + 1)..last//1, do: {:binary, Pad.neutral(f)}
@@ -271,4 +304,99 @@ defmodule ExPhil.Stomped.Match do
   end
 
   defp record_compute(match, _frames, _started), do: match
+
+  # --- round trip and lead ------------------------------------------------
+
+  @doc """
+  The lead (frames between the frame just seen and the pad's target) that a
+  round trip of `rtt_ms` needs, given the arena's `inputDelayFrames`.
+
+  Frame F's events are sent once frame `F + input_delay` is computed, about
+  #{@engine_ms} ms after that frame's tick, and the pad for `F + k` is read at
+  tick `F + k`. So a pad has `(k - input_delay) * 16.67 - #{@engine_ms}` ms to
+  make the round trip, our compute included. With no network at all this is
+  the arena's own figure: `k = input_delay + 1` and 11 ms.
+  """
+  @spec lead_for(number(), non_neg_integer()) :: pos_integer()
+  def lead_for(rtt_ms, input_delay) do
+    needed = rtt_ms + @compute_ms + @margin_ms + @engine_ms
+    input_delay + max(1, ceil(needed / @frame_ms))
+  end
+
+  defp set_lead(%{lead_extra: :auto, rtt_recent: []} = match),
+    do: %{match | lead: 1 + match.input_delay}
+
+  # The slowest recent round trip, so one quick sample cannot shorten the lead.
+  defp set_lead(%{lead_extra: :auto} = match),
+    do: %{match | lead: lead_for(Enum.max(match.rtt_recent), match.input_delay)}
+
+  defp set_lead(match), do: %{match | lead: 1 + match.input_delay + match.lead_extra}
+
+  # Ask for the current step again and time the answer. The arena allows one
+  # ping a second.
+  defp ping(%{ping_at: nil} = match) do
+    now = System.monotonic_time(:millisecond)
+
+    if match.last_ping_at == nil or now - match.last_ping_at >= @ping_gap_ms do
+      match = %{
+        match
+        | ping_at: now,
+          last_ping_at: now,
+          ping_step: match.step,
+          frames_since_ping: 0
+      }
+
+      {[{:text, Jason.encode!(%{step: "ping"})}], match}
+    else
+      {[], match}
+    end
+  end
+
+  defp ping(match), do: {[], match}
+
+  # The answer to a ping is the current step's frame. If the step moved on in
+  # the meantime, the frame that arrived may be the arena's own broadcast of
+  # the new step, sent before our ping got there: that would read as a round
+  # trip shorter than the real one, so the sample is dropped.
+  defp sample_ping(%{ping_at: nil} = match, _step), do: match
+
+  defp sample_ping(%{ping_step: step} = match, step) do
+    rtt = System.monotonic_time(:millisecond) - match.ping_at
+
+    %{
+      match
+      | ping_at: nil,
+        rtt_recent: Enum.take([rtt | match.rtt_recent], @rtt_window),
+        rtt_all: [rtt | match.rtt_all]
+    }
+  end
+
+  defp sample_ping(match, _other_step), do: %{match | ping_at: nil}
+
+  # One live frame per message is the steady state; a `replay` catch-up is not.
+  defp game_ping(match, [_one]) do
+    match = %{match | frames_since_ping: match.frames_since_ping + 1}
+
+    cond do
+      # An unanswered ping (five seconds) is forgotten, not waited on forever.
+      match.ping_at != nil and match.frames_since_ping > 300 -> {[], %{match | ping_at: nil}}
+      match.frames_since_ping >= @ping_every_frames -> ping(match)
+      true -> {[], match}
+    end
+  end
+
+  defp game_ping(match, _frames), do: {[], match}
+
+  defp rtt_summary([]), do: nil
+
+  defp rtt_summary(samples) do
+    sorted = Enum.sort(samples)
+
+    %{
+      n: length(sorted),
+      min: hd(sorted),
+      median: Enum.at(sorted, div(length(sorted), 2)),
+      max: List.last(sorted)
+    }
+  end
 end

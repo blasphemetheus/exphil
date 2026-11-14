@@ -20,7 +20,10 @@
 #   --url URL         the registered URL, byte for byte; turns on signed-handshake
 #                     verification (fetches the platform key at startup)
 #   --lead-extra N    extra frames to aim ahead when the round trip is over the
-#                     11 ms budget (default 0). Reaction delay k = 1 + N.
+#                     11 ms budget. Default `auto`: the server times the arena's
+#                     ping each match and aims just far enough ahead. A number
+#                     pins it (reaction delay k = 1 + N). The lead and the
+#                     measured round trip are logged when a match closes.
 #   --policy PATH     exported policy to play (ExPhil.Stomped.Bots.Policy). Without it
 #                     the quickstart walker plays, which only proves the deploy.
 #   --hold-ahead N    repeat each pad N frames ahead as cover for a late decision
@@ -49,7 +52,7 @@ alias ExPhil.Training.Output
       port: :integer,
       bind: :string,
       url: :string,
-      lead_extra: :integer,
+      lead_extra: :string,
       policy: :string,
       hold_ahead: :integer,
       windowed: :boolean,
@@ -69,7 +72,23 @@ end
 Output.banner("ExPhil — stomped.dev bot server")
 
 port = Keyword.get(opts, :port, 3000)
-lead_extra = Keyword.get(opts, :lead_extra, 0)
+# auto (default): the server times the arena's `ping` and aims just far enough
+# ahead for the measured round trip. A number pins it.
+lead_extra =
+  case Keyword.get(opts, :lead_extra, "auto") do
+    "auto" ->
+      :auto
+
+    value ->
+      case Integer.parse(value) do
+        {n, ""} when n >= 0 ->
+          n
+
+        _ ->
+          Output.error("--lead-extra must be auto or a whole number >= 0")
+          System.halt(1)
+      end
+  end
 
 ip =
   case Keyword.get(opts, :bind, "loopback") do
@@ -113,14 +132,18 @@ costume = Keyword.get(opts, :costume, 0)
 
       case ExPhil.Stomped.Bots.Policy.start(
              policy: policy_path,
-             lead_extra: lead_extra,
+             lead_extra: if(lead_extra == :auto, do: 0, else: lead_extra),
              stateful_step: not Keyword.get(opts, :windowed, false),
              deterministic: Keyword.get(opts, :deterministic, false),
              temperature: Keyword.get(opts, :temperature, 1.0)
            ) do
         {:ok, policy} ->
           Output.success(
-            "Agent warm in #{policy.warmup_ms} ms; plays at reaction delay #{policy.reaction_delay}"
+            "Agent warm in #{policy.warmup_ms} ms; reaction delay " <>
+              if(lead_extra == :auto,
+                do: "set per match from the round trip (at least 1)",
+                else: "#{policy.reaction_delay}"
+              )
           )
 
           {{ExPhil.Stomped.Bots.Policy,
@@ -171,7 +194,11 @@ Output.config([
   {"Bind", ip},
   {"Path", path},
   {"Policy", opts[:policy] || "(none — quickstart walker)"},
-  {"Lead", "1 + inputDelayFrames + #{lead_extra}"},
+  {"Lead",
+   if(lead_extra == :auto,
+     do: "auto (from the measured round trip)",
+     else: "1 + inputDelayFrames + #{lead_extra}"
+   )},
   {"Hold ahead", hold_ahead},
   {"EXLA client", inspect(Application.get_env(:exla, :default_client))},
   {"Handshake verification",

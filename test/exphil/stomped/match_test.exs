@@ -48,7 +48,17 @@ defmodule ExPhil.Stomped.MatchTest do
     end
   end
 
-  defp texts(replies), do: for({:text, json} <- replies, do: Jason.decode!(json))
+  # Step replies, without the round-trip pings that ride along with them.
+  defp texts(replies) do
+    for {:text, json} <- replies,
+        reply = Jason.decode!(json),
+        reply != %{"step" => "ping"},
+        do: reply
+  end
+
+  defp pings(replies) do
+    for {:text, json} <- replies, Jason.decode!(json) == %{"step" => "ping"}, do: :ping
+  end
 
   describe "Pad" do
     test "encodes the documented layout" do
@@ -191,6 +201,78 @@ defmodule ExPhil.Stomped.MatchTest do
 
       assert replies == []
       assert_received {:events, [0x39]}
+    end
+  end
+
+  describe "round trip" do
+    test "lead_for: the arena's own figure with no network, a frame more per 16.7 ms" do
+      # 11 ms budget at the floor: 2 ms compute + 3 ms margin leaves about 6 ms of network.
+      assert Match.lead_for(0, 1) == 2
+      assert Match.lead_for(5, 1) == 2
+      assert Match.lead_for(7, 1) == 3
+      assert Match.lead_for(25, 1) == 4
+      assert Match.lead_for(80, 1) == 7
+    end
+
+    test "a ping rides with the pick, and its answer sets the lead when auto" do
+      {replies, match} = Match.handle_text(Stream.step("character"), recorder(lead_extra: :auto))
+      assert pings(replies) == [:ping]
+      assert match.lead == 2
+
+      Process.sleep(40)
+      {replies, match} = Match.handle_text(Stream.step("character"), match)
+
+      # The answer is the same step again: the pick is repeated, not re-made.
+      assert [%{"step" => "character", "character" => 10}] = texts(replies)
+      assert [rtt] = match.rtt_all
+      assert rtt >= 40
+      assert match.lead == Match.lead_for(rtt, 1)
+      assert match.lead >= 4
+      assert %{n: 1, min: ^rtt} = Match.summary(match).rtt_ms
+    end
+
+    test "a pinned lead is measured but not changed" do
+      {_, match} = Match.handle_text(Stream.step("character"), recorder(lead_extra: 1))
+      Process.sleep(40)
+      {_, match} = Match.handle_text(Stream.step("character"), match)
+
+      assert [_rtt] = match.rtt_all
+      assert match.lead == 3
+    end
+
+    test "a frame of the next step is not taken for the ping's answer" do
+      {_, match} = Match.handle_text(Stream.step("character"), recorder(lead_extra: :auto))
+      {_, match} = Match.handle_text(Stream.step("ready", %{"players" => []}), match)
+
+      assert match.rtt_all == []
+      assert match.ping_at == nil
+    end
+
+    test "pings are at most one a second" do
+      {first, match} = Match.handle_text(Stream.step("character"), recorder())
+      {_, match} = Match.handle_text(Stream.step("character"), match)
+      {second, _} = Match.handle_text(Stream.step("ready", %{"players" => []}), match)
+
+      assert pings(first) == [:ping]
+      assert pings(second) == []
+    end
+
+    test "in game: a ping every two seconds, and its answer does not resend the opening pads" do
+      {_, match} = Match.handle_text(Stream.step("game", %{"frame" => -124}), recorder())
+      {_, match} = Match.handle_binary(Stream.header(), match)
+
+      {sent, match} =
+        Enum.reduce(-123..-80, {[], match}, fn frame, {sent, match} ->
+          {replies, match} = Match.handle_binary(Stream.frame(frame), match)
+          {sent ++ Enum.map(pings(replies), fn _ -> frame end), match}
+        end)
+
+      # First ping half a second in.
+      assert sent == [-94]
+
+      {replies, match} = Match.handle_text(Stream.step("game", %{"frame" => -80}), match)
+      assert replies == []
+      assert [_rtt] = match.rtt_all
     end
   end
 

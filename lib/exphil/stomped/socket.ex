@@ -41,6 +41,7 @@ defmodule ExPhil.Stomped.Socket do
           "#{summary.frames} frames, lead #{summary.lead}, " <>
           "compute mean #{Float.round(summary.compute_ms_mean * 1.0, 2)} ms / " <>
           "max #{Float.round(summary.compute_ms_max * 1.0, 2)} ms, " <>
+          "round trip #{rtt(summary.rtt_ms)}, " <>
           "result #{inspect(summary.result)}"
       )
     end
@@ -49,6 +50,11 @@ defmodule ExPhil.Stomped.Socket do
   end
 
   def terminate(_reason, _state), do: :ok
+
+  defp rtt(nil), do: "not measured"
+
+  defp rtt(%{n: n, min: min, median: median, max: max}),
+    do: "#{min}/#{median}/#{max} ms min/median/max over #{n} pings"
 
   defp push({[], match}), do: {:ok, match}
   defp push({replies, match}), do: {:push, replies, match}
