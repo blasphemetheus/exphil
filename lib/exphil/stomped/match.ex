@@ -31,6 +31,7 @@ defmodule ExPhil.Stomped.Match do
   # Allowance for our own decision and for jitter in the round trip.
   @compute_ms 2
   @margin_ms 3
+  @jitter_share 0.1
   # The arena accepts one ping a second.
   @ping_gap_ms 1_100
   @ping_every_frames 120
@@ -61,6 +62,7 @@ defmodule ExPhil.Stomped.Match do
             last_ping_at: nil,
             frames_since_ping: 0,
             rtt_recent: [],
+            auto_lead: nil,
             rtt_all: []
 
   @type reply :: {:text, iodata()} | {:binary, binary()}
@@ -191,8 +193,19 @@ defmodule ExPhil.Stomped.Match do
     |> set_lead()
   end
 
-  # The step is sent again after a rejected reply and in answer to a `ping`;
-  # the pick is made once and repeated, so a resend can never change it.
+  # The step is sent again after a rejected reply and in answer to a `ping`.
+  # Only the first frame and a rejection are questions: answering a ping's
+  # echo again can land after the step has moved on, which the arena rejects
+  # ("wrong step"). The pick is made once, so a resend can never change it.
+  defp step(%{pick: pick} = match, "character", frame)
+       when pick != nil and not is_map_key(frame, "error") do
+    ping(match)
+  end
+
+  defp step(%{readied?: true} = match, "ready", frame) when not is_map_key(frame, "error") do
+    ping(match)
+  end
+
   defp step(match, "character", frame) do
     {pick, match} =
       case match.pick do
@@ -319,16 +332,28 @@ defmodule ExPhil.Stomped.Match do
   """
   @spec lead_for(number(), non_neg_integer()) :: pos_integer()
   def lead_for(rtt_ms, input_delay) do
-    needed = rtt_ms + @compute_ms + @margin_ms + @engine_ms
+    # A long path jitters more than a short one (54-77 ms was measured within
+    # one game through a home tunnel), so the slack grows with the round trip.
+    slack = @margin_ms + @jitter_share * rtt_ms
+    needed = rtt_ms + @compute_ms + slack + @engine_ms
     input_delay + max(1, ceil(needed / @frame_ms))
   end
 
   defp set_lead(%{lead_extra: :auto, rtt_recent: []} = match),
     do: %{match | lead: 1 + match.input_delay}
 
-  # The slowest recent round trip, so one quick sample cannot shorten the lead.
-  defp set_lead(%{lead_extra: :auto} = match),
-    do: %{match | lead: lead_for(Enum.max(match.rtt_recent), match.input_delay)}
+  # Sized for the slowest round trip seen this match and never shortened: a
+  # lead that follows the quick samples down is late whenever the path is
+  # slow again (the first measured game ran 36% late on a 5-sample window).
+  defp set_lead(%{lead_extra: :auto} = match) do
+    needed = lead_for(Enum.max(match.rtt_all), match.input_delay)
+
+    %{
+      match
+      | lead: max(needed, match.auto_lead || 0),
+        auto_lead: max(needed, match.auto_lead || 0)
+    }
+  end
 
   defp set_lead(match), do: %{match | lead: 1 + match.input_delay + match.lead_extra}
 

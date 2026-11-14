@@ -45,6 +45,8 @@ defmodule ExPhil.Stomped.Bots.Policy do
   @stick_radius 80
   # Sent pads are only needed until their frame's echo arrives.
   @sent_window 64
+  # How many frames back to look for the pad the game read instead.
+  @late_search 4
 
   @doc """
   Load a checkpoint, warm its agent and put it in a seat.
@@ -96,6 +98,7 @@ defmodule ExPhil.Stomped.Bots.Policy do
       sent: %{},
       landed: 0,
       late: 0,
+      late_by: %{},
       unknown: 0,
       errors: 0
     }
@@ -140,7 +143,8 @@ defmodule ExPhil.Stomped.Bots.Policy do
     Logger.info(
       "[stomped policy] pads landed #{state.landed}, late #{state.late}" <>
         if(total > 0, do: " (#{Float.round(100 * state.late / total, 2)}% late)", else: "") <>
-        ", unknown (neutral) #{state.unknown}, undecodable frames #{state.errors}"
+        ", unknown (neutral) #{state.unknown}, undecodable frames #{state.errors}" <>
+        if(state.late > 0, do: "; late pads read as #{late_by_text(state.late_by)}", else: "")
     )
 
     if is_pid(state.agent), do: ExPhil.Stomped.Seat.release(state.seat)
@@ -148,7 +152,17 @@ defmodule ExPhil.Stomped.Bots.Policy do
   end
 
   @doc "Landed/late/unknown counts so far (for tests and tooling)."
-  def stats(state), do: Map.take(state, [:landed, :late, :unknown, :errors])
+  def stats(state), do: Map.take(state, [:landed, :late, :late_by, :unknown, :errors])
+
+  defp late_by_text(late_by) do
+    late_by
+    |> Enum.sort_by(fn {key, _} -> if is_integer(key), do: key, else: 99 end)
+    |> Enum.map_join(", ", fn
+      {back, n} when is_integer(back) -> "the pad from #{back} frame(s) earlier x#{n}"
+      {:neutral, n} -> "neutral x#{n}"
+      {:unmatched, n} -> "no recent pad x#{n}"
+    end)
+  end
 
   # --- the agent ----------------------------------------------------------
 
@@ -208,19 +222,40 @@ defmodule ExPhil.Stomped.Bots.Policy do
   end
 
   defp score(state, frame, echo) do
-    case Map.pop(state.sent, frame) do
-      {nil, _sent} ->
+    case Map.get(state.sent, frame) do
+      nil ->
         state
 
-      {inputs, sent} ->
-        state = %{state | sent: sent}
+      inputs ->
+        read = Pad.from_controller(echo)
 
         cond do
           neutral?(inputs) -> %{state | unknown: state.unknown + 1}
-          landed?(inputs, Pad.from_controller(echo)) -> %{state | landed: state.landed + 1}
-          true -> %{state | late: state.late + 1}
+          landed?(inputs, read) -> %{state | landed: state.landed + 1}
+          true -> %{state | late: state.late + 1, late_by: late_by(state, frame, read)}
         end
     end
+  end
+
+  # What the game read instead: the pad meant for an earlier frame (the pad
+  # arrived that many frames late and the hold-ahead copy stood in), nothing
+  # at all, or something that matches no recent pad.
+  defp late_by(state, frame, read) do
+    key =
+      cond do
+        neutral?(read) ->
+          :neutral
+
+        true ->
+          Enum.find(1..@late_search, :unmatched, fn back ->
+            case Map.get(state.sent, frame - back) do
+              nil -> false
+              earlier -> landed?(earlier, read)
+            end
+          end)
+      end
+
+    Map.update(state.late_by, key, 1, &(&1 + 1))
   end
 
   @doc false

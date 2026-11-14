@@ -222,8 +222,9 @@ defmodule ExPhil.Stomped.MatchTest do
       Process.sleep(40)
       {replies, match} = Match.handle_text(Stream.step("character"), match)
 
-      # The answer is the same step again: the pick is repeated, not re-made.
-      assert [%{"step" => "character", "character" => 10}] = texts(replies)
+      # The answer is the same step again. It is not a new question: replying
+      # a second time can land after the step moved on ("wrong step").
+      assert texts(replies) == []
       assert [rtt] = match.rtt_all
       assert rtt >= 40
       assert match.lead == Match.lead_for(rtt, 1)
