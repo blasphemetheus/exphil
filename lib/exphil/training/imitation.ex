@@ -295,11 +295,11 @@ defmodule ExPhil.Training.Imitation do
         config
       end
 
-    if config[:event_context] and not (config[:button_events] && config[:stick_events]) do
+    if config[:event_context] && !(config[:button_events] && config[:stick_events]) do
       raise ArgumentError, "event_context requires button_events: true and stick_events: true"
     end
 
-    if config[:stick_release] and not config[:stick_events] do
+    if config[:stick_release] && !config[:stick_events] do
       raise ArgumentError, "stick_release requires stick_events: true"
     end
 
