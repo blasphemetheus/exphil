@@ -264,7 +264,7 @@ defmodule ExPhil.MixProject do
       {:req, "~> 0.5"},
 
       # HTTP + WebSocket server for the stomped.dev arena (ExPhil.Stomped)
-      {:bandit, "~> 1.5"},
+      {:bandit, "~> 1.14"},
       {:websock_adapter, "~> 0.5"},
       # WebSocket client: the end-to-end arena test plays stomped's side
       {:mint_web_socket, "~> 1.0", only: [:dev, :test]},
