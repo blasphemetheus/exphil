@@ -1,0 +1,261 @@
+defmodule ExPhil.Stomped.Bots.Policy do
+  @moduledoc """
+  Plays a trained checkpoint on the stomped.dev arena.
+
+  Each frame's events go through `ExPhil.Stomped.Decoder` (the state exactly
+  as training built it), the state through the warm `ExPhil.Agents.Agent`
+  borrowed from an `ExPhil.Stomped.Seat`, and the agent's controller through
+  `ExPhil.Stomped.Pad.from_controller/1`.
+
+  Every frame from the first (−123) is fed to the agent: training frames
+  include the countdown, and a recurrent policy should enter frame 0 warm.
+
+  ## Measuring what landed
+
+  The stream echoes the controller the game polled for our port, so each
+  frame is checked against the pad that was sent for it:
+
+    * `landed` — the game read the pad we meant;
+    * `late` — it read something else (the pad arrived after the poll);
+    * `unknown` — the pad was neutral, which a late pad also reads as.
+
+  With the server's hold-ahead on, a late pad is covered by a repeat of the
+  previous one, so the arena's own `missed` count stays at zero. This count
+  is the only measure of lateness, and the one to pick `--lead-extra` from.
+
+  ## Options
+
+    * `:seat` — the `ExPhil.Stomped.Seat` holding the agent (required)
+    * `:character`, `:costume` — the pick (default 2 = Fox, costume 0)
+
+  If the seat is busy (a second match while one is live) the bot sends
+  neutral pads for that match rather than share recurrent state.
+  """
+
+  @behaviour ExPhil.Stomped.Bot
+
+  require Logger
+
+  alias ExPhil.Agents.Agent
+  alias ExPhil.Stomped.{Decoder, Pad}
+
+  # The game zeroes a stick axis inside this raw offset and clamps the stick
+  # to a circle of this radius.
+  @dead_zone 23
+  @stick_radius 80
+  # Sent pads are only needed until their frame's echo arrives.
+  @sent_window 64
+
+  @doc """
+  Load a checkpoint, warm its agent and put it in a seat.
+
+  Call once at server boot; pass the returned `:seat` in the bot's options.
+
+  Options:
+
+    * `:policy` — path to the exported policy (required)
+    * `:lead_extra` — the server's lead; the agent is told it plays at
+      reaction delay `1 + lead_extra` (the arena's `inputDelayFrames` is 1)
+    * `:stateful_step` — O(1) recurrent inference (default true)
+    * `:temperature`, `:deterministic` — sampling (default: sampled at 1.0)
+
+  Returns `{:ok, %{agent:, seat:, warmup_ms:, reaction_delay:}}`.
+  """
+  @spec start(keyword()) :: {:ok, map()} | {:error, term()}
+  def start(opts) do
+    reaction_delay = 1 + Keyword.get(opts, :lead_extra, 0)
+
+    agent_opts = [
+      policy_path: Keyword.fetch!(opts, :policy),
+      deterministic: Keyword.get(opts, :deterministic, false),
+      temperature: Keyword.get(opts, :temperature, 1.0),
+      # The arena delays nothing on our side: the lead is in the pad's frame number.
+      frame_delay: 0,
+      harness: :stomped,
+      harness_knob: Keyword.get(opts, :lead_extra, 0),
+      reaction_delay: reaction_delay,
+      stateful_step: Keyword.get(opts, :stateful_step, true)
+    ]
+
+    with {:ok, agent} <- Agent.start_link(agent_opts),
+         {:ok, warmup_ms} <- Agent.warmup(agent),
+         {:ok, seat} <- ExPhil.Stomped.Seat.start_link(agent: agent) do
+      {:ok, %{agent: agent, seat: seat, warmup_ms: warmup_ms, reaction_delay: reaction_delay}}
+    end
+  end
+
+  @impl true
+  def init(opts) do
+    %{
+      seat: Keyword.fetch!(opts, :seat),
+      character: Keyword.get(opts, :character, 2),
+      costume: Keyword.get(opts, :costume, 0),
+      agent: nil,
+      decoder: nil,
+      header: [],
+      sent: %{},
+      landed: 0,
+      late: 0,
+      unknown: 0,
+      errors: 0
+    }
+  end
+
+  @impl true
+  def pick(_step, state) do
+    {%{character: state.character, costume: state.costume}, seat(state)}
+  end
+
+  @impl true
+  def ready(_step, state), do: seat(state)
+
+  @impl true
+  def handle_events(events, state) do
+    # Game Start is in the header; it is read once the port is known.
+    if state.decoder == nil, do: %{state | header: state.header ++ events}, else: state
+  end
+
+  @impl true
+  def handle_frame(frame, events, ctx, state) do
+    state = state |> seat() |> decoder(ctx)
+
+    case Decoder.frame(state.decoder, frame, events) do
+      {:ok, decoded, decoder} ->
+        state = %{state | decoder: decoder} |> score(frame, decoded.controller)
+        decide(decoded, ctx, state)
+
+      {:error, reason} ->
+        if state.errors == 0 do
+          Logger.warning("[stomped policy] frame #{frame} not decodable: #{inspect(reason)}")
+        end
+
+        {%{}, %{state | errors: state.errors + 1}}
+    end
+  end
+
+  @impl true
+  def over(_step, state) do
+    total = state.landed + state.late
+
+    Logger.info(
+      "[stomped policy] pads landed #{state.landed}, late #{state.late}" <>
+        if(total > 0, do: " (#{Float.round(100 * state.late / total, 2)}% late)", else: "") <>
+        ", unknown (neutral) #{state.unknown}, undecodable frames #{state.errors}"
+    )
+
+    if is_pid(state.agent), do: ExPhil.Stomped.Seat.release(state.seat)
+    :ok
+  end
+
+  @doc "Landed/late/unknown counts so far (for tests and tooling)."
+  def stats(state), do: Map.take(state, [:landed, :late, :unknown, :errors])
+
+  # --- the agent ----------------------------------------------------------
+
+  # Borrow the agent on first need. A reconnect arrives as a new socket in the
+  # `game` step, so this cannot live in `pick` alone.
+  defp seat(%{agent: nil} = state) do
+    case ExPhil.Stomped.Seat.checkout(state.seat) do
+      {:ok, agent} ->
+        :ok = Agent.reset_buffer(agent)
+        %{state | agent: agent}
+
+      :busy ->
+        Logger.warning("[stomped policy] the agent is in another match; playing neutral")
+        %{state | agent: :busy}
+    end
+  end
+
+  defp seat(state), do: state
+
+  defp decoder(%{decoder: nil} = state, ctx) do
+    %{state | decoder: ctx.port |> Decoder.new() |> Decoder.game_start(state.header), header: []}
+  end
+
+  defp decoder(state, _ctx), do: state
+
+  defp decide(_decoded, _ctx, %{agent: :busy} = state), do: {%{}, state}
+
+  # Catching up through a `replay` answer: advance the agent's history with
+  # what was actually played, without spending a decision on a dead frame.
+  defp decide(decoded, %{live?: false}, state) do
+    Agent.observe(state.agent, decoded.game_state, decoded.controller, player_port: 1)
+    {%{}, state}
+  end
+
+  defp decide(decoded, ctx, state) do
+    case Agent.get_controller(state.agent, decoded.game_state, player_port: 1) do
+      {:ok, controller} ->
+        inputs = Pad.from_controller(controller)
+        {inputs, remember(state, ctx.target, inputs)}
+
+      {:error, reason} ->
+        if state.errors == 0 do
+          Logger.warning(
+            "[stomped policy] no decision at frame #{decoded.frame}: #{inspect(reason)}"
+          )
+        end
+
+        {%{}, %{state | errors: state.errors + 1}}
+    end
+  end
+
+  # --- what landed --------------------------------------------------------
+
+  defp remember(state, target, inputs) do
+    sent = state.sent |> Map.put(target, inputs) |> Map.delete(target - @sent_window)
+    %{state | sent: sent}
+  end
+
+  defp score(state, frame, echo) do
+    case Map.pop(state.sent, frame) do
+      {nil, _sent} ->
+        state
+
+      {inputs, sent} ->
+        state = %{state | sent: sent}
+
+        cond do
+          neutral?(inputs) -> %{state | unknown: state.unknown + 1}
+          landed?(inputs, Pad.from_controller(echo)) -> %{state | landed: state.landed + 1}
+          true -> %{state | late: state.late + 1}
+        end
+    end
+  end
+
+  @doc false
+  def neutral?(inputs) do
+    inputs.buttons == 0 and inputs.l == 0 and inputs.r == 0 and
+      expected_stick(inputs.stick_x, inputs.stick_y) == {128, 128} and
+      expected_stick(inputs.c_x, inputs.c_y) == {128, 128}
+  end
+
+  @doc false
+  def landed?(sent, echo) do
+    sent.buttons == echo.buttons and
+      close?(expected_stick(sent.stick_x, sent.stick_y), {echo.stick_x, echo.stick_y}) and
+      close?(expected_stick(sent.c_x, sent.c_y), {echo.c_x, echo.c_y})
+  end
+
+  # The stick bytes the echo should show for the bytes we sent: the game
+  # clamps the stick to a circle, then zeroes each axis inside the dead zone.
+  defp expected_stick(x, y) do
+    {ox, oy} = {x - 128, y - 128}
+    radius = :math.sqrt(ox * ox + oy * oy)
+
+    {ox, oy} =
+      if radius > @stick_radius do
+        {trunc(ox * @stick_radius / radius), trunc(oy * @stick_radius / radius)}
+      else
+        {ox, oy}
+      end
+
+    {128 + dead(ox), 128 + dead(oy)}
+  end
+
+  defp dead(offset) when abs(offset) < @dead_zone, do: 0
+  defp dead(offset), do: offset
+
+  # The echo is the game's float rounded back to a byte: allow one step.
+  defp close?({ax, ay}, {bx, by}), do: abs(ax - bx) <= 1 and abs(ay - by) <= 1
+end

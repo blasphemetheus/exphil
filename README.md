@@ -176,6 +176,99 @@ configuration consistency, reproducibility, and semantic CI coverage. See
 
 ---
 
+## Competing in the stomped.dev Arena
+
+[stomped.dev](https://stomped.dev) is a ranked ladder for Melee bots. A bot there
+is a web server: the arena opens a WebSocket to a URL you register, streams the
+game as the raw `.slp` event stream (one message per frame), and reads 12-byte
+controller pads back. Games are vanilla NTSC 1.02, 4 stocks, 8 minutes, on a
+random legal stage, rated with OpenSkill. The full spec is at
+[docs.stomped.dev](https://docs.stomped.dev/).
+
+This suits ExPhil well: the whole bot runs on the BEAM, with no Dolphin,
+libmelee, or Python on our side, and the observations are the same bytes our
+training replays are made of.
+
+### What is built
+
+The arena server lives in `lib/exphil/stomped/`:
+
+| Module | Role |
+|--------|------|
+| `ExPhil.Stomped.Server` | Bandit HTTP server: `GET <url>/ping` and the match WebSocket |
+| `ExPhil.Stomped.Router` | Secret-path routing and signed-handshake verification (Ed25519) |
+| `ExPhil.Stomped.Match` | The match protocol as a pure state machine (`character`, `ready`, `game`, `over`, reconnects) |
+| `ExPhil.Stomped.Events` | `.slp` event framing: splits each message into events and frames |
+| `ExPhil.Stomped.Decoder` | Frame events to the training-shaped `GameState`, plus the controller the game polled |
+| `ExPhil.Stomped.Replay` | Cuts a stored `.slp` back into the arena's messages (offline stand-in for the socket) |
+| `ExPhil.Stomped.Pad` | The 12-byte pad encoder and the policy-controller conversion |
+| `ExPhil.Stomped.Bot` | The behaviour a bot implements (pick a character, answer each frame) |
+| `ExPhil.Stomped.Bots.Policy` | Plays a checkpoint: decoder, warm agent, pad; scores landed and late pads |
+| `ExPhil.Stomped.Seat` | Lends the one warm agent to one match at a time |
+| `ExPhil.Stomped.Bots.Walker` | The arena's quickstart bot (walk at the opponent, tap A), for proving a deploy |
+
+```bash
+# Start the server (prints the secret path if you don't give one)
+mix run scripts/stomped_serve.exs --path-secret "$(uuidgen)"
+curl localhost:3000/<secret>/ping            # -> pong
+
+# Put it on the internet, then register https://<host>/<secret> at stomped.dev/bots
+cloudflared tunnel --url http://localhost:3000
+
+# Once registered, verify the arena's signed handshake
+mix run scripts/stomped_serve.exs --path-secret <secret> --url https://<host>/<secret>
+
+# Play a checkpoint instead of the quickstart walker (CPU client: faster for a
+# single-frame GRU step than the GPU, and it leaves the GPU to training)
+env EXLA_TARGET=host mix run scripts/stomped_serve.exs \
+  --path-secret <secret> --url https://<host>/<secret> \
+  --policy eval_runs/0923_ppo/eval_candidate/candidate_policy.bin --lead-extra 0
+```
+
+Measured per-frame compute for the PPO Fox (512-wide GRU, stateful step) on
+one real arena game: 0.59 ms mean / 1.22 ms p99 on CPU, 1.80 ms mean / 3.02 ms
+p99 on the RTX 5090. The arena's budget is 11 ms including the network.
+
+A serving bot is a live ExPhil BEAM: the no-`mix`-next-to-it rule applies as
+it does for a training run. If you do serve on the GPU, set
+`EXPHIL_GPU_MEMORY_FRACTION=0.1` (the default reserves 75% of VRAM).
+
+The registered URL is the bot's password, so it needs an unguessable path. A
+tunnel exposes a port on your machine to the internet; the server answers only
+the ping and the socket under the secret path.
+
+### What is left
+
+- [x] WebSocket server, match protocol, pad encoding, handshake verification
+- [x] **Live `.slp` decoder** (`ExPhil.Stomped.Decoder`): each frame's events
+      become the game state the policy embeds, in the same shape training
+      builds from stored replays. Gate: on five real arena games (one per
+      stage, both seats) every frame equals the `exphil_peppi` training frame
+      (`mix test test/exphil/stomped --include nif`).
+- [x] **Controller to pad** (`ExPhil.Stomped.Pad.from_controller/1`): the
+      inverse of the game's stick processing, checked against the raw bytes
+      recorded in those games. Trigger bytes are not recorded in replays, so
+      that half is only checkable in a live game.
+- [x] **Policy bot** (`ExPhil.Stomped.Bots.Policy`, `--policy PATH`): one warm
+      `ExPhil.Agents.Agent` (stateful-step inference) lent to one match at a
+      time. Each pad is also sent for the following frame, so a late decision
+      repeats the last input instead of reading neutral, and every frame's
+      echo is scored as landed or late. Timed offline on a real arena game
+      with `scripts/stomped_replay_bench.exs`.
+- [ ] **Offline arena client**: replay a stored `.slp` over the socket to test
+      the full path, with timing, without waiting for a ladder game.
+- [ ] **Delay choice**: a pad is due 11 ms after its frame is sent, network
+      included. The arena is in Ashburn, Virginia; from further away the bot
+      aims extra frames ahead (`--lead-extra N`), which is reaction delay
+      `1 + N` in ExPhil's numbering. The checkpoint must be trained at that
+      delay.
+- [ ] **Stage coverage**: the stage is random among the six legal ones, so the
+      deployed policy has to hold up on all of them.
+- [ ] **Hosting**: a home tunnel to start; a US-East host if the measured round
+      trip costs too many frames.
+
+---
+
 ## We Want Your Replays
 
 Training data makes or breaks imitation learning. If you play Melee competitively, your replays are valuable — especially for lower-tier characters where data is scarce.

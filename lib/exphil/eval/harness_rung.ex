@@ -45,8 +45,8 @@ defmodule ExPhil.Eval.HarnessRung do
 
   alias ExPhil.Data.LabelConvention
 
-  @type harness :: :training | :sync_runner | :async_runner | :scenario_suite
-  @harnesses [:training, :sync_runner, :async_runner, :scenario_suite]
+  @type harness :: :training | :sync_runner | :async_runner | :scenario_suite | :stomped
+  @harnesses [:training, :sync_runner, :async_runner, :scenario_suite, :stomped]
 
   # Pipeline frames each harness adds on top of its knob (latency at knob 0).
   # Verified 09-12 evening with ExPhil.Bridge.LatencyProbe against Slippi's own
@@ -57,7 +57,13 @@ defmodule ExPhil.Eval.HarnessRung do
   # afternoon retraction of "sync d3 == async d2" was wrong: sync fd3/id2
   # chaining 427 is ep57 playing one frame FASTER than its labels on the
   # sync runner (an id-calibration fact, not a latency one).
-  @pipeline %{training: 1, sync_runner: 1, async_runner: 2, scenario_suite: 1}
+  #
+  # :stomped (the stomped.dev arena, knob = `--lead-extra`) is a FORMAT fact,
+  # not a measurement: the arena shows frame F once F + inputDelayFrames is
+  # done, so the first pad still open is F + 1 + inputDelayFrames. With the
+  # arena's inputDelayFrames of 1 that is latency 2 (reaction delay 1) at
+  # knob 0 — and only if the pad's round trip fits the 11 ms budget.
+  @pipeline %{training: 1, sync_runner: 1, async_runner: 2, scenario_suite: 1, stomped: 2}
 
   # The drill's --pipeline-offset since 2026-07-31 (every ms_g* checkpoint).
   @assumed_drill_offset 2
