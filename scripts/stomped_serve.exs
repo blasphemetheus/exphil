@@ -19,11 +19,15 @@
 #   --bind ADDR       loopback (default; right for a tunnel) or any
 #   --url URL         the registered URL, byte for byte; turns on signed-handshake
 #                     verification (fetches the platform key at startup)
-#   --lead-extra N    extra frames to aim ahead when the round trip is over the
-#                     11 ms budget. Default `auto`: the server times the arena's
-#                     ping each match and aims just far enough ahead. A number
-#                     pins it (reaction delay k = 1 + N). The lead and the
-#                     measured round trip are logged when a match closes.
+#   --lead-extra N    extra frames to aim ahead; reaction delay k = 1 + N on the
+#                     arena (see "Timing" in ExPhil.Stomped.Match). With --policy
+#                     the default is the checkpoint's trained delay, pinned for
+#                     the whole match. `auto` times the arena's ping and aims
+#                     just far enough ahead for the measured round trip; the
+#                     lead can grow mid-match, which changes the policy's task,
+#                     so it is the default only for the walker.
+#   --timing-log PATH append one JSON line per match: lead, reaction delay,
+#                     round-trip and compute distributions, landed/late pads
 #   --policy PATH     exported policy to play (ExPhil.Stomped.Bots.Policy). Without it
 #                     the quickstart walker plays, which only proves the deploy.
 #   --hold-ahead N    repeat each pad N frames ahead as cover for a late decision
@@ -53,6 +57,7 @@ alias ExPhil.Training.Output
       bind: :string,
       url: :string,
       lead_extra: :string,
+      timing_log: :string,
       policy: :string,
       hold_ahead: :integer,
       windowed: :boolean,
@@ -72,10 +77,22 @@ end
 Output.banner("ExPhil — stomped.dev bot server")
 
 port = Keyword.get(opts, :port, 3000)
-# auto (default): the server times the arena's `ping` and aims just far enough
-# ahead for the measured round trip. A number pins it.
-lead_extra =
-  case Keyword.get(opts, :lead_extra, "auto") do
+
+# The lead decides which reaction delay the policy plays at (see the "Timing"
+# section of ExPhil.Stomped.Match): k = inputDelayFrames + lead_extra.
+#
+#   * (no flag) with --policy: pinned to the checkpoint's trained delay, so
+#     the live task is the training task for the whole match
+#   * (no flag) without --policy, or `auto`: the server times the arena's
+#     `ping` and aims just far enough ahead for the measured round trip. The
+#     lead can grow mid-match, which changes a policy's task: not for
+#     measuring a policy.
+#   * a number pins it.
+lead_extra_flag =
+  case Keyword.get(opts, :lead_extra) do
+    nil ->
+      nil
+
     "auto" ->
       :auto
 
@@ -89,6 +106,10 @@ lead_extra =
           System.halt(1)
       end
   end
+
+# The arena shows the game one frame behind the engine. A match whose header
+# says otherwise is counted under the policy bot's delay_mismatch.
+arena_input_delay = 1
 
 ip =
   case Keyword.get(opts, :bind, "loopback") do
@@ -121,40 +142,89 @@ costume = Keyword.get(opts, :costume, 0)
 # The agent is warmed BEFORE the server listens: JIT compilation takes far
 # longer than the arena's step deadlines, and a registered bot can be seated
 # within minutes.
-{bot, hold_ahead} =
+{bot, hold_ahead, lead_extra} =
   case opts[:policy] do
     nil ->
       {{ExPhil.Stomped.Bots.Walker, character: character, costume: costume},
-       Keyword.get(opts, :hold_ahead, 0)}
+       Keyword.get(opts, :hold_ahead, 0), lead_extra_flag || :auto}
 
     policy_path ->
+      # The checkpoint's trained delay is the default lead; a pinned number
+      # that differs is allowed (it is a deliberate off-delay experiment) and
+      # the bot counts every live frame of it under delay_mismatch.
+      trained =
+        case ExPhil.Training.Checkpoint.load_policy(policy_path) do
+          {:ok, %{config: config}} ->
+            case ExPhil.Eval.HarnessRung.deploy_knob(:stomped, config) do
+              {:ok, knob} ->
+                knob
+
+              {:error, {:unreachable, min}} ->
+                Output.error(
+                  "The checkpoint was trained at a reaction delay the arena cannot play " <>
+                    "(its floor is latency #{min}); train at --label-delay >= #{min - 1}"
+                )
+
+                System.halt(1)
+            end
+
+          {:error, reason} ->
+            Output.error("Could not read #{policy_path}: #{inspect(reason)}")
+            System.halt(1)
+        end
+
+      lead_extra = lead_extra_flag || trained
+
+      reaction_delay =
+        case lead_extra do
+          :auto ->
+            Output.warning(
+              "--lead-extra auto with a policy: the lead can grow during a match, which " <>
+                "changes the delay the policy plays at. Pin --lead-extra #{trained} " <>
+                "(the checkpoint's trained delay) to measure the policy."
+            )
+
+            arena_input_delay + trained
+
+          n ->
+            if n != trained do
+              Output.warning(
+                "--lead-extra #{n} plays reaction delay #{arena_input_delay + n}; the " <>
+                  "checkpoint was trained at #{arena_input_delay + trained} (--lead-extra #{trained})"
+              )
+            end
+
+            arena_input_delay + n
+        end
+
       Output.puts("⏳ JIT compiling model (warm-up)... this may take 2-5 minutes")
 
       case ExPhil.Stomped.Bots.Policy.start(
              policy: policy_path,
-             lead_extra: if(lead_extra == :auto, do: 0, else: lead_extra),
+             reaction_delay: reaction_delay,
              stateful_step: not Keyword.get(opts, :windowed, false),
              deterministic: Keyword.get(opts, :deterministic, false),
              temperature: Keyword.get(opts, :temperature, 1.0)
            ) do
         {:ok, policy} ->
           Output.success(
-            "Agent warm in #{policy.warmup_ms} ms; reaction delay " <>
-              if(lead_extra == :auto,
-                do: "set per match from the round trip (at least 1)",
-                else: "#{policy.reaction_delay}"
-              )
+            "Agent warm in #{policy.warmup_ms} ms; plays reaction delay " <>
+              "#{policy.reaction_delay} (trained #{arena_input_delay + trained})"
           )
 
           {{ExPhil.Stomped.Bots.Policy,
-            seat: policy.seat, character: character, costume: costume},
-           Keyword.get(opts, :hold_ahead, 1)}
+            seat: policy.seat,
+            reaction_delay: policy.reaction_delay,
+            character: character,
+            costume: costume}, Keyword.get(opts, :hold_ahead, 1), lead_extra}
 
         {:error, reason} ->
           Output.error("Could not start the policy agent: #{inspect(reason)}")
           System.halt(1)
       end
   end
+
+timing_log = Keyword.get(opts, :timing_log)
 
 url = Keyword.get(opts, :url)
 
@@ -196,10 +266,12 @@ Output.config([
   {"Policy", opts[:policy] || "(none — quickstart walker)"},
   {"Lead",
    if(lead_extra == :auto,
-     do: "auto (from the measured round trip)",
-     else: "1 + inputDelayFrames + #{lead_extra}"
+     do: "auto (from the measured round trip; grows, never shrinks)",
+     else:
+       "1 + inputDelayFrames + #{lead_extra} (reaction delay #{arena_input_delay + lead_extra})"
    )},
   {"Hold ahead", hold_ahead},
+  {"Timing log", timing_log || "(none — pass --timing-log PATH to keep per-match summaries)"},
   {"EXLA client", inspect(Application.get_env(:exla, :default_client))},
   {"Handshake verification",
    if(url, do: "on (#{url})", else: "OFF — the URL alone is the credential")}
@@ -213,6 +285,7 @@ Output.config([
     bot: bot,
     lead_extra: lead_extra,
     hold_ahead: hold_ahead,
+    timing_log: timing_log,
     url: url,
     public_key: public_key
   )

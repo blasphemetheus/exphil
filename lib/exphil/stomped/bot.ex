@@ -16,11 +16,21 @@ defmodule ExPhil.Stomped.Bot do
 
     * `:port` — our Slippi player index (0 or 1)
     * `:lead` — frames between the frame just seen and the pad being asked for
+    * `:input_delay` — the arena's `inputDelayFrames`
+    * `:reaction_delay` — `lead - 1`: the training `--label-delay` this pad
+      corresponds to (see `ExPhil.Stomped.Match`, "Timing")
     * `:target` — the frame the returned pad will be polled at (`frame + lead`)
     * `:live?` — `false` while catching up through a `replay` answer; the pad
       is discarded, but stateful bots still need to see every frame
   """
-  @type ctx :: %{port: 0 | 1, lead: pos_integer(), target: integer(), live?: boolean()}
+  @type ctx :: %{
+          port: 0 | 1,
+          lead: pos_integer(),
+          input_delay: non_neg_integer(),
+          reaction_delay: non_neg_integer(),
+          target: integer(),
+          live?: boolean()
+        }
 
   @doc "Start a bot for one match socket. `opts` come from the server config."
   @callback init(opts :: keyword()) :: state :: term()

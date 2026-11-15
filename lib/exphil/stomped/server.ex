@@ -22,6 +22,8 @@ defmodule ExPhil.Stomped.Server do
     * `:lead_extra` — extra frames to aim ahead (see `ExPhil.Stomped.Match`)
     * `:hold_ahead` — frames each pad is repeated ahead as cover for a late
       decision (see `ExPhil.Stomped.Match`)
+    * `:timing_log` — file that gets one JSON line per closed match with its
+      timing summary (see `ExPhil.Stomped.Match.summary/1`)
     * `:url` and `:public_key` — the registered URL and the platform key;
       setting both turns on handshake verification
   """
@@ -48,7 +50,8 @@ defmodule ExPhil.Stomped.Server do
       match_opts: [
         bot: Keyword.fetch!(opts, :bot),
         lead_extra: Keyword.get(opts, :lead_extra, 0),
-        hold_ahead: Keyword.get(opts, :hold_ahead, 0)
+        hold_ahead: Keyword.get(opts, :hold_ahead, 0),
+        timing_log: Keyword.get(opts, :timing_log)
       ]
     }
 

@@ -225,10 +225,48 @@ env EXLA_TARGET=host mix run scripts/stomped_serve.exs \
   --policy eval_runs/0923_ppo/eval_candidate/candidate_policy.bin
 ```
 
-The server times the arena's `ping` each match and aims just far enough ahead
-for the measured round trip (`--lead-extra auto`, the default; a number pins
-it). When a match closes it logs the lead it used, the round trip, and how
-many pads landed or arrived late.
+#### One timing definition
+
+Observation: the game state at frame F. Controller target: frame F + 1 + k.
+Training writes this as `--label-delay k` (the causal convention pairs the
+state at F with the raw controller of F + 1 + k). The arena asks for the pad
+of frame `F + lead` with `lead = 1 + inputDelayFrames + lead_extra`, so the
+policy plays at `k = inputDelayFrames + lead_extra`. The arena's
+`inputDelayFrames` is 1: a checkpoint trained at `--label-delay 6` is served
+with `--lead-extra 5` and its pads target F + 7. The "+ 1" is the causal
+pairing itself, not latency. `test/exphil/stomped/timing_test.exs` checks the
+mapping against a recorded arena game with a deterministic bot: the pad it
+decides at F is addressed to F + 1 + k, and the controller the replay echoes
+at that frame scores as landed.
+
+With `--policy` the server pins `--lead-extra` to the checkpoint's trained
+delay by default, and the policy bot counts every live frame whose lead
+disagrees with the delay the agent was told (`delay_mismatch` in the match
+summary). `--lead-extra auto` times the arena's `ping` and aims just far
+enough ahead for the measured round trip; the lead can grow during a match,
+which silently changes the policy's task, so use it for the walker, or for a
+deliberate off-delay experiment, and not for measuring a policy.
+
+#### Measuring from the hosting location
+
+Before the first experiment, serve from where the bot will live and play
+several matches with the lead pinned:
+
+```bash
+env EXLA_TARGET=host mix run scripts/stomped_serve.exs \
+  --path-secret <secret> --url https://<host>/<secret> \
+  --policy <export.bin> --timing-log eval_runs/stomped/timing.jsonl
+```
+
+Each closed match appends one JSON line: `lead`, `reaction_delay`,
+`input_delay`, the round-trip distribution (`rtt_ms`: n, min, p50, max), the
+per-frame compute distribution (`compute_ms_mean`, `compute_ms_max`), and
+the bot's `landed`, `late`, `late_by` (how many frames late, by count),
+`unknown` (neutral pads, which cannot be scored) and `delay_mismatch` counts.
+A deployment setting is reliable when, over those matches, `late` stays near
+zero at the pinned lead and `delay_mismatch` is zero; if `late` is not, the
+round trip needs a larger `lead_extra`, and the checkpoint has to be trained
+at the matching `--label-delay`.
 
 Measured per-frame compute for the PPO Fox (512-wide GRU, stateful step) on
 one real arena game: 0.59 ms mean / 1.22 ms p99 on CPU, 1.80 ms mean / 3.02 ms
@@ -262,11 +300,14 @@ the ping and the socket under the secret path.
       with `scripts/stomped_replay_bench.exs`.
 - [ ] **Offline arena client**: replay a stored `.slp` over the socket to test
       the full path, with timing, without waiting for a ladder game.
-- [ ] **Delay choice**: a pad is due 11 ms after its frame is sent, network
+- [x] **Delay choice**: a pad is due 11 ms after its frame is sent, network
       included. The arena is in Ashburn, Virginia; from further away the bot
       aims extra frames ahead (`--lead-extra N`), which is reaction delay
       `1 + N` in ExPhil's numbering. The checkpoint must be trained at that
-      delay.
+      delay; with `--policy` the server now pins the lead to it by default,
+      and `--timing-log` records each match's round trip and late pads.
+- [ ] **Measured deployment**: several pinned-lead matches from the intended
+      host, read from the timing log, before the first training experiment.
 - [ ] **Stage coverage**: the stage is random among the six legal ones, so the
       deployed policy has to hold up on all of them.
 - [ ] **Hosting**: a home tunnel to start; a US-East host if the measured round

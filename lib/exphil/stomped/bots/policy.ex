@@ -23,9 +23,21 @@ defmodule ExPhil.Stomped.Bots.Policy do
   previous one, so the arena's own `missed` count stays at zero. This count
   is the only measure of lateness, and the one to pick `--lead-extra` from.
 
+  ## The delay the policy plays at
+
+  The agent is told one reaction delay at boot (`start/1`), and the pad target
+  the match asks for implies one (`ctx.reaction_delay`, see
+  `ExPhil.Stomped.Match`). They must agree, or the policy answers a different
+  question than it was trained on: a frame counted under `delay_mismatch` is
+  a live pad sent at a lead the agent was not told about. The count is logged
+  with the landed/late counts; a match that is not zero here was not a clean
+  measurement of the policy.
+
   ## Options
 
     * `:seat` — the `ExPhil.Stomped.Seat` holding the agent (required)
+    * `:reaction_delay` — the delay the seated agent plays at (from
+      `start/1`), checked against every live frame's lead
     * `:character`, `:costume` — the pick (default 2 = Fox, costume 0)
 
   If the seat is busy (a second match while one is live) the bot sends
@@ -56,16 +68,19 @@ defmodule ExPhil.Stomped.Bots.Policy do
   Options:
 
     * `:policy` — path to the exported policy (required)
-    * `:lead_extra` — the server's lead; the agent is told it plays at
-      reaction delay `1 + lead_extra` (the arena's `inputDelayFrames` is 1)
+    * `:reaction_delay` — the delay k the agent plays at; the server's lead
+      must then be `lead_extra = k - inputDelayFrames` (k - 1 on the arena)
+    * `:lead_extra` — alternative to `:reaction_delay`: the server's lead,
+      so k = `1 + lead_extra` (the arena's `inputDelayFrames` is 1)
     * `:stateful_step` — O(1) recurrent inference (default true)
     * `:temperature`, `:deterministic` — sampling (default: sampled at 1.0)
 
-  Returns `{:ok, %{agent:, seat:, warmup_ms:, reaction_delay:}}`.
+  Returns `{:ok, %{agent:, seat:, warmup_ms:, reaction_delay:}}`; pass
+  `reaction_delay` on to the bot's options.
   """
   @spec start(keyword()) :: {:ok, map()} | {:error, term()}
   def start(opts) do
-    reaction_delay = 1 + Keyword.get(opts, :lead_extra, 0)
+    reaction_delay = Keyword.get(opts, :reaction_delay) || 1 + Keyword.get(opts, :lead_extra, 0)
 
     agent_opts = [
       policy_path: Keyword.fetch!(opts, :policy),
@@ -74,7 +89,7 @@ defmodule ExPhil.Stomped.Bots.Policy do
       # The arena delays nothing on our side: the lead is in the pad's frame number.
       frame_delay: 0,
       harness: :stomped,
-      harness_knob: Keyword.get(opts, :lead_extra, 0),
+      harness_knob: max(reaction_delay - 1, 0),
       reaction_delay: reaction_delay,
       stateful_step: Keyword.get(opts, :stateful_step, true)
     ]
@@ -90,6 +105,7 @@ defmodule ExPhil.Stomped.Bots.Policy do
   def init(opts) do
     %{
       seat: Keyword.fetch!(opts, :seat),
+      reaction_delay: Keyword.get(opts, :reaction_delay),
       character: Keyword.get(opts, :character, 2),
       costume: Keyword.get(opts, :costume, 0),
       agent: nil,
@@ -100,6 +116,7 @@ defmodule ExPhil.Stomped.Bots.Policy do
       late: 0,
       late_by: %{},
       unknown: 0,
+      delay_mismatch: 0,
       errors: 0
     }
   end
@@ -120,7 +137,7 @@ defmodule ExPhil.Stomped.Bots.Policy do
 
   @impl true
   def handle_frame(frame, events, ctx, state) do
-    state = state |> seat() |> decoder(ctx)
+    state = state |> seat() |> decoder(ctx) |> check_delay(ctx)
 
     case Decoder.frame(state.decoder, frame, events) do
       {:ok, decoded, decoder} ->
@@ -144,15 +161,51 @@ defmodule ExPhil.Stomped.Bots.Policy do
       "[stomped policy] pads landed #{state.landed}, late #{state.late}" <>
         if(total > 0, do: " (#{Float.round(100 * state.late / total, 2)}% late)", else: "") <>
         ", unknown (neutral) #{state.unknown}, undecodable frames #{state.errors}" <>
-        if(state.late > 0, do: "; late pads read as #{late_by_text(state.late_by)}", else: "")
+        if(state.late > 0, do: "; late pads read as #{late_by_text(state.late_by)}", else: "") <>
+        if(state.delay_mismatch > 0,
+          do: "; #{state.delay_mismatch} live pads sent at a lead the agent was not told about",
+          else: ""
+        )
     )
 
     if is_pid(state.agent), do: ExPhil.Stomped.Seat.release(state.seat)
     :ok
   end
 
-  @doc "Landed/late/unknown counts so far (for tests and tooling)."
-  def stats(state), do: Map.take(state, [:landed, :late, :late_by, :unknown, :errors])
+  @doc "Landed/late/unknown/delay-mismatch counts so far (for tests and tooling)."
+  def stats(state),
+    do: Map.take(state, [:landed, :late, :late_by, :unknown, :delay_mismatch, :errors])
+
+  @doc """
+  Does the lead this frame asks for disagree with the delay the agent plays
+  at? `false` when the bot was not told the agent's delay.
+  """
+  @spec delay_mismatch?(map(), map()) :: boolean()
+  def delay_mismatch?(%{reaction_delay: k}, %{reaction_delay: lead_k}) when is_integer(k),
+    do: k != lead_k
+
+  def delay_mismatch?(_state, _ctx), do: false
+
+  # Count every live frame whose lead disagrees with the agent's delay and say
+  # so once: the fix is a pinned `--lead-extra`, not anything in the match.
+  defp check_delay(state, %{live?: true} = ctx) do
+    if delay_mismatch?(state, ctx) do
+      if state.delay_mismatch == 0 do
+        Logger.error(
+          "[stomped policy] the match asks for pads at lead #{ctx.lead} (reaction delay " <>
+            "#{ctx.reaction_delay}) but the agent plays at reaction delay #{state.reaction_delay}; " <>
+            "pin --lead-extra #{state.reaction_delay - ctx.input_delay} " <>
+            "(reaction delay - inputDelayFrames #{ctx.input_delay}) so the task matches training"
+        )
+      end
+
+      %{state | delay_mismatch: state.delay_mismatch + 1}
+    else
+      state
+    end
+  end
+
+  defp check_delay(state, _ctx), do: state
 
   defp late_by_text(late_by) do
     late_by

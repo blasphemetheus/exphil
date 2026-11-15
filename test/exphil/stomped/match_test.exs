@@ -186,7 +186,17 @@ defmodule ExPhil.Stomped.MatchTest do
       {replies, match} = Match.handle_binary(Stream.frame(-123), match)
 
       assert [%{frame: -121, buttons: 0x0200, stick_y: 0}] = pads(replies)
-      assert_received {:frame, -123, %{port: 1, lead: 2, target: -121, live?: true}}
+
+      assert_received {:frame, -123,
+                       %{
+                         port: 1,
+                         lead: 2,
+                         input_delay: 1,
+                         reaction_delay: 1,
+                         target: -121,
+                         live?: true
+                       }}
+
       assert Match.summary(match).frames == 1
     end
 

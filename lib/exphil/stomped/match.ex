@@ -8,14 +8,30 @@ defmodule ExPhil.Stomped.Match do
   messages to send back; it does no I/O, so `ExPhil.Stomped.Socket` is a thin
   wrapper and tests (or an offline replay driver) can call it directly.
 
-  ## Timing
+  ## Timing: the one definition
 
   The arena shows the game `inputDelayFrames` behind the engine. Having seen
   frame F, the first pad still open is `F + 1 + inputDelayFrames`. A bot whose
   round trip (network both ways plus compute) is over the 11 ms budget aims
-  further ahead instead: `:lead_extra` adds whole frames to that target. In
-  ExPhil's delay numbering the policy then plays at reaction delay
-  `k = inputDelayFrames + lead_extra`.
+  further ahead instead: `:lead_extra` adds whole frames to that target.
+
+      lead           = 1 + inputDelayFrames + lead_extra
+      pad target     = F + lead
+      reaction delay = k = lead - 1 = inputDelayFrames + lead_extra
+
+  This is the same k as training's `--label-delay k`
+  (`ExPhil.Data.LabelConvention`, causal convention): the state at frame F is
+  paired with the raw controller of frame `F + 1 + k`, and the arena polls the
+  pad sent for target `F + lead = F + 1 + k`. The "+ 1" is the causal pairing
+  itself (an input issued from frame F first acts on F + 1), not latency. With
+  the arena's `inputDelayFrames` of 1, a checkpoint trained at `--label-delay 6`
+  plays as trained with `lead_extra: 5` and its pads target `F + 7`.
+  `test/exphil/stomped/timing_test.exs` pins this against a recorded arena game.
+
+  Every frame's `ctx` carries `:reaction_delay` (`lead - 1`) so a bot can check
+  the lead against the delay its policy was told. A pinned `:lead_extra` keeps
+  it constant for the match; `:auto` lets the lead grow with the measured round
+  trip, which changes the policy's task mid-match, so a policy bot should pin.
   """
 
   require Logger
@@ -63,7 +79,8 @@ defmodule ExPhil.Stomped.Match do
             frames_since_ping: 0,
             rtt_recent: [],
             auto_lead: nil,
-            rtt_all: []
+            rtt_all: [],
+            timing_log: nil
 
   @type reply :: {:text, iodata()} | {:binary, binary()}
   @type t :: %__MODULE__{}
@@ -82,6 +99,9 @@ defmodule ExPhil.Stomped.Match do
       if the next decision is late the game repeats this input instead of
       reading neutral; a decision that is on time simply overwrites it.
     * `:match_id` — the id from the `x-stomped-match` header, for logs
+    * `:timing_log` — a file path; `summary/1` is appended to it as one JSON
+      line when the socket closes (see `ExPhil.Stomped.Socket`), so several
+      matches from one hosting location can be read together
   """
   @spec new(keyword()) :: t()
   def new(opts) do
@@ -92,9 +112,14 @@ defmodule ExPhil.Stomped.Match do
       bot_state: bot.init(bot_opts),
       lead_extra: Keyword.get(opts, :lead_extra, 0),
       hold_ahead: Keyword.get(opts, :hold_ahead, 0),
-      match_id: Keyword.get(opts, :match_id)
+      match_id: Keyword.get(opts, :match_id),
+      timing_log: Keyword.get(opts, :timing_log)
     }
   end
+
+  @doc "The reaction delay the current lead plays at: `lead - 1`."
+  @spec reaction_delay(t()) :: non_neg_integer()
+  def reaction_delay(%__MODULE__{lead: lead}), do: lead - 1
 
   @doc "Handle a text message (a JSON step). Returns the replies to send, in order."
   @spec handle_text(binary(), t()) :: {[reply()], t()}
@@ -163,14 +188,27 @@ defmodule ExPhil.Stomped.Match do
     end
   end
 
-  @doc "Timing and result summary, for the log line at the end of a match."
+  @doc """
+  Timing and result summary, for the log line at the end of a match.
+
+  `:bot` holds the bot's own counts when it exports `stats/1` (the policy
+  bot's landed / late / delay-mismatch pads).
+  """
   @spec summary(t()) :: map()
   def summary(%__MODULE__{} = match) do
     %{
       match_id: match.match_id,
       port: match.port,
+      input_delay: match.input_delay,
+      lead_extra: match.lead_extra,
       lead: match.lead,
+      reaction_delay: reaction_delay(match),
       frames: match.frames,
+      bot:
+        if(function_exported?(match.bot, :stats, 1),
+          do: match.bot.stats(match.bot_state),
+          else: nil
+        ),
       compute_ms_mean:
         if(match.frames > 0, do: match.compute_us_total / match.frames / 1000, else: 0.0),
       compute_ms_max: match.compute_us_max / 1000,
@@ -282,7 +320,16 @@ defmodule ExPhil.Stomped.Match do
     |> Enum.with_index()
     |> Enum.reduce({nil, match}, fn {{frame, events}, index}, {_pad, match} ->
       target = frame + match.lead
-      ctx = %{port: match.port, lead: match.lead, target: target, live?: index == last_index}
+
+      ctx = %{
+        port: match.port,
+        lead: match.lead,
+        input_delay: match.input_delay,
+        reaction_delay: reaction_delay(match),
+        target: target,
+        live?: index == last_index
+      }
+
       {inputs, bot_state} = match.bot.handle_frame(frame, events, ctx, match.bot_state)
       match = %{match | bot_state: bot_state}
 

@@ -160,10 +160,12 @@ defmodule ExPhil.Stomped.ServerTest do
     port = start_server()
     {:ok, client} = connect(port, @path, [{"x-stomped-match", "Xk3p9QaB"}])
 
-    # character → the pick
+    # character → the pick, with the round-trip ping that rides along with it
     client = push(client, {:text, Stream.step("character", %{"port" => 0})})
-    {[{:text, pick}], client} = pull(client, 1)
-    assert Jason.decode!(pick) == %{"step" => "character", "character" => 2, "costume" => 0}
+    {replies, client} = pull(client, 2)
+    texts = for {:text, json} <- replies, do: Jason.decode!(json)
+    assert %{"step" => "character", "character" => 2, "costume" => 0} in texts
+    assert %{"step" => "ping"} in texts
 
     # ready → ready
     client = push(client, {:text, Stream.step("ready", %{"port" => 0})})
