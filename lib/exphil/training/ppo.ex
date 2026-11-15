@@ -786,24 +786,26 @@ defmodule ExPhil.Training.PPO do
   end
 
   @doc """
-  Load pretrained policy weights from imitation learning checkpoint.
+  Load pretrained policy weights from an imitation policy export.
+
+  Reads both the Edifice manifest format every export has used since
+  2026-07-16 and the legacy term format, through
+  `ExPhil.Training.Checkpoint.load_policy/2`, like the `:pretrained_path`
+  option of `new/1`.
   """
   @spec load_pretrained_policy(t(), Path.t()) :: {:ok, t()} | {:error, term()}
   def load_pretrained_policy(trainer, path) do
-    case File.read(path) do
-      {:ok, binary} ->
-        checkpoint = :erlang.binary_to_term(binary, [:safe])
-        pretrained_params = Map.get(checkpoint, :policy_params) || Map.get(checkpoint, :params)
+    with {:ok, export} <- ExPhil.Training.Checkpoint.load_policy(path),
+         {:ok, pretrained} <- fetch_pretrained_params(export, path) do
+      new_params = merge_params(trainer.params, pretrained)
+      {:ok, %{trainer | params: new_params, old_params: deep_copy_params(new_params)}}
+    end
+  end
 
-        # Merge pretrained params into current params
-        new_params = merge_params(trainer.params, pretrained_params)
-
-        new_trainer = %{trainer | params: new_params, old_params: deep_copy_params(new_params)}
-
-        {:ok, new_trainer}
-
-      error ->
-        error
+  defp fetch_pretrained_params(export, path) do
+    case Map.get(export, :params) || Map.get(export, :policy_params) do
+      nil -> {:error, {:no_params, path}}
+      params -> {:ok, params}
     end
   end
 

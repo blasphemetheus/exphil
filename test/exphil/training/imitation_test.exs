@@ -372,12 +372,14 @@ defmodule ExPhil.Training.ImitationTest do
         assert result == :ok
         assert File.exists?(path)
 
-        # Verify file contents
-        {:ok, binary} = File.read(path)
-        export = :erlang.binary_to_term(binary, [:safe])
+        # Exports are the Edifice manifest format (flag byte, metadata size,
+        # metadata, Nx.serialize'd params), not a raw Erlang term; the
+        # loader is the one reader of both that and the legacy format.
+        {:ok, export} = ExPhil.Training.Checkpoint.load_policy(path)
 
         assert is_map(export.params)
         assert is_map(export.config)
+        assert export.spec[:arch] == :exphil_policy
       after
         File.rm(path)
       end
@@ -401,8 +403,7 @@ defmodule ExPhil.Training.ImitationTest do
       try do
         :ok = Imitation.export_policy(trainer, path)
 
-        {:ok, binary} = File.read(path)
-        export = :erlang.binary_to_term(binary, [:safe])
+        {:ok, export} = ExPhil.Training.Checkpoint.load_policy(path)
 
         # Verify temporal config is included
         assert export.config.embed_size == 64
@@ -430,8 +431,7 @@ defmodule ExPhil.Training.ImitationTest do
       try do
         :ok = Imitation.export_policy(trainer, path)
 
-        {:ok, binary} = File.read(path)
-        export = :erlang.binary_to_term(binary, [:safe])
+        {:ok, export} = ExPhil.Training.Checkpoint.load_policy(path)
 
         # Non-temporal should have temporal: false
         assert export.config.temporal == false
@@ -550,10 +550,13 @@ defmodule ExPhil.Training.ImitationTest do
         # Load the policy
         {:ok, policy} = ExPhil.Training.load_policy(path)
 
-        # Verify all tensors are readable
-        kernel = get_in(policy.params.data, ["backbone_dense_0", "kernel"])
+        # Verify all tensors are readable. The manifest loader hands back the
+        # plain parameter map (Edifice.Checkpoint.load unwraps ModelState);
+        # the agent accepts either shape via Utils.ensure_model_state/1.
+        kernel = get_in(policy.params, ["backbone_dense_0", "kernel"])
         values = Nx.to_flat_list(kernel)
         assert is_list(values)
+        assert length(values) == 64 * 32
       after
         File.rm(path)
       end
@@ -620,10 +623,13 @@ defmodule ExPhil.Training.ImitationTest do
       # Regression: Agent failed to load policies with non-default hidden_sizes
       # because it used default [512,512] instead of config values
       #
-      # Note: embed_size MUST match what Game.embed() produces (~1991 dims)
-      # because the agent's embed_game_state uses the real embedding, not the test config
-      embed_size = ExPhil.Embeddings.embedding_size()
-      trainer = Imitation.new(embed_size: embed_size, hidden_sizes: [32, 32])
+      # The input width must be what the live agent embeds, so let the trainer
+      # derive it from its own embed_config rather than passing
+      # Embeddings.embedding_size/0: that default counts the projectile block,
+      # which the data source here does not provide, so the agent's embedding
+      # is narrower than the default size and the export's canary records the
+      # narrower width.
+      trainer = Imitation.new(hidden_sizes: [32, 32])
       path = Path.join(System.tmp_dir!(), "regression_agent_#{:rand.uniform(10_000)}.bin")
 
       try do

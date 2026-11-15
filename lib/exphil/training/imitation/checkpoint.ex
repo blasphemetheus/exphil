@@ -358,7 +358,13 @@ defmodule ExPhil.Training.Imitation.Checkpointing do
     stored_embed_size = trainer.config[:embed_size]
 
     embed_size =
-      resolve_embed_size!(trainer.policy_params, computed_embed_size, stored_embed_size, path)
+      resolve_embed_size!(
+        trainer.policy_params,
+        model_input_width(trainer.policy_model),
+        computed_embed_size,
+        stored_embed_size,
+        path
+      )
 
     canary = embed_canary(trainer)
     export_embed_config = trainer.embed_config || Embeddings.config([])
@@ -580,7 +586,27 @@ defmodule ExPhil.Training.Imitation.Checkpointing do
   # trainer.config scalar, refuse the export if neither matches (an
   # export with lying metadata is worse than a failed export; the
   # trainer state is still live and re-exportable after a fix).
-  defp resolve_embed_size!(params, computed, stored, path) do
+  # The width the model declares for its state input ("state" for the MLP,
+  # "state_sequence" for temporal policies): the last dim of that input's
+  # shape. nil when the model is absent or declares no such input.
+  defp model_input_width(%Axon{} = model) do
+    inputs = Axon.get_inputs(model)
+
+    case Map.get(inputs, "state_sequence") || Map.get(inputs, "state") do
+      shape when is_tuple(shape) and tuple_size(shape) >= 2 ->
+        case elem(shape, tuple_size(shape) - 1) do
+          width when is_integer(width) -> width
+          _ -> nil
+        end
+
+      _ ->
+        nil
+    end
+  end
+
+  defp model_input_width(_), do: nil
+
+  defp resolve_embed_size!(params, model_width, computed, stored, path) do
     widths = tensor_leading_dims(params, MapSet.new())
     require Logger
 
@@ -588,6 +614,21 @@ defmodule ExPhil.Training.Imitation.Checkpointing do
       MapSet.size(widths) == 0 ->
         # No rank>=2 tensors to corroborate against — nothing to lint
         computed || stored
+
+      # The model's own input declaration is the authority when a parameter
+      # corroborates it. Without this, a hidden size equal to embed_config's
+      # width (256 and 256) made the resolver below prefer embed_config over
+      # the width the network was actually built with.
+      is_integer(model_width) and MapSet.member?(widths, model_width) ->
+        for {label, other} <- [{"embed_config", computed}, {"trainer.config embed_size", stored}],
+            is_integer(other) and other != model_width do
+          Logger.warning(
+            "[Checkpoint] #{label} says #{other} but the model's state input is " <>
+              "#{model_width} wide — exporting #{model_width}"
+          )
+        end
+
+        model_width
 
       is_integer(computed) and MapSet.member?(widths, computed) ->
         if is_integer(stored) and stored != computed do
