@@ -32,6 +32,9 @@
 #                     time) for reading the time structure of late pads
 #   --policy PATH     exported policy to play (ExPhil.Stomped.Bots.Policy). Without it
 #                     the quickstart walker plays, which only proves the deploy.
+#   --probe           play ExPhil.Stomped.Bots.Probe instead: every pad encodes its
+#                     target frame, so the replay shows which frame applied it
+#                     (scripts/stomped_probe_report.exs). Pin --lead-extra.
 #   --hold-ahead N    repeat each pad N frames ahead as cover for a late decision
 #                     (default 1 with --policy, 0 for the walker)
 #   --windowed        windowed inference instead of stateful step
@@ -61,6 +64,7 @@ alias ExPhil.Training.Output
       lead_extra: :string,
       timing_log: :string,
       pad_trace: :string,
+      probe: :boolean,
       policy: :string,
       hold_ahead: :integer,
       windowed: :boolean,
@@ -147,6 +151,12 @@ costume = Keyword.get(opts, :costume, 0)
 # within minutes.
 {bot, hold_ahead, lead_extra} =
   case opts[:policy] do
+    nil when opts[:probe] == true ->
+      # No cover pads: the probe wants exactly one pad per frame number.
+      {{ExPhil.Stomped.Bots.Probe,
+        character: character, costume: costume, trace: Keyword.get(opts, :pad_trace)}, 0,
+       lead_extra_flag || 5}
+
     nil ->
       {{ExPhil.Stomped.Bots.Walker, character: character, costume: costume},
        Keyword.get(opts, :hold_ahead, 0), lead_extra_flag || :auto}
@@ -285,7 +295,9 @@ Output.config([
   {"Port", port},
   {"Bind", ip},
   {"Path", path},
-  {"Policy", opts[:policy] || "(none — quickstart walker)"},
+  {"Policy",
+   opts[:policy] ||
+     if(opts[:probe], do: "(none — frame probe)", else: "(none — quickstart walker)")},
   {"Lead",
    if(lead_extra == :auto,
      do: "auto (from the measured round trip; grows, never shrinks)",
