@@ -152,20 +152,35 @@ costume = Keyword.get(opts, :costume, 0)
       # The checkpoint's trained delay is the default lead; a pinned number
       # that differs is allowed (it is a deliberate off-delay experiment) and
       # the bot counts every live frame of it under delay_mismatch.
-      trained =
+      # `trained` is the lead_extra that plays the checkpoint's trained delay,
+      # or nil when the arena cannot play that delay at all (a checkpoint
+      # trained at reaction delay 0: the arena's first open pad is one frame
+      # later). Such a checkpoint can still be served at a pinned lead to
+      # measure the host; its play is then one or more frames slower than it
+      # was trained for, and every live frame counts under delay_mismatch.
+      {trained, trained_k} =
         case ExPhil.Training.Checkpoint.load_policy(policy_path) do
           {:ok, %{config: config}} ->
+            k = max(ExPhil.Data.LabelConvention.reaction_delay(config), 0)
+
             case ExPhil.Eval.HarnessRung.deploy_knob(:stomped, config) do
               {:ok, knob} ->
-                knob
+                {knob, k}
 
               {:error, {:unreachable, min}} ->
-                Output.error(
-                  "The checkpoint was trained at a reaction delay the arena cannot play " <>
-                    "(its floor is latency #{min}); train at --label-delay >= #{min - 1}"
-                )
+                if lead_extra_flag == nil do
+                  Output.error(
+                    "The checkpoint was trained at reaction delay #{k}, which the arena " <>
+                      "cannot play (its floor is latency #{min}, reaction delay #{min - 1}). " <>
+                      "Train at --label-delay >= #{min - 1}, or pass --lead-extra " <>
+                      "#{min - 1 - arena_input_delay} to measure the host with this policy " <>
+                      "playing one frame slower than trained."
+                  )
 
-                System.halt(1)
+                  System.halt(1)
+                end
+
+                {nil, k}
             end
 
           {:error, reason} ->
@@ -180,17 +195,20 @@ costume = Keyword.get(opts, :costume, 0)
           :auto ->
             Output.warning(
               "--lead-extra auto with a policy: the lead can grow during a match, which " <>
-                "changes the delay the policy plays at. Pin --lead-extra #{trained} " <>
-                "(the checkpoint's trained delay) to measure the policy."
+                "changes the delay the policy plays at. Pin --lead-extra " <>
+                "#{trained || 0} to measure the policy."
             )
 
-            arena_input_delay + trained
+            arena_input_delay + (trained || 0)
 
           n ->
             if n != trained do
               Output.warning(
                 "--lead-extra #{n} plays reaction delay #{arena_input_delay + n}; the " <>
-                  "checkpoint was trained at #{arena_input_delay + trained} (--lead-extra #{trained})"
+                  "checkpoint was trained at #{trained_k}" <>
+                  if(trained, do: " (--lead-extra #{trained})", else: ", unreachable here") <>
+                  ". Round trip, compute and late pads are still a measurement of the host; " <>
+                  "the policy's play is not."
               )
             end
 
@@ -209,7 +227,7 @@ costume = Keyword.get(opts, :costume, 0)
         {:ok, policy} ->
           Output.success(
             "Agent warm in #{policy.warmup_ms} ms; plays reaction delay " <>
-              "#{policy.reaction_delay} (trained #{arena_input_delay + trained})"
+              "#{policy.reaction_delay} (trained #{trained_k})"
           )
 
           {{ExPhil.Stomped.Bots.Policy,
