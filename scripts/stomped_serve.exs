@@ -150,18 +150,18 @@ costume = Keyword.get(opts, :costume, 0)
 # longer than the arena's step deadlines, and a registered bot can be seated
 # within minutes.
 {bot, hold_ahead, lead_extra} =
-  case opts[:policy] do
-    nil when opts[:probe] == true ->
+  case {opts[:policy], opts[:probe]} do
+    {nil, true} ->
       # No cover pads: the probe wants exactly one pad per frame number.
       {{ExPhil.Stomped.Bots.Probe,
         character: character, costume: costume, trace: Keyword.get(opts, :pad_trace)}, 0,
        lead_extra_flag || 5}
 
-    nil ->
+    {nil, _} ->
       {{ExPhil.Stomped.Bots.Walker, character: character, costume: costume},
        Keyword.get(opts, :hold_ahead, 0), lead_extra_flag || :auto}
 
-    policy_path ->
+    {policy_path, _} ->
       # The checkpoint's trained delay is the default lead; a pinned number
       # that differs is allowed (it is a deliberate off-delay experiment) and
       # the bot counts every live frame of it under delay_mismatch.
