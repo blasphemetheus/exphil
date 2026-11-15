@@ -271,7 +271,23 @@ and is the one measure both players share.
 A deployment setting is reliable when, over those matches, `late` stays near
 zero at the pinned lead and `delay_mismatch` is zero; if `late` is not, the
 round trip needs a larger `lead_extra`, and the checkpoint has to be trained
-at the matching `--label-delay`.
+at the matching `--label-delay`. `--pad-trace PATH` adds one line per scored
+frame (frame, outcome, arrival time) for reading late pads in time.
+
+**Measured 2026-11-15, home connection through a cloudflared tunnel.** Nine
+matches, leads 7 to 9 (`--lead-extra` 5 to 7). Round trip 52 to 65 ms median
+in every match, frame arrival 16.6 ms median with a p99 under 40 ms, compute
+1.2 to 1.3 ms mean. At those numbers lead 7 (reaction delay 6) has about
+45 ms of margin and is the setting for this connection; the next checkpoint
+trains at `--label-delay 6`. One thing a longer lead did not fix: in every
+match 33 to 46 % of pads were polled one frame after the frame they named,
+in stretches of about 8 s every 16.5 to 17 s, at the same share for leads 7,
+8 and 9 and with the round trip unchanged inside and outside the stretches.
+A period of 1000 frames is the beat between the game's 59.94 Hz and a
+60.00 Hz clock, so this is on the arena's side; the arena counts those frames
+as played (its `missed` stayed under 1 %) because it polls the previous pad
+rather than neutral. Until that is resolved, a policy on the arena plays at
+its trained delay about half the time and one frame slower the other half.
 
 Measured per-frame compute for the PPO Fox (512-wide GRU, stateful step) on
 one real arena game: 0.59 ms mean / 1.22 ms p99 on CPU, 1.80 ms mean / 3.02 ms
