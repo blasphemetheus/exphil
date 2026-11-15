@@ -200,6 +200,23 @@ defmodule ExPhil.Stomped.MatchTest do
       assert Match.summary(match).frames == 1
     end
 
+    test "frame arrival spacing is measured between consecutive frames", %{match: match} do
+      {_, match} = Match.handle_binary(Stream.header(), match)
+      assert Match.summary(match).arrival_ms == nil
+
+      {_, match} = Match.handle_binary(Stream.frame(-123), match)
+      assert Match.summary(match).arrival_ms == nil
+
+      Process.sleep(40)
+      {_, match} = Match.handle_binary(Stream.frame(-122), match)
+      {_, match} = Match.handle_binary(Stream.frame(-121), match)
+
+      assert %{n: 2, median: median, p99: p99, max: max, stalls: 1} =
+               Match.summary(match).arrival_ms
+
+      assert max >= 40 and p99 == max and median <= max
+    end
+
     test "frames before the header are dropped", %{match: match} do
       assert {[], _} = Match.handle_binary(Stream.frame(10), match)
       refute_received {:frame, _, _}

@@ -70,6 +70,8 @@ defmodule ExPhil.Stomped.Match do
             frames: 0,
             compute_us_total: 0,
             compute_us_max: 0,
+            arrived_at: nil,
+            gaps_us: [],
             input_delay: 1,
             game_on?: false,
             # round-trip measurement (the `ping` step)
@@ -193,6 +195,14 @@ defmodule ExPhil.Stomped.Match do
 
   `:bot` holds the bot's own counts when it exports `stats/1` (the policy
   bot's landed / late / delay-mismatch pads).
+
+  `:arrival_ms` is the spacing between consecutive frame messages as they
+  reached this process: `n`, `median`, `p99`, `max`, and `stalls`, the number
+  of gaps of two frames or more. The arena sends one message per frame at
+  60 Hz, so this is the delivery jitter of the path (tunnel included). A
+  stall of G ms delays every pad decided from the frames it held back by
+  about G ms, which the round-trip pings, taken a few times a match, do not
+  see; late pads with a quiet `rtt_ms` are explained here.
   """
   @spec summary(t()) :: map()
   def summary(%__MODULE__{} = match) do
@@ -213,6 +223,7 @@ defmodule ExPhil.Stomped.Match do
         if(match.frames > 0, do: match.compute_us_total / match.frames / 1000, else: 0.0),
       compute_ms_max: match.compute_us_max / 1000,
       rtt_ms: rtt_summary(match.rtt_all),
+      arrival_ms: arrival_summary(match.gaps_us),
       result: match.result
     }
   end
@@ -351,15 +362,25 @@ defmodule ExPhil.Stomped.Match do
     end
   end
 
-  # Only single-frame messages are timed: a `replay` catch-up is not a frame budget.
+  # Only single-frame messages are timed: a `replay` catch-up is not a frame
+  # budget. `started` is also the message's arrival, so the gap from the
+  # previous frame's arrival is the delivery spacing.
   defp record_compute(match, [_one], started) do
     elapsed = System.monotonic_time(:microsecond) - started
+
+    gaps =
+      case match.arrived_at do
+        nil -> match.gaps_us
+        previous -> [started - previous | match.gaps_us]
+      end
 
     %{
       match
       | frames: match.frames + 1,
         compute_us_total: match.compute_us_total + elapsed,
-        compute_us_max: max(match.compute_us_max, elapsed)
+        compute_us_max: max(match.compute_us_max, elapsed),
+        arrived_at: started,
+        gaps_us: gaps
     }
   end
 
@@ -458,6 +479,24 @@ defmodule ExPhil.Stomped.Match do
   end
 
   defp game_ping(match, _frames), do: {[], match}
+
+  @stall_us round(2 * @frame_ms * 1000)
+
+  defp arrival_summary([]), do: nil
+
+  defp arrival_summary(gaps_us) do
+    sorted = Enum.sort(gaps_us)
+    n = length(sorted)
+    at = fn q -> Enum.at(sorted, min(n - 1, floor(q * n))) / 1000 end
+
+    %{
+      n: n,
+      median: at.(0.5),
+      p99: at.(0.99),
+      max: List.last(sorted) / 1000,
+      stalls: Enum.count(sorted, &(&1 >= @stall_us))
+    }
+  end
 
   defp rtt_summary([]), do: nil
 

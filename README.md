@@ -259,10 +259,15 @@ env EXLA_TARGET=host mix run scripts/stomped_serve.exs \
 ```
 
 Each closed match appends one JSON line: `lead`, `reaction_delay`,
-`input_delay`, the round-trip distribution (`rtt_ms`: n, min, p50, max), the
-per-frame compute distribution (`compute_ms_mean`, `compute_ms_max`), and
-the bot's `landed`, `late`, `late_by` (how many frames late, by count),
-`unknown` (neutral pads, which cannot be scored) and `delay_mismatch` counts.
+`input_delay`, the round-trip distribution (`rtt_ms`: n, min, median, max,
+from a few pings a match), the frame-message arrival spacing (`arrival_ms`:
+n, median, p99, max, and `stalls`, gaps of two frames or more; this is the
+delivery jitter of the path, which decides lateness and which the pings do
+not see), the per-frame compute distribution (`compute_ms_mean`,
+`compute_ms_max`), and the bot's `landed`, `late`, `late_by` (how many
+frames late, by count), `unknown` (neutral pads, which cannot be scored) and
+`delay_mismatch` counts. The arena's own `missed` per player is in `result`
+and is the one measure both players share.
 A deployment setting is reliable when, over those matches, `late` stays near
 zero at the pinned lead and `delay_mismatch` is zero; if `late` is not, the
 round trip needs a larger `lead_extra`, and the checkpoint has to be trained

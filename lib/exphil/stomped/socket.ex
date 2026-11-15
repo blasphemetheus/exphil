@@ -43,6 +43,7 @@ defmodule ExPhil.Stomped.Socket do
           "compute mean #{Float.round(summary.compute_ms_mean * 1.0, 2)} ms / " <>
           "max #{Float.round(summary.compute_ms_max * 1.0, 2)} ms, " <>
           "round trip #{rtt(summary.rtt_ms)}, " <>
+          "frame arrival #{arrival(summary.arrival_ms)}, " <>
           "result #{inspect(summary.result)}"
       )
 
@@ -53,6 +54,13 @@ defmodule ExPhil.Stomped.Socket do
   end
 
   def terminate(_reason, _state), do: :ok
+
+  defp arrival(nil), do: "not measured"
+
+  defp arrival(%{n: n, median: median, p99: p99, max: max, stalls: stalls}) do
+    "#{Float.round(median * 1.0, 1)}/#{Float.round(p99 * 1.0, 1)}/#{Float.round(max * 1.0, 1)} ms " <>
+      "median/p99/max over #{n} gaps, #{stalls} stalls of 2+ frames"
+  end
 
   @doc false
   def append_timing(path, summary) do
