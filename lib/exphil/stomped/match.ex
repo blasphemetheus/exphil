@@ -82,6 +82,7 @@ defmodule ExPhil.Stomped.Match do
             rtt_recent: [],
             auto_lead: nil,
             rtt_all: [],
+            rtt_samples: [],
             timing_log: nil
 
   @type reply :: {:text, iodata()} | {:binary, binary()}
@@ -223,6 +224,10 @@ defmodule ExPhil.Stomped.Match do
         if(match.frames > 0, do: match.compute_us_total / match.frames / 1000, else: 0.0),
       compute_ms_max: match.compute_us_max / 1000,
       rtt_ms: rtt_summary(match.rtt_all),
+      # Each round trip with the monotonic time (µs) its answer arrived, the
+      # same clock as the policy bot's pad trace, so a run of late pads can be
+      # laid next to the round trip measured during it.
+      rtt_samples: Enum.reverse(match.rtt_samples),
       arrival_ms: arrival_summary(match.gaps_us),
       result: match.result
     }
@@ -454,13 +459,15 @@ defmodule ExPhil.Stomped.Match do
   defp sample_ping(%{ping_at: nil} = match, _step), do: match
 
   defp sample_ping(%{ping_step: step} = match, step) do
-    rtt = System.monotonic_time(:millisecond) - match.ping_at
+    answered_us = System.monotonic_time(:microsecond)
+    rtt = div(answered_us, 1000) - match.ping_at
 
     %{
       match
       | ping_at: nil,
         rtt_recent: Enum.take([rtt | match.rtt_recent], @rtt_window),
-        rtt_all: [rtt | match.rtt_all]
+        rtt_all: [rtt | match.rtt_all],
+        rtt_samples: [%{at_us: answered_us, rtt_ms: rtt} | match.rtt_samples]
     }
   end
 

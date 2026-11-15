@@ -257,6 +257,8 @@ defmodule ExPhil.Stomped.MatchTest do
       assert match.lead == Match.lead_for(rtt, 1)
       assert match.lead >= 4
       assert %{n: 1, min: ^rtt} = Match.summary(match).rtt_ms
+      assert [%{rtt_ms: ^rtt, at_us: at}] = Match.summary(match).rtt_samples
+      assert is_integer(at)
     end
 
     test "a pinned lead is measured but not changed" do

@@ -38,6 +38,11 @@ defmodule ExPhil.Stomped.Bots.Policy do
     * `:seat` — the `ExPhil.Stomped.Seat` holding the agent (required)
     * `:reaction_delay` — the delay the seated agent plays at (from
       `start/1`), checked against every live frame's lead
+    * `:trace` — a file path; every scored frame is appended as
+      `frame,outcome,arrival_us` (outcome: landed, fresh, late_1..late_4,
+      neutral, unmatched, unknown; arrival is this process's monotonic clock
+      when the echoing frame came in), so the time structure of late pads
+      (runs, or scattered) can be read offline
     * `:character`, `:costume` — the pick (default 2 = Fox, costume 0)
 
   If the seat is busy (a second match while one is live) the bot sends
@@ -106,6 +111,8 @@ defmodule ExPhil.Stomped.Bots.Policy do
     %{
       seat: Keyword.fetch!(opts, :seat),
       reaction_delay: Keyword.get(opts, :reaction_delay),
+      trace: open_trace(Keyword.get(opts, :trace)),
+      arrived_us: nil,
       character: Keyword.get(opts, :character, 2),
       costume: Keyword.get(opts, :costume, 0),
       agent: nil,
@@ -138,7 +145,11 @@ defmodule ExPhil.Stomped.Bots.Policy do
 
   @impl true
   def handle_frame(frame, events, ctx, state) do
-    state = state |> seat() |> decoder(ctx) |> check_delay(ctx)
+    state =
+      %{state | arrived_us: System.monotonic_time(:microsecond)}
+      |> seat()
+      |> decoder(ctx)
+      |> check_delay(ctx)
 
     case Decoder.frame(state.decoder, frame, events) do
       {:ok, decoded, decoder} ->
@@ -171,6 +182,7 @@ defmodule ExPhil.Stomped.Bots.Policy do
     )
 
     if is_pid(state.agent), do: ExPhil.Stomped.Seat.release(state.seat)
+    if state.trace, do: File.close(state.trace)
     :ok
   end
 
@@ -284,44 +296,74 @@ defmodule ExPhil.Stomped.Bots.Policy do
       inputs ->
         read = Pad.from_controller(echo)
 
-        cond do
-          neutral?(inputs) -> %{state | unknown: state.unknown + 1}
-          landed?(inputs, read) -> %{state | landed: state.landed + 1} |> fresh(frame, read)
-          true -> %{state | late: state.late + 1, late_by: late_by(state, frame, read)}
-        end
+        {outcome, state} =
+          cond do
+            neutral?(inputs) ->
+              {:unknown, %{state | unknown: state.unknown + 1}}
+
+            landed?(inputs, read) ->
+              if fresh?(state, frame, read),
+                do: {:fresh, %{state | landed: state.landed + 1, fresh: state.fresh + 1}},
+                else: {:landed, %{state | landed: state.landed + 1}}
+
+            true ->
+              key = late_by(state, frame, read)
+
+              {late_key(key),
+               %{
+                 state
+                 | late: state.late + 1,
+                   late_by: Map.update(state.late_by, key, 1, &(&1 + 1))
+               }}
+          end
+
+        trace(state, frame, outcome)
+        state
     end
   end
+
+  defp late_key(back) when is_integer(back), do: :"late_#{back}"
+  defp late_key(other), do: other
 
   # A landed pad proves the frame numbering only when the previous frame's pad
   # would NOT also explain the echo. If the game read every pad one frame
   # later than we assume, "landed" would be exactly the frames where the pad
   # did not change, and this count would stay at zero.
-  defp fresh(state, frame, read) do
+  defp fresh?(state, frame, read) do
     case Map.get(state.sent, frame - 1) do
-      nil -> state
-      earlier -> if landed?(earlier, read), do: state, else: %{state | fresh: state.fresh + 1}
+      nil -> false
+      earlier -> not landed?(earlier, read)
     end
   end
+
+  defp open_trace(nil), do: nil
+
+  defp open_trace(path) do
+    File.mkdir_p!(Path.dirname(path))
+    File.open!(path, [:append, :utf8])
+  end
+
+  defp trace(%{trace: nil}, _frame, _outcome), do: :ok
+
+  defp trace(state, frame, outcome),
+    do: IO.write(state.trace, "#{frame},#{outcome},#{state.arrived_us}\n")
 
   # What the game read instead: the pad meant for an earlier frame (the pad
   # arrived that many frames late and the hold-ahead copy stood in), nothing
   # at all, or something that matches no recent pad.
   defp late_by(state, frame, read) do
-    key =
-      cond do
-        neutral?(read) ->
-          :neutral
+    cond do
+      neutral?(read) ->
+        :neutral
 
-        true ->
-          Enum.find(1..@late_search, :unmatched, fn back ->
-            case Map.get(state.sent, frame - back) do
-              nil -> false
-              earlier -> landed?(earlier, read)
-            end
-          end)
-      end
-
-    Map.update(state.late_by, key, 1, &(&1 + 1))
+      true ->
+        Enum.find(1..@late_search, :unmatched, fn back ->
+          case Map.get(state.sent, frame - back) do
+            nil -> false
+            earlier -> landed?(earlier, read)
+          end
+        end)
+    end
   end
 
   @doc false

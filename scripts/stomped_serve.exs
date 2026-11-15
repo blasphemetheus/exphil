@@ -28,6 +28,8 @@
 #                     so it is the default only for the walker.
 #   --timing-log PATH append one JSON line per match: lead, reaction delay,
 #                     round-trip and compute distributions, landed/late pads
+#   --pad-trace PATH  append one line per scored frame (frame, outcome, arrival
+#                     time) for reading the time structure of late pads
 #   --policy PATH     exported policy to play (ExPhil.Stomped.Bots.Policy). Without it
 #                     the quickstart walker plays, which only proves the deploy.
 #   --hold-ahead N    repeat each pad N frames ahead as cover for a late decision
@@ -58,6 +60,7 @@ alias ExPhil.Training.Output
       url: :string,
       lead_extra: :string,
       timing_log: :string,
+      pad_trace: :string,
       policy: :string,
       hold_ahead: :integer,
       windowed: :boolean,
@@ -233,6 +236,7 @@ costume = Keyword.get(opts, :costume, 0)
           {{ExPhil.Stomped.Bots.Policy,
             seat: policy.seat,
             reaction_delay: policy.reaction_delay,
+            trace: Keyword.get(opts, :pad_trace),
             character: character,
             costume: costume}, Keyword.get(opts, :hold_ahead, 1), lead_extra}
 
