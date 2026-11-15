@@ -113,6 +113,7 @@ defmodule ExPhil.Stomped.Bots.Policy do
       header: [],
       sent: %{},
       landed: 0,
+      fresh: 0,
       late: 0,
       late_by: %{},
       unknown: 0,
@@ -158,7 +159,8 @@ defmodule ExPhil.Stomped.Bots.Policy do
     total = state.landed + state.late
 
     Logger.info(
-      "[stomped policy] pads landed #{state.landed}, late #{state.late}" <>
+      "[stomped policy] pads landed #{state.landed} (#{state.fresh} on a frame where the pad " <>
+        "had changed), late #{state.late}" <>
         if(total > 0, do: " (#{Float.round(100 * state.late / total, 2)}% late)", else: "") <>
         ", unknown (neutral) #{state.unknown}, undecodable frames #{state.errors}" <>
         if(state.late > 0, do: "; late pads read as #{late_by_text(state.late_by)}", else: "") <>
@@ -174,7 +176,7 @@ defmodule ExPhil.Stomped.Bots.Policy do
 
   @doc "Landed/late/unknown/delay-mismatch counts so far (for tests and tooling)."
   def stats(state),
-    do: Map.take(state, [:landed, :late, :late_by, :unknown, :delay_mismatch, :errors])
+    do: Map.take(state, [:landed, :fresh, :late, :late_by, :unknown, :delay_mismatch, :errors])
 
   @doc """
   Does the lead this frame asks for disagree with the delay the agent plays
@@ -284,9 +286,20 @@ defmodule ExPhil.Stomped.Bots.Policy do
 
         cond do
           neutral?(inputs) -> %{state | unknown: state.unknown + 1}
-          landed?(inputs, read) -> %{state | landed: state.landed + 1}
+          landed?(inputs, read) -> %{state | landed: state.landed + 1} |> fresh(frame, read)
           true -> %{state | late: state.late + 1, late_by: late_by(state, frame, read)}
         end
+    end
+  end
+
+  # A landed pad proves the frame numbering only when the previous frame's pad
+  # would NOT also explain the echo. If the game read every pad one frame
+  # later than we assume, "landed" would be exactly the frames where the pad
+  # did not change, and this count would stay at zero.
+  defp fresh(state, frame, read) do
+    case Map.get(state.sent, frame - 1) do
+      nil -> state
+      earlier -> if landed?(earlier, read), do: state, else: %{state | fresh: state.fresh + 1}
     end
   end
 
