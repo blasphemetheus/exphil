@@ -25,7 +25,7 @@ decode = fn port ->
       case Events.frames(events) do
         {[{frame, frame_events}], []} ->
           {:ok, decoded, decoder} = Decoder.frame(decoder, frame, frame_events)
-          {[{frame, Probe.offset(decoded.controller, frame)} | acc], decoder}
+          {[{frame, Probe.offsets(decoded.controller, frame)} | acc], decoder}
 
         _ ->
           {acc, decoder}
@@ -41,10 +41,29 @@ port =
       String.to_integer(p)
 
     [] ->
-      Enum.max_by([0, 1], fn p -> Enum.count(decode.(p), fn {_, o} -> is_integer(o) end) end)
+      Enum.max_by([0, 1], fn p -> Enum.count(decode.(p), fn {_, o} -> is_integer(o.main) end) end)
   end
 
-offsets = decode.(port)
+all = decode.(port)
+
+# The other encoded fields, when the probe used them (fields: :all).
+for field <- [:c, :button, :trigger] do
+  per = Enum.map(all, fn {f, o} -> {f, o[field]} end)
+  scored = Enum.filter(per, fn {_, o} -> is_integer(o) end)
+
+  if length(scored) > 100 do
+    counts = scored |> Enum.map(&elem(&1, 1)) |> Enum.frequencies() |> Enum.sort()
+
+    IO.puts(
+      "#{field}: #{length(scored)} frames echoed a code; " <>
+        Enum.map_join(counts, ", ", fn {k, n} ->
+          "#{n} applied #{k} late (#{Float.round(100 * n / length(scored), 1)}%)"
+        end)
+    )
+  end
+end
+
+offsets = Enum.map(all, fn {f, o} -> {f, o.main} end)
 scored = Enum.filter(offsets, fn {_, o} -> is_integer(o) end)
 counts = scored |> Enum.map(&elem(&1, 1)) |> Enum.frequencies() |> Enum.sort()
 

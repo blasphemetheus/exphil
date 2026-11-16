@@ -35,6 +35,8 @@
 #   --probe           play ExPhil.Stomped.Bots.Probe instead: every pad encodes its
 #                     target frame, so the replay shows which frame applied it
 #                     (scripts/stomped_probe_report.exs). Pin --lead-extra.
+#   --probe-fields F  main (default: main stick only) or all (c-stick, A button
+#                     and L trigger too, read per field by the report)
 #   --hold-ahead N    repeat each pad N frames ahead as cover for a late decision
 #                     (default 1 with --policy, 0 for the walker)
 #   --windowed        windowed inference instead of stateful step
@@ -65,6 +67,7 @@ alias ExPhil.Training.Output
       timing_log: :string,
       pad_trace: :string,
       probe: :boolean,
+      probe_fields: :string,
       policy: :string,
       hold_ahead: :integer,
       windowed: :boolean,
@@ -153,9 +156,24 @@ costume = Keyword.get(opts, :costume, 0)
   case {opts[:policy], opts[:probe]} do
     {nil, true} ->
       # No cover pads: the probe wants exactly one pad per frame number.
+      fields =
+        case Keyword.get(opts, :probe_fields, "main") do
+          "main" ->
+            :main
+
+          "all" ->
+            :all
+
+          other ->
+            Output.error("--probe-fields must be main or all, got #{inspect(other)}")
+            System.halt(1)
+        end
+
       {{ExPhil.Stomped.Bots.Probe,
-        character: character, costume: costume, trace: Keyword.get(opts, :pad_trace)}, 0,
-       lead_extra_flag || 5}
+        character: character,
+        costume: costume,
+        fields: fields,
+        trace: Keyword.get(opts, :pad_trace)}, 0, lead_extra_flag || 5}
 
     {nil, _} ->
       {{ExPhil.Stomped.Bots.Walker, character: character, costume: costume},

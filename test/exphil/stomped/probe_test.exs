@@ -27,6 +27,20 @@ defmodule ExPhil.Stomped.ProbeTest do
     assert Enum.all?(codes, &(&1 - 128 >= 24 and &1 - 128 <= 73))
   end
 
+  test "with every field encoded, each field decodes to its own offset" do
+    for t <- [-120, 7, 1234] do
+      pad = Probe.pad(t, :all)
+      assert Probe.offsets(pad, t) == %{main: 0, c: 0, button: 0, trigger: 0}
+      assert Probe.offsets(pad, t + 1) == %{main: 1, c: 1, button: 1, trigger: 1}
+      assert Probe.offsets(pad, t + 2).button == 0
+      assert Probe.offsets(pad, t + 2).main == 2
+    end
+
+    # A main-only pad reads neutral on the other fields.
+    assert %{c: :neutral, trigger: :neutral} =
+             Probe.offsets(Map.merge(%{c_x: 128, buttons: 0, l: 0}, Probe.pad(5)), 5)
+  end
+
   # The controller the decoder would hand back for a pad the game read.
   defp controller(%{stick_x: x, stick_y: y}) do
     %ExPhil.Bridge.ControllerState{

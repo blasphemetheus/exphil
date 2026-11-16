@@ -39,10 +39,11 @@ defmodule ExPhil.Stomped.Bots.Policy do
     * `:reaction_delay` — the delay the seated agent plays at (from
       `start/1`), checked against every live frame's lead
     * `:trace` — a file path; every scored frame is appended as
-      `frame,outcome,arrival_us` (outcome: landed, fresh, late_1..late_4,
-      neutral, unmatched, unknown; arrival is this process's monotonic clock
-      when the echoing frame came in), so the time structure of late pads
-      (runs, or scattered) can be read offline
+      `frame,outcome,arrival_us,sent,echo` (outcome: landed, fresh,
+      late_1..late_4, neutral, unmatched, unknown; arrival is this process's
+      monotonic clock when the echoing frame came in; sent and echo are the
+      pad bytes as `buttons:stick_x:stick_y:c_x:c_y:l:r`), so late pads can
+      be read in time and field by field offline
     * `:character`, `:costume` — the pick (default 2 = Fox, costume 0)
 
   If the seat is busy (a second match while one is live) the bot sends
@@ -317,7 +318,7 @@ defmodule ExPhil.Stomped.Bots.Policy do
                }}
           end
 
-        trace(state, frame, outcome)
+        trace(state, frame, outcome, inputs, read)
         state
     end
   end
@@ -343,10 +344,19 @@ defmodule ExPhil.Stomped.Bots.Policy do
     File.open!(path, [:append, :utf8])
   end
 
-  defp trace(%{trace: nil}, _frame, _outcome), do: :ok
+  defp trace(%{trace: nil}, _frame, _outcome, _sent, _echo), do: :ok
 
-  defp trace(state, frame, outcome),
-    do: IO.write(state.trace, "#{frame},#{outcome},#{state.arrived_us}\n")
+  defp trace(state, frame, outcome, sent, echo) do
+    IO.write(
+      state.trace,
+      "#{frame},#{outcome},#{state.arrived_us},#{pad_text(sent)},#{pad_text(echo)}\n"
+    )
+  end
+
+  defp pad_text(pad) do
+    [:buttons, :stick_x, :stick_y, :c_x, :c_y, :l, :r]
+    |> Enum.map_join(":", &Map.get(pad, &1, 0))
+  end
 
   # What the game read instead: the pad meant for an earlier frame (the pad
   # arrived that many frames late and the hold-ahead copy stood in), nothing

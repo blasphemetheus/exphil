@@ -23,8 +23,14 @@ defmodule ExPhil.Stomped.Bots.Probe do
   match is a measurement, and it needs to last a few of the 16.7 s cycles
   the measurement is for (4 stocks usually do).
 
-  Options: `:character`, `:costume` (default Fox), `:trace` (file path for
-  `frame,offset,arrival_us` lines, the same shape as the policy bot's).
+  With `fields: :all` the frame is also encoded in the c-stick's x byte (the
+  same 50 codes), in the A button (pressed on even targets) and in the L
+  trigger's analog byte (codes 60..109), so the replay shows per field whether
+  the game applies it at the stamped frame. `offsets/2` reads all four.
+
+  Options: `:character`, `:costume` (default Fox), `:fields` (`:main`, the
+  default, or `:all`), `:trace` (file path for `frame,offset,arrival_us`
+  lines, the same shape as the policy bot's).
   """
 
   @behaviour ExPhil.Stomped.Bot
@@ -38,12 +44,17 @@ defmodule ExPhil.Stomped.Bots.Probe do
   @first 24
   @centre 128
   @codes Enum.map(@first..(@first + @modulus - 1), &(&1 + @centre))
+  # Trigger codes sit above the ~43/140 dead zone and below the 140 full press.
+  @trigger_first 60
+  @trigger_codes @trigger_first..(@trigger_first + @modulus - 1)
+  @button_a 0x0100
 
   @impl true
   def init(opts) do
     %{
       character: Keyword.get(opts, :character, 2),
       costume: Keyword.get(opts, :costume, 0),
+      fields: Keyword.get(opts, :fields, :main),
       trace: open_trace(Keyword.get(opts, :trace)),
       decoder: nil,
       header: [],
@@ -74,7 +85,7 @@ defmodule ExPhil.Stomped.Bots.Probe do
           state
       end
 
-    {pad(ctx.target), state}
+    {pad(ctx.target, state.fields), state}
   end
 
   @impl true
@@ -84,9 +95,58 @@ defmodule ExPhil.Stomped.Bots.Probe do
     :ok
   end
 
-  @doc "The pad stamped for target frame `t`: main stick x encodes `rem(t, 50)`."
-  @spec pad(integer()) :: map()
-  def pad(t), do: %{stick_x: @centre + @first + Integer.mod(t, @modulus), stick_y: @centre}
+  @doc """
+  The pad stamped for target frame `t`: main stick x encodes `rem(t, 50)`;
+  with `:all`, so do the c-stick's x, the A button (even `t`) and L trigger.
+  """
+  @spec pad(integer(), :main | :all) :: map()
+  def pad(t, fields \\ :main)
+
+  def pad(t, :main), do: %{stick_x: @centre + @first + Integer.mod(t, @modulus), stick_y: @centre}
+
+  def pad(t, :all) do
+    code = Integer.mod(t, @modulus)
+
+    %{
+      stick_x: @centre + @first + code,
+      stick_y: @centre,
+      c_x: @centre + @first + code,
+      c_y: @centre,
+      buttons: if(Integer.mod(t, 2) == 0, do: @button_a, else: 0),
+      l: @trigger_first + code
+    }
+  end
+
+  @doc """
+  `offset/2` for each encoded field: `:main` and `:c` (exact, modulo 50),
+  `:button` (0 or 1 only: A's parity), `:trigger` (L's analog byte).
+  """
+  @spec offsets(map(), integer()) :: %{atom() => non_neg_integer() | :neutral | :other}
+  def offsets(%{stick_x: _} = pad, frame) do
+    %{
+      main: offset(pad, frame),
+      c: offset(%{stick_x: pad.c_x}, frame),
+      button:
+        case pad.buttons do
+          0 -> if(Integer.mod(frame, 2) == 0, do: 1, else: 0)
+          b when Bitwise.band(b, @button_a) != 0 -> if(Integer.mod(frame, 2) == 0, do: 0, else: 1)
+          _ -> :other
+        end,
+      trigger:
+        cond do
+          pad.l == 0 ->
+            :neutral
+
+          pad.l in @trigger_codes ->
+            Integer.mod(Integer.mod(frame, @modulus) - (pad.l - @trigger_first), @modulus)
+
+          true ->
+            :other
+        end
+    }
+  end
+
+  def offsets(controller, frame), do: offsets(Pad.from_controller(controller), frame)
 
   @doc """
   How many frames late the pad echoed at `frame` was applied: 0 when it is
