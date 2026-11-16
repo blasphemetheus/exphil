@@ -289,6 +289,17 @@ as played (its `missed` stayed under 1 %) because it polls the previous pad
 rather than neutral. Until that is resolved, a policy on the arena plays at
 its trained delay about half the time and one frame slower the other half.
 
+The frame probe (`--probe --probe-fields all`, 2026-11-16, match 0esgk4Ec)
+confirmed it from the arena's own replay with no inference involved: every
+field of the pad (main stick, c-stick, A button, L trigger) was applied at
+the stamped frame until frame 1103, one frame late from frame 1104 to 1632,
+on time from 1633 to 2103, late from 2104 to 2633, on time to 3104, late from
+3105. The stretches begin every 1000 frames and last 530. A 17 s probe match
+that ended before frame 1104 (hwTfM2Cu) saw no late pads at all, which is why
+a probe needs to last past the first 20 s. `scripts/stomped_probe_report.exs`
+prints these edges for any probe replay, and `ExPhil.Stomped.ProbeReplayTest`
+fails on them.
+
 Measured per-frame compute for the PPO Fox (512-wide GRU, stateful step) on
 one real arena game: 0.59 ms mean / 1.22 ms p99 on CPU, 1.80 ms mean / 3.02 ms
 p99 on the RTX 5090. The arena's budget is 11 ms including the network.
